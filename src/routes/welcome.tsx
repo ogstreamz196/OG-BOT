@@ -859,7 +859,7 @@ function DangerZoneCta({ className = "" }: { className?: string }) {
           Enter Battle Zone
         </span>
         <span className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-yellow-100/80">
-          ☠️ Danger zone · 5 free roasts
+          ☠️ Danger zone · roast the bot
         </span>
       </span>
     </button>
