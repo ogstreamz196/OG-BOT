@@ -344,7 +344,9 @@ function DashboardHome() {
       {/* Primary CTAs — MusicHub + OG Bot at the top */}
 
       <section className="space-y-3">
-        <div className="grid grid-cols-3 items-stretch gap-3 sm:gap-5">
+        {/* Phones: one full-width row per card so text never squeezes into
+            a 100px column. sm and up: the three-column card grid. */}
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 sm:gap-5">
           <PrimaryCard
             to="/library"
             image={musicHubHero}
@@ -385,10 +387,10 @@ function DashboardHome() {
 
       {/* Quick actions */}
       <section>
-        <h2 className="mb-4 text-sm uppercase tracking-[0.28em] text-muted-foreground sm:text-base">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-foreground [text-shadow:0_1px_10px_rgba(0,0,0,0.9)] sm:mb-4 sm:text-base sm:tracking-[0.24em]">
           ⚡ Quick actions
         </h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 sm:gap-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-4">
           <QuickAction
             to="/library"
             icon={<Plus className="h-7 w-7" />}
@@ -691,7 +693,7 @@ function PrimaryCard({
       hash={hazard ? "create" : undefined}
       preload="intent"
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-3xl border-2 border-white/15 bg-card/70 shadow-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group relative flex flex-row overflow-hidden rounded-3xl border-2 border-white/15 bg-card/85 shadow-card sm:flex-col backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         wide && "sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]",
       )}
     >
@@ -711,12 +713,14 @@ function PrimaryCard({
       {/* HERO IMAGE — large, meaningful, fills the top */}
       <div
         className={cn(
-          "relative w-full overflow-hidden",
-          wide ? "aspect-video sm:aspect-auto sm:min-h-72" : "aspect-square",
+          "relative overflow-hidden",
+          wide
+            ? "aspect-video w-full sm:aspect-auto sm:min-h-72"
+            : "m-3 aspect-square w-[6.5rem] shrink-0 self-center rounded-2xl sm:m-0 sm:w-full sm:rounded-none",
         )}
       >
         {hazard ? (
-          <div className="grid h-full w-full place-items-center p-3">
+          <div className="grid h-full w-full place-items-center p-1.5 sm:p-3">
             <span
               aria-hidden="true"
               style={{
@@ -737,11 +741,11 @@ function PrimaryCard({
               />
               <span className="hazard-core absolute inset-6 rounded-full bg-white/20 blur-md" />
               <span className="relative z-10 flex flex-col items-center gap-0.5">
-                <Sparkles className="h-6 w-6 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:h-9 sm:w-9" />
-                <span className="font-display text-xl font-black uppercase leading-none drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-4xl">
+                <Sparkles className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:h-6 sm:w-6 lg:h-9 lg:w-9" />
+                <span className="font-display text-[0.8rem] font-black uppercase leading-none [overflow-wrap:normal] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-xl md:text-2xl lg:text-4xl">
                   Create
                 </span>
-                <span className="font-display text-sm font-black uppercase leading-none tracking-[0.18em] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-2xl">
+                <span className="font-display text-[0.6rem] font-black uppercase leading-none tracking-[0.18em] [overflow-wrap:normal] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-sm lg:text-2xl">
                   Now
                 </span>
               </span>
@@ -756,13 +760,13 @@ function PrimaryCard({
             height={768}
             className={
               "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 " +
-              (isAccent ? "p-4 sm:p-6" : "")
+              (isAccent ? "p-1 sm:p-4 lg:p-6" : "")
             }
           />
         )}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent"
+          className="pointer-events-none absolute inset-0 hidden bg-gradient-to-t from-card via-card/30 to-transparent sm:block"
         />
         {/* Equalizer overlay only for music card */}
         {!isAccent && !isCinema && (
@@ -782,23 +786,29 @@ function PrimaryCard({
       </div>
 
       {/* Text + CTA */}
-      <div className="relative z-10 flex flex-1 flex-col gap-2 p-3 sm:p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary sm:text-xs">
+      {/* break-word (not the global "anywhere") keeps whole words together. */}
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col justify-center gap-1 py-3 pr-1 [overflow-wrap:break-word] sm:justify-start sm:gap-2 sm:p-5">
+        <p className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-primary sm:text-xs sm:tracking-[0.22em]">
           {eyebrow}
         </p>
-        <h3 className="font-display text-lg font-black uppercase leading-[1.08] tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl">
+        <h3 className="font-display text-lg font-black uppercase leading-[1.08] tracking-tight text-foreground sm:text-2xl lg:text-3xl">
           {title}
         </h3>
-        <p className="text-[10px] font-semibold uppercase leading-relaxed tracking-[0.12em] text-muted-foreground sm:text-sm sm:tracking-[0.18em]">
+        <p className="text-xs font-semibold uppercase leading-snug tracking-[0.08em] text-muted-foreground sm:text-sm sm:leading-relaxed sm:tracking-[0.12em]">
           {body}
         </p>
-        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 pt-2 text-xs font-bold text-primary sm:text-base">
+        <div className="mt-auto hidden grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-2 font-bold text-primary sm:grid sm:text-sm lg:text-base">
           <span className="min-w-0 rounded-full border-2 border-primary/40 bg-primary/15 px-2.5 py-1.5 leading-tight backdrop-blur-sm transition-colors group-hover:bg-primary/25 sm:px-4 sm:py-2">
             {cta}
           </span>
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
         </div>
       </div>
+      {/* Phones: the whole row is the link, so a single arrow replaces the pill. */}
+      <ArrowRight
+        aria-hidden
+        className="relative z-10 mr-4 h-5 w-5 shrink-0 self-center text-foreground transition-transform group-hover:translate-x-1 sm:hidden"
+      />
     </Link>
   );
 }
@@ -825,14 +835,16 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-2 py-4 text-center backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-white/[0.08] hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-5"
+      className="group flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-card/85 px-1 py-3 text-center backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-white/[0.08] hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-5"
     >
       <span
-        className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${QUICK_TONES[tone]} shadow-glow ring-1 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6 sm:h-14 sm:w-14`}
+        className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${QUICK_TONES[tone]} shadow-glow ring-1 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6 sm:h-14 sm:w-14`}
       >
         {icon}
       </span>
-      <span className="text-sm font-bold leading-tight sm:text-base">{label}</span>
+      <span className="text-xs font-bold leading-tight [overflow-wrap:normal] sm:text-base">
+        {label}
+      </span>
     </Link>
   );
 }
