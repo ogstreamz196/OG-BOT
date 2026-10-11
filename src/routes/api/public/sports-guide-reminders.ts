@@ -71,7 +71,42 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
         } catch (e) {
           console.error("[tg] ephemeral sweep failed", e);
         }
-        return Response.json({ ok: true, sent, removed, expired });
+        // VIP ending reminders on Telegram: 3 days and 1 day before expiry, once each.
+        let vipReminded = 0;
+        try {
+          const now = Date.now();
+          const { data: vips } = await supabaseAdmin
+            .from("user_roles")
+            .select("user_id, expires_at")
+            .eq("role", "vip")
+            .not("expires_at", "is", null)
+            .gt("expires_at", new Date(now).toISOString())
+            .lte("expires_at", new Date(now + 3 * 86400_000).toISOString())
+            .limit(200);
+          for (const v of vips ?? []) {
+            const left = new Date(v.expires_at as string).getTime() - now;
+            const kind = left <= 86400_000 ? "1d" : "3d";
+            const { error: dupe } = await supabaseAdmin
+              .from("vip_expiry_reminders")
+              .insert({ user_id: v.user_id, expires_at: v.expires_at as string, kind });
+            if (dupe) continue; // already reminded
+            const { data: prof } = await supabaseAdmin
+              .from("profiles")
+              .select("telegram_chat_id")
+              .eq("id", v.user_id)
+              .maybeSingle();
+            if (!prof?.telegram_chat_id) continue;
+            const when = kind === "1d" ? "tomorrow" : "in 3 days";
+            const ok = await sendTelegramText(
+              prof.telegram_chat_id,
+              `👑 <b>Heads up, VIP</b>\n\nYour OG VIP ends ${when}. Renew now to keep every style, perk and priority cooking.\n\n<a href="https://www.ogbot.co.uk/store">Renew VIP</a>`,
+            );
+            if (ok) vipReminded++;
+          }
+        } catch (e) {
+          console.error("[vip] expiry reminders failed", e);
+        }
+        return Response.json({ ok: true, sent, removed, expired, vipReminded });
       },
     },
   },

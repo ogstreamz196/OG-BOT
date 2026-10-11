@@ -27,6 +27,7 @@ import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundM
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { GuestBattle } from "@/components/welcome/GuestBattle";
+import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import {
   CreateNowWizard,
   GUEST_PENDING_SONG_KEY,
@@ -728,6 +729,9 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
+        <div className="flex justify-center px-4 pt-6 sm:pt-10">
+          <DodgyLogo size={220} imageClassName="rounded-3xl" />
+        </div>
         <GuestBattle onNeedAccount={openAuth} />
         <CommunityShowcase />
         <Hero />

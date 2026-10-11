@@ -2130,6 +2130,27 @@ export type Database = {
         }
         Relationships: []
       }
+      vip_expiry_reminders: {
+        Row: {
+          expires_at: string
+          kind: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          kind: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          kind?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       vip_pass_credentials: {
         Row: {
           active: boolean
