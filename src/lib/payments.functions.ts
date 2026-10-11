@@ -852,42 +852,45 @@ export const refundCoinPurchase = createServerFn({ method: "POST" })
           error: `Refunds are only available within ${REFUND_WINDOW_DAYS} days of purchase.`,
         };
       }
-      const purchasedCoins = Math.max(0, Number(session.metadata?.coins ?? 0)) || 0;
-      if (purchasedCoins > 0) {
-        const { data: balRow } = await supabase
-          .from("profiles")
-          .select("coin_balance")
-          .eq("id", userId)
-          .maybeSingle();
-        if (Number(balRow?.coin_balance ?? 0) < purchasedCoins) {
-          return {
-            error: "Coins from this purchase have already been used, so it can't be refunded.",
-          };
-        }
-      }
-
-      const refund = await stripe.refunds.create({ payment_intent: pi.id });
-      const refundedAmount = toMajorUnit(refund.amount ?? 0, currency);
-
+      // Take the coins back first, in one locked step that also checks none of
+      // them have been spent. Doing it after the Stripe refund left a gap in
+      // which coins could be spent and the money still refunded.
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      const coinsToReverse = Math.max(0, Number(session.metadata?.coins ?? 0)) || 0;
-      const { data: prof } = await supabaseAdmin
-        .from("profiles")
-        .select("coin_balance")
-        .eq("id", userId)
-        .maybeSingle();
-      const current = prof?.coin_balance ?? 0;
-      const newBalance = Math.max(0, current - coinsToReverse);
-      if (coinsToReverse > 0) {
-        await supabaseAdmin.from("profiles").update({ coin_balance: newBalance }).eq("id", userId);
-        await supabaseAdmin.from("coin_transactions").insert({
-          user_id: userId,
-          amount: -coinsToReverse,
-          type: "refund",
-          reference,
-        });
+      const { data: clawback, error: clawErr } = await (supabaseAdmin as any).rpc(
+        "clawback_stripe_purchase",
+        {
+          _user_id: userId,
+          _purchase_reference: reference,
+          _refund_id: null,
+          _mode: "instant",
+        },
+      );
+      if (clawErr) return { error: "Couldn't process the refund right now. Please try again." };
+      const claw = (clawback ?? {}) as { clawed_back?: boolean; reason?: string; balance?: number };
+      if (claw.reason === "coins_spent") {
+        return {
+          error: "Coins from this purchase have already been used, so it can't be refunded.",
+        };
       }
+      // "already_applied" means the coins were already taken back (e.g. an
+      // earlier attempt stopped before Stripe ran), so finishing the Stripe
+      // refund is correct. Stripe itself rejects a second full refund.
+
+      let refund;
+      try {
+        refund = await stripe.refunds.create({ payment_intent: pi.id });
+      } catch (stripeErr) {
+        // Stripe didn't refund, so give the coins back.
+        if (claw.clawed_back) {
+          await (supabaseAdmin as any).rpc("restore_instant_refund_clawback", {
+            _user_id: userId,
+            _purchase_reference: reference,
+          });
+        }
+        throw stripeErr;
+      }
+      const refundedAmount = toMajorUnit(refund.amount ?? 0, currency);
+      const newBalance = Number(claw.balance ?? 0);
 
       return { status: "refunded", refundedAmount, currency, newBalance };
     } catch (error) {

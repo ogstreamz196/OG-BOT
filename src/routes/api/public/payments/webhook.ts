@@ -130,7 +130,9 @@ async function creditCoinsForSession(session: any, env: StripeEnv) {
   );
   if (creditErr) {
     log("error", "coin credit failed", { userId, reference, err: creditErr.message });
-    return;
+    // Throw so the webhook releases its idempotency marker and answers non-2xx;
+    // Stripe then retries and the idempotent credit runs again.
+    throw new Error(`coin credit failed: ${creditErr.message}`);
   }
 
   const credited = Boolean((result as { credited?: boolean } | null)?.credited);
@@ -380,17 +382,6 @@ async function upsertRefundRow(opts: {
   if (error) log("error", "refund upsert failed", { refundId: opts.refundId, err: error.message });
   else log("info", "refund upserted", { refundId: opts.refundId, status: opts.status, userId });
 
-  if (opts.env === "live" && opts.status === "succeeded" && opts.amount > 0) {
-    const { sendSaleToLedgerly } = await import("@/lib/ledgerly.server");
-    await sendSaleToLedgerly({
-      amount: -(opts.amount / 100),
-      description: "Refund",
-      reference: String(opts.paymentIntentId ?? opts.chargeId ?? opts.refundId),
-      externalId: `refund_${opts.refundId}`,
-    });
-  }
-
-
   // Clawback coins for successful refunds of coin-pack purchases. VIP
   // subscription refunds are handled by subscription.deleted (role revoke).
   if (opts.status === "succeeded" && sessionId) {
@@ -401,11 +392,21 @@ async function upsertRefundRow(opts: {
       env: opts.env,
     });
   }
+
+  if (opts.env === "live" && opts.status === "succeeded" && opts.amount > 0) {
+    const { sendSaleToLedgerly } = await import("@/lib/ledgerly.server");
+    await sendSaleToLedgerly({
+      amount: -(opts.amount / 100),
+      description: "Refund",
+      reference: String(opts.paymentIntentId ?? opts.chargeId ?? opts.refundId),
+      externalId: `refund_${opts.refundId}`,
+    });
+  }
 }
 
 // Deduct coins originally credited for a coin-pack purchase when that
 // purchase is refunded. Allowed to push the balance negative per product
-// decision. Idempotent via the `stripe:refund:<id>` reference.
+// decision. Idempotent per purchase (see clawback_stripe_purchase).
 async function clawbackCoinsForRefund(opts: {
   userId: string;
   sessionId: string;
@@ -413,50 +414,28 @@ async function clawbackCoinsForRefund(opts: {
   env: StripeEnv;
 }) {
   const supabase = await getAdminClient();
-  const reference = `stripe:refund:${opts.refundId}`;
-  const { data: already } = await supabase
-    .from("coin_transactions")
-    .select("id")
-    .eq("reference", reference)
-    .maybeSingle();
-  if (already) {
-    log("info", "refund clawback already applied", { reference });
-    return;
-  }
   const purchaseRef = `stripe:${opts.env}:${opts.sessionId}`;
-  const { data: orig } = await supabase
-    .from("coin_transactions")
-    .select("amount")
-    .eq("reference", purchaseRef)
-    .eq("type", "stripe_purchase")
-    .maybeSingle();
-  const coins = Number(orig?.amount ?? 0);
-  if (!coins || coins <= 0) {
-    log("info", "no original coin purchase to claw back", { purchaseRef });
-    return;
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("coin_balance")
-    .eq("id", opts.userId)
-    .maybeSingle();
-  const newBalance = (profile?.coin_balance ?? 0) - coins;
-  const { error: updErr } = await supabase
-    .from("profiles")
-    .update({ coin_balance: newBalance })
-    .eq("id", opts.userId);
-  if (updErr) {
-    log("error", "clawback balance update failed", { userId: opts.userId, err: updErr.message });
-    return;
-  }
-  const { error: txErr } = await supabase.from("coin_transactions").insert({
-    user_id: opts.userId,
-    amount: -coins,
-    type: "stripe_refund",
-    reference,
+  // Atomic and idempotent per purchase: refund.created, refund.updated and
+  // charge.refunded all arrive for one refund, and a VIP instant refund has
+  // already reversed the coins itself.
+  const { data, error } = await (supabase as any).rpc("clawback_stripe_purchase", {
+    _user_id: opts.userId,
+    _purchase_reference: purchaseRef,
+    _refund_id: opts.refundId,
+    _mode: "webhook",
   });
-  if (txErr) log("error", "clawback tx log failed", { reference, err: txErr.message });
-  else log("info", "coins clawed back", { userId: opts.userId, coins, reference, newBalance });
+  if (error) {
+    log("error", "clawback failed", { userId: opts.userId, purchaseRef, err: error.message });
+    throw new Error(`clawback failed: ${error.message}`);
+  }
+  const result = data as { clawed_back?: boolean; reason?: string; coins?: number } | null;
+  log("info", result?.clawed_back ? "coins clawed back" : "clawback skipped", {
+    userId: opts.userId,
+    purchaseRef,
+    refundId: opts.refundId,
+    coins: result?.coins,
+    reason: result?.reason,
+  });
 }
 
 async function handleRefundEvent(refund: any, env: StripeEnv) {
@@ -693,7 +672,15 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
             return Response.json({ received: true, duplicate: true });
           }
 
-          await handleEvent(event, env);
+          try {
+            await handleEvent(event, env);
+          } catch (handlerErr) {
+            // Release the marker so Stripe's retry is processed instead of
+            // being dropped as a duplicate. Every handler is idempotent.
+            const supabase = await getAdminClient();
+            await supabase.from("stripe_webhook_events").delete().eq("event_id", event.id);
+            throw handlerErr;
+          }
           return Response.json({ received: true });
         } catch (e) {
           log("error", "webhook error", { err: String((e as Error)?.message ?? e) });
