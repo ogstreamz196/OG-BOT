@@ -76,7 +76,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
   }
 
   return (
-    <section id="battle" className="relative mx-auto max-w-3xl scroll-mt-24 px-3 pt-6 pb-10 sm:px-8 sm:pt-10">
+    <section id="battle" className="relative mx-auto max-w-xl scroll-mt-24 pl-3 pr-10 pt-6 pb-10 sm:px-8 sm:pt-10">
       <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
         OG Battle Zone · live
       </p>
@@ -97,17 +97,17 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
             Roasts left: {remaining}/{GUEST_MESSAGE_LIMIT}
           </span>
         </div>
-        <div ref={scroller} className="h-80 space-y-2 overscroll-contain overflow-y-auto p-3">
+        <div ref={scroller} className="h-72 space-y-2 overflow-y-auto bg-background/60 p-3">
           {messages.length === 0 ? (
             <p className="pt-28 text-center text-sm font-medium text-card-foreground/80">
-              Throw your first roast — the chat starts from your first message.
+              👋 Say hi or throw a roast below — just start typing.
             </p>
           ) : (
             messages.map((m) => (
               <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                    m.mine ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                    m.mine ? "rounded-br-sm bg-primary text-primary-foreground" : "rounded-bl-sm bg-secondary text-secondary-foreground"
                   }`}
                 >
                   {!m.mine && (
@@ -132,11 +132,11 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={400}
-              placeholder="Say something savage…"
+              placeholder="Type a message to OG Bot…"
               disabled={sending || !guestId}
-              className="h-11 border-2 bg-background text-foreground"
+              className="h-12 rounded-full border-2 bg-background px-4 text-foreground"
             />
-            <Button type="submit" disabled={sending || !text.trim()} className="h-11 px-4">
+            <Button type="submit" disabled={sending || !text.trim()} className="h-12 w-12 shrink-0 rounded-full p-0">
               <Send className="h-4 w-4" />
               <span className="sr-only">Send</span>
             </Button>

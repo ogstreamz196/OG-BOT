@@ -86,11 +86,11 @@ export function CommunityShowcase() {
       ) : !current ? (
         <p className="mt-8 text-center text-sm text-foreground/85">New tracks dropping soon.</p>
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="mt-6 grid gap-4 rounded-3xl border-2 border-border bg-card p-3 shadow-card md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           {/* Player */}
           <div className="md:sticky md:top-24 md:self-start">
             <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-card">
-              <div className="aspect-square w-full bg-secondary">
+              <div className="aspect-square w-full bg-secondary md:aspect-video">
                 {current.coverUrl ? (
                   <img src={current.coverUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -132,14 +132,14 @@ export function CommunityShowcase() {
           </div>
 
           {/* List */}
-          <div>
+          <div className="min-w-0">
             <ul className="grid gap-2">
               {tracks.slice(0, shown).map((t) => (
                 <li key={t.id}>
                   <button
                     type="button"
                     onClick={() => play(t.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl border-2 bg-card p-2 text-left shadow-card transition hover:border-primary ${
+                    className={`flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border-2 bg-card p-2 text-left shadow-card transition hover:border-primary ${
                       current.id === t.id ? "border-primary" : "border-border"
                     }`}
                   >

@@ -728,6 +728,9 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
+        <div className="flex justify-center px-4 pt-6 sm:pt-10">
+          <DodgyLogo size={220} imageClassName="rounded-3xl" />
+        </div>
         <GuestBattle onNeedAccount={openAuth} />
         <CommunityShowcase />
         <Hero />
