@@ -27,7 +27,7 @@ export function useFillViewport<T extends HTMLElement>(bottomGutter = 0) {
       // visual viewport slides (keyboard, pinch-zoom, collapsing toolbars), so
       // shift the measurement by its offset or the panel overshoots the screen.
       const top = el.getBoundingClientRect().top - (vv?.offsetTop ?? 0);
-      const nav = document.querySelector("nav.safe-bottom.fixed") as HTMLElement | null;
+      const nav = document.querySelector("[data-bottom-nav]") as HTMLElement | null;
       const keyboardOpen = vv ? window.innerHeight - vv.height > 120 : false;
       // The mobile bottom nav is fixed — stop the panel at its top edge. While
       // the keyboard is up the nav is pushed off-screen, so ignore it then.

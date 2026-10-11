@@ -104,7 +104,7 @@ function MessengerPage() {
       <div
         ref={fillRef}
         style={fillHeight ? { height: fillHeight } : undefined}
-        className={`relative -mx-4 -mt-5 -mb-[calc(env(safe-area-inset-bottom)+72px+1.25rem)] flex flex-col overflow-hidden font-sans sm:-mx-6 sm:-mt-8 sm:-mb-[calc(env(safe-area-inset-bottom)+72px+2rem)] md:-mb-8 lg:-mx-8 lg:-mt-10 lg:-mb-10 ${foulMouth ? "hell-aura" : ""}`}
+        className={`relative -mx-4 -mt-5 -mb-[calc(env(safe-area-inset-bottom)+90px+1.25rem)] flex flex-col overflow-hidden font-sans sm:-mx-6 sm:-mt-8 sm:-mb-[calc(env(safe-area-inset-bottom)+90px+2rem)] md:-mb-8 lg:-mx-8 lg:-mt-10 lg:-mb-10 ${foulMouth ? "hell-aura" : ""}`}
       >
         {foulMouth && (
           <>

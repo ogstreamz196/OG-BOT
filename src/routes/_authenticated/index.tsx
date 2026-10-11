@@ -321,7 +321,7 @@ function DashboardHome() {
       {/* Primary CTAs — MusicHub + OG Bot at the top */}
 
       <section className="-mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex snap-x snap-mandatory overflow-x-auto gap-4 pb-4 no-scrollbar sm:grid sm:grid-cols-2 sm:gap-5 sm:pb-0">
+        <div className="flex snap-x snap-mandatory scroll-px-4 overflow-x-auto gap-4 pb-4 no-scrollbar sm:grid sm:grid-cols-2 sm:gap-5 sm:pb-0">
           <PrimaryCard
             to="/library"
             image={musicHubHero}
@@ -330,7 +330,7 @@ function DashboardHome() {
             title="Create a song"
             body="Generate · Remix · Release"
             cta="Open MusicHub"
-            className="w-[85vw] shrink-0 snap-center sm:w-auto"
+            className="w-[85vw] shrink-0 snap-start sm:w-auto"
           />
           <PrimaryCard
             to="/messenger"
@@ -341,7 +341,7 @@ function DashboardHome() {
             body="Your AI co-producer"
             cta="Open Messenger"
             variant="accent"
-            className="w-[85vw] shrink-0 snap-center sm:w-auto"
+            className="w-[85vw] shrink-0 snap-start sm:w-auto"
           />
         </div>
       </section>

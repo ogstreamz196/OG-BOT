@@ -104,8 +104,9 @@ export function GlobalMiniPlayer() {
       <div
         className={cn(
           "pointer-events-none fixed inset-x-0 z-30 px-2 transition-all duration-300",
-          // Sits just above the mobile floating tab bar.
-          "bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-3",
+          // Sits 10px above the floating tab bar: the bar's bottom offset
+          // (max(1rem, safe inset)) plus its 62px height.
+          "bottom-[calc(max(1rem,env(safe-area-inset-bottom))+4.5rem)] md:bottom-3",
           visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
         )}
         aria-hidden={!visible}

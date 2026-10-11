@@ -30,10 +30,13 @@ const TABS: Tab[] = [
 export function MobileBottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  // px/pt only: a utility p-4 would override .safe-bottom (base layer) and
+  // drop the home-indicator inset. --safe-pad keeps a 1rem minimum gap.
   return (
-    <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 p-4 md:hidden pointer-events-none">
+    <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-4 pt-4 [--safe-pad:1rem] md:hidden pointer-events-none">
       <nav
         aria-label="Primary"
+        data-bottom-nav
         className="pointer-events-auto mx-auto max-w-sm rounded-3xl border border-white/10 glass-panel shadow-glow overflow-hidden"
       >
         <ul className="grid grid-cols-5">
