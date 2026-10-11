@@ -733,13 +733,13 @@ function WelcomePage() {
           <DodgyLogo size={220} imageClassName="rounded-3xl" />
         </div>
         <GuestBattle onNeedAccount={openAuth} />
-        <CommunityShowcase />
         <Hero />
         <Superpowers />
         <HowItWorks />
         <AlbumCoverShowcase />
 
         <ClosingCta />
+        <CommunityShowcase />
         <Footer />
         <AuthModal />
         <GuestWizard />
