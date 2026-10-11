@@ -49,8 +49,18 @@ function SongCardImpl({ song }: { song: Song }) {
     });
 
   return (
-    <div className="group flex gap-4 rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:shadow-glow">
-      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gradient-brand-soft">
+    <div
+      className={cn(
+        "group flex gap-4 rounded-2xl border p-4 transition-all duration-300",
+        playing
+          ? "border-primary/50 bg-primary/5 shadow-glow scale-[1.01]"
+          : "border-border bg-card shadow-card hover:shadow-glow hover:-translate-y-0.5"
+      )}
+    >
+      <div className={cn(
+        "relative h-24 w-24 shrink-0 overflow-hidden rounded-xl",
+        playing ? "silver-fire-aura" : "bg-gradient-brand-soft"
+      )}>
         {song.cover_url ? (
           <img
             src={song.cover_url}

@@ -104,8 +104,8 @@ export function GlobalMiniPlayer() {
       <div
         className={cn(
           "pointer-events-none fixed inset-x-0 z-30 px-2 transition-all duration-300",
-          // Sits just above the mobile tab bar, flush to the bottom elsewhere.
-          "bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-3",
+          // Sits just above the mobile floating tab bar.
+          "bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-3",
           visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
         )}
         aria-hidden={!visible}
@@ -115,7 +115,7 @@ export function GlobalMiniPlayer() {
       >
         <div
           className={cn(
-            "mx-auto flex max-w-2xl items-center gap-3 rounded-2xl border border-white/10 bg-card/95 px-3 py-2 shadow-2xl backdrop-blur-xl",
+            "mx-auto flex max-w-2xl items-center gap-3 rounded-2xl border border-white/10 glass-panel shadow-glow px-3 py-2",
             visible ? "pointer-events-auto" : "pointer-events-none",
           )}
         >

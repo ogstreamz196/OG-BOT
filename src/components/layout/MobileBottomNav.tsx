@@ -31,34 +31,35 @@ export function MobileBottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <nav
-      aria-label="Primary"
-      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-background/85 backdrop-blur-xl md:hidden"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
-    >
-      <ul className="mx-auto grid max-w-3xl grid-cols-5">
-        {TABS.map(({ to, label, icon: Icon, match }) => {
-          const active = match(pathname);
-          return (
-            <li key={to} className="contents">
-              <Link
-                to={to}
-                aria-current={active ? "page" : undefined}
-                aria-label={label}
-                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[9px] font-semibold uppercase transition-colors min-[380px]:px-2 min-[380px]:text-[10px] ${
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon
-                  className={`h-5 w-5 ${active ? "drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" : ""}`}
-                  aria-hidden
-                />
-                <span className="max-w-full text-center leading-tight">{label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 p-4 md:hidden pointer-events-none">
+      <nav
+        aria-label="Primary"
+        className="pointer-events-auto mx-auto max-w-sm rounded-3xl border border-white/10 glass-panel shadow-glow overflow-hidden"
+      >
+        <ul className="grid grid-cols-5">
+          {TABS.map(({ to, label, icon: Icon, match }) => {
+            const active = match(pathname);
+            return (
+              <li key={to} className="contents">
+                <Link
+                  to={to}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={label}
+                  className={`flex min-h-[60px] min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[9px] font-bold uppercase transition-all duration-300 min-[380px]:px-2 min-[380px]:text-[10px] ${
+                    active ? "text-primary scale-105" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon
+                    className={`h-6 w-6 transition-all duration-300 ${active ? "drop-shadow-[0_0_8px_hsl(var(--primary)/0.8)]" : ""}`}
+                    aria-hidden
+                  />
+                  <span className="max-w-full text-center leading-tight">{label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
   );
 }
