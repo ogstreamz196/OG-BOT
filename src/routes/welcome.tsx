@@ -27,6 +27,7 @@ import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundM
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { GuestBattle } from "@/components/welcome/GuestBattle";
+import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import {
   CreateNowWizard,
   GUEST_PENDING_SONG_KEY,
