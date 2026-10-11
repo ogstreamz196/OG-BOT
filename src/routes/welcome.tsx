@@ -737,7 +737,7 @@ function WelcomePage() {
         <Hero />
         <Superpowers />
         <HowItWorks />
-        <AlbumCoverShowcase />
+        <EarnCoins />
 
         <ClosingCta />
         <CommunityShowcase />
@@ -1037,10 +1037,10 @@ function Superpowers() {
       body: "Savage roasts, raw bars, no filter. Turn the heat from Mild to Demon.",
     },
     {
-      key: "cover",
-      emoji: "💿",
-      title: "Instant album covers",
-      body: "Every track comes with its own artwork, ready to share.",
+      key: "takes",
+      emoji: "🎧",
+      title: "2 tracks for the price of 1",
+      body: "Unlock your first take and the second one is yours free.",
     },
     {
       key: "vip",
@@ -1074,6 +1074,65 @@ function Superpowers() {
                 multiline
                 contentKey={`welcome.power.${it.key}.body`}
                 defaultValue={it.body}
+                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
+              />
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EarnCoins() {
+  const ways = [
+    {
+      key: "battle",
+      emoji: "⚔️",
+      title: "Battle the bot",
+      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
+    },
+    {
+      key: "referral",
+      emoji: "🤝",
+      title: "Lifetime referral commission",
+      body: "Share your link — earn coins every time your friends spend, for life.",
+    },
+    {
+      key: "drop",
+      emoji: "🎁",
+      title: "Daily drop",
+      body: "Pop in each day and claim your free coin drop.",
+    },
+  ];
+  return (
+    <section id="earn" className="relative scroll-mt-24 border-t border-border/40">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
+        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
+          🪙 Earn OG Coins free
+        </p>
+        <h2 className="font-display mt-2 text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
+          Make tracks without spending a penny
+        </h2>
+        <div className="mt-8 grid gap-3 sm:gap-5 md:grid-cols-3">
+          {ways.map((w) => (
+            <article
+              key={w.key}
+              className="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-5 shadow-card sm:p-6"
+            >
+              <CardEditBadge />
+              <span className="text-4xl">{w.emoji}</span>
+              <EditableContent
+                as="h3"
+                contentKey={`welcome.earn.${w.key}.title`}
+                defaultValue={w.title}
+                className="font-display mt-3 block text-2xl font-black tracking-tight"
+              />
+              <EditableContent
+                as="p"
+                multiline
+                contentKey={`welcome.earn.${w.key}.body`}
+                defaultValue={w.body}
                 className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
               />
             </article>
