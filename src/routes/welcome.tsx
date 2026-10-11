@@ -733,13 +733,13 @@ function WelcomePage() {
           <DodgyLogo size={220} imageClassName="rounded-3xl" />
         </div>
         <GuestBattle onNeedAccount={openAuth} />
-        <CommunityShowcase />
         <Hero />
         <Superpowers />
         <HowItWorks />
         <AlbumCoverShowcase />
 
         <ClosingCta />
+        <CommunityShowcase />
         <Footer />
         <AuthModal />
         <GuestWizard />
@@ -806,6 +806,37 @@ function TopNav() {
   );
 }
 
+/** Giant red hazard-striped "create a track now" button. */
+function HazardCta({ className = "" }: { className?: string }) {
+  const stripes =
+    "repeating-linear-gradient(45deg, #FACC15 0 16px, #0B0B12 16px 32px)";
+  return (
+    <button
+      type="button"
+      onClick={openWizard}
+      aria-label="Create a track now"
+      className={`group relative w-full max-w-md overflow-hidden rounded-2xl bg-red-600 px-6 py-5 text-center text-2xl font-black uppercase tracking-wide text-red-50 shadow-[0_0_45px_-8px_rgba(220,38,38,0.9)] ring-4 ring-red-500/60 transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-red-300 active:scale-[0.98] sm:px-10 sm:py-7 sm:text-3xl ${className}`}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-2.5 transition-transform group-hover:animate-none"
+        style={{ background: stripes }}
+      />
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-2.5"
+        style={{ background: stripes }}
+      />
+      <span className="relative inline-flex items-center justify-center gap-3 [text-wrap:balance]">
+        <span className="text-3xl sm:text-4xl" aria-hidden>
+          ⚠️
+        </span>
+        Create a Track Now
+      </span>
+    </button>
+  );
+}
+
 function Hero() {
   return (
     <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
@@ -831,14 +862,8 @@ function Hero() {
           Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
         </p>
 
-        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={openWizard}
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-7 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow transition-transform hover:scale-[1.03]"
-          >
-            🔥 Start creating free
-          </button>
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:items-center">
+          <HazardCta className="sm:w-auto sm:min-w-[26rem]" />
           <a
             href="#studio"
             className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-7 text-base font-bold text-foreground backdrop-blur transition hover:border-primary/60"
@@ -1069,13 +1094,7 @@ function ClosingCta() {
         <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
           Free account in seconds · 15 days of VIP on us · No card needed.
         </p>
-        <button
-          type="button"
-          onClick={openWizard}
-          className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-8 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow transition-transform hover:scale-[1.03]"
-        >
-          🔥 Start creating free
-        </button>
+        <HazardCta className="mx-auto mt-8" />
       </div>
     </section>
   );
