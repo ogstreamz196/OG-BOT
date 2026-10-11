@@ -27,6 +27,12 @@ import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundM
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { GuestBattle } from "@/components/welcome/GuestBattle";
+import {
+  CreateNowWizard,
+  GUEST_PENDING_SONG_KEY,
+  type WizardDraft,
+  type WizardResult,
+} from "@/components/library/CreateNowWizard";
 
 function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -619,12 +625,51 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
 }
 
 const OPEN_AUTH = "og:open-auth";
+const OPEN_WIZARD = "og:open-guest-wizard";
 const openAuth = () => window.dispatchEvent(new Event(OPEN_AUTH));
+const openSongAuth = (title: string) =>
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
+const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
 
-function AuthModal() {
+/** Signed-out song wizard: nothing generates until the visitor signs in. */
+function GuestWizard() {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const on = () => setOpen(true);
+    window.addEventListener(OPEN_WIZARD, on);
+    return () => window.removeEventListener(OPEN_WIZARD, on);
+  }, []);
+  const done = (result: WizardResult, draft: WizardDraft) => {
+    try {
+      localStorage.setItem(GUEST_PENDING_SONG_KEY, JSON.stringify({ result, draft }));
+    } catch {
+      /* storage blocked */
+    }
+    // Send them to the studio after sign-in (survives Google/Apple round-trip).
+    const url = new URL(window.location.href);
+    url.searchParams.set("next", "/library");
+    window.history.replaceState(null, "", url.toString());
+    setTimeout(() => openSongAuth(result.title), 200);
+  };
+  return (
+    <CreateNowWizard
+      open={open}
+      onOpenChange={setOpen}
+      onComplete={done}
+      guestMode
+      submitLabel="Create my song"
+    />
+  );
+}
+
+function AuthModal() {
+  const [open, setOpen] = useState(false);
+  const [songTitle, setSongTitle] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      setSongTitle((e as CustomEvent<{ songTitle?: string }>).detail?.songTitle ?? null);
+      setOpen(true);
+    };
     window.addEventListener(OPEN_AUTH, on);
     // Old #sign-in links still open the form.
     const onClick = (e: MouseEvent) => {
@@ -645,6 +690,23 @@ function AuthModal() {
       <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto">
         <DialogTitle className="sr-only">Sign in or join OG Streamz</DialogTitle>
         <div id="sign-in">
+          {songTitle && (
+            <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
+              <p className="font-display text-xl font-black">Your track is ready to cook 🎧</p>
+              <p className="mt-1 text-sm">
+                <span className="font-bold">"{songTitle}"</span> is saved. Join free and it starts
+                cooking straight away.
+              </p>
+              <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
+                <li>🪙 Free welcome coins to make it</li>
+                <li>👑 15 days of VIP — every style unlocked</li>
+                <li>💸 Earn commission when friends join</li>
+              </ul>
+              <p className="mt-3 text-xs font-medium text-card-foreground/80">
+                🔒 100% free. Email only for password resets — no spam, ever.
+              </p>
+            </div>
+          )}
           <AuthButtons size="xl" />
           <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
             Free to start — new or returning, one form does both. Your Battle Zone chat comes with you.
@@ -666,9 +728,9 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
-        <Hero />
-        <CommunityShowcase />
         <GuestBattle onNeedAccount={openAuth} />
+        <CommunityShowcase />
+        <Hero />
         <Superpowers />
         <HowItWorks />
         <AlbumCoverShowcase />
@@ -676,6 +738,7 @@ function WelcomePage() {
         <ClosingCta />
         <Footer />
         <AuthModal />
+        <GuestWizard />
 
         <div className="fixed bottom-4 right-4 z-50">
           <AdminEditModeToggle />
@@ -721,7 +784,7 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-[11px]">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
               <span>OG Bot</span>
@@ -760,20 +823,21 @@ function Hero() {
           </span>
         </h1>
 
-        <p className="mx-auto mt-4 max-w-xl text-base font-medium text-muted-foreground sm:text-xl">
+        <p className="mx-auto mt-4 max-w-xl text-base font-medium text-foreground/85 sm:text-xl">
           Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
         </p>
 
         <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <a
-            href="#sign-in"
+          <button
+            type="button"
+            onClick={openWizard}
             className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-7 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow transition-transform hover:scale-[1.03]"
           >
             🔥 Start creating free
-          </a>
+          </button>
           <a
             href="#studio"
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card/70 px-7 text-base font-bold text-foreground backdrop-blur transition hover:border-primary/60"
+            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-7 text-base font-bold text-foreground backdrop-blur transition hover:border-primary/60"
           >
             <Music2 className="h-5 w-5" /> See what it makes
           </a>
@@ -787,7 +851,7 @@ function Hero() {
           ].map((c) => (
             <li
               key={c.t}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/60 px-3 py-1"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1"
             >
               {c.i}
               {c.t}
@@ -867,7 +931,7 @@ function AlbumCoverShowcase() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss personalization reminder"
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-background/60 text-muted-foreground transition hover:text-foreground"
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-background/60 text-foreground/85 transition hover:text-foreground"
         >
           ✕
         </button>
@@ -878,7 +942,7 @@ function AlbumCoverShowcase() {
           Make it as personal as you like —{" "}
           <em className="italic text-gradient-brand">the more you share, the better the song</em>
         </h3>
-        <p className="mt-3 text-sm font-medium text-muted-foreground sm:mt-4 sm:text-base">
+        <p className="mt-3 text-sm font-medium text-foreground/85 sm:mt-4 sm:text-base">
           Names, inside jokes, occasions, favourite things — drop it all in. OG Bot turns your
           details into a track that feels like <em className="italic text-foreground">them</em>. 🎧
         </p>
@@ -919,7 +983,7 @@ function Superpowers() {
           {items.map((it) => (
             <article
               key={it.key}
-              className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-5 shadow-card sm:p-6"
+              className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6"
             >
               <CardEditBadge />
               <span className="text-4xl">{it.emoji}</span>
@@ -934,7 +998,7 @@ function Superpowers() {
                 multiline
                 contentKey={`welcome.power.${it.key}.body`}
                 defaultValue={it.body}
-                className="mt-2 block text-sm leading-snug text-muted-foreground sm:text-base"
+                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
               />
             </article>
           ))}
@@ -960,7 +1024,7 @@ function HowItWorks() {
           {steps.map((s, i) => (
             <li
               key={s.title}
-              className="flex items-start gap-4 rounded-2xl border border-border/60 bg-card/70 p-5"
+              className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5"
             >
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-glow">
                 {s.icon}
@@ -970,7 +1034,7 @@ function HowItWorks() {
                   Step {i + 1}
                 </p>
                 <h3 className="font-display text-lg font-black">{s.title}</h3>
-                <p className="text-sm text-muted-foreground">{s.body}</p>
+                <p className="text-sm text-foreground/85">{s.body}</p>
               </div>
             </li>
           ))}
@@ -998,15 +1062,16 @@ function ClosingCta() {
           multiline
           className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
         />
-        <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-xl">
+        <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
           Free account in seconds · 15 days of VIP on us · No card needed.
         </p>
-        <a
-          href="#sign-in"
+        <button
+          type="button"
+          onClick={openWizard}
           className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-8 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow transition-transform hover:scale-[1.03]"
         >
           🔥 Start creating free
-        </a>
+        </button>
       </div>
     </section>
   );
@@ -1015,7 +1080,7 @@ function ClosingCta() {
 function Footer() {
   return (
     <footer className="border-t border-white/10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-muted-foreground sm:flex-row sm:px-8">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-foreground/85 sm:flex-row sm:px-8">
         <span className="inline-flex items-center gap-2">
           © {new Date().getFullYear()} OG Studio · Prompt songs powered by{" "}
           <OgBotLogo className="h-5 w-5" />

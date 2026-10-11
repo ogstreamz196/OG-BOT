@@ -78,7 +78,9 @@ import { CollapsibleStep } from "@/components/library/CollapsibleStep";
 import {
   CreateNowWizard,
   EMPTY_DRAFT,
+  GUEST_PENDING_SONG_KEY,
   type WizardDraft,
+  type WizardResult,
 } from "@/components/library/CreateNowWizard";
 import { CommunityTrackRow } from "@/components/library/CommunityTrackRow";
 import { MiniPlayer } from "@/components/library/MiniPlayer";
@@ -1340,6 +1342,54 @@ function LibraryPage() {
     }
   }
 
+  function startFromWizard(v: WizardResult, draft: WizardDraft) {
+    setWizardDraft(draft);
+    setTitle(v.title);
+    setSubjectName(v.subjectName);
+    setPersonalDetails(v.description.slice(0, PERSONAL_DETAILS_MAX));
+    setStyleText(v.style);
+    setSelections({ language: v.language });
+    setTargetMinutes(Math.max(MIN_TRACK_MINUTES, v.targetMinutes || MIN_TRACK_MINUTES));
+    // Everything now runs in the backend — set expectations with a
+    // celebratory "come back in 5" popup instead of a bare toast.
+    setCooking({ open: true, title: v.title });
+    void createSong(v);
+    window.setTimeout(
+      () => libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      250,
+    );
+  }
+
+  // A song designed before sign-up (welcome page wizard) starts cooking once
+  // the account and coins are loaded; short on coins → reopen the filled wizard.
+  const guestPickupRef = useRef(false);
+  useEffect(() => {
+    if (guestPickupRef.current || !user || !profile) return;
+    let pending: { result: WizardResult; draft: WizardDraft } | null = null;
+    try {
+      const raw = window.localStorage.getItem(GUEST_PENDING_SONG_KEY);
+      if (raw) pending = JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    if (!pending?.result || !pending?.draft) return;
+    guestPickupRef.current = true;
+    try {
+      window.localStorage.removeItem(GUEST_PENDING_SONG_KEY);
+    } catch {
+      /* ignore */
+    }
+    const draft = { ...EMPTY_DRAFT, ...pending.draft };
+    if (balance >= totalCost) {
+      toast.success(`Welcome! Cooking "${pending.result.title}" now 🔥`);
+      startFromWizard(pending.result, draft);
+    } else {
+      setWizardDraft(draft);
+      setWizardOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, profile, balance, totalCost]);
+
   return (
     <div
       data-testid="library-root"
@@ -1538,25 +1588,7 @@ function LibraryPage() {
         onOpenChange={setWizardOpen}
         initialDraft={wizardDraft}
         submitLabel="Create now"
-        onComplete={(v, draft) => {
-
-          setWizardDraft(draft);
-          setTitle(v.title);
-          setSubjectName(v.subjectName);
-          setPersonalDetails(v.description.slice(0, PERSONAL_DETAILS_MAX));
-          setStyleText(v.style);
-          setSelections({ language: v.language });
-          setTargetMinutes(Math.max(MIN_TRACK_MINUTES, v.targetMinutes || MIN_TRACK_MINUTES));
-          // Everything now runs in the backend — set expectations with a
-          // celebratory "come back in 5" popup instead of a bare toast.
-          setCooking({ open: true, title: v.title });
-          void createSong(v);
-          // Take them to their music library right after the popup.
-          window.setTimeout(
-            () => libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-            250,
-          );
-        }}
+        onComplete={startFromWizard}
       />
 
       <CookingDialog
