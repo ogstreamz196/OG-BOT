@@ -87,9 +87,9 @@ export function CommunityShowcase() {
       ) : !current ? (
         <p className="mt-8 text-center text-sm text-foreground/85">New tracks dropping soon.</p>
       ) : (
-        <div className="mt-6 grid gap-4 rounded-3xl border-2 border-border bg-card p-3 shadow-card md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="mt-6 grid w-full min-w-0 max-w-full gap-4 overflow-hidden rounded-3xl border-2 border-border bg-card p-3 shadow-card md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           {/* Player */}
-          <div className="md:sticky md:top-24 md:self-start">
+          <div className="min-w-0 max-w-full overflow-hidden md:sticky md:top-24 md:self-start">
             <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-card">
               <div className="aspect-video w-full bg-secondary">
                 {current.coverUrl && !brokenCovers[current.id] ? (
