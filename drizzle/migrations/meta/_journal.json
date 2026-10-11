@@ -71,6 +71,13 @@
       "when": 1791736108104,
       "tag": "0009_guest_battle_and_personal_clear",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791737808463,
+      "tag": "0010_vip_expiry_reminders",
+      "breakpoints": true
     }
   ]
 }
