@@ -862,14 +862,8 @@ function Hero() {
           Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
         </p>
 
-        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={openWizard}
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-7 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow transition-transform hover:scale-[1.03]"
-          >
-            🔥 Start creating free
-          </button>
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:items-center">
+          <HazardCta className="sm:w-auto sm:min-w-[26rem]" />
           <a
             href="#studio"
             className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-7 text-base font-bold text-foreground backdrop-blur transition hover:border-primary/60"
