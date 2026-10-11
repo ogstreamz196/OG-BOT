@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  GUEST_MESSAGE_LIMIT,
   listGuestBattleMessages,
   postGuestBattleMessage,
 } from "@/lib/community.functions";
@@ -46,12 +45,21 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
     enabled: !!guestId,
     refetchInterval: 8000,
   });
-  const remaining = data?.remaining ?? GUEST_MESSAGE_LIMIT;
+  const remaining = data?.remaining ?? 1;
   const messages = data?.messages ?? [];
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [messages.length]);
+
+  // Automatically prompt sign-in once the guest limit is reached,
+  // after a short beat so the bot's last comeback is seen.
+  useEffect(() => {
+    if (data && data.remaining <= 0) {
+      const t = setTimeout(onNeedAccount, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [data, onNeedAccount]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
