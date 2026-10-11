@@ -2,7 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, Send, Users, Loader2, Trash2, Coins, Flag, Trophy } from "lucide-react";
+import { ArrowDown, Send, Users, Loader2, Trash2, Coins, Flag, Trophy, Eraser } from "lucide-react";
 import { TypingDots } from "@/components/ui/typing-dots";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,8 @@ import {
   listOlderCommunityMessages,
   postCommunityMessage,
   clearCommunityMessages,
+  clearMyBattleHistory,
+  claimGuestBattleMessages,
   getBattleTally,
   getRoastOfTheDay,
   endBattle,
@@ -432,6 +434,40 @@ export function CommunityRoom() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const clearMineFn = useServerFn(clearMyBattleHistory);
+  const clearMine = useMutation({
+    mutationFn: () => clearMineFn(),
+    onSuccess: () => {
+      qc.setQueryData(["community-messages"], { messages: [] });
+      toast.success("Your chat history is cleared — only for you.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Bring across anything they typed as a guest on the welcome page.
+  const claimFn = useServerFn(claimGuestBattleMessages);
+  useEffect(() => {
+    if (!myId) return;
+    let gid: string | null = null;
+    try {
+      gid = localStorage.getItem("og-guest-id");
+    } catch {
+      /* private mode */
+    }
+    if (!gid) return;
+    claimFn({ data: { guestId: gid } })
+      .then(() => {
+        try {
+          localStorage.removeItem("og-guest-id");
+        } catch {
+          /* ignore */
+        }
+        void qc.invalidateQueries({ queryKey: ["community-messages"] });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myId]);
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const t = text.trim();
@@ -495,6 +531,26 @@ export function CommunityRoom() {
               <Flag className="h-3.5 w-3.5" />
             )}
             <span>Bank</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            disabled={clearMine.isPending}
+            title="Clear my chat history (only for me)"
+            onClick={() => {
+              if (window.confirm("Clear your Battle Zone history? Only your view is cleared — nobody else is affected.")) {
+                clearMine.mutate();
+              }
+            }}
+          >
+            {clearMine.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Eraser className="h-3 w-3" />
+            )}
+            <span className="sr-only">Clear my history</span>
           </Button>
           {canClear && (
             <Button
