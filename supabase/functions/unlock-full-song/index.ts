@@ -39,37 +39,26 @@ Deno.serve(async (req) => {
       if (song.revealed === false) {
         return jsonResponse({ error: "Song not available", code: "not_revealed" }, 404);
       }
-      const { data: existing } = await admin
-        .from("unlocked_songs")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("song_id", song_id)
-        .maybeSingle();
-      if (existing) return jsonResponse({ ok: true, already: true, cost: COMMUNITY_COST });
-
-      const reference = `community_unlock:${song_id}`;
-      const { data: balance, error: dErr } = await admin.rpc("deduct_coins", {
-        p_user: user.id,
-        p_amount: COMMUNITY_COST,
-        p_reference: reference,
+      // One atomic purchase: claim, charge and royalty succeed or fail together,
+      // so a double tap cannot charge twice and royalties are never lost.
+      const { data: purchase, error: pErr } = await admin.rpc("unlock_community_track", {
+        _buyer: user.id,
+        _song_id: song_id,
+        _cost: COMMUNITY_COST,
+        _royalty: COMMUNITY_ROYALTY,
       });
-      if (dErr)
-        return jsonResponse({ error: "Insufficient coins", code: "insufficient_coins" }, 402);
-
-      // Royalty: credit `COMMUNITY_ROYALTY` to the creator. The remainder is burnt.
-      const { data: ownerProfile } = await admin
-        .from("profiles")
-        .select("coin_balance")
-        .eq("id", song.user_id)
-        .maybeSingle();
-      const newOwnerBal = (ownerProfile?.coin_balance ?? 0) + COMMUNITY_ROYALTY;
-      await admin.from("profiles").update({ coin_balance: newOwnerBal }).eq("id", song.user_id);
-      await admin.from("coin_transactions").insert({
-        user_id: song.user_id,
-        amount: COMMUNITY_ROYALTY,
-        type: "royalty",
-        reference: `${reference}:from:${user.id}`,
-      });
+      if (pErr) {
+        if (/insufficient_coins/i.test(pErr.message)) {
+          return jsonResponse({ error: "Insufficient coins", code: "insufficient_coins" }, 402);
+        }
+        if (/not_revealed/i.test(pErr.message)) {
+          return jsonResponse({ error: "Song not available", code: "not_revealed" }, 404);
+        }
+        return jsonResponse({ error: "Could not unlock track", code: "unlock_failed" }, 409);
+      }
+      const result = (purchase ?? {}) as { already?: boolean; coin_balance?: number };
+      if (result.already) return jsonResponse({ ok: true, already: true, cost: COMMUNITY_COST });
+      const balance = result.coin_balance;
 
       // Celebrate with the creator: someone downloaded their track.
       await admin.from("user_notifications").insert({
@@ -83,17 +72,6 @@ Deno.serve(async (req) => {
           downloader: user.id,
         },
       });
-
-      const { error: lErr } = await admin.from("unlocked_songs").insert({
-        user_id: user.id,
-        song_id,
-        source: "community_purchase",
-        cost_coins: COMMUNITY_COST,
-        reference,
-      });
-      if (lErr && !String(lErr.message).includes("duplicate")) {
-        return jsonResponse({ error: lErr.message }, 500);
-      }
 
       return jsonResponse({
         ok: true,
