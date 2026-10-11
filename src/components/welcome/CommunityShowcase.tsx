@@ -151,12 +151,15 @@ export function CommunityShowcase() {
                       current.id === t.id ? "border-primary" : "border-border"
                     }`}
                   >
-                    {t.coverUrl ? (
+                    {t.coverUrl && !brokenCovers[t.id] ? (
                       <img
                         src={t.coverUrl}
                         alt=""
                         loading="lazy"
                         className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                        onError={() =>
+                          setBrokenCovers((m) => ({ ...m, [t.id]: true }))
+                        }
                       />
                     ) : (
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/20">
