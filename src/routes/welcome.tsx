@@ -910,7 +910,7 @@ function Superpowers() {
     },
   ];
   return (
-    <section id="studio" className="relative scroll-mt-24 border-t border-border/40">
+    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
         <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
           ⚡ Your superpowers
