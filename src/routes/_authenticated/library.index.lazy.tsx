@@ -78,7 +78,9 @@ import { CollapsibleStep } from "@/components/library/CollapsibleStep";
 import {
   CreateNowWizard,
   EMPTY_DRAFT,
+  GUEST_PENDING_SONG_KEY,
   type WizardDraft,
+  type WizardResult,
 } from "@/components/library/CreateNowWizard";
 import { CommunityTrackRow } from "@/components/library/CommunityTrackRow";
 import { MiniPlayer } from "@/components/library/MiniPlayer";
