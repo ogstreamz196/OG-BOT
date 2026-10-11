@@ -396,11 +396,27 @@ export type Database = {
         }
         Relationships: []
       }
+      community_history_clears: {
+        Row: {
+          cleared_at: string
+          user_id: string
+        }
+        Insert: {
+          cleared_at?: string
+          user_id: string
+        }
+        Update: {
+          cleared_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       community_messages: {
         Row: {
           content: string
           created_at: string
           display_name: string | null
+          guest_id: string | null
           id: string
           role: string
           score_tenths: number | null
@@ -410,6 +426,7 @@ export type Database = {
           content: string
           created_at?: string
           display_name?: string | null
+          guest_id?: string | null
           id?: string
           role: string
           score_tenths?: number | null
@@ -419,6 +436,7 @@ export type Database = {
           content?: string
           created_at?: string
           display_name?: string | null
+          guest_id?: string | null
           id?: string
           role?: string
           score_tenths?: number | null

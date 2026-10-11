@@ -24,6 +24,9 @@ import { toast } from "sonner";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
+import { GuestBattle } from "@/components/welcome/GuestBattle";
 
 function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -615,8 +618,45 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
   );
 }
 
+const OPEN_AUTH = "og:open-auth";
+const openAuth = () => window.dispatchEvent(new Event(OPEN_AUTH));
+
+function AuthModal() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener(OPEN_AUTH, on);
+    // Old #sign-in links still open the form.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href="#sign-in"]');
+      if (a) {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener(OPEN_AUTH, on);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto">
+        <DialogTitle className="sr-only">Sign in or join OG Streamz</DialogTitle>
+        <div id="sign-in">
+          <AuthButtons size="xl" />
+          <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
+            Free to start — new or returning, one form does both. Your Battle Zone chat comes with you.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function WelcomePage() {
-  // Single session check for the whole page (AuthButtons is mounted twice).
+  // Single session check for the whole page.
   useRedirectIfSignedIn();
   return (
     <AdminEditModeProvider>
@@ -627,12 +667,15 @@ function WelcomePage() {
         <WelcomeBackdrop />
         <TopNav />
         <Hero />
+        <CommunityShowcase />
+        <GuestBattle onNeedAccount={openAuth} />
         <Superpowers />
         <HowItWorks />
         <AlbumCoverShowcase />
 
         <ClosingCta />
         <Footer />
+        <AuthModal />
 
         <div className="fixed bottom-4 right-4 z-50">
           <AdminEditModeToggle />
@@ -678,14 +721,19 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
               <span>OG Bot</span>
             </p>
           </div>
         </Link>
-        <BackgroundMusicHeaderControl />
+        <div className="flex items-center gap-2">
+          <BackgroundMusicHeaderControl />
+          <Button size="sm" className="h-10 rounded-xl font-black uppercase" onClick={openAuth}>
+            Sign in / Join
+          </Button>
+        </div>
       </nav>
     </header>
   );
@@ -747,12 +795,6 @@ function Hero() {
           ))}
         </ul>
 
-        <div id="sign-in" className="mx-auto mt-8 max-w-md scroll-mt-24 sm:mt-10">
-          <AuthButtons size="xl" />
-          <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
-            Free to start — new or returning, one form does both.
-          </p>
-        </div>
       </div>
     </section>
   );
@@ -868,7 +910,7 @@ function Superpowers() {
     },
   ];
   return (
-    <section id="studio" className="relative scroll-mt-24 border-t border-border/40">
+    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
         <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
           ⚡ Your superpowers

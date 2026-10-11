@@ -328,6 +328,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             `${displayName}'s signature insults (they've thrown these before — at most one per reply, flip it back on them to show you remember): ${phrases.join("; ")}`,
           );
         if (lines.length) slang += `\n\nPLAYER MEMORY:\n${lines.join("\n")}`;
+        slang += await crewMemory(supabaseAdmin, history);
       } catch (e) {
         console.warn("battle memory failed", (e as Error).message);
       }
@@ -581,17 +582,238 @@ export const getBattleLeaderboard = createServerFn({ method: "GET" })
     };
   });
 
-/** New users only see Battle Zone history from their first roast onwards. */
+/**
+ * New users only see Battle Zone history from their first roast onwards,
+ * and never anything before their own personal "clear history".
+ */
 async function joinedAt(admin: any, userId: string): Promise<string | null> {
+  const [{ data }, { data: clr }] = await Promise.all([
+    admin
+      .from("community_messages")
+      .select("created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    admin.from("community_history_clears").select("cleared_at").eq("user_id", userId).maybeSingle(),
+  ]);
+  // No roasts yet → far-future cutoff so they see no history at all.
+  const first = data?.created_at ?? new Date(Date.now() + 60_000).toISOString();
+  const cleared = clr?.cleared_at as string | undefined;
+  return cleared && cleared > first ? cleared : first;
+}
+
+/** Hide everything before now — for this user only; nobody else is affected. */
+export const clearMyBattleHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("community_history_clears")
+      .upsert({ user_id: context.userId, cleared_at: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+/** After sign-up: move the guest's Battle Zone lines onto their new account. */
+export const claimGuestBattleMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await supabaseAdmin
+      .from("community_messages")
+      .update({ user_id: context.userId })
+      .eq("guest_id", data.guestId)
+      .is("user_id", null)
+      .eq("role", "user")
+      .select("id");
+    return { claimed: rows?.length ?? 0 };
+  });
+
+export const GUEST_MESSAGE_LIMIT = 5;
+
+function guestIdSchema(v: unknown): string {
+  const s = String(v ?? "");
+  if (!/^[A-Za-z0-9-]{16,64}$/.test(s)) throw new Error("Invalid guest id");
+  return s;
+}
+
+async function guestSince(admin: any, guestId: string): Promise<string> {
   const { data } = await admin
     .from("community_messages")
     .select("created_at")
-    .eq("user_id", userId)
+    .eq("guest_id", guestId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
-  // No roasts yet → far-future cutoff so they see no history at all.
   return data?.created_at ?? new Date(Date.now() + 60_000).toISOString();
+}
+
+/** Public: guest view of the Battle Zone from their first message onward. */
+export const listGuestBattleMessages = createServerFn({ method: "POST" })
+  .inputValidator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const since = await guestSince(supabaseAdmin, data.guestId);
+    const [{ data: rows }, { count }] = await Promise.all([
+      supabaseAdmin
+        .from("community_messages")
+        .select("id, role, content, display_name, created_at, guest_id")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(60),
+      supabaseAdmin
+        .from("community_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("guest_id", data.guestId)
+        .eq("role", "user"),
+    ]);
+    const used = count ?? 0;
+    return {
+      messages: (rows ?? []).reverse().map((r) => ({
+        id: r.id,
+        role: r.role as "user" | "bot",
+        content: r.content,
+        display_name: r.display_name,
+        created_at: r.created_at,
+        mine: r.guest_id === data.guestId && r.role === "user",
+      })),
+      remaining: Math.max(0, GUEST_MESSAGE_LIMIT - used),
+    };
+  });
+
+/** Public: a guest roast (max 5 per guest) + an OG Bot reply. No coins. */
+export const postGuestBattleMessage = createServerFn({ method: "POST" })
+  .inputValidator((d: { guestId: string; content: string }) => {
+    const content = String(d?.content ?? "").trim();
+    if (!content) throw new Error("Message required");
+    if (content.length > 400) throw new Error("Keep it under 400 characters");
+    return { guestId: guestIdSchema(d?.guestId), content };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count } = await supabaseAdmin
+      .from("community_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("guest_id", data.guestId)
+      .eq("role", "user");
+    if ((count ?? 0) >= GUEST_MESSAGE_LIMIT) {
+      return { ok: false as const, reason: "limit" as const, remaining: 0 };
+    }
+    // Global safety valve: cap total guest lines per minute so bots can't farm.
+    const minuteAgo = new Date(Date.now() - 60_000).toISOString();
+    const { count: recentGuests } = await supabaseAdmin
+      .from("community_messages")
+      .select("id", { count: "exact", head: true })
+      .not("guest_id", "is", null)
+      .gte("created_at", minuteAgo);
+    if ((recentGuests ?? 0) > 40) {
+      return { ok: false as const, reason: "busy" as const, remaining: GUEST_MESSAGE_LIMIT - (count ?? 0) };
+    }
+    const displayName = `Guest-${data.guestId.slice(0, 4).toUpperCase()}`;
+    const { error } = await supabaseAdmin.from("community_messages").insert({
+      user_id: null,
+      guest_id: data.guestId,
+      role: "user",
+      content: data.content,
+      display_name: displayName,
+    });
+    if (error) throw new Error(error.message);
+    await replyAsBot(supabaseAdmin, { userId: null, displayName, content: data.content, useFoul: true });
+    return { ok: true as const, remaining: Math.max(0, GUEST_MESSAGE_LIMIT - (count ?? 0) - 1) };
+  });
+
+/**
+ * Crew memory: when several players gang up, OG Bot gets each one's recent
+ * lines so it can hit back personally at everyone in the pile-on.
+ */
+async function crewMemory(
+  admin: any,
+  history: { role: string; display_name: string | null }[],
+): Promise<string> {
+  const names = [
+    ...new Set(
+      history
+        .filter((m) => m.role === "user" && m.display_name)
+        .slice(-12)
+        .map((m) => m.display_name as string),
+    ),
+  ].slice(0, 5);
+  if (names.length === 0) return "";
+  const { data } = await admin
+    .from("community_messages")
+    .select("display_name, content")
+    .eq("role", "user")
+    .in("display_name", names)
+    .order("created_at", { ascending: false })
+    .limit(60);
+  const by = new Map<string, string[]>();
+  for (const r of (data ?? []) as { display_name: string; content: string }[]) {
+    const list = by.get(r.display_name) ?? [];
+    if (list.length < 6) list.push(r.content.slice(0, 140));
+    by.set(r.display_name, list);
+  }
+  const lines = [...by.entries()].map(([n, l]) => `- ${n}: ${l.join(" | ")}`);
+  const gang =
+    names.length > 1
+      ? `\nThey're GANGING UP on you (${names.join(", ")}). Take them all on in one reply — name each one and hit them with something personal from their own past lines below. Never back down from a pile-on.`
+      : "";
+  return `\n\nCREW MEMORY (their past lines — use them for personal, specific roasts; never repeat them verbatim):\n${lines.join("\n")}${gang}`;
+}
+
+/** Shared bot reply used by guest battles. */
+async function replyAsBot(
+  admin: any,
+  opts: { userId: string | null; displayName: string; content: string; useFoul: boolean },
+): Promise<string | null> {
+  const { data: recent } = await admin
+    .from("community_messages")
+    .select("role, content, display_name")
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const history = ((recent ?? []) as { role: string; content: string; display_name: string | null }[]).reverse();
+  const { fetchAiChat } = await import("@/lib/ai-endpoint.server");
+  const lex = await import("@/lib/battle-lexicon.server");
+  void lex.learnBattleWords(admin as never, opts.content);
+  let extra = opts.useFoul ? await lex.learnedSlangBlock(admin as never) : "";
+  try {
+    extra += await crewMemory(admin, history);
+  } catch {
+    /* memory is optional */
+  }
+  try {
+    const { response: res } = await fetchAiChat(
+      {
+        temperature: opts.useFoul ? 1.05 : 0.85,
+        messages: [
+          { role: "system", content: (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) + extra },
+          ...history.map((m) => ({
+            role: m.role === "bot" ? ("assistant" as const) : ("user" as const),
+            content: m.role === "user" && m.display_name ? `${m.display_name}: ${m.content}` : m.content,
+          })),
+        ],
+      },
+      opts.userId ?? "guest",
+      { foulMouth: opts.useFoul },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json().catch(() => ({}))) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const reply = (json.choices?.[0]?.message?.content ?? "").trim();
+    if (!reply) return null;
+    await admin.from("community_messages").insert({
+      user_id: null,
+      role: "bot",
+      content: reply,
+      display_name: "OG Bot",
+    });
+    return reply;
+  } catch (e) {
+    console.warn("guest bot reply failed:", (e as Error).message);
+    return null;
+  }
 }
 
 /** Initial fetch of the latest N messages, oldest-first. */

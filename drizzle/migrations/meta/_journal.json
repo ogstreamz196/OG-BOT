@@ -64,6 +64,13 @@
       "when": 1791658487166,
       "tag": "0008_admin_has_vault_pass",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791736108104,
+      "tag": "0009_guest_battle_and_personal_clear",
+      "breakpoints": true
     }
   ]
 }
