@@ -57,7 +57,9 @@ function SongDetailPage() {
         ? 3000
         : false;
     },
-    refetchIntervalInBackground: true,
+    // Hidden tabs stop polling and catch up as soon as they are visible again.
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
   // Realtime subscription scoped to this single row.

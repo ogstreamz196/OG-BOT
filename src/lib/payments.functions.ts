@@ -820,23 +820,19 @@ export const refundCoinPurchase = createServerFn({ method: "POST" })
 
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-      const coinsToReverse = Math.max(0, Number(session.metadata?.coins ?? 0)) || 0;
-      const { data: prof } = await supabaseAdmin
-        .from("profiles")
-        .select("coin_balance")
-        .eq("id", userId)
-        .maybeSingle();
-      const current = prof?.coin_balance ?? 0;
-      const newBalance = Math.max(0, current - coinsToReverse);
-      if (coinsToReverse > 0) {
-        await supabaseAdmin.from("profiles").update({ coin_balance: newBalance }).eq("id", userId);
-        await supabaseAdmin.from("coin_transactions").insert({
-          user_id: userId,
-          amount: -coinsToReverse,
-          type: "refund",
-          reference,
-        });
-      }
+      // Shared atomic clawback: idempotent with the refund webhooks, so the
+      // coins for this purchase are reversed exactly once.
+      const { data: clawback, error: clawErr } = await (supabaseAdmin as any).rpc(
+        "clawback_stripe_purchase",
+        {
+          _user_id: userId,
+          _purchase_reference: reference,
+          _refund_id: refund.id,
+          _clamp_at_zero: true,
+        },
+      );
+      if (clawErr) console.error("refundCoinPurchase clawback failed", clawErr);
+      const newBalance = Number((clawback as { balance?: number } | null)?.balance ?? 0);
 
       return { status: "refunded", refundedAmount, currency, newBalance };
     } catch (error) {

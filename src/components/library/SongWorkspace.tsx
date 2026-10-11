@@ -306,9 +306,10 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   const isReady = song.status === "completed";
   const isFailed = song.status === "failed";
 
-  // Realtime + polling fallback: while the song is generating, listen for the row
-  // flipping to completed/failed and ask the parent to refetch so the UI moves
-  // from "Sample" → "Full ready" automatically.
+  // Realtime: while the song is generating, listen for the row flipping to
+  // completed/failed and ask the parent to refetch so the UI moves from
+  // "Sample" → "Full ready" automatically. The parent query already polls as
+  // a fallback while the song is in flight, so no second poll here.
   const lastStatus = useRef(song.status);
   useEffect(() => {
     if (!isPending) {
@@ -335,8 +336,6 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       )
       .subscribe();
 
-    // Tight 2s polling fallback in case Realtime drops a message.
-    const poll = setInterval(() => onSaved?.(), 2000);
     // Refresh the coin balance every 5s while a job is in flight — belt & braces
     // for the realtime profile subscription, so users see refunds/deductions
     // land even if the socket blips.
@@ -344,7 +343,6 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
 
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(poll);
       clearInterval(coinPoll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

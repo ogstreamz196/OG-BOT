@@ -165,9 +165,13 @@ Deno.serve(async (req) => {
   } catch { /* default to 1 */ }
   if (clips.length > maxVariants) clips = clips.slice(0, maxVariants);
 
+  // Track which row is being processed so a failure on a sibling clip does
+  // not flip the already-completed parent song to "failed".
+  let currentId: string | null = null;
   try {
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i];
+      currentId = i === 0 ? songId : null;
 
       // Idempotency: if we've already materialised a row for this Suno clip
       // (parent or sibling), skip — repeated callbacks must not duplicate.
@@ -212,6 +216,7 @@ Deno.serve(async (req) => {
         }
         targetId = sib.id;
       }
+      currentId = targetId;
 
       const samplePath = `${parentSong.user_id}/${targetId}.sample.mp3`;
       const { error: sampleUpErr } = await admin.storage.from("song-files").upload(samplePath, sampleBuf, {
@@ -266,10 +271,12 @@ Deno.serve(async (req) => {
     return new Response("ok", { status: 200 });
   } catch (e) {
     console.error("Audio processing failed", e);
-    await admin.from("songs").update({
-      status: "failed",
-      error_message: `Audio processing failed: ${(e as Error).message}`,
-    }).eq("id", songId);
+    if (currentId) {
+      await admin.from("songs").update({
+        status: "failed",
+        error_message: `Audio processing failed: ${(e as Error).message}`,
+      }).eq("id", currentId).neq("status", "completed");
+    }
     return new Response("error", { status: 500 });
   }
 });
