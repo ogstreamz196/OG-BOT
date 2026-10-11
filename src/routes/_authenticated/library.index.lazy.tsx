@@ -1015,9 +1015,12 @@ function LibraryPage() {
     queryKey: ["library", user?.id],
     enabled: !!user,
     queryFn: async (): Promise<Song[]> => {
+      // Filter by owner explicitly: admin RLS can read every song, which put
+      // other users' tracks into the Boss's own library list.
       const { data, error } = await supabase
         .from("songs")
         .select("*")
+        .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(12);
       if (error) throw error;
