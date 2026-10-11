@@ -1094,13 +1094,7 @@ function ClosingCta() {
         <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
           Free account in seconds · 15 days of VIP on us · No card needed.
         </p>
-        <button
-          type="button"
-          onClick={openWizard}
-          className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-8 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow transition-transform hover:scale-[1.03]"
-        >
-          🔥 Start creating free
-        </button>
+        <HazardCta className="mx-auto mt-8" />
       </div>
     </section>
   );
