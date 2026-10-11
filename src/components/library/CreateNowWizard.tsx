@@ -323,7 +323,7 @@ export function CreateNowWizard({
     const typedTitle = title.trim();
     const fallbackTitle = localFallbackTitle(subjectName, description);
     const finalTitle = typedTitle || fallbackTitle;
-    const titlePromise: Promise<string> | undefined = typedTitle
+    const titlePromise: Promise<string> | undefined = typedTitle || guestMode
       ? undefined
       : suggestTitle({
           data: {
