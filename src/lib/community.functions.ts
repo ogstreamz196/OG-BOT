@@ -328,6 +328,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             `${displayName}'s signature insults (they've thrown these before — at most one per reply, flip it back on them to show you remember): ${phrases.join("; ")}`,
           );
         if (lines.length) slang += `\n\nPLAYER MEMORY:\n${lines.join("\n")}`;
+        slang += await crewMemory(supabaseAdmin, history);
       } catch (e) {
         console.warn("battle memory failed", (e as Error).message);
       }
