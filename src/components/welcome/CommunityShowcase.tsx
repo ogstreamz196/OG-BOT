@@ -23,6 +23,7 @@ export function CommunityShowcase() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [shown, setShown] = useState(PAGE);
+  const [brokenCovers, setBrokenCovers] = useState<Record<string, boolean>>({});
 
   const current = tracks.find((t) => t.id === currentId) ?? tracks[0];
 
@@ -90,9 +91,16 @@ export function CommunityShowcase() {
           {/* Player */}
           <div className="md:sticky md:top-24 md:self-start">
             <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-card">
-              <div className="aspect-square w-full bg-secondary md:aspect-video">
-                {current.coverUrl ? (
-                  <img src={current.coverUrl} alt="" className="h-full w-full object-cover" />
+              <div className="aspect-video w-full bg-secondary">
+                {current.coverUrl && !brokenCovers[current.id] ? (
+                  <img
+                    src={current.coverUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={() =>
+                      setBrokenCovers((m) => ({ ...m, [current.id]: true }))
+                    }
+                  />
                 ) : (
                   <div className="grid h-full place-items-center">
                     <Music2 className="h-14 w-14 text-primary" />
@@ -143,12 +151,15 @@ export function CommunityShowcase() {
                       current.id === t.id ? "border-primary" : "border-border"
                     }`}
                   >
-                    {t.coverUrl ? (
+                    {t.coverUrl && !brokenCovers[t.id] ? (
                       <img
                         src={t.coverUrl}
                         alt=""
                         loading="lazy"
                         className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                        onError={() =>
+                          setBrokenCovers((m) => ({ ...m, [t.id]: true }))
+                        }
                       />
                     ) : (
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/20">
