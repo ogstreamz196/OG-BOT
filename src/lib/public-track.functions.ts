@@ -35,3 +35,42 @@ export const getPublicSharedTrack = createServerFn({ method: "GET" })
       audioUrl: signed.signedUrl,
     };
   });
+
+export type PublicCommunityTrack = {
+  id: string;
+  title: string;
+  style: string | null;
+  coverUrl: string | null;
+  audioUrl: string;
+};
+
+/** Public landing playlist: completed, public, revealed tracks only, short-lived signed URLs. */
+export const listPublicCommunityTracks = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PublicCommunityTrack[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: songs } = await supabaseAdmin
+      .from("songs")
+      .select("id,title,style,cover_url,audio_path")
+      .eq("status", "completed")
+      .eq("is_public", true)
+      .neq("revealed", false)
+      .not("audio_path", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(30);
+    const rows = (songs ?? []).filter((s) => s.audio_path);
+    if (rows.length === 0) return [];
+    const { data: signed } = await supabaseAdmin.storage
+      .from("song-files")
+      .createSignedUrls(rows.map((r) => r.audio_path as string), 60 * 60);
+    const urlBy = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+    return rows
+      .map((r) => ({
+        id: r.id,
+        title: r.title || "OG BOT track",
+        style: r.style,
+        coverUrl: r.cover_url,
+        audioUrl: urlBy.get(r.audio_path as string) ?? "",
+      }))
+      .filter((r) => r.audioUrl);
+  },
+);
