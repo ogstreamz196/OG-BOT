@@ -631,6 +631,8 @@ const openAuth = () => window.dispatchEvent(new Event(OPEN_AUTH));
 const openSongAuth = (title: string) =>
   window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
+const OPEN_BATTLE = "og:open-guest-battle";
+const openBattle = () => window.dispatchEvent(new Event(OPEN_BATTLE));
 
 /** Signed-out song wizard: nothing generates until the visitor signs in. */
 function GuestWizard() {
@@ -732,7 +734,6 @@ function WelcomePage() {
         <div className="flex justify-center px-4 pt-6 sm:pt-10">
           <DodgyLogo size={220} imageClassName="rounded-3xl" />
         </div>
-        <GuestBattle onNeedAccount={openAuth} />
         <Hero />
         <Superpowers />
         <HowItWorks />
@@ -837,6 +838,56 @@ function HazardCta({ className = "" }: { className?: string }) {
   );
 }
 
+/** Black/yellow danger-zone button that opens the Battle Zone popup. */
+function DangerZoneCta({ className = "" }: { className?: string }) {
+  const stripes =
+    "repeating-linear-gradient(-45deg, #FACC15 0 14px, #0B0B12 14px 28px)";
+  return (
+    <button
+      type="button"
+      onClick={openBattle}
+      aria-label="Enter Battle Zone"
+      className={`group relative w-full max-w-md overflow-hidden rounded-2xl p-2.5 shadow-[0_0_45px_-8px_rgba(250,204,21,0.8)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow-300 active:scale-[0.98] ${className}`}
+      style={{ background: stripes }}
+    >
+      <span className="relative flex flex-col items-center justify-center rounded-xl bg-zinc-950 px-6 py-4 sm:px-10 sm:py-5">
+        <span className="inline-flex items-center gap-3 text-2xl font-black uppercase tracking-wide text-yellow-300 sm:text-3xl">
+          <span className="text-3xl group-hover:animate-bounce sm:text-4xl" aria-hidden>
+            🤬
+          </span>
+          Enter Battle Zone
+        </span>
+        <span className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-yellow-100/80">
+          ☠️ Danger zone · 5 free roasts
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Battle Zone opens as its own popup so the page stays clean. */
+function BattleModal() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener(OPEN_BATTLE, on);
+    return () => window.removeEventListener(OPEN_BATTLE, on);
+  }, []);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl overflow-y-auto p-2 sm:p-4">
+        <DialogTitle className="sr-only">Battle Zone — roast OG Bot</DialogTitle>
+        <GuestBattle
+          onNeedAccount={() => {
+            setOpen(false);
+            setTimeout(openAuth, 150);
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Hero() {
   return (
     <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
@@ -862,14 +913,9 @@ function Hero() {
           Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
         </p>
 
-        <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:items-center">
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-4 sm:items-center">
           <HazardCta className="sm:w-auto sm:min-w-[26rem]" />
-          <a
-            href="#studio"
-            className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card px-7 text-base font-bold text-foreground backdrop-blur transition hover:border-primary/60"
-          >
-            <Music2 className="h-5 w-5" /> See what it makes
-          </a>
+          <DangerZoneCta className="sm:w-auto sm:min-w-[26rem]" />
         </div>
 
         <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
