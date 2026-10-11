@@ -84,8 +84,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
         Roast OG Bot. Right now.
       </h2>
       <p className="mx-auto mt-2 max-w-lg text-center text-sm font-medium text-foreground/85 sm:text-base">
-        Everyone in here can gang up on the bot. You get {GUEST_MESSAGE_LIMIT} free roasts —
-        then join to keep going.
+        Everyone in here can gang up on the bot. Throw your best shot.
       </p>
 
       <div className="mt-6 overflow-hidden rounded-3xl border-2 border-primary/60 bg-card shadow-glow">
@@ -93,9 +92,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
           <span className="inline-flex items-center gap-1.5">
             <Swords className="h-3.5 w-3.5 text-primary" /> Battle Zone
           </span>
-          <span className={remaining > 0 ? "text-primary" : "text-destructive"}>
-            Roasts left: {remaining}/{GUEST_MESSAGE_LIMIT}
-          </span>
+          <span className="text-primary">Live</span>
         </div>
         <div ref={scroller} className="h-72 space-y-2 overflow-y-auto bg-background/60 p-3">
           {messages.length === 0 ? (
@@ -143,7 +140,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
           </form>
         ) : (
           <div className="border-t-2 border-border bg-secondary p-3 text-center">
-            <p className="text-sm font-semibold">That's your 5. Join free to keep battling — your chat comes with you.</p>
+            <p className="text-sm font-semibold">Join free to keep battling — your chat comes with you.</p>
             <Button className="mt-2 h-11 w-full" onClick={onNeedAccount}>
               🔥 Join to continue
             </Button>
