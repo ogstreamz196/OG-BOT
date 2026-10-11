@@ -320,8 +320,8 @@ function DashboardHome() {
 
       {/* Primary CTAs — MusicHub + OG Bot at the top */}
 
-      <section className="space-y-3">
-        <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-5">
+      <section className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex snap-x snap-mandatory overflow-x-auto gap-4 pb-4 no-scrollbar sm:grid sm:grid-cols-2 sm:gap-5 sm:pb-0">
           <PrimaryCard
             to="/library"
             image={musicHubHero}
@@ -330,6 +330,7 @@ function DashboardHome() {
             title="Create a song"
             body="Generate · Remix · Release"
             cta="Open MusicHub"
+            className="w-[85vw] shrink-0 snap-center sm:w-auto"
           />
           <PrimaryCard
             to="/messenger"
@@ -340,6 +341,7 @@ function DashboardHome() {
             body="Your AI co-producer"
             cta="Open Messenger"
             variant="accent"
+            className="w-[85vw] shrink-0 snap-center sm:w-auto"
           />
         </div>
       </section>
@@ -646,6 +648,7 @@ function PrimaryCard({
   cta,
   variant = "primary",
   wide = false,
+  className,
 }: {
   to: "/library" | "/messenger";
   image: string;
@@ -656,6 +659,7 @@ function PrimaryCard({
   cta: string;
   variant?: "primary" | "accent" | "cinema";
   wide?: boolean;
+  className?: string;
 }) {
   const isAccent = variant === "accent";
   const isCinema = variant === "cinema";
@@ -666,6 +670,7 @@ function PrimaryCard({
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-3xl border-2 border-white/15 bg-card/70 shadow-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         wide && "sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]",
+        className
       )}
     >
       {/* Ambient gradient */}
@@ -685,7 +690,7 @@ function PrimaryCard({
       <div
         className={cn(
           "relative w-full overflow-hidden",
-          wide ? "aspect-video sm:aspect-auto sm:min-h-72" : "aspect-square",
+          wide ? "aspect-[16/7] sm:aspect-auto sm:min-h-72" : "aspect-[4/5] sm:aspect-square",
         )}
       >
         <img
@@ -721,21 +726,21 @@ function PrimaryCard({
       </div>
 
       {/* Text + CTA */}
-      <div className="relative z-10 flex flex-1 flex-col gap-2 p-3 sm:p-5">
+      <div className="relative z-10 flex flex-1 flex-col gap-2 p-4 sm:p-5">
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary sm:text-xs">
           {eyebrow}
         </p>
-        <h3 className="font-display text-lg font-black uppercase leading-[1.08] tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-3xl">
+        <h3 className="font-display text-2xl sm:text-2xl md:text-3xl font-black uppercase leading-[1.08] tracking-tight text-foreground [overflow-wrap:anywhere]">
           {title}
         </h3>
-        <p className="text-[10px] font-semibold uppercase leading-relaxed tracking-[0.12em] text-muted-foreground sm:text-sm sm:tracking-[0.18em]">
+        <p className="text-[11px] sm:text-sm font-semibold uppercase leading-relaxed tracking-[0.12em] text-muted-foreground sm:tracking-[0.18em]">
           {body}
         </p>
-        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 pt-2 text-xs font-bold text-primary sm:text-base">
-          <span className="min-w-0 rounded-full border-2 border-primary/40 bg-primary/15 px-2.5 py-1.5 leading-tight backdrop-blur-sm transition-colors group-hover:bg-primary/25 sm:px-4 sm:py-2">
+        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-3 text-sm font-bold text-primary sm:text-base">
+          <span className="min-w-0 rounded-full border-2 border-primary/40 bg-primary/15 px-3 py-2 sm:px-4 sm:py-2.5 leading-tight backdrop-blur-sm transition-colors group-hover:bg-primary/25">
             {cta}
           </span>
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
+          <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1 sm:h-6 sm:w-6" />
         </div>
       </div>
     </Link>
