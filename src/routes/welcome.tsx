@@ -721,7 +721,7 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
               <span>OG Bot</span>
