@@ -46,7 +46,7 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
         alt="OG Streamz"
         className={`${compact ? "h-6" : "h-7"} w-auto rounded-md object-contain`}
       />
-      <span className="whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-tight">
+      <span className="whitespace-nowrap text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-tight">
         Powered by
       </span>
       <img
@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-2">
                 <BackgroundMusicHeaderControl />
                 {!roleLoading && isAdmin && (
-                  <div className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow md:flex">
+                  <div className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow md:flex">
                     <ShieldCheck className="h-3 w-3" />
                     Boss
                   </div>
@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     to="/settings"
                     title="VIP membership — manage subscription"
-                    className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
+                    className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
                   >
                     <Crown className="h-3 w-3" />
                     VIP

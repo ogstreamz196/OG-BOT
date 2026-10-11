@@ -240,7 +240,7 @@ export function BeatLibrary({
             <h2 className="font-display text-xl font-black tracking-tight sm:text-2xl">
               Beat library
             </h2>
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
               Save beats · remix anytime
             </p>
           </div>
@@ -318,7 +318,7 @@ export function BeatLibrary({
                       size="sm"
                       onClick={() => onRemix(b)}
                       aria-label={`New vocals over ${b.name} for ${remixCost} coins`}
-                      className="h-8 shrink-0 gap-1.5 bg-gradient-brand px-2.5 text-[11px] font-black uppercase tracking-wide text-primary-foreground sm:px-3"
+                      className="h-8 shrink-0 gap-1.5 bg-gradient-brand px-2.5 text-xs font-black uppercase tracking-wide text-primary-foreground sm:px-3"
                     >
                       <Wand2 className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">New vocals</span>
@@ -350,7 +350,7 @@ export function BeatLibrary({
                     </Button>
                   </div>
 
-                  <p className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-11 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <p className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-11 text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                     <span
                       className={cn(
                         "rounded-full border px-1.5 py-px font-black",

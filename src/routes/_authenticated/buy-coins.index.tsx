@@ -209,7 +209,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   {isVipFlow ? <Crown className="h-5 w-5" /> : <Coins className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                     Order summary
                   </p>
                   <p className="truncate text-base font-bold">{labelForOrder}</p>
@@ -220,12 +220,12 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   {CURRENCY_SYMBOL}
                   {(totalCents / 100).toFixed(2)}
                 </div>
-                <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mt-1 text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                   {isVipFlow ? "billed yearly" : "one-time"}
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-border/60 bg-background/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:px-5 sm:py-2.5">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-border/60 bg-background/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-5 sm:py-2.5">
               <span className="inline-flex items-center gap-1.5">
                 <Lock className="h-3 w-3" /> Secure checkout
               </span>
@@ -264,7 +264,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                       {isCustomFlow ? <Flame className="h-5 w-5" /> : <Check className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">
+                      <p className="text-[0.7rem] font-black uppercase tracking-[0.25em] text-white/70">
                         {isCustomFlow
                           ? "Custom stack locked in"
                           : isVipFlow
@@ -279,7 +279,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                             : `${(selected as { pack: CoinPack }).pack.coins} OG Coins · ${(selected as { pack: CoinPack }).pack.label}`}
                       </p>
                       {!isVipFlow && (
-                        <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-white/60 tabular-nums">
+                        <p className="mt-0.5 text-xs font-bold uppercase tracking-wider text-white/60 tabular-nums">
                           {CURRENCY_SYMBOL}
                           {(totalCents / 100).toFixed(2)} · {CURRENCY_SYMBOL}
                           {perCoin.toFixed(3)} per coin
@@ -290,7 +290,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   </div>
                 </div>
 
-                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="mt-5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Order summary
                 </p>
                 <div className="mt-2 grid gap-2 rounded-2xl border border-border bg-background/40 p-4 text-sm">
@@ -328,7 +328,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                 </div>
 
                 {/* Next steps — clear what happens next */}
-                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="mt-5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   What happens next
                 </p>
                 <ol className="mt-2 space-y-2">
@@ -587,7 +587,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                       />
                     </h3>
                     {isVip && (
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 ring-1 ring-emerald-500/30">
+                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-emerald-400 ring-1 ring-emerald-500/30">
                         Active
                       </span>
                     )}
@@ -713,7 +713,7 @@ function SectionIcon({ children }: { children: ReactNode }) {
 
 function SectionEyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+    <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
       {children}
     </p>
   );
@@ -915,24 +915,24 @@ function PackCard({
       {/* Rarity tier pill */}
       <div
         className={cn(
-          "absolute left-3 top-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground",
+          "absolute left-3 top-3 inline-flex items-center gap-1 text-[0.7rem] font-bold uppercase text-muted-foreground",
         )}
       >
         <TierIcon className="h-3 w-3" /> {tier.name}
       </div>
 
       {pack.popular && (
-        <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-bold uppercase text-primary-foreground whitespace-nowrap">
+        <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[0.7rem] font-bold uppercase text-primary-foreground whitespace-nowrap">
           <Sparkles className="h-3 w-3" /> Most popular
         </div>
       )}
       {pack.bestValue && (
-        <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-bold uppercase text-primary-foreground whitespace-nowrap">
+        <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[0.7rem] font-bold uppercase text-primary-foreground whitespace-nowrap">
           <Crown className="h-3 w-3" /> Best value
         </div>
       )}
       {savingsPct > 0 && !canEdit && (
-        <div className="absolute right-3 top-3 rounded bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
+        <div className="absolute right-3 top-3 rounded bg-primary/10 px-2 py-1 text-[0.7rem] font-bold text-primary">
           −{savingsPct}%
         </div>
       )}
@@ -953,7 +953,7 @@ function PackCard({
         setDraft={setDraft}
         inputProps={{ maxLength: 40 }}
         view={
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {effective.label}
           </div>
         }
@@ -986,7 +986,7 @@ function PackCard({
                 <span className="text-xl font-black tabular-nums sm:text-2xl">
                   {effective.coins}
                 </span>
-                <span className="text-[11px] font-bold text-coin">Coins</span>
+                <span className="text-xs font-bold text-coin">Coins</span>
               </div>
             }
           />
@@ -997,7 +997,7 @@ function PackCard({
                 type="button"
                 onClick={toggleBonus}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider transition",
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-black uppercase tracking-wider transition",
                   showBonus
                     ? "bg-coin/15 text-coin hover:bg-coin/25"
                     : "bg-muted text-muted-foreground hover:bg-muted/70",
@@ -1012,11 +1012,11 @@ function PackCard({
                 {showBonus ? "2× bonus on" : "2× bonus off"}
               </button>
             ) : showBonus ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-coin">
+              <span className="inline-flex items-center gap-1 text-[0.7rem] font-black uppercase tracking-wider text-coin">
                 <Sparkles className="h-2.5 w-2.5" /> 2× bonus
               </span>
             ) : null}
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {CURRENCY_SYMBOL}
               {perCoin.toFixed(3)} / coin
             </span>
@@ -1213,7 +1213,7 @@ function EditableField({
         </button>
       </div>
       {overridden && (
-        <span className="ml-1 inline-block align-middle text-[9px] font-bold uppercase tracking-wider text-primary">
+        <span className="ml-1 inline-block align-middle text-[0.7rem] font-bold uppercase tracking-wider text-primary">
           ●
         </span>
       )}
@@ -1242,7 +1242,7 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
       <span className="text-right">
         <span className="text-sm font-bold tabular-nums">{value}</span>
         {hint && (
-          <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+          <span className="ml-2 text-[0.7rem] font-bold uppercase tracking-wider text-emerald-400">
             {hint}
           </span>
         )}
@@ -1254,12 +1254,12 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
 function NextStep({ n, title, body }: { n: number; title: string; body: string }) {
   return (
     <li className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 p-3">
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-coin/50 bg-coin/15 text-[11px] font-black text-coin tabular-nums">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-coin/50 bg-coin/15 text-xs font-black text-coin tabular-nums">
         {n}
       </span>
       <div className="min-w-0">
         <p className="text-sm font-bold leading-tight text-foreground">{title}</p>
-        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{body}</p>
+        <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{body}</p>
       </div>
     </li>
   );
@@ -1402,11 +1402,11 @@ function CustomPackCard({ onBuy }: { onBuy: (units: number) => void }) {
       </div>
 
       {bumpError ? (
-        <p role="alert" className="relative mt-2 text-[11px] font-bold text-red-300">
+        <p role="alert" className="relative mt-2 text-xs font-bold text-red-300">
           {bumpError}
         </p>
       ) : atMin || atMax ? (
-        <p className="relative mt-2 text-[11px] text-white/60">
+        <p className="relative mt-2 text-xs text-white/60">
           {atMin
             ? `You're at the minimum (${minCoins} coins).`
             : `You're at the maximum (${maxCoins} coins).`}

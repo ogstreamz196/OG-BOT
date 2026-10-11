@@ -163,7 +163,7 @@ export function AllPurchasesPanel() {
                 type="button"
                 onClick={() => setRange(key)}
                 aria-pressed={range === key}
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition ${
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide transition ${
                   range === key
                     ? "border-amber-400 bg-amber-400/20 text-amber-200"
                     : "border-border/50 bg-background/40 text-muted-foreground hover:text-foreground"
@@ -229,7 +229,7 @@ export function AllPurchasesPanel() {
                       <div className="truncate font-medium text-foreground">
                         {r.display_name ?? r.email ?? r.user_id.slice(0, 8)}
                       </div>
-                      <div className="truncate text-[11px] text-muted-foreground">
+                      <div className="truncate text-xs text-muted-foreground">
                         {fmtDate(r.created_at)}
                         {r.email && r.display_name ? ` · ${r.email}` : ""}
                       </div>
@@ -241,7 +241,7 @@ export function AllPurchasesPanel() {
                 ))}
               </ul>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <label className="flex items-center gap-1.5">
                   Page size
                   <select

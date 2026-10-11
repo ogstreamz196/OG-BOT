@@ -18,7 +18,7 @@ const Switch = React.forwardRef<
     {/* Visible action label — describes what clicking will do */}
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] font-bold uppercase tracking-wider select-none transition-colors"
+      className="pointer-events-none absolute inset-0 flex items-center justify-center text-[0.7rem] font-bold uppercase tracking-wider select-none transition-colors"
     >
       <span className="group-data-[state=checked]:hidden pl-5 text-muted-foreground">
         Turned off

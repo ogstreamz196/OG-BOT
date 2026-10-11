@@ -704,7 +704,7 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
+            <p className="mt-1 inline-flex items-center gap-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-xs">
               <span>Powered by</span>
               <OgBotLogo className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
               <span>OG Bot</span>
@@ -735,7 +735,7 @@ function Hero() {
       </Sticker>
 
       <div className="relative mx-auto w-full max-w-3xl text-center">
-        <div className="mx-auto mb-3 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border-2 border-primary/40 bg-primary/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-primary shadow-[0_0_28px_-8px_oklch(0.7_0.2_300_/_0.7)] sm:text-sm">
+        <div className="mx-auto mb-3 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border-2 border-primary/40 bg-primary/15 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-primary shadow-[0_0_28px_-8px_oklch(0.7_0.2_300_/_0.7)] sm:text-sm">
           <span>🎵 MusicHUB</span>
           <span aria-hidden className="text-primary/50">
             ·
@@ -839,7 +839,7 @@ function AlbumCoverShowcase() {
         >
           ✕
         </button>
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-primary sm:text-xs">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.22em] text-primary sm:text-xs">
           ✨ Reminder
         </span>
         <h3 className="font-display mt-3 text-balance text-[clamp(1.5rem,6vw,2.25rem)] font-semibold leading-[1.05] tracking-[-0.025em] sm:mt-4 sm:text-4xl">
@@ -989,7 +989,7 @@ function FoulMouthHype() {
             </div>
 
             <div className="min-w-0 text-center md:text-left">
-              <p className="inline-flex items-center gap-2 rounded-full border border-destructive/60 bg-destructive/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-destructive sm:text-xs">
+              <p className="inline-flex items-center gap-2 rounded-full border border-destructive/60 bg-destructive/20 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.22em] text-destructive sm:text-xs">
                 ⚠ Before you walk away
               </p>
               <h2 className="font-display mt-4 text-balance text-3xl font-black leading-[0.95] tracking-[-0.03em] sm:text-5xl md:text-6xl">

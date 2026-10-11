@@ -133,7 +133,7 @@ export function ReferralsAuditPage() {
               <ArrowLeft className="h-4 w-4" /> Back
             </Button>
           </Link>
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-widest text-primary">
             <ShieldCheck className="h-3 w-3" /> Admin only
           </span>
         </div>
@@ -180,7 +180,7 @@ export function ReferralsAuditPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+              <thead className="text-left text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                 <tr className="border-b border-white/5">
                   <th className="p-3">User</th>
                   <th className="p-3">OG Code</th>
@@ -215,7 +215,7 @@ export function ReferralsAuditPage() {
                       <div className="text-muted-foreground">{u.email}</div>
                       <button
                         type="button"
-                        className="mt-0.5 inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground"
+                        className="mt-0.5 inline-flex items-center gap-1 font-mono text-[0.7rem] text-muted-foreground hover:text-foreground"
                         onClick={() => copy(u.id, "User ID copied")}
                       >
                         <Copy className="h-2.5 w-2.5" />
@@ -227,7 +227,7 @@ export function ReferralsAuditPage() {
                         <button
                           type="button"
                           onClick={() => copy(u.referral_code!, `${u.referral_code} copied`)}
-                          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-background/60 px-2 py-1 font-mono text-[11px] hover:border-primary/50"
+                          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-background/60 px-2 py-1 font-mono text-xs hover:border-primary/50"
                         >
                           {u.referral_code} <Copy className="h-3 w-3" />
                         </button>
@@ -244,7 +244,7 @@ export function ReferralsAuditPage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="rounded-full border border-white/10 bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+                        <span className="rounded-full border border-white/10 bg-background/50 px-2 py-0.5 text-[0.7rem] text-muted-foreground">
                           Not bound
                         </span>
                       )}
@@ -271,7 +271,7 @@ export function ReferralsAuditPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+              <thead className="text-left text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                 <tr className="border-b border-white/5">
                   <th className="p-3">#</th>
                   <th className="p-3">OG Leader</th>
@@ -297,7 +297,7 @@ export function ReferralsAuditPage() {
                       </div>
                       <div className="text-muted-foreground">{u.email}</div>
                     </td>
-                    <td className="p-3 font-mono text-[11px]">{u.referral_code ?? "—"}</td>
+                    <td className="p-3 font-mono text-xs">{u.referral_code ?? "—"}</td>
                     <td className="p-3 text-right tabular-nums">{u.invitees}</td>
                     <td className="p-3 text-right tabular-nums text-primary">+{u.earned}</td>
                   </tr>
@@ -314,7 +314,7 @@ export function ReferralsAuditPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+              <thead className="text-left text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                 <tr className="border-b border-white/5">
                   <th className="p-3">When</th>
                   <th className="p-3">Referrer (paid)</th>
@@ -339,7 +339,7 @@ export function ReferralsAuditPage() {
                     <td className="p-3">{r.referrer_name ?? "—"}</td>
                     <td className="p-3">{r.referee_name ?? "—"}</td>
                     <td className="p-3 text-right tabular-nums text-primary">+{r.amount}</td>
-                    <td className="p-3 truncate font-mono text-[10px] text-muted-foreground">
+                    <td className="p-3 truncate font-mono text-[0.7rem] text-muted-foreground">
                       {r.reference}
                     </td>
                   </tr>
@@ -358,7 +358,7 @@ export function ReferralsAuditPage() {
               </h2>
             </div>
             {reconQ.data?.totals && (
-              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded-full border border-white/10 bg-background/60 px-2 py-0.5 text-muted-foreground">
                   Burned:{" "}
                   <span className="tabular-nums text-foreground">
@@ -400,7 +400,7 @@ export function ReferralsAuditPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-xs">
-              <thead className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+              <thead className="text-left text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                 <tr className="border-b border-white/5">
                   <th className="p-3">OG Leader</th>
                   <th className="p-3">Code</th>
@@ -437,7 +437,7 @@ export function ReferralsAuditPage() {
                         <div className="font-semibold">{r.referrer_name ?? "—"}</div>
                         <div className="text-muted-foreground">{r.referrer_email}</div>
                       </td>
-                      <td className="p-3 font-mono text-[11px]">{r.referral_code ?? "—"}</td>
+                      <td className="p-3 font-mono text-xs">{r.referral_code ?? "—"}</td>
                       <td className="p-3 text-right tabular-nums">{r.burn_count}</td>
                       <td className="p-3 text-right tabular-nums">{r.total_burned}</td>
                       <td className="p-3 text-right tabular-nums">{r.expected_payout}</td>
@@ -454,7 +454,7 @@ export function ReferralsAuditPage() {
                 })}
               </tbody>
             </table>
-            <div className="border-t border-white/5 p-3 text-[10px] text-muted-foreground">
+            <div className="border-t border-white/5 p-3 text-[0.7rem] text-muted-foreground">
               Expected payout = sum of <span className="font-mono">floor(burn ÷ 10)</span> over each
               referee's generation rows. Δ &gt; 0 means the leader was overpaid relative to recorded
               burns; Δ &lt; 0 means cashback is owed.

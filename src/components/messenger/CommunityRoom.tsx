@@ -380,7 +380,7 @@ export function CommunityRoom() {
         <div className="flex min-w-0 items-center gap-1.5">
           <Coins className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0 leading-tight">
-            <p className="whitespace-nowrap text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            <p className="whitespace-nowrap text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
               Battle purse
             </p>
             <p
@@ -389,7 +389,7 @@ export function CommunityRoom() {
             >
               {pendingCoins} OG
               {lastEarned ? (
-                <span className="ml-1 animate-[pop_0.3s_ease-out] text-[10px] font-bold text-primary">
+                <span className="ml-1 animate-[pop_0.3s_ease-out] text-[0.7rem] font-bold text-primary">
                   +{(lastEarned / 10).toFixed(2)}
                 </span>
               ) : null}
@@ -397,7 +397,7 @@ export function CommunityRoom() {
           </div>
         </div>
         {(tally?.streakDays ?? 0) > 1 ? (
-          <span className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-full border border-coin/40 bg-coin/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-coin">
+          <span className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-full border border-coin/40 bg-coin/10 px-2 py-0.5 text-[0.7rem] font-black uppercase tracking-wider text-coin">
             🔥 {tally?.streakDays}-day streak
           </span>
         ) : null}
@@ -406,7 +406,7 @@ export function CommunityRoom() {
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 gap-1 px-2 text-[9px] font-bold uppercase"
+            className="h-7 gap-1 px-2 text-[0.7rem] font-bold uppercase"
             aria-expanded={showBoard}
             onClick={() => setShowBoard((v) => !v)}
           >
@@ -417,7 +417,7 @@ export function CommunityRoom() {
             type="button"
             variant="destructive"
             size="sm"
-            className="h-7 gap-1 px-2 text-[9px] font-bold uppercase"
+            className="h-7 gap-1 px-2 text-[0.7rem] font-bold uppercase"
             disabled={quit.isPending}
             onClick={() => quit.mutate()}
           >
@@ -459,7 +459,7 @@ export function CommunityRoom() {
             👑
           </span>
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-wider text-coin">
+            <p className="text-[0.7rem] font-black uppercase tracking-wider text-coin">
               Roast of the day — {roastOfDay.roast.displayName}
             </p>
             <p className="line-clamp-2 text-xs text-foreground">{roastOfDay.roast.content}</p>
@@ -469,7 +469,7 @@ export function CommunityRoom() {
 
       {showBoard && (
         <div className="rounded-xl border border-primary/25 bg-background/70 p-2">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
             Most savage roasters
           </p>
           {boardLoading ? (
@@ -525,7 +525,7 @@ export function CommunityRoom() {
                 </div>
               )}
               {!hasMore && (
-                <div className="py-1 text-center text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                <div className="py-1 text-center text-[0.7rem] uppercase tracking-wider text-muted-foreground/60">
                   Beginning of chat
                 </div>
               )}
@@ -558,7 +558,7 @@ export function CommunityRoom() {
                         className={`flex items-end gap-1.5 py-1 motion-safe:animate-[pop_0.2s_ease-out] ${mine ? "flex-row-reverse" : "flex-row"}`}
                       >
                         <span
-                          className={`grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full text-[8px] font-bold uppercase sm:h-7 sm:w-7 ${
+                          className={`grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full text-[0.7rem] font-bold uppercase sm:h-7 sm:w-7 ${
                             isBot
                               ? "bg-primary/20 ring-1 ring-primary/40"
                               : mine
@@ -586,7 +586,7 @@ export function CommunityRoom() {
                           }`}
                         >
                           <p
-                            className={`mb-0.5 text-[8px] font-bold uppercase ${
+                            className={`mb-0.5 text-[0.7rem] font-bold uppercase ${
                               mine ? "text-primary-foreground/80" : "text-muted-foreground"
                             }`}
                           >

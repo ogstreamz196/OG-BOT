@@ -661,7 +661,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
           <p className="line-clamp-2 break-words text-sm font-semibold leading-snug">
             {title.trim() || "Untitled track"}
           </p>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground sm:text-xs">
             Create free · Download {fullUnlockCost} credits or 99p
           </p>
         </div>
@@ -700,7 +700,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                   <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
                     {brief.trim() || "No description saved."}
                   </p>
-                  <p className="mt-2 text-[11px] text-muted-foreground/80">
+                  <p className="mt-2 text-xs text-muted-foreground/80">
                     Name and story can't be changed — everything below can.
                   </p>
                 </div>
@@ -843,7 +843,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                 >
                   <span className="min-w-0">
                     Vocals only {isNasheed ? "· REQUIRED" : vocalsOnly ? "· ON" : "· OFF"}
-                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
                       {isNasheed
                         ? "Nasheed stays strictly voice-only with no music or instruments."
                         : "A cappella vocals with no generated instrumental."}
@@ -877,12 +877,12 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                       </span>
                     </CollapsibleTrigger>
                     {hasLyrics && !genLyrics && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-emerald-500">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-emerald-500">
                         <Check className="h-3 w-3" /> Ready
                       </span>
                     )}
                     {genLyrics && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-primary">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-primary">
                         <Loader2 className="h-3 w-3 animate-spin" /> Writing…
                       </span>
                     )}
@@ -936,7 +936,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                   </label>
                   {!isNasheed && (
                     <div className="col-span-2 grid w-full grid-cols-[auto_minmax(7rem,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 sm:col-span-1 sm:w-64">
-                      <span className="text-[10px] font-semibold text-muted-foreground">Clean</span>
+                      <span className="text-[0.7rem] font-semibold text-muted-foreground">Clean</span>
                       <Slider
                         aria-label="Swearing intensity"
                         min={0}
@@ -955,7 +955,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                           if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
                         }}
                       />
-                      <span className="text-[10px] font-semibold text-destructive">Savage</span>
+                      <span className="text-[0.7rem] font-semibold text-destructive">Savage</span>
                     </div>
                   )}
                   <Button
@@ -1056,7 +1056,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                           <RefreshCw className="h-3.5 w-3.5" />
                         )}
                         Try again
-                        <span className="ml-0.5 rounded-full bg-background/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                        <span className="ml-0.5 rounded-full bg-background/30 px-1.5 py-0.5 text-[0.7rem] font-semibold">
                           Free
                         </span>
                       </Button>
@@ -1111,7 +1111,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                         : isReady
                           ? "Regenerate sample"
                           : "Generate preview"}
-                    <span className="ml-1 rounded-full bg-background/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                    <span className="ml-1 rounded-full bg-background/30 px-1.5 py-0.5 text-[0.7rem] font-semibold">
                       Free
                     </span>
                   </Button>
@@ -1310,7 +1310,7 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
             <span className="text-sm font-bold text-primary">OG Bot is cooking…</span>
             <span className="flex items-center gap-2 font-mono text-xs font-semibold tabular-nums text-primary">
               <span>{Math.round(progress)}%</span>
-              <span className="rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[0.7rem] font-medium text-muted-foreground">
                 {etaLabel}
               </span>
             </span>
@@ -1321,7 +1321,7 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
             {stageLabel}
             <span className="inline-flex gap-0.5">
               <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
@@ -1334,7 +1334,7 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
 
       {blocks.map((b, bi) => (
         <div key={bi} className="space-y-1.5">
-          <div className="text-[11px] font-semibold text-primary/80">{b.label}</div>
+          <div className="text-xs font-semibold text-primary/80">{b.label}</div>
           {Array.from({ length: b.lines }).map((_, i) => (
             <div
               key={i}
@@ -1558,7 +1558,7 @@ function GeneratingProgress({
             <span className="block tabular-nums">
               {status.etaSeconds > 0 ? `ETA ${etaLabel}` : etaLabel}
             </span>
-            <span className="block text-[10px] font-medium text-muted-foreground tabular-nums">
+            <span className="block text-[0.7rem] font-medium text-muted-foreground tabular-nums">
               {mm}:{ss} elapsed
             </span>
           </div>
@@ -1599,7 +1599,7 @@ function GeneratingProgress({
               )}
               {step.label}
             </div>
-            <p className="mt-1 text-[11px] opacity-80">{step.detail}</p>
+            <p className="mt-1 text-xs opacity-80">{step.detail}</p>
           </div>
         ))}
       </div>
@@ -1624,7 +1624,7 @@ function GeneratingProgress({
             <span className="block text-4xl font-black leading-none tabular-nums text-white drop-shadow-[0_0_18px_hsl(var(--primary))] sm:text-5xl">
               {pct}%
             </span>
-            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/90">
+            <span className="mt-1 block text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary/90">
               {status.etaSeconds > 0 ? `ETA ${etaLabel}` : etaLabel}
             </span>
           </div>
@@ -1648,7 +1648,7 @@ function GeneratingProgress({
             }}
           />
         </div>
-        <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>{status.detail}</span>
           <span className="tabular-nums text-foreground/90">{pct}%</span>
         </div>
@@ -1809,7 +1809,7 @@ function LiveStreamPreview({
           </span>
           Live preview · listen while it generates
         </div>
-        <span className="rounded-full border border-primary/40 bg-background/60 px-2 py-0.5 text-[10px] font-bold tabular-nums text-foreground">
+        <span className="rounded-full border border-primary/40 bg-background/60 px-2 py-0.5 text-[0.7rem] font-bold tabular-nums text-foreground">
           {blocked ? "Locked" : `${remaining}s left`}
         </span>
       </div>

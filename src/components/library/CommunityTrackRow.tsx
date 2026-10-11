@@ -160,7 +160,7 @@ function CommunityTrackRowImpl({
         <div className="flex shrink-0 flex-col items-center">
           <span
             aria-hidden
-            className="mb-0.5 text-[8px] font-black uppercase leading-none tracking-[0.12em] text-amber-300/90"
+            className="mb-0.5 text-[0.7rem] font-black uppercase leading-none tracking-[0.12em] text-amber-300/90"
           >
             Remix
           </span>
@@ -322,7 +322,7 @@ function CommunityTrackRowImpl({
             background: `linear-gradient(to right, var(--primary) ${pct}%, var(--muted) ${pct}%)`,
           }}
         />
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {playing || progress > 0 ? `${fmt(progress)} / ` : ""}
           {fmt(duration)}
         </span>

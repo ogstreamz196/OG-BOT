@@ -330,7 +330,7 @@ function DashboardHome() {
             title="Create a song"
             body="Generate · Remix · Release"
             cta="Open MusicHub"
-            className="w-[85vw] shrink-0 snap-start sm:w-auto"
+            className="w-[85vw] max-w-[22rem] shrink-0 snap-start sm:w-auto sm:max-w-none"
           />
           <PrimaryCard
             to="/messenger"
@@ -341,7 +341,7 @@ function DashboardHome() {
             body="Your AI co-producer"
             cta="Open Messenger"
             variant="accent"
-            className="w-[85vw] shrink-0 snap-start sm:w-auto"
+            className="w-[85vw] max-w-[22rem] shrink-0 snap-start sm:w-auto sm:max-w-none"
           />
         </div>
       </section>
@@ -472,7 +472,7 @@ function AskOgCta() {
                 <Sparkles className="h-7 w-7 text-primary sm:h-8 sm:w-8" />
               </span>
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+                <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
                   Ask OG Bot
                 </div>
                 <h2 className="font-display mt-1 text-2xl font-black leading-tight sm:text-4xl">
@@ -560,7 +560,7 @@ function ContinuityDemo() {
           <InfinityIcon className="h-5 w-5 text-primary" />
         </span>
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+          <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
             Continue the conversation
           </div>
           <h2 className="font-display text-xl font-black sm:text-2xl">
@@ -578,7 +578,7 @@ function ContinuityDemo() {
         <div className="flex items-center justify-center text-primary sm:flex-col">
           <ArrowRight className="h-6 w-6 sm:hidden" />
           <ArrowRight className="hidden h-6 w-6 sm:block" />
-          <span className="ml-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground sm:ml-0 sm:mt-1">
+          <span className="ml-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-muted-foreground sm:ml-0 sm:mt-1">
             synced
           </span>
         </div>
@@ -620,7 +620,7 @@ function ChatBubbleCard({
           : "border-white/10",
       )}
     >
-      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-muted-foreground">
         {icon} {channel}
       </div>
       <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-primary/85 px-3 py-2 text-sm text-primary-foreground">
@@ -668,7 +668,7 @@ function PrimaryCard({
       to={to}
       preload="intent"
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-3xl border-2 border-white/15 bg-card/70 shadow-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group relative flex flex-col overflow-hidden rounded-3xl border-2 border-white/15 bg-card/90 shadow-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         wide && "sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]",
         className
       )}
@@ -690,7 +690,8 @@ function PrimaryCard({
       <div
         className={cn(
           "relative w-full overflow-hidden",
-          wide ? "aspect-[16/7] sm:aspect-auto sm:min-h-72" : "aspect-[4/5] sm:aspect-square",
+          // 4:3 on phones keeps the whole card within one screen; square from sm up.
+          wide ? "aspect-[16/7] sm:aspect-auto sm:min-h-72" : "aspect-[4/3] sm:aspect-square",
         )}
       >
         <img
@@ -701,7 +702,7 @@ function PrimaryCard({
           height={768}
           className={
             "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 " +
-            (isAccent ? "p-4 sm:p-6" : "")
+            (isAccent ? "object-contain p-4 sm:object-cover sm:p-6" : "")
           }
         />
         <div
@@ -727,13 +728,13 @@ function PrimaryCard({
 
       {/* Text + CTA */}
       <div className="relative z-10 flex flex-1 flex-col gap-2 p-4 sm:p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary sm:text-xs">
+        <p className="text-[0.7rem] font-bold uppercase tracking-[0.22em] text-primary sm:text-xs">
           {eyebrow}
         </p>
         <h3 className="font-display text-2xl sm:text-2xl md:text-3xl font-black uppercase leading-[1.08] tracking-tight text-foreground [overflow-wrap:anywhere]">
           {title}
         </h3>
-        <p className="text-[11px] sm:text-sm font-semibold uppercase leading-relaxed tracking-[0.12em] text-muted-foreground sm:tracking-[0.18em]">
+        <p className="text-xs sm:text-sm font-semibold uppercase leading-relaxed tracking-[0.12em] text-muted-foreground sm:tracking-[0.18em]">
           {body}
         </p>
         <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-3 text-sm font-bold text-primary sm:text-base">

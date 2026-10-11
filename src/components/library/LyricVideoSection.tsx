@@ -284,7 +284,7 @@ export function LyricVideoSection({ songId, songTitle, mp3Unlocked, onBalanceCha
               {balance < cost ? "Not enough coins" : `Unlock full · ${cost} coins`}
             </Button>
           </div>
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          <p className="mt-2 text-center text-xs text-muted-foreground">
             Balance: {balance} coins
           </p>
         </>

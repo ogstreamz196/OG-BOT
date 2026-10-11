@@ -153,7 +153,7 @@ function MessengerPage() {
                 {modeHeading(mode)}
               </h1>
 
-              <p className="flex items-center gap-1 truncate text-[9px] font-medium text-emerald-400 sm:text-[11px]">
+              <p className="flex items-center gap-1 truncate text-[0.7rem] font-medium text-emerald-400 sm:text-xs">
                 <span className="relative inline-flex h-2 w-2 shrink-0">
                   <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
                   <span className="relative inline-block h-2 w-2 rounded-full bg-emerald-400" />
@@ -176,7 +176,7 @@ function MessengerPage() {
                   ? "Go Private (leave the OG Battle Zone)"
                   : "Go to Battle Zone (leave Private Mode)"
               }
-              className={`group flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border px-2 text-[9px] font-bold uppercase transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-3 sm:text-[11px] ${
+              className={`group flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border px-2 text-[0.7rem] font-bold uppercase transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-3 sm:text-xs ${
                 isCommunity
                   ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-100 shadow-[0_0_24px_-6px_rgba(34,211,238,0.6)] hover:bg-cyan-500/25"
                   : "border-primary/40 bg-primary/10 text-primary shadow-[0_0_24px_-6px_oklch(0.7_0.2_25/0.6)] hover:bg-primary/20"
@@ -224,7 +224,7 @@ function MessengerPage() {
                 aria-live="polite"
                 className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
               >
-                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-card/90 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground shadow-lg backdrop-blur">
+                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-card/90 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground shadow-lg backdrop-blur">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Saving mode…
                 </span>

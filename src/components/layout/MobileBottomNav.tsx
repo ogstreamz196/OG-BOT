@@ -48,7 +48,7 @@ export function MobileBottomNav() {
                   to={to}
                   aria-current={active ? "page" : undefined}
                   aria-label={label}
-                  className={`flex min-h-[60px] min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[9px] font-bold uppercase transition-all duration-300 min-[380px]:px-2 min-[380px]:text-[10px] ${
+                  className={`flex min-h-[60px] min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.7rem] font-bold uppercase transition-all duration-300 min-[380px]:px-2 min-[380px]:text-[0.7rem] ${
                     active ? "text-primary scale-105" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >

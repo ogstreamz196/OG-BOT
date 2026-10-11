@@ -158,7 +158,7 @@ export function AppSidebar() {
               <span className="relative z-10 min-w-0 flex-1 break-words">{item.title}</span>
               {item.badge && !collapsed && (
                 <span
-                  className={`relative z-10 font-display ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-[0_2px_0_0_hsl(var(--primary)/0.4)] ${
+                  className={`relative z-10 font-display ml-auto rounded-full px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider shadow-[0_2px_0_0_hsl(var(--primary)/0.4)] ${
                     active ? "bg-white/25 text-primary-foreground" : "bg-primary/20 text-primary"
                   }`}
                 >
@@ -184,7 +184,7 @@ export function AppSidebar() {
           />
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="font-display truncate text-base tracking-tight">OG STREAMZ</span>
-            <span className="mt-0.5 inline-flex items-center gap-1 truncate text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="mt-0.5 inline-flex items-center gap-1 truncate text-[0.7rem] uppercase tracking-[0.16em] text-muted-foreground">
               Powered by
               <img
                 src={ogBotAsset.url}
@@ -266,7 +266,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex min-w-0 flex-col gap-2 px-2 py-2">
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold uppercase">
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[0.7rem] font-bold uppercase">
               {dev.isDev ? "D" : (user?.email?.[0] ?? "U")}
             </div>
             <span className="truncate">

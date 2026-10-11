@@ -281,14 +281,14 @@ function ReferralsPage() {
 
         {/* Status strip — live + binding state, one row */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-destructive backdrop-blur">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/70 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-destructive backdrop-blur">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" /> Live
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-orange-900/30">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-orange-900/30">
             <Sparkles className="h-3 w-3" /> 10% Lifetime
           </span>
           {myRefQ.data?.has_referrer ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-emerald-300">
               <Lock className="h-3 w-3" /> Bound · {myRefQ.data.referrer_name}
             </span>
           ) : (
@@ -296,7 +296,7 @@ function ReferralsPage() {
               onClick={() =>
                 document.getElementById("bind-referrer")?.scrollIntoView({ behavior: "smooth" })
               }
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-300 transition hover:bg-amber-500/20"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-amber-300 transition hover:bg-amber-500/20"
             >
               <ShieldAlert className="h-3 w-3" /> Bind your OG Leader
             </button>
@@ -342,7 +342,7 @@ function ReferralsPage() {
           />
 
           <div className="relative text-center">
-            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground sm:mb-3 sm:tracking-[0.4em]">
+            <p className="mb-2 text-[0.7rem] font-black uppercase tracking-[0.3em] text-muted-foreground sm:mb-3 sm:tracking-[0.4em]">
               OG Coin Cashback Wallet
             </p>
             <div className="relative inline-block max-w-full">
@@ -426,10 +426,10 @@ function ReferralsPage() {
         {/* SHARE LINK + QR — fused command bar */}
         <section className="rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+            <div className="text-[0.7rem] font-black uppercase tracking-[0.22em] text-primary">
               Your OG Link
             </div>
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[0.7rem] font-black uppercase tracking-[0.18em] text-emerald-300">
               Active
             </span>
           </div>
@@ -464,7 +464,7 @@ function ReferralsPage() {
               {user && (
                 <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+                    <div className="text-[0.7rem] font-black uppercase tracking-[0.22em] text-primary">
                       Your OG Leader code
                     </div>
                     <Button
@@ -477,7 +477,7 @@ function ReferralsPage() {
                         const ok = await copyTextWithFallback(myCode);
                         ok ? toast.success(`Code ${myCode} copied`) : toast.error("Couldn't copy");
                       }}
-                      className="h-7 gap-1.5 px-2 text-[11px]"
+                      className="h-7 gap-1.5 px-2 text-xs"
                     >
                       <Copy className="h-3 w-3" /> Copy code
                     </Button>
@@ -485,7 +485,7 @@ function ReferralsPage() {
                   <div className="mt-1 font-mono text-2xl font-black tracking-widest text-foreground">
                     {codeQ.isLoading ? "Loading…" : (myCode ?? "—")}
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     Friends paste this in "Connect OG Leader" — locks you in for life. 10% of every
                     coin they burn → yours.
                   </div>
@@ -504,7 +504,7 @@ function ReferralsPage() {
                     includeMargin={false}
                   />
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-[0.7rem] font-black uppercase tracking-[0.18em] text-muted-foreground">
                   <QrCode className="h-3 w-3" /> Scan to join
                 </div>
                 <Button
@@ -512,7 +512,7 @@ function ReferralsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => downloadQR("og-referral-qr", "og-referral-qr.svg")}
-                  className="h-7 gap-1.5 px-2 text-[11px]"
+                  className="h-7 gap-1.5 px-2 text-xs"
                 >
                   <Download className="h-3 w-3" /> Save QR
                 </Button>
@@ -551,7 +551,7 @@ function ReferralsPage() {
           id="bind-referrer"
           className="scroll-mt-24 rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6"
         >
-          <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">
+          <div className="mb-3 flex items-center gap-2 text-[0.7rem] font-black uppercase tracking-[0.22em] text-rose-300">
             <KeyRound className="h-3.5 w-3.5" /> Connect your OG Leader
           </div>
           <BindReferrerCard />
@@ -564,7 +564,7 @@ function ReferralsPage() {
         >
           <div className="flex items-center justify-between">
             <h2 className="font-bungee text-xl tracking-tight">Cashback feed</h2>
-            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="text-[0.7rem] font-black uppercase tracking-[0.22em] text-muted-foreground">
               Last 20
             </span>
           </div>
@@ -599,11 +599,11 @@ function ReferralsPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 truncate text-sm font-bold">
                         {tx.referee_name ?? "Referred user"}
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[0.7rem] font-black uppercase tracking-[0.16em] text-emerald-300">
                           <CheckCircle2 className="h-2.5 w-2.5" /> Paid
                         </span>
                       </div>
-                      <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                      <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                         {isPayment ? (
                           <>Successful payment reward = </>
                         ) : burned > 0 ? (
@@ -615,7 +615,7 @@ function ReferralsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="shrink-0 text-right text-[10px] text-muted-foreground">
+                  <div className="shrink-0 text-right text-[0.7rem] text-muted-foreground">
                     <div>{when.toLocaleDateString()}</div>
                     <div>{when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
@@ -665,11 +665,11 @@ function StatTile({
       />
       <div className="relative flex items-start justify-between">
         <span
-          className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.22em] ${tones.text}`}
+          className={`inline-flex items-center gap-1.5 text-[0.7rem] font-black uppercase tracking-[0.22em] ${tones.text}`}
         >
           {icon} {label}
         </span>
-        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+        <span className="text-[0.7rem] font-black uppercase tracking-widest text-muted-foreground">
           {unit}
         </span>
       </div>
@@ -701,13 +701,13 @@ function DashboardMetric({
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-card/70 p-3.5 backdrop-blur-xl sm:p-4">
       <div className={`grid h-9 w-9 place-items-center rounded-lg ${tones}`}>{icon}</div>
-      <p className="mt-3 break-words text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+      <p className="mt-3 break-words text-[0.7rem] font-black uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1 break-words font-bungee text-2xl tabular-nums leading-tight sm:text-3xl">
         {value}
       </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{note}</p>
     </div>
   );
 }

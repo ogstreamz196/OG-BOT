@@ -94,10 +94,10 @@
   --primary: oklch(0.55 0.22 268);
   --primary-foreground: oklch(0.98 0.005 250);
 
-  --secondary: oklch(0.2 0.04 263 / 0.55);
+  --secondary: oklch(0.2 0.04 263 / 0.78);
   --secondary-foreground: oklch(0.97 0.008 250);
 
-  --muted: oklch(0.18 0.035 263 / 0.55);
+  --muted: oklch(0.18 0.035 263 / 0.78);
   --muted-foreground: oklch(0.86 0.02 255); /* bumped 0.80→0.86 for AA on dark wallpaper */
 
   /* Polished silver — secondary accent */
@@ -111,11 +111,11 @@
   --input: oklch(1 0 0 / 0.08);
   --ring: oklch(0.62 0.2 268);
 
-  --sidebar: oklch(0.08 0.035 265 / 0.55);
+  --sidebar: oklch(0.08 0.035 265 / 0.8);
   --sidebar-foreground: oklch(0.94 0.008 250);
   --sidebar-primary: oklch(0.55 0.22 268);
   --sidebar-primary-foreground: oklch(0.98 0.005 250);
-  --sidebar-accent: oklch(0.2 0.045 263 / 0.55);
+  --sidebar-accent: oklch(0.2 0.045 263 / 0.78);
   --sidebar-accent-foreground: oklch(0.98 0.008 250);
   --sidebar-border: oklch(1 0 0 / 0.1);
   --sidebar-ring: oklch(0.62 0.2 268);
@@ -175,9 +175,9 @@
   --popover-foreground: oklch(0.98 0.008 250);
   --primary: oklch(0.55 0.22 268);
   --primary-foreground: oklch(0.98 0.005 250);
-  --secondary: oklch(0.2 0.04 263 / 0.55);
+  --secondary: oklch(0.2 0.04 263 / 0.78);
   --secondary-foreground: oklch(0.97 0.008 250);
-  --muted: oklch(0.18 0.035 263 / 0.55);
+  --muted: oklch(0.18 0.035 263 / 0.78);
   --muted-foreground: oklch(0.86 0.02 255);
   --accent: oklch(0.86 0.012 255);
   --accent-foreground: oklch(0.18 0.04 263);
@@ -186,11 +186,11 @@
   --border: oklch(1 0 0 / 0.1);
   --input: oklch(1 0 0 / 0.08);
   --ring: oklch(0.62 0.2 268);
-  --sidebar: oklch(0.08 0.035 265 / 0.55);
+  --sidebar: oklch(0.08 0.035 265 / 0.8);
   --sidebar-foreground: oklch(0.94 0.008 250);
   --sidebar-primary: oklch(0.55 0.22 268);
   --sidebar-primary-foreground: oklch(0.98 0.005 250);
-  --sidebar-accent: oklch(0.2 0.045 263 / 0.55);
+  --sidebar-accent: oklch(0.2 0.045 263 / 0.78);
   --sidebar-accent-foreground: oklch(0.98 0.008 250);
   --sidebar-border: oklch(1 0 0 / 0.1);
   --sidebar-ring: oklch(0.62 0.2 268);
@@ -611,7 +611,7 @@
       radial-gradient(circle 220px at 55% 50%, oklch(0.5 0.2 25 / calc(0.10 * var(--aura-alpha))), transparent 75%),
       radial-gradient(ellipse 90% 60% at 50% -10%, oklch(0.35 0.18 268 / 0.3), transparent 60%),
       radial-gradient(ellipse 70% 50% at 100% 100%, oklch(0.3 0.14 270 / 0.3), transparent 65%),
-      linear-gradient(180deg, oklch(0.1 0.04 265 / 0.55), oklch(0.1 0.04 265 / 0.72));
+      linear-gradient(180deg, oklch(0.1 0.04 265 / 0.7), oklch(0.1 0.04 265 / 0.82));
     animation: redAuraDrift 24s ease-in-out infinite alternate;
   }
   @keyframes redAuraDrift {
@@ -628,7 +628,9 @@
         radial-gradient(circle 280px at 15% 20%, oklch(0.55 0.22 27 / calc(0.16 * var(--aura-alpha))), transparent 72%),
         radial-gradient(circle 300px at 85% 85%, oklch(0.5 0.24 25 / calc(0.14 * var(--aura-alpha))), transparent 72%),
         radial-gradient(ellipse 90% 60% at 50% -10%, oklch(0.35 0.18 268 / 0.3), transparent 60%),
-        linear-gradient(180deg, oklch(0.1 0.04 265 / 0.55), oklch(0.1 0.04 265 / 0.72));
+        /* Portrait crop puts the chrome lettering right behind page text, so
+           phones get a slightly heavier tint than desktop. */
+        linear-gradient(180deg, oklch(0.1 0.04 265 / 0.76), oklch(0.1 0.04 265 / 0.86));
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -666,7 +668,7 @@
 
 /* Glassmorphism utilities — transparent floating panels over the wallpaper */
 @utility glass-panel {
-  background-color: color-mix(in oklab, black 55%, transparent);
+  background-color: color-mix(in oklab, black 70%, transparent);
   backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid color-mix(in oklab, white 10%, transparent);
   box-shadow:
@@ -682,7 +684,7 @@
   }
 }
 @utility glass-panel-strong {
-  background-color: color-mix(in oklab, black 65%, transparent);
+  background-color: color-mix(in oklab, black 80%, transparent);
   backdrop-filter: blur(24px) saturate(150%);
   border: 1px solid color-mix(in oklab, white 12%, transparent);
 }
