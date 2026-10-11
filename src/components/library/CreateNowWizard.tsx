@@ -144,15 +144,20 @@ export function CreateNowWizard({
   onComplete,
   initialDraft,
   submitLabel = "Create my song",
+  guestMode = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onComplete: (result: WizardResult, draft: WizardDraft) => void;
   initialDraft?: WizardDraft;
   submitLabel?: string;
+  /** Signed-out preview: nothing is saved or generated; all styles browsable. */
+  guestMode?: boolean;
 }) {
   const [step, setStep] = useState(1);
-  const { isVip } = useRole();
+  const { isVip: roleVip } = useRole();
+  // New accounts start with 15 days of VIP, so guests can pick any style.
+  const isVip = guestMode || roleVip;
   const navigateVip = useNavigate();
   const [title, setTitle] = useState("");
   const [subjectName, setSubjectName] = useState("");
@@ -163,13 +168,14 @@ export function CreateNowWizard({
   const [vocalsOnly, setVocalsOnly] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(3);
   const [isPublic, setIsPublic] = useState(true);
-  const { foulMouth } = useFoulMouth();
+  const { foulMouth: savedFoulMouth } = useFoulMouth();
   const setFoulMouth = useSetFoulMouth();
-  const ratingSaving = setFoulMouth.isPending;
+  const ratingSaving = !guestMode && setFoulMouth.isPending;
   const { intensity: savedIntensity } = useFoulIntensity();
   const setFoulIntensity = useSetFoulIntensity();
   const [intensityLocal, setIntensityLocal] = useState<number | null>(null);
-  const intensity = intensityLocal ?? savedIntensity;
+  const intensity = intensityLocal ?? (guestMode ? 0 : savedIntensity);
+  const foulMouth = guestMode ? intensity > 0 : savedFoulMouth;
   const isNasheed = styles.includes("Nasheed");
   const [beatPath, setBeatPath] = useState("");
   const [beatName, setBeatName] = useState("");
@@ -189,6 +195,7 @@ export function CreateNowWizard({
   const selectRating = (explicit: boolean) => {
     const nextIntensity = explicit ? 3 : 0;
     setIntensityLocal(nextIntensity);
+    if (guestMode) return;
     setFoulIntensity.mutate(nextIntensity);
     setFoulMouth.mutate(explicit);
   };
@@ -196,10 +203,12 @@ export function CreateNowWizard({
   const changeIntensity = (next: number) => {
     const value = Math.max(0, Math.min(3, Math.round(next)));
     setIntensityLocal(value);
+    if (guestMode) return;
     if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
   };
 
   const saveIntensity = (next: number) => {
+    if (guestMode) return;
     setFoulIntensity.mutate(Math.max(0, Math.min(3, Math.round(next))));
   };
 
