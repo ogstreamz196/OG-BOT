@@ -76,20 +76,20 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
   }
 
   return (
-    <section id="battle" className="relative mx-auto max-w-3xl scroll-mt-24 px-3 py-10 sm:px-8">
+    <section id="battle" className="relative mx-auto max-w-3xl scroll-mt-24 px-3 pt-6 pb-10 sm:px-8 sm:pt-10">
       <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
         OG Battle Zone · live
       </p>
-      <h2 className="font-display mt-2 text-center text-3xl font-black tracking-tight sm:text-5xl">
+      <h2 className="font-display mt-2 text-center text-3xl font-black tracking-tight text-foreground sm:text-6xl">
         Roast OG Bot. Right now.
       </h2>
-      <p className="mx-auto mt-2 max-w-lg text-center text-sm text-muted-foreground">
+      <p className="mx-auto mt-2 max-w-lg text-center text-sm font-medium text-foreground/85 sm:text-base">
         Everyone in here can gang up on the bot. You get {GUEST_MESSAGE_LIMIT} free roasts —
         then join to keep going.
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border/60 bg-card/70 backdrop-blur">
-        <div className="flex items-center justify-between border-b border-border/60 px-3 py-2 text-xs font-bold">
+      <div className="mt-6 overflow-hidden rounded-3xl border-2 border-primary/60 bg-card shadow-glow">
+        <div className="flex items-center justify-between border-b-2 border-border bg-secondary px-3 py-2.5 text-xs font-bold text-secondary-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Swords className="h-3.5 w-3.5 text-primary" /> Battle Zone
           </span>
@@ -97,9 +97,9 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
             Roasts left: {remaining}/{GUEST_MESSAGE_LIMIT}
           </span>
         </div>
-        <div ref={scroller} className="h-72 space-y-2 overflow-y-auto p-3">
+        <div ref={scroller} className="h-80 space-y-2 overscroll-contain overflow-y-auto p-3">
           {messages.length === 0 ? (
-            <p className="pt-24 text-center text-sm text-muted-foreground">
+            <p className="pt-28 text-center text-sm font-medium text-card-foreground/80">
               Throw your first roast — the chat starts from your first message.
             </p>
           ) : (
@@ -127,14 +127,14 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
           )}
         </div>
         {remaining > 0 ? (
-          <form onSubmit={submit} className="flex gap-2 border-t border-border/60 p-2">
+          <form onSubmit={submit} className="flex gap-2 border-t-2 border-border bg-secondary p-2">
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={400}
               placeholder="Say something savage…"
               disabled={sending || !guestId}
-              className="h-11"
+              className="h-11 border-2 bg-background text-foreground"
             />
             <Button type="submit" disabled={sending || !text.trim()} className="h-11 px-4">
               <Send className="h-4 w-4" />
@@ -142,7 +142,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
             </Button>
           </form>
         ) : (
-          <div className="border-t border-border/60 p-3 text-center">
+          <div className="border-t-2 border-border bg-secondary p-3 text-center">
             <p className="text-sm font-semibold">That's your 5. Join free to keep battling — your chat comes with you.</p>
             <Button className="mt-2 h-11 w-full" onClick={onNeedAccount}>
               🔥 Join to continue
