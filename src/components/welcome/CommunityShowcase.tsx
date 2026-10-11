@@ -23,6 +23,7 @@ export function CommunityShowcase() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [shown, setShown] = useState(PAGE);
+  const [brokenCovers, setBrokenCovers] = useState<Record<string, boolean>>({});
 
   const current = tracks.find((t) => t.id === currentId) ?? tracks[0];
 
