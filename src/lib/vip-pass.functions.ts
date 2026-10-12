@@ -26,6 +26,7 @@ export const getVipPassStatus = createServerFn({ method: "GET" })
     ]);
     const trialEnds = (prof as { vip_trial_ends_at?: string | null } | null)?.vip_trial_ends_at ?? null;
     const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
+    void onTrial;
     const isStaff = (staff?.length ?? 0) > 0;
     let username: string | null = null;
     let password: string | null = null;
