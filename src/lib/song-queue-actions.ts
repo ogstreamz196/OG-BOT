@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { languageFromPrompt } from "@/lib/library-utils";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 
 /**
  * Shared actions for the generation queue / history surfaces:
@@ -43,7 +43,7 @@ export async function retryGeneration(songId: string) {
       portal_id: song.portal_id,
     },
   });
-  if (genErr) throw new Error(invokeError(genErr, "Could not restart generation"));
+  if (genErr) throw new Error(await readInvokeError(genErr, "Could not restart generation"));
   if (data?.accepted === false) throw new Error(data.error || "Studio is busy — try again shortly");
   return data as { song_id?: string } | null;
 }

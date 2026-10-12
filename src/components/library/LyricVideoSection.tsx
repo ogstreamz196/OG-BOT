@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 import { useSettings } from "@/hooks/use-settings";
 import { useProfile } from "@/hooks/use-profile";
 
@@ -140,7 +140,7 @@ export function LyricVideoSection({ songId, songTitle, mp3Unlocked, onBalanceCha
       const { data, error: err } = await supabase.functions.invoke("lyric-video", {
         body: { song_id: songId, action: "render_preview" },
       });
-      if (err) throw new Error(invokeError(err, "Render failed"));
+      if (err) throw new Error(await readInvokeError(err, "Render failed"));
       if (data?.url) {
         setPreviewUrl(data.url as string);
         setStatus("completed");
@@ -168,7 +168,7 @@ export function LyricVideoSection({ songId, songTitle, mp3Unlocked, onBalanceCha
       const { data, error: err } = await supabase.functions.invoke("lyric-video", {
         body: { song_id: songId, action: "unlock" },
       });
-      if (err) throw new Error(invokeError(err, "Unlock failed"));
+      if (err) throw new Error(await readInvokeError(err, "Unlock failed"));
       if (data?.url) setFullUrl(data.url as string);
       setVideoUnlocked(true);
       setStatus("completed");

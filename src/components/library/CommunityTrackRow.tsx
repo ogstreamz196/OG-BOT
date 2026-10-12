@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { useSongAudio } from "@/hooks/use-song-audio";
 import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
+import { readInvokeError } from "@/lib/invoke-error";
 import { downloadFile } from "@/lib/download-file";
 import { shareTrack } from "@/lib/share-track";
 import { UnlockConfirmDialog } from "@/components/library/UnlockConfirmDialog";
@@ -104,9 +105,7 @@ function CommunityTrackRowImpl({
     try {
       const data = await buyOwnerTrack({ data: { songId: song.id } });
       if (!data?.already) {
-        toast.success(
-          `Full track unlocked + Take 2 free · -${data?.cost ?? fullUnlockCost} coins`,
-        );
+        toast.success(`Full track unlocked + Take 2 free · -${data?.cost ?? fullUnlockCost} coins`);
       }
       setOwnerUnlockOpen(false);
       await Promise.all([
@@ -139,11 +138,7 @@ function CommunityTrackRowImpl({
         { body: { song_id: song.id } },
       );
       if (unlockErr) {
-        throw new Error(
-          (unlockErr as { context?: { error?: string } })?.context?.error ||
-            unlockErr.message ||
-            "Could not unlock track",
-        );
+        throw new Error(await readInvokeError(unlockErr, "Could not unlock track"));
       }
       if (!unlockData?.already) {
         toast.success(
@@ -158,11 +153,7 @@ function CommunityTrackRowImpl({
         body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
       });
       if (error) {
-        throw new Error(
-          (error as { context?: { error?: string } })?.context?.error ||
-            error.message ||
-            "Download failed",
-        );
+        throw new Error(await readInvokeError(error, "Download failed"));
       }
       const blob = await downloadFile(data.url as string, `${title}.mp3`);
       setUnlockOpen(false);
@@ -259,7 +250,9 @@ function CommunityTrackRowImpl({
                   ? `Download ${title} to device`
                   : `Download pending — ${title} is still finishing`
               }
-              title={isReady && song.audio_path ? undefined : "Download pending — track still finishing"}
+              title={
+                isReady && song.audio_path ? undefined : "Download pending — track still finishing"
+              }
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/15 text-primary transition-colors hover:bg-primary/25 disabled:opacity-40"
             >
               {busy || !isReady || !song.audio_path ? (

@@ -43,7 +43,8 @@ import {
 
 import { useProfile } from "@/hooks/use-profile";
 import { useVariations } from "@/hooks/use-variations";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
+import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
 import { CoinPill } from "@/components/ui/coin-pill";
 import { type Stage } from "./song-workspace/StageStepper";
@@ -504,7 +505,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       });
 
       if (error) {
-        const msg = invokeError(error, "Lyrics generation failed");
+        const msg = await readInvokeError(error, "Lyrics generation failed");
         toast.error(
           msg.toLowerCase().includes("insufficient")
             ? "Not enough coins for a lyrics generation"
@@ -592,6 +593,11 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       setTopUp({ needed: previewCost + editCost, reason: "edit this track" });
       return false;
     }
+    // A draft (or someone else's song) becomes a brand-new sample: free, but
+    // needs 5 coins, and costs 2 coins after 3 unpaid tracks.
+    if ((!isOwner || song.status === "draft") && !(await confirmGenerationAllowed())) {
+      return false;
+    }
     submitLockRef.current = true;
     setGenPreview(true);
     startCooking();
@@ -624,7 +630,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       });
 
       if (error) {
-        const msg = invokeError(error, "Could not start generation");
+        const msg = await readInvokeError(error, "Could not start generation");
         if (/already generating/i.test(msg)) {
           // A duplicate tap/auto-start raced the first request — that one is cooking.
           ok = true;
@@ -641,6 +647,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
         toast.info(data.error || "Your current generations need to finish first");
       } else {
         ok = true;
+        announceSampleCharge(data);
         toast.success(
           editCost > 0
             ? `${editCost} OG coins used · OG Bot is cooking your new take`
@@ -1608,7 +1615,7 @@ function GeneratingProgress({
         body: { song_id: songId },
       });
       if (error) {
-        toast.error(invokeError(error, "Could not cancel"));
+        toast.error(await readInvokeError(error, "Could not cancel"));
         return;
       }
       const refunded = Number((data as { refunded?: number } | null)?.refunded ?? 0);
@@ -1843,7 +1850,7 @@ function InlineSamplePlayer({ songId, unlocked = false }: { songId: string; unlo
         });
         if (cancelled) return;
         if (error || !data?.url) {
-          setError(invokeError(error, "Could not load preview"));
+          setError(await readInvokeError(error, "Could not load preview"));
         } else {
           setUrl(data.url as string);
         }

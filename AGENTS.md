@@ -12,6 +12,9 @@
 - On the native Capacitor welcome screen show only the manual account form (no Google or Apple entry at all); leave web OAuth unchanged so existing website access remains intact.
 - Boss account deletion runs in an authenticated server function with a server-checked role and protected targets, because client-side role visibility must never authorize destructive actions.
 
+- Referral cashback is 6% of coins a referred member spends, 13% only when the leader is actually VIP (VIP role, admin/boss, or active paid subscription; never the 15-day intro offer); it is accrued in hundredths via pay_referral_cashback so small spends are not rounded away, and no cashback is paid on VIP upgrades or card payments.
+- Creating a song is free but needs at least 5 coins; after 3 unpaid tracks (not unlocked, since the member's last own-track unlock) each new sample costs 2 coins, checked and charged atomically by start_generation_charge in suno-generate.
+
 ## AI providers
 
 - Lyric intensity and the OG dictionary are enforced in the songwriter prompt only; never reject non-empty provider lyrics for profanity density, because post-check rejections exhausted the time budget and failed songs.

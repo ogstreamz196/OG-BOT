@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/hooks/use-settings";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 import type { Variation } from "@/components/library/song-workspace/types";
 
 interface UseVariationsArgs {
@@ -72,7 +72,7 @@ export function useVariations({
         const { data, error } = await supabase.functions.invoke("reveal-variation", {
           body: { song_id: id },
         });
-        if (error) throw new Error(invokeError(error, "Reveal failed"));
+        if (error) throw new Error(await readInvokeError(error, "Reveal failed"));
         if (!data?.already)
           toast.success(
             `Remake ready! New version added to your library · -${data?.cost ?? variationCost} coins`,

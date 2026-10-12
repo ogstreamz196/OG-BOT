@@ -49,7 +49,8 @@ import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettings } from "@/hooks/use-settings";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
+import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
 import { SongCard, type Song } from "@/components/SongCard";
 import { SongCardSkeleton } from "@/components/library/SongCardSkeleton";
@@ -483,7 +484,7 @@ function LibraryPage() {
         },
       });
       if (error) {
-        const msg = invokeError(error, "Lyrics generation failed");
+        const msg = await readInvokeError(error, "Lyrics generation failed");
         toast.error(
           msg.toLowerCase().includes("insufficient")
             ? `Not enough coins (need ${lyricsCost})`
@@ -517,6 +518,8 @@ function LibraryPage() {
       toast.error(`Need ${audioCost} coins to generate a song`);
       return;
     }
+    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
+    if (!(await confirmGenerationAllowed())) return;
     generateLockRef.current = true;
     setGenSong(true);
     try {
@@ -565,14 +568,15 @@ function LibraryPage() {
         },
       });
       if (genErr) {
-        toast.error(invokeError(genErr, "Could not start generation"));
+        toast.error(await readInvokeError(genErr, "Could not start generation"));
         return;
       }
       if (genData?.accepted === false) {
         toast.info(genData.error || "Your current generations need to finish first");
         return;
       }
-      toast.success("OG Bot is creating your song — no credits charged");
+      announceSampleCharge(genData);
+      toast.success("OG Bot is creating your song");
       navigate({ to: "/library/$songId", params: { songId: row.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not generate song");
@@ -756,6 +760,8 @@ function LibraryPage() {
     } else if (!canRunPipeline) {
       return;
     }
+    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
+    if (!(await confirmGenerationAllowed())) return;
 
     let songTitle = (override?.title ?? title).trim();
     const songSubject = (override?.subjectName ?? subjectName).trim();

@@ -31,7 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { downloadFile } from "@/lib/download-file";
 import { shareTrack } from "@/lib/share-track";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 import { deleteQueuedSong } from "@/lib/song-queue-actions";
 import { languageFromPrompt } from "@/lib/library-utils";
 import { useServerFn } from "@tanstack/react-start";
@@ -211,7 +211,7 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
           language: languageFromPrompt(song.prompt ?? null),
         },
       });
-      if (error) throw new Error(invokeError(error, "Retry failed"));
+      if (error) throw new Error(await readInvokeError(error, "Retry failed"));
       if (data?.accepted === false) {
         throw new Error(data.error || "Your current generations need to finish first");
       }
@@ -536,7 +536,7 @@ function JobDetailsDrawer({
             filename: `${song.title || "song"}.mp3`,
           },
         });
-        if (error) throw new Error(invokeError(error, "Download failed"));
+        if (error) throw new Error(await readInvokeError(error, "Download failed"));
         url = data.url as string;
         setFullUrl(url);
       }

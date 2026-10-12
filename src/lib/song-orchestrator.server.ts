@@ -80,7 +80,20 @@ export async function orchestrateSong(
       }),
       signal: AbortSignal.timeout(60_000),
     });
-    const gb = (await g.json().catch(() => ({}))) as { accepted?: boolean; error?: string };
+    const gb = (await g.json().catch(() => ({}))) as {
+      accepted?: boolean;
+      error?: string;
+      code?: string;
+    };
+    if (g.status === 402) {
+      // Not enough coins to create: retrying will not help, so stop here.
+      // suno-generate already put the song back as a draft with the message.
+      await db
+        .from("songs")
+        .update({ orchestration: null, orchestration_due_at: null })
+        .eq("id", songId);
+      return { ok: false, error: gb.error || "Not enough coins" };
+    }
     if (!g.ok && g.status !== 409) throw new Error(`music ${g.status}`);
     if (gb.accepted === false) throw new Error(gb.error || "music busy");
     await db.from("songs").update({ orchestration: null, error_message: null }).eq("id", songId);

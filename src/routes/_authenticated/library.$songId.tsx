@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { readInvokeError } from "@/lib/invoke-error";
 import { downloadFile } from "@/lib/download-file";
 import { useAuth } from "@/hooks/use-auth";
 import { useRole } from "@/hooks/use-role";
@@ -33,14 +34,22 @@ import { ensureFullUrlAllowed } from "@/lib/ensure-full-url-allowed";
 
 export const Route = createFileRoute("/_authenticated/library/$songId")({
   component: SongDetailPage,
-  head: () => ({ meta: [
-    { title: "Track Studio · OG BOT" },
-    { name: "description", content: "Listen, edit and unlock your OG BOT track with a free second take." },
-    { property: "og:title", content: "Track Studio · OG BOT" },
-    { property: "og:description", content: "Your OG BOT music workspace — two tracks for the price of one." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary_large_image" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Track Studio · OG BOT" },
+      {
+        name: "description",
+        content: "Listen, edit and unlock your OG BOT track with a free second take.",
+      },
+      { property: "og:title", content: "Track Studio · OG BOT" },
+      {
+        property: "og:description",
+        content: "Your OG BOT music workspace — two tracks for the price of one.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
 });
 
 type FullSong = Song & { unlocked?: boolean | null; is_public?: boolean | null };
@@ -313,9 +322,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
     try {
       const data = await buyOwnerTrack({ data: { songId: song.id } });
       if (!data?.already) {
-        toast.success(
-          `Full track unlocked + Take 2 free · -${data?.cost ?? fullUnlockCost} coins`,
-        );
+        toast.success(`Full track unlocked + Take 2 free · -${data?.cost ?? fullUnlockCost} coins`);
       }
       setOwnerUnlockOpen(false);
       await Promise.all([
@@ -342,10 +349,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
           { body: { song_id: song.id } },
         );
         if (unlockErr) {
-          const msg =
-            (unlockErr as { context?: { error?: string } })?.context?.error ||
-            unlockErr.message ||
-            "Could not unlock track";
+          const msg = await readInvokeError(unlockErr, "Could not unlock track");
           throw new Error(msg);
         }
         if (!unlockData?.already) {
@@ -370,10 +374,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
         body: { song_id: song.id, mode: "full", purpose: "download" },
       });
       if (error) {
-        const msg =
-          (error as { context?: { error?: string } })?.context?.error ||
-          error.message ||
-          "Download failed";
+        const msg = await readInvokeError(error, "Download failed");
         throw new Error(msg);
       }
       const a = document.createElement("a");

@@ -397,6 +397,54 @@ Deno.serve(async (req) => {
     }
     const songId = song!.id;
 
+    // Brand-new samples (not a retry of a failed song, not an edit of a
+    // finished one): creating is free but needs at least 5 coins, and after
+    // 3 unpaid tracks each new sample costs 2 coins until the member unlocks
+    // one of their own tracks. Checked and charged atomically in the DB.
+    const isNewSample = !existing || existing.status === "draft";
+    let sampleTerms: { charged?: number; unpaid_count?: number; warning?: boolean } = {};
+    if (isNewSample) {
+      const { data: terms, error: termsErr } = await admin.rpc("start_generation_charge", {
+        p_user: user.id,
+        p_song: songId,
+        p_reference: `sample:${songId}:${generationStartedAt}`,
+      });
+      const t = (terms ?? {}) as {
+        ok?: boolean;
+        reason?: string;
+        balance?: number;
+        charged?: number;
+        unpaid_count?: number;
+        warning?: boolean;
+      };
+      if (termsErr || !t.ok) {
+        // Put the song back as a draft so nothing is lost and it can be
+        // started again once the member has coins.
+        const minBalance = t.reason === "min_balance";
+        const message = minBalance
+          ? "You need at least 5 OG coins in your balance to create a song. Making it is free — earn coins by inviting friends, or top up."
+          : "Couldn't start your song. Please try again.";
+        await admin
+          .from("songs")
+          .update({ status: "draft", error_message: message })
+          .eq("id", songId)
+          .eq("status", "pending");
+        if (termsErr) console.error("start_generation_charge failed", termsErr.message);
+        return json(
+          {
+            error: message,
+            code: minBalance ? "min_balance" : "charge_failed",
+            balance: t.balance ?? balance,
+            min_balance: 5,
+            song_id: songId,
+          },
+          minBalance ? 402 : 500,
+        );
+      }
+      sampleTerms = t;
+      if ((t.charged ?? 0) > 0) coinCost = t.charged!;
+    }
+
     const encoder = new TextEncoder();
     const hmacKey = await crypto.subtle.importKey(
       "raw",
@@ -571,7 +619,10 @@ Deno.serve(async (req) => {
       accepted: true,
       song_id: songId,
       task_id: taskId,
-      coin_balance: balance,
+      coin_balance: sampleTerms.charged ? balance - sampleTerms.charged : balance,
+      sample_charged: sampleTerms.charged ?? 0,
+      unpaid_count: sampleTerms.unpaid_count ?? null,
+      sample_fee_warning: !!sampleTerms.warning,
       gifted,
     });
   } catch (e) {
