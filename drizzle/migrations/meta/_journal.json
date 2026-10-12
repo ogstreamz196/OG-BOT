@@ -127,6 +127,13 @@
       "when": 1791843151486,
       "tag": "0017_song_creation_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791845711959,
+      "tag": "0018_vip_username_lock",
+      "breakpoints": true
     }
   ]
 }
