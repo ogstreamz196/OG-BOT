@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 
@@ -20,21 +19,18 @@ export type OnlineUser = {
  */
 export function PresenceTracker() {
   const { user } = useAuth();
-  const router = useRouter();
   useEffect(() => {
     if (!user) return;
     const channel = supabase.channel(PRESENCE_CHANNEL, {
       config: { presence: { key: user.id } },
     });
 
-    let currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
-
     const payload = () => ({
       user_id: user.id,
       email: user.email ?? null,
       display_name: (user.user_metadata?.display_name as string | undefined) ?? null,
       online_at: new Date().toISOString(),
-      last_page: currentPath,
+      last_page: null,
     });
 
     channel.subscribe(async (status) => {
@@ -42,16 +38,10 @@ export function PresenceTracker() {
       await channel.track(payload());
     });
 
-    const unsub = router.subscribe("onResolved", ({ toLocation }) => {
-      currentPath = toLocation.pathname;
-      void channel.track(payload());
-    });
-
     return () => {
-      unsub();
       void supabase.removeChannel(channel);
     };
-  }, [user, router]);
+  }, [user]);
   return null;
 }
 

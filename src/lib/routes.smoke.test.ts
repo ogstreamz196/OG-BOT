@@ -25,6 +25,12 @@ const KEY_LINKS = [
   "/admin/users",
   "/admin/user-settings",
   "/admin/og-persona",
+  "/admin/music",
+  "/admin/coins",
+  "/admin/bot",
+  "/admin/system",
+  "/admin/audit",
+  "/admin/store",
 ];
 
 describe("route smoke test", () => {

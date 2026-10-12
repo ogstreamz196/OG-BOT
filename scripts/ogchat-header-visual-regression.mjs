@@ -26,15 +26,36 @@ const SM = 640; // Tailwind sm:
 const TARGETS = ["ogchat-header", "ogchat-foulmouth-hero", "ogchat-controls"];
 
 const VIEWPORTS = [
-  { name: "android-360",   viewport: { width: 360, height: 720 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-  { name: "iphone-se-375", viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-  { name: "iphone-xr-414", viewport: { width: 414, height: 896 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
-  { name: "sm-640",        viewport: { width: 640, height: 900 }, deviceScaleFactor: 1 },
-  { name: "ipad-mini",     ...devices["iPad Mini"] },
-  { name: "desktop",       viewport: { width: 1280, height: 1800 }, deviceScaleFactor: 1 },
+  {
+    name: "android-360",
+    viewport: { width: 360, height: 720 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  },
+  {
+    name: "iphone-se-375",
+    viewport: { width: 375, height: 667 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  },
+  {
+    name: "iphone-xr-414",
+    viewport: { width: 414, height: 896 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  },
+  { name: "sm-640", viewport: { width: 640, height: 900 }, deviceScaleFactor: 1 },
+  { name: "ipad-mini", ...devices["iPad Mini"] },
+  { name: "desktop", viewport: { width: 1280, height: 1800 }, deviceScaleFactor: 1 },
 ];
 
-const exists = (p) => access(p).then(() => true).catch(() => false);
+const exists = (p) =>
+  access(p)
+    .then(() => true)
+    .catch(() => false);
 
 async function restoreSession(page) {
   const key = process.env.LOVABLE_BROWSER_SUPABASE_STORAGE_KEY;
@@ -44,38 +65,50 @@ async function restoreSession(page) {
   await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [key, json]);
 }
 
-function approx(a, b, tol = 2) { return Math.abs(a - b) <= tol; }
+function approx(a, b, tol = 2) {
+  return Math.abs(a - b) <= tol;
+}
 
 async function assertLayout(page, vp) {
   const failures = [];
   const isMobile = vp.viewport.width < SM;
 
   const header = await page.locator('[data-testid="ogchat-header"]').boundingBox();
-  const hero   = await page.locator('[data-testid="ogchat-foulmouth-hero"]').boundingBox();
-  const ctrls  = await page.locator('[data-testid="ogchat-controls"]').boundingBox();
+  const hero = await page.locator('[data-testid="ogchat-foulmouth-hero"]').boundingBox();
+  const ctrls = await page.locator('[data-testid="ogchat-controls"]').boundingBox();
 
   if (!header || !hero || !ctrls) {
-    failures.push(`[${vp.name}] header parts missing (header=${!!header} hero=${!!hero} controls=${!!ctrls})`);
+    failures.push(
+      `[${vp.name}] header parts missing (header=${!!header} hero=${!!hero} controls=${!!ctrls})`,
+    );
     return failures;
   }
 
   // No overflow past the viewport
   if (header.x + header.width > vp.viewport.width + 1) {
-    failures.push(`[${vp.name}] header overflows viewport (${(header.x + header.width).toFixed(0)} > ${vp.viewport.width})`);
+    failures.push(
+      `[${vp.name}] header overflows viewport (${(header.x + header.width).toFixed(0)} > ${vp.viewport.width})`,
+    );
   }
 
   if (isMobile) {
     // Stacked: controls render below hero, hero spans roughly the full header width
     if (ctrls.y < hero.y + hero.height - 4) {
-      failures.push(`[${vp.name}] controls should stack below hero (hero.bottom=${(hero.y + hero.height).toFixed(0)}, ctrls.y=${ctrls.y.toFixed(0)})`);
+      failures.push(
+        `[${vp.name}] controls should stack below hero (hero.bottom=${(hero.y + hero.height).toFixed(0)}, ctrls.y=${ctrls.y.toFixed(0)})`,
+      );
     }
     if (hero.width < header.width - 16) {
-      failures.push(`[${vp.name}] hero should span header width on mobile (got ${hero.width.toFixed(0)} vs header ${header.width.toFixed(0)})`);
+      failures.push(
+        `[${vp.name}] hero should span header width on mobile (got ${hero.width.toFixed(0)} vs header ${header.width.toFixed(0)})`,
+      );
     }
   } else {
     // Side-by-side: same top, hero left of controls, no horizontal overlap
     if (!approx(hero.y, ctrls.y, 4)) {
-      failures.push(`[${vp.name}] hero/controls should share row (hero.y=${hero.y.toFixed(0)} vs ctrls.y=${ctrls.y.toFixed(0)})`);
+      failures.push(
+        `[${vp.name}] hero/controls should share row (hero.y=${hero.y.toFixed(0)} vs ctrls.y=${ctrls.y.toFixed(0)})`,
+      );
     }
     if (hero.x + hero.width > ctrls.x + 1) {
       failures.push(`[${vp.name}] hero overlaps controls horizontally`);
@@ -111,7 +144,12 @@ async function run() {
       await ctx.close();
       continue;
     }
-    const ok = await page.locator('[data-testid="ogchat-header"]').first().waitFor({ timeout: 8000 }).then(() => true).catch(() => false);
+    const ok = await page
+      .locator('[data-testid="ogchat-header"]')
+      .first()
+      .waitFor({ timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
     if (!ok) {
       console.warn(`skip ${vp.name}: ogchat-header never rendered (likely not signed in)`);
       await ctx.close();
@@ -119,15 +157,18 @@ async function run() {
     }
     await page.waitForTimeout(200);
 
-    layoutFailures.push(...await assertLayout(page, vp));
+    layoutFailures.push(...(await assertLayout(page, vp)));
 
     for (const target of TARGETS) {
       const id = `${vp.name}__${target}`;
       const locator = page.locator(`[data-testid="${target}"]`).first();
-      if (!(await locator.count())) { console.warn(`skip ${id}: not found`); continue; }
+      if (!(await locator.count())) {
+        console.warn(`skip ${id}: not found`);
+        continue;
+      }
       const baselinePath = `tests/visual/ogchat/baseline/${id}.png`;
-      const currentPath  = `tests/visual/ogchat/current/${id}.png`;
-      const diffPath     = `tests/visual/ogchat/diff/${id}.png`;
+      const currentPath = `tests/visual/ogchat/current/${id}.png`;
+      const diffPath = `tests/visual/ogchat/diff/${id}.png`;
       await mkdir(dirname(currentPath), { recursive: true });
       await locator.scrollIntoViewIfNeeded();
       await locator.screenshot({ path: currentPath });
@@ -172,4 +213,7 @@ async function run() {
   console.log("\nOgChat header sweep ok — layout + pixels clean");
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

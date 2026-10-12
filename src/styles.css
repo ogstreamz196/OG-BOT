@@ -61,6 +61,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-coin: var(--coin);
   --color-coin-foreground: var(--coin-foreground);
+  --color-pitch: var(--pitch);
+  --color-pitch-foreground: var(--pitch-foreground);
 }
 
 .store-clean {
@@ -75,6 +77,8 @@
 
 :root {
   --radius: 0.875rem;
+  --pitch: oklch(0.62 0.19 145);
+  --pitch-foreground: oklch(0.98 0.01 145);
 
   /* Deep midnight navy — base (translucent so the brand wallpaper shows through) */
   --background: oklch(0.1 0.04 265 / 0);
@@ -611,7 +615,7 @@
       radial-gradient(circle 220px at 55% 50%, oklch(0.5 0.2 25 / calc(0.10 * var(--aura-alpha))), transparent 75%),
       radial-gradient(ellipse 90% 60% at 50% -10%, oklch(0.35 0.18 268 / 0.3), transparent 60%),
       radial-gradient(ellipse 70% 50% at 100% 100%, oklch(0.3 0.14 270 / 0.3), transparent 65%),
-      linear-gradient(180deg, oklch(0.1 0.04 265 / 0.55), oklch(0.1 0.04 265 / 0.72));
+      linear-gradient(180deg, oklch(0.1 0.04 265 / 0.7), oklch(0.1 0.04 265 / 0.82));
     animation: redAuraDrift 24s ease-in-out infinite alternate;
   }
   @keyframes redAuraDrift {
@@ -628,7 +632,7 @@
         radial-gradient(circle 280px at 15% 20%, oklch(0.55 0.22 27 / calc(0.16 * var(--aura-alpha))), transparent 72%),
         radial-gradient(circle 300px at 85% 85%, oklch(0.5 0.24 25 / calc(0.14 * var(--aura-alpha))), transparent 72%),
         radial-gradient(ellipse 90% 60% at 50% -10%, oklch(0.35 0.18 268 / 0.3), transparent 60%),
-        linear-gradient(180deg, oklch(0.1 0.04 265 / 0.55), oklch(0.1 0.04 265 / 0.72));
+        linear-gradient(180deg, oklch(0.1 0.04 265 / 0.76), oklch(0.1 0.04 265 / 0.86));
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -666,7 +670,7 @@
 
 /* Glassmorphism utilities — transparent floating panels over the wallpaper */
 @utility glass-panel {
-  background-color: color-mix(in oklab, black 55%, transparent);
+  background-color: color-mix(in oklab, black 70%, transparent);
   backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid color-mix(in oklab, white 10%, transparent);
   box-shadow:
@@ -674,7 +678,7 @@
     inset 0 1px 0 0 oklch(1 0 0 / 0.06);
 }
 @utility glass-panel-strong {
-  background-color: color-mix(in oklab, black 65%, transparent);
+  background-color: color-mix(in oklab, black 80%, transparent);
   backdrop-filter: blur(24px) saturate(150%);
   border: 1px solid color-mix(in oklab, white 12%, transparent);
 }
@@ -712,7 +716,7 @@
   position: absolute;
   left: 6%;
   right: 6%;
-  bottom: -0.18em;
+  bottom: -0.45em;
   height: 0.55em;
   pointer-events: none;
   background:
@@ -1638,4 +1642,67 @@ button.graffiti-accent:hover {
   animation-name: royalty-confetti-fall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
+}
+
+/* Library row equaliser bars */
+@keyframes eqbar {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[eqbar_0\.9s_ease-in-out_infinite\],
+  .animate-\[eqbar_0\.7s_ease-in-out_infinite\],
+  .animate-\[eqbar_1\.1s_ease-in-out_infinite\] { animation: none; }
+}
+
+/* Boss dashboard: clean, neutral admin typography (Roboto) — colours untouched. */
+@utility boss-ui {
+  font-family: "Roboto", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.005em;
+  & :where(*) {
+    font-family: inherit;
+  }
+  & :where(.font-mono, .tabular-nums) {
+    font-variant-numeric: tabular-nums;
+  }
+  & :where(h1, h2, h3) {
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Every Boss page (anything rendering BossNav) gets the clean admin font. */
+main:has(.boss-ui),
+main:has(.boss-ui) *:not(svg):not(svg *) {
+  font-family: "Roboto", "Segoe UI", system-ui, sans-serif;
+}
+main:has(.boss-ui) :is(h1, h2, h3) {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+/* Solid, calm surface behind Boss pages so text never fights the wallpaper art. */
+main:has(.boss-ui) .bg-card\/60,
+main:has(.boss-ui) .bg-card\/70,
+main:has(.boss-ui) .bg-card\/90,
+main:has(.boss-ui) .bg-card {
+  background-color: oklch(0.2 0.035 275);
+}
+.boss-ui {
+  --boss-solid: oklch(0.15 0.03 275);
+  background-color: var(--boss-solid);
+  box-shadow: 0 0 0 100vmax var(--boss-solid);
+}
+
+@media print {
+  body:has(.og-certificate) * { visibility: hidden; }
+  .og-certificate, .og-certificate * { visibility: visible; }
+  .og-cert-overlay { position: absolute; inset: 0; background: none; backdrop-filter: none; }
+  .og-cert-actions { display: none; }
+  .og-certificate { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Phone keyboard open: hide the bottom tab bar so typing areas sit flush above the keyboard. */
+html[data-kb="1"] nav.safe-bottom.fixed {
+  display: none;
 }

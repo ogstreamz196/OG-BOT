@@ -58,10 +58,13 @@ for (const vp of VIEWPORTS) {
   const overflow = stats.scrollWidth - stats.clientWidth > 1;
   const [lo, hi] = vp.font;
   const oob = stats.fontSize < lo || stats.fontSize > hi;
-  if (overflow) failures.push(`[${vp.name}] H1 overflows (${stats.scrollWidth} > ${stats.clientWidth})`);
+  if (overflow)
+    failures.push(`[${vp.name}] H1 overflows (${stats.scrollWidth} > ${stats.clientWidth})`);
   if (oob) failures.push(`[${vp.name}] font-size ${stats.fontSize}px outside [${lo}, ${hi}]`);
 
-  console.log(`[${vp.name}] ${vp.width}px → ${stats.fontSize.toFixed(1)}px font, ${stats.scrollWidth}/${stats.clientWidth} sw/cw`);
+  console.log(
+    `[${vp.name}] ${vp.width}px → ${stats.fontSize.toFixed(1)}px font, ${stats.scrollWidth}/${stats.clientWidth} sw/cw`,
+  );
   await context.close();
 }
 

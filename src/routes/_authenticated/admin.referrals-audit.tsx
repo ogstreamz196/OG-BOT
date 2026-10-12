@@ -264,7 +264,7 @@ export function ReferralsAuditPage() {
 
         <section className="rounded-2xl border border-white/10 bg-card/60">
           <div className="flex items-center justify-between border-b border-white/5 p-4">
-            <h2 className="font-display text-lg font-bold">Top OG Leaders · total 10% payouts</h2>
+            <h2 className="font-display text-lg font-bold">Top OG Leaders · total payouts (6% free · 13% VIP)</h2>
             <span className="text-xs text-muted-foreground">
               {leaderboard.length} leaders · {totalPaid} OG paid total
             </span>
@@ -354,7 +354,7 @@ export function ReferralsAuditPage() {
             <div className="flex items-center gap-2">
               <Scale className="h-4 w-4 text-primary" />
               <h2 className="font-display text-lg font-bold">
-                Reconciliation · expected vs paid (10%)
+                Reconciliation · expected vs paid (6% free / 13% VIP)
               </h2>
             </div>
             {reconQ.data?.totals && (
@@ -406,7 +406,7 @@ export function ReferralsAuditPage() {
                   <th className="p-3">Code</th>
                   <th className="p-3 text-right">Referee burns</th>
                   <th className="p-3 text-right">Total burned</th>
-                  <th className="p-3 text-right">Expected (10%)</th>
+                  <th className="p-3 text-right">Expected (est.)</th>
                   <th className="p-3 text-right">Paid</th>
                   <th className="p-3 text-right">Δ</th>
                 </tr>

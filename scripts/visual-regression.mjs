@@ -30,17 +30,20 @@ const THRESHOLD = Number(process.env.THRESHOLD ?? 0.02); // 2% pixels
 const ROUTES = ["/", "/welcome", "/messenger", "/library", "/buy-coins", "/referrals"];
 
 const VIEWPORTS = [
-  { name: "iphone-se",     ...devices["iPhone SE"] },
+  { name: "iphone-se", ...devices["iPhone SE"] },
   { name: "iphone-15-pro", ...devices["iPhone 15 Pro"] },
-  { name: "samsung-s21",   ...devices["Galaxy S9+"] }, // closest Android preset
-  { name: "ipad-mini",     ...devices["iPad Mini"] },
-  { name: "ipad-pro-11",   ...devices["iPad Pro 11"] },
-  { name: "mac-13",   viewport: { width: 1440, height: 900 },  deviceScaleFactor: 2 },
+  { name: "samsung-s21", ...devices["Galaxy S9+"] }, // closest Android preset
+  { name: "ipad-mini", ...devices["iPad Mini"] },
+  { name: "ipad-pro-11", ...devices["iPad Pro 11"] },
+  { name: "mac-13", viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
   { name: "win-1080", viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 },
 ];
 
 const slug = (p) => (p === "/" ? "home" : p.replace(/^\//, "").replace(/\//g, "_"));
-const exists = async (p) => access(p).then(() => true).catch(() => false);
+const exists = async (p) =>
+  access(p)
+    .then(() => true)
+    .catch(() => false);
 
 async function run() {
   const browser = await chromium.launch();
@@ -67,8 +70,8 @@ async function run() {
       }
 
       const baselinePath = `tests/visual/baseline/${id}.png`;
-      const currentPath  = `tests/visual/current/${id}.png`;
-      const diffPath     = `tests/visual/diff/${id}.png`;
+      const currentPath = `tests/visual/current/${id}.png`;
+      const diffPath = `tests/visual/diff/${id}.png`;
       await mkdir(dirname(currentPath), { recursive: true });
       await page.screenshot({ path: currentPath, fullPage: false });
 
@@ -108,4 +111,7 @@ async function run() {
   console.log("\nVisual sweep ok");
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

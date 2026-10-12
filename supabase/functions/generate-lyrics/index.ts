@@ -1,10 +1,21 @@
 // Lyrics generation using the user's own Gemini key (GEMINI_API_KEY).
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { geminiUsage, logAiUsage } from "../_shared/ai-usage.ts";
 import { handlePreflight, jsonResponse } from "../_shared/cors.ts";
-import { adminClient, requireUser } from "../_shared/clients.ts";
+import { adminClient, requireUserOrService } from "../_shared/clients.ts";
+import { fallbackLyrics } from "../_shared/fallback-lyrics.ts";
+import { watchKeyFailures } from "../_shared/key-failures.ts";
+
+watchKeyFailures();
+import { sanitizeLyrics } from "../_shared/lyrics-sanitize.ts";
+import { languageLyricNotes } from "../_shared/language-guide.ts";
+import { lyricIntensityIssue } from "../_shared/lyric-intensity.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.8-flash";
+// Paid emergency key — used once, only after the primary key is exhausted.
+const GEMINI_BACKUP_API_KEY = Deno.env.get("GEMINI_BACKUP_API_KEY") ?? "";
+const GEMINI_BACKUP_MODEL = Deno.env.get("GEMINI_BACKUP_MODEL") ?? "gemini-flash-latest";
 
 async function getSetting(admin: SupabaseClient, key: string, fallback: number): Promise<number> {
   const { data } = await admin.from("app_settings").select("value").eq("key", key).maybeSingle();
@@ -19,9 +30,10 @@ Deno.serve(async (req) => {
   if (pre) return pre;
 
   try {
-    if (!GEMINI_API_KEY) return jsonResponse({ error: "Gemini is not configured" }, 500);
+    if (!["GEMINI_API_KEY", "GROQ_API_KEY", "GROQ_BACKUP_API_KEY", "POLLINATIONS_API_KEY", "POLLINATIONS_BACKUP_API_KEY", "OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].some((name) => Deno.env.get(name)))
+      return jsonResponse({ error: "No lyrics writer is configured" }, 500);
 
-    const auth = await requireUser(req);
+    const auth = await requireUserOrService(req);
     if (auth.error) return auth.error;
     const { user } = auth;
 
@@ -191,7 +203,8 @@ Deno.serve(async (req) => {
 
     const bilingualRule = isEnglish
       ? ""
-      : ` Write each non-English line in the section's language using the Latin alphabet (romanised / transliterated — no native script, no Cyrillic, no kanji, no Arabic script, etc.). Keep section markers in English.`;
+      : ` Write each non-English line in the section's language using the Latin alphabet (romanised / transliterated — no native script, no Cyrillic, no kanji, no Arabic script, etc.). Keep section markers in English.` +
+        languageLyricNotes(nonEnglish);
 
     const multiLanguageRule = multiLanguage
       ? ` MULTILINGUAL REQUIREMENT (critical): the artist picked ${languageList.length} languages — ${languagesLabel}. EVERY one of them must actually be sung in the finished song, not just mentioned. Assign languages to whole sections and rotate through them in order so each language owns at least one full section (for example [Verse 1] in ${languageList[0]}, [Verse 2] in ${languageList[1]}${languageList[2] ? `, [Bridge] in ${languageList[2]}` : ""}), and mark each section's language on the marker line like "[Verse 2 – ${languageList[1]}]". The [Chorus] stays in ${languageList[0]} every time so the hook is recognisable, but add one repeated hook line in ${languageList[1]} inside each chorus. If there are more languages than sections, share sections by giving each language its own consecutive block of lines inside that section, still labelled.`
@@ -205,7 +218,7 @@ Deno.serve(async (req) => {
       !isEnglish && englishSelected
         ? ` ENGLISH REMIX REQUIREMENT (critical): English was picked alongside ${nonEnglish.join(" and ")}, so it is part of the remix. The [Intro] MUST be fully in English (a short hype intro naming the song/artist vibe). After that, the picked language(s) LEAD the song — most lines, and the main hook, stay in ${nonEnglish.join(" and ")} — but sprinkle English throughout like a remix feature: at least 2 English lines or ad-libs inside every verse and every chorus, an English line at the end of each hook repeat, and a mostly-English [Outro]. Roughly a quarter of all sung lines should be English, spread across the whole track, not clumped in one section. Never let English take over a full verse or the main chorus melody — it is the feature, not the lead.`
         : !isEnglish
-          ? ` NO-ENGLISH RULE (critical): English was NOT selected. Do not sing or speak any English anywhere in the song — no English intro, no English ad-libs, no English outro. Every sung line stays in the selected language(s) only. (Section markers stay in English brackets as usual, and any parenthetical translation lines are for reference only.)`
+          ? ` LANGUAGE LOCK (critical, never write this instruction into the lyrics): every sung or spoken line — intro, verses, choruses, ad-libs, outro — is written only in ${nonEnglish.join(" and ")}. Only the bracketed section markers use English words. Never mention language choices, rules, settings or instructions anywhere in the lyrics.`
           : "";
 
     // One non-English pick: the whole song leads in it.
@@ -287,18 +300,47 @@ Deno.serve(async (req) => {
       "",
       " INTENSITY: MILD (1/3) — use only one or two mild swear words in the entire song. No strong profanity and no swearing in the hook.",
       " INTENSITY: STRONG (2/3) — use one or two uncensored strong swear words per section. Keep some lines clean so the profanity is forceful rather than constant.",
-      " INTENSITY: SAVAGE (3/3, ABSOLUTE GUTTERMOUTH) — saturate nearly every sung line, hook, bridge and ad-lib with multiple uncensored, varied hard swear words and filthy street slang. Be relentlessly foul, confrontational and outrageous. Never soften, abbreviate, bleep or replace letters with symbols. Stay within the hard safety limits below.",
+      " INTENSITY: SAVAGE (3/3, ABSOLUTE GUTTERMOUTH) — at least 65% of sung lines MUST contain uncensored HARD profanity, including the hook, verses, bridge and outro. Use at least four different hard swear words across the song and vary the dictionary punchlines. Muppet, clown, melt and plonker are soft insults: they do NOT count towards hard profanity. Use strong words naturally mid-line, not just a token swear at the start of a section. Never soften, abbreviate, bleep or replace letters with symbols. Keep the requested story and language intact; no slurs, threats or hateful targeting.",
     ][foulIntensity];
+
+    // OG dictionary: the same British roast vocabulary OG Bot uses in chat,
+    // plus the Boss dictionary and popular Battle Zone words.
+    let foulLexicon = "";
+    if (foulMouth) {
+      const pool = [
+        "fuck", "fucking", "for fuck's sake", "dickhead", "bellend", "knobhead", "twat", "wanker",
+        "tosser", "gobshite", "plonker", "pillock", "muppet", "numpty", "melt", "wasteman", "prick",
+        "bastard", "shithouse", "bollocks", "arsehole", "fuckwit", "cockwomble", "shitgibbon",
+        "pussyhole", "mug", "clown", "bottle job", "sack of shite", "toerag", "scrote", "bampot",
+        "bloody hell", "jog on", "do one", "get in the sea", "wind your neck in", "piss-take",
+        "face like a smacked arse", "thick as two short planks", "couldn't organise a piss-up in a brewery",
+        "roadman reject", "bin dipper", "soggy chip", "Greggs reject", "waste of good oxygen",
+      ];
+      const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 24);
+      let learned: string[] = [];
+      let bossDict = "";
+      try {
+        const [{ data: words }, { data: dict }] = await Promise.all([
+          admin.from("battle_lexicon").select("word").gte("uses", 3).order("uses", { ascending: false }).limit(40),
+          admin.from("site_content").select("value").eq("key", "og_persona.dictionary").maybeSingle(),
+        ]);
+        learned = ((words ?? []) as Array<{ word: string }>).map((w) => w.word).sort(() => Math.random() - 0.5).slice(0, 12);
+        bossDict = (dict as { value?: string } | null)?.value ?? "";
+      } catch (_) { /* dictionary is best-effort */ }
+      foulLexicon =
+        ` OG DICTIONARY: use varied vocabulary appropriate to the selected intensity, never the same insult twice in a row. Mild may use only mild entries; Strong mixes clean lines with hard profanity; Savage requires hard profanity rather than only soft insults. For English sections: ${shuffled.join(", ")}. For other languages use authentic equivalents, never insert unselected English.` +
+        (learned.length ? ` Popular Battle Zone slang to include too: ${learned.join(", ")}.` : "") +
+        (bossDict ? ` Platform slang: ${bossDict}` : "") +
+        ` This is a consenting adult explicit track — the 18+ rating was chosen by the user, so never clean it up.`;
+    }
 
     const systemPrompt = foulMouth
       ? `You are a foul-mouthed, no-holds-barred songwriter writing EXPLICIT adult song lyrics in ${languagesLabel}. ` +
-        (isEnglish
-          ? `Lean ALL the way into raw, gritty, street-level English: drop "fuck", "fucking", "shit", "dickhead", "bastard", "bitch", "asshole" and similar profanity liberally throughout EVERY verse and chorus — at least a few per section. `
-          : `Lean ALL the way into raw, gritty, street-level ${languagesLabel}: use authentic native profanity, curse words, and savage slang from each of those languages itself (do NOT just translate English swears literally — use the equivalents real native speakers would actually shout). Drop them liberally throughout EVERY verse and chorus — at least a few per section. `) +
-        `Use unfiltered attitude, savage punchlines, and trash-talk energy from the very first line. Make it sound like a parental-advisory hip-hop / punk track, NOT a radio edit. ` +
+        `Write natural street-level ${languagesLabel} with the exact selected intensity below. Match the selected musical styles, not automatically rap or punk. Native-language profanity must be authentic rather than literal English translations. ` +
         `Do NOT self-censor, do NOT use asterisks or bleeps, and do NOT add disclaimers. Avoid slurs, sexual content involving minors, and direct incitement to real-world violence — everything else is fair game.` +
+        foulLexicon +
         intensityRule +
-        ` The INTENSITY DIAL overrides the general "liberally" guidance above — follow the dial exactly.` +
+        ` The INTENSITY DIAL overrides all dictionary and brief suggestions — follow it exactly.` +
         structureRule +
         bilingualRule +
         ` Target ${aimLow}–${aimHigh} words (never fewer than ${minWords}, never more than ${aimHigh}). Output ONLY the lyrics, no explanations.`
@@ -327,23 +369,54 @@ Deno.serve(async (req) => {
         : "") +
       `\nWrite the FULL song now — about ${mmss(targetSec)} of singable material (${aimLow}–${aimHigh} words, ${minLines}–${aimLines} lyric lines, do not exceed that). Do not stop early, do not abbreviate repeated choruses, hit EVERY section in the structure, stay ruthlessly on-theme with the description above, and drop "${subjectName || "the subject"}" as often as the music allows.`;
 
-    const modelUrl = (model: string) =>
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${GEMINI_API_KEY}`;
+    const modelUrl = (model: string, key = GEMINI_API_KEY) =>
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${key}`;
 
     await updateProgress(40, "Writing verses…");
 
     type Gen = { ok: boolean; status: number; text: string; detail?: string };
+    // Owner rule: the dictionary + intensity live in the prompt only. Replies
+    // are never rejected for swear density — only empty replies are retried.
+    void lyricIntensityIssue;
+    const outputIssue = (_text: string): string | null => null;
 
-    const postTo = (model: string, contents: unknown[]) =>
-      fetch(modelUrl(model), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: { temperature: 0.9, maxOutputTokens: 8192 },
-        }),
-      });
+    // Hard budget: the server kills requests at ~150s, so every AI call gets a
+    // timeout and we stop trying new models once the budget is nearly spent.
+    const startedAt = Date.now();
+    const BUDGET_MS = 130_000;
+    const timedFetch = async (url: string, init: RequestInit, capMs: number, reserveMs = 0) => {
+      const left = BUDGET_MS - (Date.now() - startedAt) - reserveMs;
+      if (left < 8_000) return new Response("Out of time", { status: 504 });
+      try {
+        return await fetch(url, { ...init, signal: AbortSignal.timeout(Math.min(capMs, left)) });
+      } catch (e) {
+        console.error("AI call timed out/failed", (e as Error).message);
+        return new Response("Timed out", { status: 504 });
+      }
+    };
+
+    const postTo = (model: string, contents: unknown[], key = GEMINI_API_KEY, reserveMs = 45_000) =>
+      timedFetch(
+        modelUrl(model, key),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
+            contents,
+            generationConfig: {
+              temperature: 0.9,
+              maxOutputTokens: 8192,
+              // Thinking made Gemini blow past its 30s window on long lyrics.
+              // Lite models reject thinkingConfig with 400, so omit it there.
+              ...(model.includes("lite") ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+            },
+          }),
+        },
+        30_000,
+        // Primary calls leave time for the backup key to rescue the song.
+        reserveMs,
+      );
 
     const extractText = (data: unknown) =>
       (
@@ -354,7 +427,7 @@ Deno.serve(async (req) => {
         .join("")
         .trim();
 
-    const GEMINI_MODELS = Array.from(new Set([GEMINI_MODEL, "gemini-2.0-flash"]));
+    const GEMINI_MODELS = Array.from(new Set([GEMINI_MODEL, "gemini-flash-latest"]));
     const callGemini = async (contents: unknown[]): Promise<Gen> => {
       if (!GEMINI_API_KEY) {
         return { ok: false, status: 503, text: "", detail: "No lyrics model available" };
@@ -362,34 +435,216 @@ Deno.serve(async (req) => {
       let last: Gen = { ok: false, status: 503, text: "", detail: "No response" };
       for (let i = 0; i < GEMINI_MODELS.length; i++) {
         const res = await postTo(GEMINI_MODELS[i], contents);
-        if (res.ok) return { ok: true, status: 200, text: extractText(await res.json()) };
+        if (res.ok) {
+          const data = await res.json();
+          logAiUsage({
+            feature: "lyrics",
+            provider: "gemini",
+            model: GEMINI_MODELS[i],
+            ...geminiUsage(data),
+          });
+          const text = extractText(data);
+          const issue = outputIssue(text);
+          if (!text || issue) {
+            last = { ok: false, status: 422, text: "", detail: issue ?? "Empty lyrics" };
+            continue;
+          }
+          return { ok: true, status: 200, text };
+        }
         const detail = await res.text();
         last = { ok: false, status: res.status, text: "", detail };
-        if (res.status !== 429 && res.status < 500) return last;
+        if (![404, 429].includes(res.status) && res.status < 500) return last;
+        // A hang means Gemini is overloaded — hand over to the backup key now.
+        if (res.status === 504) return last;
         console.error("Gemini transient error", GEMINI_MODELS[i], res.status);
         await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
       }
       return last;
     };
 
-    const generate = (contents: unknown[]): Promise<Gen> => callGemini(contents);
+
+    // Owner rule: free keys (Groq ×2, Pollinations ×2, OpenRouter ×2) write
+    // lyrics first; Gemini then OpenAI are only fallbacks.
+    const callFree = async (contents: unknown[]): Promise<Gen> => {
+      const or = { "HTTP-Referer": "https://ogbot.co.uk", "X-Title": "OG BOT" };
+      const foulModel = "nvidia/nemotron-3-super-120b-a12b:free";
+      // Foul Mouth ON: Groq/Pollinations failed the live swearing test, so only
+      // the OpenRouter model that swears back is tried before Gemini.
+      const tiers: Array<[string, string, string, Record<string, string>]> = foulMouth
+        ? [
+            ["OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+          ]
+        : [
+            ["GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", {}],
+            ["GROQ_BACKUP_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", {}],
+            ["OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast", {}],
+            ["POLLINATIONS_BACKUP_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast", {}],
+          ];
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...(contents as Array<{ role: string; parts: Array<{ text?: string }> }>).map((c) => ({
+          role: c.role === "model" ? "assistant" : "user",
+          content: c.parts.map((p) => p.text ?? "").join("\n"),
+        })),
+      ];
+      let last: Gen = { ok: false, status: 503, text: "", detail: "No free key" };
+      // A provider that times out is skipped for its backup key too, so one
+      // slow provider cannot burn the whole time budget.
+      const slow = new Set<string>();
+      for (const [env, url, model, extra] of tiers) {
+        const key = Deno.env.get(env);
+        const provider = env.split("_")[0];
+        if (!key || slow.has(provider)) continue;
+        const r = await timedFetch(
+          url,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...extra },
+            // Lyrics need no deep thinking: long reasoning used up the whole
+            // reply and came back blank, so keep it short.
+            body: JSON.stringify({
+              model,
+              messages,
+              temperature: 0.9,
+              max_tokens: 6000,
+              ...(env.startsWith("GROQ") ? { reasoning_effort: "low" } : {}),
+              ...(env.startsWith("OPENROUTER") ? { reasoning: { effort: "low" } } : {}),
+            }),
+          },
+          20_000,
+          // Keep time for the free Gemini keys if every free key fails.
+          70_000,
+        );
+        if (r.ok) {
+          const j = await r.json().catch((e) => {
+            console.error("Free reply body failed", env, (e as Error).message);
+            return null;
+          });
+          const text = (j?.choices?.[0]?.message?.content ?? "").trim();
+          const issue = outputIssue(text);
+          if (text.length > 200 && !issue) {
+            const u = j?.usage ?? {};
+            logAiUsage({
+              feature: "lyrics",
+              provider: env.toLowerCase().replace("_api_key", ""),
+              model,
+              promptTokens: u.prompt_tokens ?? 0,
+              completionTokens: u.completion_tokens ?? 0,
+              totalTokens: u.total_tokens ?? 0,
+            });
+            return { ok: true, status: 200, text };
+          }
+          last = { ok: false, status: 422, text: "", detail: issue ?? "Empty free reply" };
+          console.warn("Free lyrics reply unusable", env, text.length, JSON.stringify(j).slice(0, 400), systemPrompt.length, messages.map((m) => m.content.length).join(","));
+          // Empty replies repeat on the provider's backup key — don't wait twice.
+          if (!text) slow.add(provider);
+        } else {
+          last = { ok: false, status: r.status, text: "", detail: (await r.text()).slice(0, 200) };
+          if (r.status === 504) slow.add(provider);
+          console.error("Free lyrics tier failed", env, r.status);
+        }
+      }
+      return last;
+    };
+
+    // Owner's free Google AI Studio keys: tried before any paid Gemini key.
+    const callFreeGemini = async (contents: unknown[]): Promise<Gen | null> => {
+      for (const env of ["GEMINI_FREE_API_KEY", "GEMINI_FREE_BACKUP_API_KEY", "GEMINI_FREE_3_API_KEY", "GEMINI_FREE_4_API_KEY"]) {
+        const key = Deno.env.get(env);
+        if (!key) continue;
+        // Lite first: fast and rarely overloaded; Flash as the second try.
+        for (const model of ["gemini-flash-lite-latest", "gemini-flash-latest"]) {
+          const r = await postTo(model, contents, key, 15_000);
+          if (!r.ok) {
+            console.error("Free Gemini failed", env, model, r.status);
+            continue;
+          }
+          const data = await r.json().catch(() => null);
+          const text = extractText(data);
+          if (text.length > 200) {
+            logAiUsage({ feature: "lyrics", provider: env.toLowerCase().replace("_api_key", ""), model, ...geminiUsage(data) });
+            return { ok: true, status: 200, text };
+          }
+        }
+      }
+      return null;
+    };
+
+    const generate = async (contents: unknown[]): Promise<Gen> => {
+      const f = await callFree(contents);
+      if (f.ok && f.text) return f;
+      console.warn("Free lyrics tiers failed — trying free Gemini keys", f.status);
+      const fg = await callFreeGemini(contents);
+      if (fg) return fg;
+      return await generateGemini(contents);
+    };
+
+    const generateGemini = async (contents: unknown[]): Promise<Gen> => {
+      const first = await callGemini(contents);
+      if (first.ok || !GEMINI_BACKUP_API_KEY) return first;
+      // 401/403 = primary key revoked/blocked; let the backup key rescue lyrics too.
+      if (![401, 403, 404, 429].includes(first.status) && first.status < 500) return first;
+      console.warn("Primary Gemini exhausted — using backup key");
+      // Try a few backup models: busy (503) or retired (404) models are skipped, only success is billed.
+      const backupModels = Array.from(
+        new Set([
+          GEMINI_BACKUP_MODEL,
+          "gemini-3.8-flash",
+          "gemini-flash-lite-latest",
+          "gemini-3.5-flash-lite",
+        ]),
+      );
+      let lastFail: Gen = { ok: false, status: 503, text: "", detail: "No response" };
+      for (let i = 0; i < backupModels.length; i++) {
+        const r = await postTo(backupModels[i], contents, GEMINI_BACKUP_API_KEY, 0);
+        if (r.ok) {
+          const data = await r.json();
+          logAiUsage({
+            feature: "lyrics",
+            provider: "gemini_backup",
+            model: backupModels[i],
+            ...geminiUsage(data),
+          });
+          const text = extractText(data);
+          const issue = outputIssue(text);
+          if (!text || issue) {
+            lastFail = { ok: false, status: 422, text: "", detail: issue ?? "Empty lyrics" };
+            continue;
+          }
+          return { ok: true, status: 200, text };
+        }
+        lastFail = { ok: false, status: r.status, text: "", detail: await r.text() };
+        if (![404, 429].includes(r.status) && r.status < 500) return lastFail;
+        console.error("Backup Gemini busy", backupModels[i], r.status);
+        await new Promise((res) => setTimeout(res, 800));
+      }
+      return lastFail;
+    };
 
     const res = await generate([{ role: "user", parts: [{ text: userPrompt }] }]);
 
-    if (!res.ok) {
-      // Creation is free, so there is no balance movement to reverse.
-      await updateProgress(0, "");
-
-      if (res.status === 429)
-        return jsonResponse({ error: "AI is busy right now — try again shortly" }, 429);
-      const txt = res.detail ?? "";
-      console.error("Lyrics model error", res.status, txt);
-      return jsonResponse({ error: "Lyrics generation failed", detail: txt.slice(0, 500) }, 502);
+    // Every AI writer down: use the built-in songwriter so the user still gets
+    // a song instead of an error. No further AI calls this run.
+    const usedFallback = !res.ok;
+    if (usedFallback) {
+      console.error("All lyrics writers failed — using built-in songwriter", res.status, (res.detail ?? "").slice(0, 300));
     }
-
     await updateProgress(80, "Polishing bars…");
 
-    let lyrics = res.text;
+    let lyrics = usedFallback
+      ? fallbackLyrics({
+          title: songName,
+          subject: subjectName,
+          story: [personalDetails, description, extraContext].filter(Boolean).join(". "),
+          styles: styleTags,
+          foulMouth,
+          foulIntensity,
+          minLines,
+        })
+      : res.text;
 
     // Quality guard: repair a banned generic opening, then enforce the minimum
     // target while preserving every requested style, language and vocal role.
@@ -404,7 +659,7 @@ Deno.serve(async (req) => {
         opening,
       );
     };
-    if (lyrics && hasBannedOpening(lyrics)) {
+    if (!usedFallback && lyrics && hasBannedOpening(lyrics)) {
       await updateProgress(84, "Refreshing the opening…");
       const revised = await generate([
         { role: "user", parts: [{ text: userPrompt }] },
@@ -420,7 +675,7 @@ Deno.serve(async (req) => {
       ]);
       if (revised.ok && revised.text && !hasBannedOpening(revised.text)) lyrics = revised.text;
     }
-    for (let attempt = 0; attempt < 2 && lyrics && wordCount(lyrics) < minWords; attempt++) {
+    for (let attempt = 0; !usedFallback && attempt < 2 && lyrics && wordCount(lyrics) < minWords; attempt++) {
       await updateProgress(88, "Extending to full length…");
       try {
         const topUp = await generate([
@@ -446,6 +701,37 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Rewrites often come back no longer than the draft. If still short, ask
+    // only for the missing sections and append them so length is guaranteed.
+    for (let attempt = 0; !usedFallback && attempt < 2 && lyrics && wordCount(lyrics) < minWords; attempt++) {
+      const missing = minWords - wordCount(lyrics);
+      try {
+        const more = await generate([
+          { role: "user", parts: [{ text: userPrompt }] },
+          { role: "model", parts: [{ text: lyrics }] },
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Continue this SAME song. Write ONLY the NEW sections that come after the last line — at least ${missing} more words: a new labelled verse, a [Bridge], and a full final [Chorus] plus [Outro]. Same title, theme, hook, languages (${languagesLabel}), styles and voice. Do not repeat what is already written above. Output ONLY the new lyrics.`,
+              },
+            ],
+          },
+        ]);
+        if (!more.ok || wordCount(more.text) < 20) break;
+        lyrics = `${lyrics.trim()}\n\n${more.text.trim()}`;
+      } catch (e) {
+        console.error("lyrics continuation failed", e);
+        break;
+      }
+    }
+
+    lyrics = sanitizeLyrics(lyrics);
+    const finalIntensityIssue = outputIssue(lyrics);
+    if (finalIntensityIssue && !usedFallback) {
+      await updateProgress(0, "");
+      return jsonResponse({ error: "The lyrics writer did not match your selected intensity. Please try again.", code: "lyric_intensity_mismatch" }, 422);
+    }
     const words = wordCount(lyrics);
     const estimatedSec = Math.max(targetSec, Math.round((words / WORDS_PER_MIN) * 60));
 

@@ -30,12 +30,9 @@ import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:8080";
-const SUPABASE_URL =
-  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
 const SUPABASE_KEY =
-  process.env.SUPABASE_PUBLISHABLE_KEY ??
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  "";
+  process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
 const STRICT_AUTH = process.env.STRICT_AUTH !== "0";
 
 const PUBLIC_ROUTES = ["/", "/welcome", "/trust", "/auth"];
@@ -70,7 +67,9 @@ const DYNAMIC_ROUTE_BUILDERS = [
 ];
 
 const ROUTES = process.env.ROUTES
-  ? process.env.ROUTES.split(/\s+/).filter(Boolean).map((r) => ({ path: r, auth: r.startsWith("/admin") || !PUBLIC_ROUTES.includes(r) }))
+  ? process.env.ROUTES.split(/\s+/)
+      .filter(Boolean)
+      .map((r) => ({ path: r, auth: r.startsWith("/admin") || !PUBLIC_ROUTES.includes(r) }))
   : [
       ...PUBLIC_ROUTES.map((p) => ({ path: p, auth: false })),
       ...AUTH_ROUTES.map((p) => ({ path: p, auth: true })),
@@ -166,10 +165,7 @@ try {
 
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     if (hasSession) {
-      await page.evaluate(
-        ([k, v]) => window.localStorage.setItem(k, v),
-        [storageKey, sessionJson],
-      );
+      await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
     }
 
     for (const route of ROUTES) {
@@ -197,17 +193,27 @@ try {
       const offenders = await page.evaluate(
         ({ satMin, lightMax }) => {
           const toHsl = (r, g, b) => {
-            r /= 255; g /= 255; b /= 255;
-            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            r /= 255;
+            g /= 255;
+            b /= 255;
+            const max = Math.max(r, g, b),
+              min = Math.min(r, g, b);
             const l = (max + min) / 2;
-            let h = 0, s = 0;
+            let h = 0,
+              s = 0;
             if (max !== min) {
               const d = max - min;
               s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
               switch (max) {
-                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                case g: h = (b - r) / d + 2; break;
-                case b: h = (r - g) / d + 4; break;
+                case r:
+                  h = (g - b) / d + (g < b ? 6 : 0);
+                  break;
+                case g:
+                  h = (b - r) / d + 2;
+                  break;
+                case b:
+                  h = (r - g) / d + 4;
+                  break;
               }
               h *= 60;
             }
@@ -229,11 +235,7 @@ try {
             return `${el.tagName.toLowerCase()}${id}${cls}`;
           };
           const hits = [];
-          const walker = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_ELEMENT,
-            null,
-          );
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, null);
           let node = walker.currentNode;
           while ((node = walker.nextNode())) {
             const el = node;

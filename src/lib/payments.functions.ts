@@ -5,6 +5,7 @@ import {
   findCoinPackByPriceId,
   findCoinPackByBundleId,
   isVipBundle,
+  getVipPlan,
   VIP_PLAN,
   CUSTOM_COIN_UNIT,
   applyPackOverride,
@@ -161,18 +162,29 @@ export const createCoinCheckoutSession = createServerFn({ method: "POST" })
 
 export const createVipCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => {
-    if (data.environment !== "sandbox" && data.environment !== "live") {
-      throw new Error("Invalid environment");
-    }
-    if (!/^https?:\/\//.test(data.returnUrl)) throw new Error("Invalid returnUrl");
-    return data;
-  })
+  .inputValidator(
+    (data: {
+      returnUrl: string;
+      environment: StripeEnv;
+      plan?: "monthly" | "yearly";
+      noAutoRenew?: boolean;
+    }) => {
+      if (data.environment !== "sandbox" && data.environment !== "live") {
+        throw new Error("Invalid environment");
+      }
+      if (!/^https?:\/\//.test(data.returnUrl)) throw new Error("Invalid returnUrl");
+      if (data.plan !== undefined && data.plan !== "monthly" && data.plan !== "yearly") {
+        throw new Error("Invalid plan");
+      }
+      return data;
+    },
+  )
   .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
     const { userId, supabase } = context;
+    const plan = getVipPlan(data.plan);
     try {
       const stripe = createStripeClient(data.environment);
-      const prices = await stripe.prices.list({ lookup_keys: [VIP_PLAN.priceId] });
+      const prices = await stripe.prices.list({ lookup_keys: [plan.priceId], active: true });
       if (!prices.data.length) throw new Error("VIP price not found");
       const stripePrice = prices.data[0];
 
@@ -196,15 +208,18 @@ export const createVipCheckoutSession = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
+        allow_promotion_codes: true,
         metadata: {
           userId,
-          bundleId: VIP_PLAN.bundleId,
+          bundleId: plan.bundleId,
           environment: data.environment,
+          ...(data.noAutoRenew && data.plan === "yearly" ? { noAutoRenew: "1" } : {}),
         },
         subscription_data: {
           metadata: {
             userId,
-            bundleId: VIP_PLAN.bundleId,
+            bundleId: plan.bundleId,
+            ...(data.noAutoRenew && data.plan === "yearly" ? { noAutoRenew: "1" } : {}),
           },
         },
       });
@@ -307,7 +322,7 @@ export const createCustomCoinCheckoutSession = createServerFn({ method: "POST" }
 type ReconcileResult =
   | { status: "credited"; coins: number; balance: number }
   | { status: "already_credited"; coins: number; balance: number }
-  | { status: "vip_granted" }
+  | { status: "vip_granted"; ogVipId?: string | null }
   | { status: "pending"; reason: string }
   | { error: string };
 
@@ -347,7 +362,21 @@ export const reconcileCoinSession = createServerFn({ method: "POST" })
           .from("user_roles")
           .upsert({ user_id: userId, role: "vip" }, { onConflict: "user_id,role" });
         if (error) return { error: error.message };
-        return { status: "vip_granted" };
+        let ogVipId: string | null = null;
+        if (/year/i.test(bundleId)) {
+          const { data: id, error: idErr } = await (supabaseAdmin as any).rpc("assign_og_vip_id", {
+            p_user: userId,
+          });
+          if (idErr) console.error("assign_og_vip_id failed", idErr);
+          else ogVipId = (id as string | null) ?? null;
+          try {
+            const { queueYearlyVipAck } = await import("@/lib/vip-ack.server");
+            await queueYearlyVipAck(supabaseAdmin, userId, ogVipId);
+          } catch (e) {
+            console.error("vip ack notify failed", e);
+          }
+        }
+        return { status: "vip_granted", ogVipId };
       }
 
       const metaCoins = meta.coins ? Number(meta.coins) : 0;
@@ -815,28 +844,53 @@ export const refundCoinPurchase = createServerFn({ method: "POST" })
         };
       }
 
-      const refund = await stripe.refunds.create({ payment_intent: pi.id });
-      const refundedAmount = toMajorUnit(refund.amount ?? 0, currency);
-
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      const coinsToReverse = Math.max(0, Number(session.metadata?.coins ?? 0)) || 0;
-      const { data: prof } = await supabaseAdmin
-        .from("profiles")
-        .select("coin_balance")
-        .eq("id", userId)
-        .maybeSingle();
-      const current = prof?.coin_balance ?? 0;
-      const newBalance = Math.max(0, current - coinsToReverse);
-      if (coinsToReverse > 0) {
-        await supabaseAdmin.from("profiles").update({ coin_balance: newBalance }).eq("id", userId);
-        await supabaseAdmin.from("coin_transactions").insert({
-          user_id: userId,
-          amount: -coinsToReverse,
-          type: "refund",
-          reference,
-        });
+      // Refund rules: only within 14 days and only if none of the coins have been used.
+      const REFUND_WINDOW_DAYS = 14;
+      const createdMs = (session.created ?? 0) * 1000;
+      if (Date.now() - createdMs > REFUND_WINDOW_DAYS * 86_400_000) {
+        return {
+          error: `Refunds are only available within ${REFUND_WINDOW_DAYS} days of purchase.`,
+        };
       }
+      // Take the coins back first, in one locked step that also checks none of
+      // them have been spent. Doing it after the Stripe refund left a gap in
+      // which coins could be spent and the money still refunded.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: clawback, error: clawErr } = await (supabaseAdmin as any).rpc(
+        "clawback_stripe_purchase",
+        {
+          _user_id: userId,
+          _purchase_reference: reference,
+          _refund_id: null,
+          _mode: "instant",
+        },
+      );
+      if (clawErr) return { error: "Couldn't process the refund right now. Please try again." };
+      const claw = (clawback ?? {}) as { clawed_back?: boolean; reason?: string; balance?: number };
+      if (claw.reason === "coins_spent") {
+        return {
+          error: "Coins from this purchase have already been used, so it can't be refunded.",
+        };
+      }
+      // "already_applied" means the coins were already taken back (e.g. an
+      // earlier attempt stopped before Stripe ran), so finishing the Stripe
+      // refund is correct. Stripe itself rejects a second full refund.
+
+      let refund;
+      try {
+        refund = await stripe.refunds.create({ payment_intent: pi.id });
+      } catch (stripeErr) {
+        // Stripe didn't refund, so give the coins back.
+        if (claw.clawed_back) {
+          await (supabaseAdmin as any).rpc("restore_instant_refund_clawback", {
+            _user_id: userId,
+            _purchase_reference: reference,
+          });
+        }
+        throw stripeErr;
+      }
+      const refundedAmount = toMajorUnit(refund.amount ?? 0, currency);
+      const newBalance = Number(claw.balance ?? 0);
 
       return { status: "refunded", refundedAmount, currency, newBalance };
     } catch (error) {

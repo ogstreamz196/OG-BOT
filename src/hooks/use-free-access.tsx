@@ -24,6 +24,8 @@ export function useFreeAccess() {
     queryKey: FREE_ACCESS_KEY,
     staleTime: 30_000,
     queryFn: async (): Promise<FreeAccessRow> => {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) return { rawEnabled: false, expiresAt: null };
       const { data, error } = await supabase
         .from("app_settings")
         .select("key, value")

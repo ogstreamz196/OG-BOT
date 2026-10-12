@@ -43,12 +43,8 @@ try {
     await card.first().waitFor({ state: "visible", timeout: 5_000 });
 
     const metrics = await card.first().evaluate((el) => {
-      const headline = el.querySelector(
-        '[data-testid="telegram-status-headline"]',
-      );
-      const detail = el.querySelector(
-        '[data-testid="telegram-status-detail"]',
-      );
+      const headline = el.querySelector('[data-testid="telegram-status-headline"]');
+      const detail = el.querySelector('[data-testid="telegram-status-detail"]');
       const cardRect = el.getBoundingClientRect();
       const read = (node) => {
         if (!node) return null;

@@ -83,13 +83,13 @@ export const CUSTOM_COIN_UNIT = {
 } as const;
 
 export interface VipPlan {
-  bundleId: "og_vip_monthly";
-  priceId: "og_vip_monthly";
+  bundleId: "og_vip_monthly" | "og_vip_yearly";
+  priceId: "og_vip_monthly" | "og_vip_yearly";
   priceCents: number;
   currency: "gbp";
   label: string;
   /** Billing cadence label shown in UI. */
-  cadence: "month";
+  cadence: "month" | "year";
 }
 
 export const VIP_PLAN: VipPlan = {
@@ -100,6 +100,20 @@ export const VIP_PLAN: VipPlan = {
   label: "OG VIP Monthly",
   cadence: "month",
 };
+
+export const VIP_PLAN_YEARLY: VipPlan = {
+  bundleId: "og_vip_yearly",
+  priceId: "og_vip_yearly",
+  priceCents: 5000,
+  currency: "gbp",
+  label: "OG VIP Yearly",
+  cadence: "year",
+};
+
+export type VipPlanKey = "monthly" | "yearly";
+export function getVipPlan(plan: VipPlanKey | undefined): VipPlan {
+  return plan === "yearly" ? VIP_PLAN_YEARLY : VIP_PLAN;
+}
 
 /** Bundles historically used for the VIP plan. Used by webhook/refund/reconcile
  *  paths so legacy purchases are still treated as VIP. */

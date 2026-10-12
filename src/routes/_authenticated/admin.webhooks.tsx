@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { listStripeWebhookEvents, type StripeEventRow } from "@/lib/stripe-events.functions";
 import { useRole } from "@/hooks/use-role";
 import { formatDistanceToNow } from "date-fns";
-import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
 
 export const Route = createFileRoute("/_authenticated/admin/webhooks")({
   beforeLoad: () => {
@@ -73,8 +72,6 @@ export function WebhooksAdminPage() {
             {isFetching ? "Refreshing…" : "Refresh"}
           </button>
         </header>
-
-        <E2ESmokeTest />
 
         <Card>
           <CardHeader>
@@ -185,10 +182,11 @@ export function WebhooksAdminPage() {
               </ul>
             )}
             <Link
-              to="/admin/onboarding"
+              to="/admin/system"
+              search={{ tab: "setup" }}
               className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
-              Open onboarding diagnostics <ExternalLink className="h-3 w-3" />
+              Open setup checklist <ExternalLink className="h-3 w-3" />
             </Link>
           </CardContent>
         </Card>

@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.referral_rate_pct(uuid) FROM authenticated;

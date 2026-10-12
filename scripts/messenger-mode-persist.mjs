@@ -22,15 +22,16 @@ const page = await ctx.newPage();
 
 try {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  await page.evaluate(
-    ([k, v]) => window.localStorage.setItem(k, v),
-    [storageKey, sessionJson],
-  );
+  await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
 
   await page.goto(`${BASE}/messenger`, { waitUntil: "networkidle" });
   // Force loner first to normalize starting state
   const lonerBtn = page.getByRole("button", { name: /private mode|loner/i });
-  if (await lonerBtn.count()) await lonerBtn.first().click().catch(() => {});
+  if (await lonerBtn.count())
+    await lonerBtn
+      .first()
+      .click()
+      .catch(() => {});
 
   // Click Community
   const community = page.getByRole("button", { name: /community/i }).first();

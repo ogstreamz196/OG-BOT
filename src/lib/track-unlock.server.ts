@@ -37,7 +37,13 @@ export async function grantTrackUnlock(
     if (error) return { ok: false, error: error.message };
   }
 
-  if (existing) return { ok: true, already: true };
+  if (existing) {
+    if (song.user_id === userId) {
+      const { error } = await supabaseAdmin.rpc("sync_owner_track_bonus", { p_song: songId });
+      if (error) return { ok: false, error: error.message };
+    }
+    return { ok: true, already: true };
+  }
 
   const { error: insErr } = await supabaseAdmin.from("unlocked_songs").insert({
     user_id: userId,

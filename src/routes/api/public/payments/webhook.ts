@@ -47,41 +47,9 @@ async function alreadyProcessed(
   return false;
 }
 
-async function creditPaymentReferral(
-  userId: string,
-  rewardCoins: number,
-  paymentReference: string,
-) {
-  if (rewardCoins <= 0) return;
-  const supabase = await getAdminClient();
-  const { data, error } = await (supabase as any).rpc("credit_payment_referral", {
-    _referee_id: userId,
-    _reward_coins: rewardCoins,
-    _payment_reference: paymentReference,
-  });
-  if (error) {
-    log("error", "payment referral reward failed", {
-      userId,
-      paymentReference,
-      err: error.message,
-    });
-    return;
-  }
-  const result = data as { credited?: boolean; reason?: string; reward_coins?: number } | null;
-  log("info", result?.credited ? "payment referral rewarded" : "payment referral skipped", {
-    userId,
-    paymentReference,
-    rewardCoins: result?.reward_coins ?? rewardCoins,
-    reason: result?.reason,
-  });
-}
-
-function paidAmountReward(session: any): number {
-  const amountMinor = Number(session?.amount_total ?? session?.amount?.value ?? 0);
-  return Number.isFinite(amountMinor) && amountMinor >= 100
-    ? Math.max(1, Math.floor(amountMinor / 100))
-    : 0;
-}
+// Leaders earn cashback only on coins their friends spend (see
+// pay_referral_cashback in the database), never on card payments, so no
+// referral reward is paid from this webhook.
 
 // ─── coin crediting (one-off purchases) ────────────────────────────────────
 async function creditCoinsForSession(session: any, env: StripeEnv) {
@@ -130,16 +98,15 @@ async function creditCoinsForSession(session: any, env: StripeEnv) {
   );
   if (creditErr) {
     log("error", "coin credit failed", { userId, reference, err: creditErr.message });
-    return;
+    // Throw so the webhook releases its idempotency marker and answers non-2xx;
+    // Stripe then retries and the idempotent credit runs again.
+    throw new Error(`coin credit failed: ${creditErr.message}`);
   }
 
   const credited = Boolean((result as { credited?: boolean } | null)?.credited);
   const newBalance = Number((result as { balance?: number } | null)?.balance ?? 0);
   if (credited) log("info", "coins credited", { userId, coins, reference, newBalance });
   else log("info", "coins already credited", { userId, coins, reference, newBalance });
-  if (credited) {
-    await creditPaymentReferral(userId, Math.max(1, Math.floor(coins / 10)), reference);
-  }
 }
 
 // ─── VIP role + subscription mirror ────────────────────────────────────────
@@ -202,19 +169,41 @@ async function upsertSubscriptionRow(subscription: any, env: StripeEnv) {
   return userId;
 }
 
+async function assignOgVipId(userId: string, ctx: Record<string, unknown>) {
+  const supabase = await getAdminClient();
+  const { data, error } = await (supabase as any).rpc("assign_og_vip_id", { p_user: userId });
+  if (error) log("error", "OG VIP ID assign failed", { userId, err: error.message, ...ctx });
+  else log("info", "OG VIP ID ready", { userId, ogVipId: data, ...ctx });
+  try {
+    const { queueYearlyVipAck } = await import("@/lib/vip-ack.server");
+    await queueYearlyVipAck(supabase, userId, (data as string | null) ?? null);
+  } catch (e) {
+    log("error", "VIP ack notify failed", { userId, err: String(e) });
+  }
+}
+
+function isYearlyPrice(priceId: unknown) {
+  return /year/i.test(String(priceId ?? ""));
+}
+
 async function syncVipFromSubscription(subscription: any, env: StripeEnv) {
   const userId = await upsertSubscriptionRow(subscription, env);
   if (!userId) return;
   const status = subscription?.status as string | undefined;
   const cancelAtPeriodEnd = !!subscription?.cancel_at_period_end;
-  // Active / trialing / past_due (grace) keep VIP. Per product decision:
-  // when the user requests cancellation (cancel_at_period_end=true), revoke
-  // VIP perks immediately rather than waiting for period end.
-  const keep =
-    !cancelAtPeriodEnd && (status === "active" || status === "trialing" || status === "past_due");
+  // Cancelling only turns off auto-renew: members keep VIP until the paid
+  // period ends. Stripe sends status "canceled" / subscription.deleted then.
+  const keep = status === "active" || status === "trialing" || status === "past_due";
   const ctx = { subId: subscription.id, status, cancelAtPeriodEnd, env };
-  if (keep) await grantVipRole(userId, ctx);
-  else await revokeVipRole(userId, ctx);
+  if (keep) {
+    await grantVipRole(userId, ctx);
+    const item = subscription.items?.data?.[0];
+    const priceId =
+      item?.price?.lookup_key || item?.price?.metadata?.lovable_external_id || item?.price?.id;
+    if (isYearlyPrice(priceId) || isYearlyPrice(subscription?.metadata?.bundleId)) {
+      await assignOgVipId(userId, ctx);
+    }
+  } else await revokeVipRole(userId, ctx);
 }
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
@@ -239,7 +228,22 @@ async function grantVipFromCheckout(session: any, env: StripeEnv) {
     return;
   }
   await grantVipRole(userId, { sessionId: session.id, env, source: "checkout" });
-  await creditPaymentReferral(userId, paidAmountReward(session), `stripe:${env}:vip:${session.id}`);
+  // Member chose "don't auto-renew" before checkout: switch renewal off now.
+  // They keep VIP for the full paid year; Stripe ends the plan after that.
+  if (session?.metadata?.noAutoRenew === "1" && session?.subscription) {
+    try {
+      const { createStripeClient } = await import("@/lib/stripe.server");
+      const subId =
+        typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+      await createStripeClient(env).subscriptions.update(subId, { cancel_at_period_end: true });
+      log("info", "auto-renew disabled at checkout", { subId, userId });
+    } catch (e) {
+      log("error", "disable auto-renew failed", { sessionId: session.id, err: String(e) });
+    }
+  }
+  if (isYearlyPrice(session?.metadata?.bundleId)) {
+    await assignOgVipId(userId, { sessionId: session.id, env });
+  }
 }
 
 // ─── one-off card unlock of a single track (99p) ───────────────────────────
@@ -262,12 +266,7 @@ async function fulfilTrackUnlock(session: any, env: StripeEnv) {
   const { grantTrackUnlock } = await import("@/lib/track-unlock.server");
   const result = await grantTrackUnlock(userId, songId, `stripe:${env}:${session.id}`);
   if (!result.ok) log("error", "track unlock failed", { userId, songId, err: result.error });
-  else {
-    log("info", "track unlocked via card", { userId, songId, already: result.already });
-    if (!result.already) {
-      await creditPaymentReferral(userId, 1, `stripe:${env}:track:${session.id}`);
-    }
-  }
+  else log("info", "track unlocked via card", { userId, songId, already: result.already });
 }
 
 // ─── refunds ───────────────────────────────────────────────────────────────
@@ -351,12 +350,23 @@ async function upsertRefundRow(opts: {
       refundId: opts.refundId,
       env: opts.env,
     });
+    await reverseReferralRewardsForRefund(userId, sessionId, opts.env);
+  }
+
+  if (opts.env === "live" && opts.status === "succeeded" && opts.amount > 0) {
+    const { sendSaleToLedgerly } = await import("@/lib/ledgerly.server");
+    await sendSaleToLedgerly({
+      amount: -(opts.amount / 100),
+      description: "Refund",
+      reference: String(opts.paymentIntentId ?? opts.chargeId ?? opts.refundId),
+      externalId: `refund_${opts.refundId}`,
+    });
   }
 }
 
 // Deduct coins originally credited for a coin-pack purchase when that
 // purchase is refunded. Allowed to push the balance negative per product
-// decision. Idempotent via the `stripe:refund:<id>` reference.
+// decision. Idempotent per purchase (see clawback_stripe_purchase).
 async function clawbackCoinsForRefund(opts: {
   userId: string;
   sessionId: string;
@@ -364,50 +374,47 @@ async function clawbackCoinsForRefund(opts: {
   env: StripeEnv;
 }) {
   const supabase = await getAdminClient();
-  const reference = `stripe:refund:${opts.refundId}`;
-  const { data: already } = await supabase
-    .from("coin_transactions")
-    .select("id")
-    .eq("reference", reference)
-    .maybeSingle();
-  if (already) {
-    log("info", "refund clawback already applied", { reference });
-    return;
-  }
   const purchaseRef = `stripe:${opts.env}:${opts.sessionId}`;
-  const { data: orig } = await supabase
-    .from("coin_transactions")
-    .select("amount")
-    .eq("reference", purchaseRef)
-    .eq("type", "stripe_purchase")
-    .maybeSingle();
-  const coins = Number(orig?.amount ?? 0);
-  if (!coins || coins <= 0) {
-    log("info", "no original coin purchase to claw back", { purchaseRef });
-    return;
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("coin_balance")
-    .eq("id", opts.userId)
-    .maybeSingle();
-  const newBalance = (profile?.coin_balance ?? 0) - coins;
-  const { error: updErr } = await supabase
-    .from("profiles")
-    .update({ coin_balance: newBalance })
-    .eq("id", opts.userId);
-  if (updErr) {
-    log("error", "clawback balance update failed", { userId: opts.userId, err: updErr.message });
-    return;
-  }
-  const { error: txErr } = await supabase.from("coin_transactions").insert({
-    user_id: opts.userId,
-    amount: -coins,
-    type: "stripe_refund",
-    reference,
+  // Atomic and idempotent per purchase: refund.created, refund.updated and
+  // charge.refunded all arrive for one refund, and a VIP instant refund has
+  // already reversed the coins itself.
+  const { data, error } = await (supabase as any).rpc("clawback_stripe_purchase", {
+    _user_id: opts.userId,
+    _purchase_reference: purchaseRef,
+    _refund_id: opts.refundId,
+    _mode: "webhook",
   });
-  if (txErr) log("error", "clawback tx log failed", { reference, err: txErr.message });
-  else log("info", "coins clawed back", { userId: opts.userId, coins, reference, newBalance });
+  if (error) {
+    log("error", "clawback failed", { userId: opts.userId, purchaseRef, err: error.message });
+    throw new Error(`clawback failed: ${error.message}`);
+  }
+  const result = data as { clawed_back?: boolean; reason?: string; coins?: number } | null;
+  log("info", result?.clawed_back ? "coins clawed back" : "clawback skipped", {
+    userId: opts.userId,
+    purchaseRef,
+    refundId: opts.refundId,
+    coins: result?.coins,
+    reason: result?.reason,
+  });
+}
+
+// Take back the referral reward a refunded payment earned (coin pack, VIP,
+// track or store). Idempotent per reward; never pushes the referrer below 0.
+async function reverseReferralRewardsForRefund(userId: string, sessionId: string, env: StripeEnv) {
+  const supabase = await getAdminClient();
+  const { data, error } = await (supabase as any).rpc("reverse_referral_rewards_for_refund", {
+    _referee_id: userId,
+    _env: env,
+    _session_id: sessionId,
+  });
+  if (error) {
+    log("error", "referral reversal failed", { userId, sessionId, err: error.message });
+    throw new Error(`referral reversal failed: ${error.message}`);
+  }
+  const result = data as { reversed?: number; coins?: number } | null;
+  if (result?.reversed) {
+    log("info", "referral reward reversed", { userId, sessionId, ...result });
+  }
 }
 
 async function handleRefundEvent(refund: any, env: StripeEnv) {
@@ -529,12 +536,12 @@ async function fulfilStoreItemCheckout(session: any, env: StripeEnv) {
     }
   }
 
+  if (perk === "vault_pass") {
+    const { error } = await (supabase as any).rpc("grant_vault_pass", { p_user: userId });
+    if (error) log("error", "vault pass grant failed", { err: error.message });
+  }
+
   log("info", "store item fulfilled", { itemId, userId, coinReward, perk });
-  await creditPaymentReferral(
-    userId,
-    paidAmountReward(session),
-    `stripe:${env}:store:${session.id}`,
-  );
 }
 
 // ─── dispatch ──────────────────────────────────────────────────────────────
@@ -553,6 +560,37 @@ export async function handleEvent(
       else if (bundleId?.startsWith("store:")) await fulfilStoreItemCheckout(session, env);
       else if (isVipBundle(bundleId)) await grantVipFromCheckout(session, env);
       else await creditCoinsForSession(session, env);
+      if (env === "live" && (session?.payment_status ?? "paid") === "paid") {
+        const amount = Number(session?.amount_total ?? 0) / 100;
+        if (amount > 0) {
+          const item =
+            kind === "track_unlock" ? "Track unlock"
+            : bundleId?.startsWith("store:") ? `Store item ${bundleId.slice(6)}`
+            : isVipBundle(bundleId) ? "VIP subscription"
+            : (findCoinPackByBundleId(bundleId ?? "") as { label?: string } | undefined)?.label ?? bundleId ?? "Digital Purchase";
+          const { syncSaleToLedgerly } = await import("@/lib/ledgerly.server");
+          await syncSaleToLedgerly({
+            amount,
+            description: `Sale: ${item || "Digital Purchase"}`,
+            reference: String(session?.payment_intent ?? session?.id),
+            externalId: String(session?.id ?? event.id),
+          });
+        }
+      }
+      break;
+    }
+    case "invoice.paid": {
+      // VIP renewals (first invoice is already covered by checkout.session.completed)
+      const inv = event.data.object;
+      if (env === "live" && inv?.billing_reason === "subscription_cycle" && Number(inv?.amount_paid) > 0) {
+        const { syncSaleToLedgerly } = await import("@/lib/ledgerly.server");
+        await syncSaleToLedgerly({
+          amount: Number(inv.amount_paid) / 100,
+          description: "Sale: VIP subscription renewal",
+          reference: String(inv.number ?? inv.id),
+          externalId: String(inv.id),
+        });
+      }
       break;
     }
     case "customer.subscription.created":
@@ -608,7 +646,15 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
             return Response.json({ received: true, duplicate: true });
           }
 
-          await handleEvent(event, env);
+          try {
+            await handleEvent(event, env);
+          } catch (handlerErr) {
+            // Release the marker so Stripe's retry is processed instead of
+            // being dropped as a duplicate. Every handler is idempotent.
+            const supabase = await getAdminClient();
+            await supabase.from("stripe_webhook_events").delete().eq("event_id", event.id);
+            throw handlerErr;
+          }
           return Response.json({ received: true });
         } catch (e) {
           log("error", "webhook error", { err: String((e as Error)?.message ?? e) });

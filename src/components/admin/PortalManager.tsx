@@ -94,6 +94,7 @@ export function PortalManager() {
       if (error) throw error;
       const map = new Map<string, number>();
       for (const row of data ?? []) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
         const id = (row as any).portal_id as string;
         map.set(id, (map.get(id) ?? 0) + 1);
       }

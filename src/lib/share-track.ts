@@ -1,6 +1,21 @@
 import { toast } from "sonner";
+const SITE_URL = "https://ogbot.co.uk";
+const SHARE_LOGO_URL = "/share/og-bot-track.png";
 
-const SITE_URL = "https://www.ogstreamz.co.uk";
+function trackShareUrl(songId?: string) {
+  return songId ? `${SITE_URL}/track/${encodeURIComponent(songId)}` : SITE_URL;
+}
+
+async function fetchLogoFile(): Promise<File | null> {
+  try {
+    const response = await fetch(SHARE_LOGO_URL);
+    if (!response.ok) return null;
+    const logo = await response.blob();
+    return new File([logo], "og-bot.png", { type: logo.type || "image/png" });
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Open the device share sheet for a finished track.
@@ -14,15 +29,18 @@ export async function shareTrack({
   title,
   blob,
   filename,
-  url = SITE_URL,
+  songId,
+  url = trackShareUrl(songId),
 }: {
   title: string;
   blob?: Blob | null;
   filename: string;
+  songId?: string;
   url?: string;
 }): Promise<void> {
-  const text = `🎧 "${title}" — made with OG Bot on OG Streamz`;
+  const text = `🎧 “${title}” — made with OG BOT\nListen here: ${url}`;
   const nav = typeof navigator !== "undefined" ? navigator : undefined;
+  const logoFile = await fetchLogoFile();
 
   // Inside the phone app the web share sheet can't send files, so share the MP3
   // the native layer already downloaded (or write the bytes we have).
@@ -53,8 +71,22 @@ export async function shareTrack({
         uri = saved.uri;
       }
       if (uri) {
-        toast.success("Track saved to your phone (Documents › OG BOT)");
-        await Share.share({ title, text, files: [uri], dialogTitle: "Share your track" });
+        const files = [uri];
+        if (logoFile) {
+          const logoData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(logoFile);
+          });
+          const savedLogo = await Filesystem.writeFile({
+            path: "og-bot-share-logo.png",
+            data: logoData,
+            directory: Directory.Cache,
+          });
+          files.push(savedLogo.uri);
+        }
+        await Share.share({ title, text, url, files, dialogTitle: "Share your track" });
         return;
       }
     }
@@ -68,21 +100,44 @@ export async function shareTrack({
     return;
   }
 
-  try {
-    if (blob && nav?.share && typeof nav.canShare === "function") {
-      const file = new File([blob], filename, { type: blob.type || "audio/mpeg" });
-      if (nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title, text });
-        return;
-      }
-    }
-    if (nav?.share) {
+  // Browsers only open the share sheet straight after a tap. Preparing the MP3
+  // takes a moment, so if the tap has "expired" we offer a one-tap Share button.
+  const openSheet = async (): Promise<boolean> => {
+    if (!nav?.share) return false;
+    const file = blob ? new File([blob], filename, { type: blob.type || "audio/mpeg" }) : null;
+    const canFiles = (files: File[]) =>
+      typeof nav.canShare === "function" && nav.canShare({ files });
+    if (file && logoFile && canFiles([file, logoFile])) {
+      await nav.share({ files: [file, logoFile], title, text, url });
+    } else if (file && canFiles([file])) {
+      await nav.share({ files: [file], title, text, url });
+    } else {
       await nav.share({ title, text, url });
+    }
+    return true;
+  };
+
+  try {
+    if (await openSheet()) return;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    if (e instanceof DOMException && e.name === "NotAllowedError") {
+      toast("Your track is ready to share", {
+        duration: 15000,
+        action: {
+          label: "Share",
+          onClick: () => {
+            void openSheet().catch((err) => {
+              if (err instanceof DOMException && err.name === "AbortError") return;
+              void navigator.clipboard
+                .writeText(`${text} ${url}`)
+                .then(() => toast.success("Share link copied — paste it anywhere"));
+            });
+          },
+        },
+      });
       return;
     }
-  } catch (e) {
-    // User dismissed the sheet — that is not an error worth shouting about.
-    if (e instanceof DOMException && e.name === "AbortError") return;
   }
 
   try {

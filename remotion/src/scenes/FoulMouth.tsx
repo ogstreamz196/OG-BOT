@@ -6,8 +6,16 @@ import { Headline, Kicker, body } from "../components/Type";
 
 const LINES = [
   { who: "YOU", text: "Go on then, roast me.", mine: true },
-  { who: "OG BOT", text: "A mum joke? F***ing hell, you've got the wit of a smashed brick.", mine: false },
-  { who: "OG BOT", text: "Come back when you've grown some proper bollocks, you absolute gobshite.", mine: false },
+  {
+    who: "OG BOT",
+    text: "A mum joke? F***ing hell, you've got the wit of a smashed brick.",
+    mine: false,
+  },
+  {
+    who: "OG BOT",
+    text: "Come back when you've grown some proper bollocks, you absolute gobshite.",
+    mine: false,
+  },
 ];
 
 /** OG Bot's unfiltered mode — real Battle Zone screen plus animated chat bubbles. */
@@ -35,7 +43,13 @@ export const FoulMouth: React.FC = () => {
         <Kicker delay={2} color={C.red}>
           Foul mouth mode
         </Kicker>
-        <Headline words={["OG", "BOT", "BITES", "BACK"]} delay={8} size={92} accentIndex={[2, 3]} align="center" />
+        <Headline
+          words={["OG", "BOT", "BITES", "BACK"]}
+          delay={8}
+          size={92}
+          accentIndex={[2, 3]}
+          align="center"
+        />
         {LINES.map((l, i) => {
           const s = spring({
             frame: frame - 46 - i * 26,

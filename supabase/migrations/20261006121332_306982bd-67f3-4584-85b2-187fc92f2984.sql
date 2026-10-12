@@ -1,0 +1,1 @@
+UPDATE public.bot_catchphrases SET enabled = false WHERE phrase ILIKE '%weapon%' OR phrase ILIKE '%impatient dickhead%';

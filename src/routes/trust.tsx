@@ -124,10 +124,10 @@ function TrustPage() {
               For privacy requests (access, export, deletion) or to report a suspected security
               issue, email{" "}
               <a
-                href="mailto:ogstreamz196@gmail.com"
+                href="mailto:ogbot196@gmail.com"
                 className="font-semibold text-primary underline-offset-4 hover:underline"
               >
-                ogstreamz196@gmail.com
+                ogbot196@gmail.com
               </a>
               . Please include enough detail to reproduce the issue and avoid testing against other
               users' data.

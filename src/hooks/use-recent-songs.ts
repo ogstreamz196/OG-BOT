@@ -27,6 +27,8 @@ export function useRecentSongs(userId: string | undefined, limit = 6) {
         .select(
           "id, title, prompt, status, cover_url, created_at, generation_started_at, beat_path, vocals_only",
         )
+        // Hidden alt-takes stay out of view until the user pays to remake.
+        .or("is_variation.is.null,is_variation.eq.false,revealed.eq.true")
         .order("created_at", { ascending: false })
         .limit(limit);
       if (error) throw error;

@@ -15,11 +15,11 @@ describe("track signature", () => {
     expect(out.startsWith("line 0")).toBe(true);
   });
 
-  it("stays at roughly one tag per minute for a long sheet", () => {
+  it("adds the tag exactly once, at the very end, even for a long sheet", () => {
     const lyrics = Array.from({ length: 42 }, (_, i) => `line ${i}`).join("\n");
     const out = injectSignature(lyrics)!;
-    expect(count(out)).toBeGreaterThanOrEqual(2);
-    expect(count(out)).toBeLessThanOrEqual(3);
+    expect(count(out)).toBe(1);
+    expect(out.trimEnd().endsWith("O G Bot dot co dot uk")).toBe(true);
   });
 
   it("never double-tags", () => {
@@ -35,7 +35,8 @@ describe("track signature", () => {
 
   it("adds a hint to prompt-only generations", () => {
     const p = withSignatureHint("a sad drill song in Romanian");
-    expect(p.toLowerCase()).toContain("o g streamz dot co dot uk");
+    expect(p.toLowerCase()).toContain("this track was made by o g bot dot co dot uk");
+    expect(p.toLowerCase()).not.toContain("og streamz");
     expect(withSignatureHint(p)).toBe(p);
   });
 

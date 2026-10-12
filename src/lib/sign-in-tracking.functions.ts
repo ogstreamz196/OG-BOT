@@ -119,6 +119,10 @@ export const recordSignIn = createServerFn({ method: "POST" })
       userId: context.userId,
       isSignup,
     }).catch(() => {});
+    if (!isSignup) {
+      const { alertBossPresence } = await import("@/lib/presence-alert.server");
+      await alertBossPresence(context.userId, "app");
+    }
     return { ok: true as const, isSignup };
   });
 

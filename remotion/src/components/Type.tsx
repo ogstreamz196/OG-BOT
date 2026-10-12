@@ -90,11 +90,11 @@ export const Headline: React.FC<{
   );
 };
 
-export const Chip: React.FC<{ label: string; delay?: number; tone?: "blue" | "silver" | "red" }> = ({
-  label,
-  delay = 0,
-  tone = "blue",
-}) => {
+export const Chip: React.FC<{
+  label: string;
+  delay?: number;
+  tone?: "blue" | "silver" | "red";
+}> = ({ label, delay = 0, tone = "blue" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const s = spring({ frame: frame - delay, fps, config: { damping: 13, stiffness: 200 } });

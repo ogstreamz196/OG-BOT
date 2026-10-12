@@ -9,8 +9,10 @@ type Rep = string | ((m: string) => string);
 
 const REPLACEMENTS: Array<[RegExp, Rep]> = [
   [/\bmother\s*f+u+c+k+\w*/gi, "mother trucker"],
-  [/\bf+u+c+k+(ing|ed|er|ers|in['’]?)?\b/gi, (m: string) =>
-    /ing|in['’]?$/i.test(m) ? "freaking" : "heck"],
+  [
+    /\bf+u+c+k+(ing|ed|er|ers|in['’]?)?\b/gi,
+    (m: string) => (/ing|in['’]?$/i.test(m) ? "freaking" : "heck"),
+  ],
   [/\bc+u+n+t+s?\b/gi, "clown"],
   [/\bn+i+g+(a|er|ga|gas|gers)\b/gi, "fam"],
   [/\bb+i+t+c+h+(es|ing)?\b/gi, "brat"],
@@ -56,4 +58,4 @@ export function isModerationRejection(msg: string | null | undefined): boolean {
 
 /** User-facing explanation shown in the app when moderation blocks a track. */
 export const MODERATION_MESSAGE =
-  "The music engine blocked these lyrics as too explicit, even after we toned the strongest words down. Edit the lyrics (or turn Foul Mouth off) and try again — your coins were refunded.";
+  "The music engine blocked these lyrics under its content rules. Your wording was not changed. Edit the lyrics or lower Foul Mouth and try again — any generation charge was refunded.";

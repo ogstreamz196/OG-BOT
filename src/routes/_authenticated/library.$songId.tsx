@@ -1,3 +1,5 @@
+import { useServerFn } from "@tanstack/react-start";
+import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { readInvokeError } from "@/lib/invoke-error";
 import { downloadFile } from "@/lib/download-file";
 import { useAuth } from "@/hooks/use-auth";
 import { useRole } from "@/hooks/use-role";
@@ -24,11 +27,29 @@ import type { Song } from "@/components/SongCard";
 import { SongWorkspace } from "@/components/library/SongWorkspace";
 import { PublishToggle } from "@/components/library/PublishToggle";
 import { UnlockConfirmDialog } from "@/components/library/UnlockConfirmDialog";
+import { OwnerUnlockDialog } from "@/components/library/OwnerUnlockDialog";
 import { useProfile } from "@/hooks/use-profile";
+import { useSessionRunState } from "@/hooks/use-session-run-state";
 import { ensureFullUrlAllowed } from "@/lib/ensure-full-url-allowed";
 
 export const Route = createFileRoute("/_authenticated/library/$songId")({
   component: SongDetailPage,
+  head: () => ({
+    meta: [
+      { title: "Track Studio · OG BOT" },
+      {
+        name: "description",
+        content: "Listen, edit and unlock your OG BOT track with a free second take.",
+      },
+      { property: "og:title", content: "Track Studio · OG BOT" },
+      {
+        property: "og:description",
+        content: "Your OG BOT music workspace — two tracks for the price of one.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
 });
 
 type FullSong = Song & { unlocked?: boolean | null; is_public?: boolean | null };
@@ -59,6 +80,9 @@ function SongDetailPage() {
     },
     refetchIntervalInBackground: true,
   });
+
+  // Shared with SongWorkspace: true while an edit is re-cooking this track.
+  const [cookingEdit] = useSessionRunState<boolean>(`edit-cook:${songId}`, false, true);
 
   // Realtime subscription scoped to this single row.
   useEffect(() => {
@@ -92,7 +116,16 @@ function SongDetailPage() {
           </div>
         ) : (
           <>
-            <PlayerCard song={data} onRefresh={refetch} />
+            {cookingEdit ? (
+              <div className="rounded-2xl border border-primary/40 bg-card/60 p-6 text-center">
+                <p className="text-lg font-semibold">OG Bot is cooking your new version 🔥</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The old track is hidden until the new one is ready.
+                </p>
+              </div>
+            ) : (
+              <PlayerCard song={data} onRefresh={refetch} />
+            )}
             <OwnerPublishToggle song={data} onChanged={refetch} />
             <SongWorkspace song={data} onSaved={refetch} onRefresh={refetch} />
           </>
@@ -127,6 +160,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
   // costs 2 OG coins (1 burnt, 1 royalty to the creator).
   const communityMode = !isOwner;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
   const isReady = song.status === "completed" && !!(song.audio_path || (song as any).sample_path);
   const isFailed = song.status === "failed";
   const isPending =
@@ -142,6 +176,8 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
   const [progress, setProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [ownerUnlockOpen, setOwnerUnlockOpen] = useState(false);
+  const fullUnlockCost = settings?.coins_per_full_unlock ?? 5;
   const { data: profile } = useProfile();
   const balance = profile?.coin_balance ?? 0;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -151,7 +187,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!isReady || previewUrl || loadingPreview) return;
+      if (!isReady || previewUrl) return;
       setLoadingPreview(true);
       try {
         const { data, error } = await supabase.functions.invoke("song-url", {
@@ -172,25 +208,27 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
       } catch (e) {
         if (!cancelled) toast.error(e instanceof Error ? e.message : "Could not load preview");
       } finally {
-        if (!cancelled) setLoadingPreview(false);
+        setLoadingPreview(false);
       }
     }
     load();
     return () => {
       cancelled = true;
     };
-  }, [isReady, song.id, previewUrl, loadingPreview, communityMode, unlocked]);
+  }, [isReady, song.id, previewUrl, communityMode, unlocked]);
 
   // The moment a track becomes paid-for, drop the sample link so the player
   // reloads with the full-length version.
   const wasUnlockedRef = useRef(unlocked);
+  const resumeAtRef = useRef<number | null>(null);
   useEffect(() => {
     if (unlocked && !wasUnlockedRef.current) {
       wasUnlockedRef.current = true;
-      setPreviewUrl(null);
-      setProgress(0);
-      setPlaying(false);
       const el = audioRef.current;
+      // Remember where the sample was so the full track carries on from there.
+      resumeAtRef.current = el && el.currentTime > 0 ? el.currentTime : null;
+      setPreviewUrl(null);
+      setPlaying(false);
       if (el) {
         el.pause();
         el.removeAttribute("src");
@@ -198,6 +236,22 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
     }
     wasUnlockedRef.current = unlocked;
   }, [unlocked]);
+
+  // Once the full-track link arrives after unlocking, resume playback.
+  useEffect(() => {
+    const at = resumeAtRef.current;
+    const el = audioRef.current;
+    if (at == null || !previewUrl || !el) return;
+    resumeAtRef.current = null;
+    const go = () => {
+      el.currentTime = at;
+      el.play()
+        .then(() => setPlaying(true))
+        .catch(() => {});
+    };
+    if (el.readyState >= 1) go();
+    else el.addEventListener("loadedmetadata", go, { once: true });
+  }, [previewUrl]);
 
   // Once the preview URL is warmed after a pending→ready transition, auto-play
   // it so the user gets an immediate "song is ready" moment.
@@ -255,10 +309,35 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
       return;
     }
     if (!unlocked) {
-      toast.error("This track isn't unlocked. Purchase or unlock to download the full version.");
+      setOwnerUnlockOpen(true);
       return;
     }
     void downloadFull();
+  }
+
+  /** Owner padlock: unlock the full master, optionally bundling the hidden take. */
+  const buyOwnerTrack = useServerFn(purchaseOwnerTrack);
+  async function ownerUnlock() {
+    setDownloading(true);
+    try {
+      const data = await buyOwnerTrack({ data: { songId: song.id } });
+      if (!data?.already) {
+        toast.success(`Full track unlocked + Take 2 free · -${data?.cost ?? fullUnlockCost} coins`);
+      }
+      setOwnerUnlockOpen(false);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["profile"] }),
+        qc.invalidateQueries({ queryKey: ["song", song.id] }),
+        qc.invalidateQueries({ queryKey: ["songs"] }),
+        qc.invalidateQueries({ queryKey: ["library"] }),
+        qc.invalidateQueries({ queryKey: ["recent-songs"] }),
+      ]);
+      onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unlock failed");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   async function downloadFull() {
@@ -270,10 +349,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
           { body: { song_id: song.id } },
         );
         if (unlockErr) {
-          const msg =
-            (unlockErr as { context?: { error?: string } })?.context?.error ||
-            unlockErr.message ||
-            "Could not unlock track";
+          const msg = await readInvokeError(unlockErr, "Could not unlock track");
           throw new Error(msg);
         }
         if (!unlockData?.already) {
@@ -298,10 +374,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
         body: { song_id: song.id, mode: "full", purpose: "download" },
       });
       if (error) {
-        const msg =
-          (error as { context?: { error?: string } })?.context?.error ||
-          error.message ||
-          "Download failed";
+        const msg = await readInvokeError(error, "Download failed");
         throw new Error(msg);
       }
       const a = document.createElement("a");
@@ -317,6 +390,8 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
         qc.invalidateQueries({ queryKey: ["profile"] }),
         qc.invalidateQueries({ queryKey: ["song", song.id] }),
         qc.invalidateQueries({ queryKey: ["songs"] }),
+        qc.invalidateQueries({ queryKey: ["library"] }),
+        qc.invalidateQueries({ queryKey: ["recent-songs"] }),
       ]);
       onRefresh();
     } catch (e) {
@@ -344,7 +419,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
       className="scroll-mt-20 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-6"
     >
       <div className="flex flex-col gap-6 sm:flex-row">
-        <div className="relative h-48 w-48 shrink-0 self-center overflow-hidden rounded-xl bg-gradient-brand-soft">
+        <div className="relative h-32 w-32 shrink-0 self-center overflow-hidden rounded-xl bg-gradient-brand-soft sm:h-48 sm:w-48">
           {song.cover_url ? (
             <img
               src={song.cover_url}
@@ -370,18 +445,20 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
             <h2 className="break-words text-xl font-bold leading-tight sm:text-2xl">
               {song.title || (isPending ? "Generating…" : "Untitled")}
             </h2>
-            <p className="mt-2 line-clamp-3 break-words text-sm leading-relaxed text-muted-foreground">
-              {song.prompt}
-            </p>
+            {song.prompt && (
+              <p className="mt-1 line-clamp-1 break-words text-xs text-muted-foreground">
+                {song.prompt.length > 60 ? `${song.prompt.slice(0, 60).trim()}…` : song.prompt}
+              </p>
+            )}
             {song.style && (
-              <span className="mt-3 inline-block max-w-full break-words rounded-lg bg-secondary px-2.5 py-1 text-xs leading-relaxed text-secondary-foreground">
+              <p className="mt-2 line-clamp-2 break-words text-xs leading-relaxed text-muted-foreground">
                 {song.style}
-              </span>
+              </p>
             )}
           </div>
 
           <div className="mt-4">
-            {isPending && <GeneratingStatus song={song} />}
+            {isPending && communityMode && <GeneratingStatus song={song} />}
             {isFailed && (
               <div
                 role="alert"
@@ -424,19 +501,25 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
                 </Button>
                 <Button
                   onClick={requestDownload}
-                  disabled={downloading || (!communityMode && !unlocked)}
+                  disabled={downloading || ((communityMode || unlocked) && !song.audio_path)}
                   variant={communityMode || unlocked ? "default" : "outline"}
                   size="lg"
                   className="h-auto min-h-11 min-w-0 whitespace-normal px-3 py-2 text-center leading-tight sm:px-8"
                 >
-                  {downloading ? (
+                  {downloading || ((communityMode || unlocked) && !song.audio_path) ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : communityMode || unlocked ? (
                     <Download className="h-5 w-5" />
                   ) : (
                     <Lock className="h-5 w-5" />
                   )}
-                  {communityMode ? "Download · 3 coins" : unlocked ? "Download HQ" : "Locked"}
+                  {(communityMode || unlocked) && !song.audio_path
+                    ? "Download pending…"
+                    : communityMode
+                      ? "Download · 3 coins"
+                      : unlocked
+                        ? "Download HQ"
+                        : `Unlock · ${fullUnlockCost} coins`}
                 </Button>
               </div>
 
@@ -444,8 +527,10 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
                 <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 text-xs leading-relaxed text-muted-foreground">
                   <Lock className="mt-0.5 h-3 w-3 shrink-0" />
                   {communityMode
-                    ? "Full community track plays free. Downloading costs 3 OG coins — 2 burnt, 1 royalty to the creator."
-                    : `Preview limited to ${sampleSeconds}s. ${unlocked ? "Full track download available." : "Unlock to download the full track."}`}
+                    ? "Free to play · 3 coins to download"
+                    : unlocked
+                      ? "Full track unlocked"
+                      : `${sampleSeconds}s preview`}
                 </div>
                 <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
@@ -474,6 +559,7 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
         className="hidden"
         data-og-track={song.id}
         data-og-title={song.title || "OG track"}
+        data-og-full={communityMode || unlocked ? "1" : undefined}
       />
 
       <UnlockConfirmDialog
@@ -486,6 +572,19 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
         balance={balance}
         songTitle={song.title}
       />
+
+      {!communityMode && (
+        <OwnerUnlockDialog
+          open={ownerUnlockOpen}
+          onOpenChange={setOwnerUnlockOpen}
+          songId={song.id}
+          songTitle={song.title}
+          balance={balance}
+          singleCost={fullUnlockCost}
+          busy={downloading}
+          onConfirm={() => void ownerUnlock()}
+        />
+      )}
     </article>
   );
 }
@@ -503,6 +602,7 @@ function GeneratingStatus({ song }: { song: FullSong }) {
   const elapsedLabel = mm > 0 ? `${mm}m ${ss}s` : `${ss}s`;
 
   const hasCover = !!song.cover_url;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
   const hasAudio = !!(song.audio_path || (song as any).sample_path);
   type StepState = "done" | "active" | "pending";
   const steps: { label: string; hint: string; state: StepState }[] = [

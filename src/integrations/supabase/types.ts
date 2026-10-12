@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_key_failures: {
+        Row: {
+          alerted_at: string | null
+          created_at: string
+          id: number
+          key_name: string
+          status: number
+        }
+        Insert: {
+          alerted_at?: string | null
+          created_at?: string
+          id?: never
+          key_name: string
+          status: number
+        }
+        Update: {
+          alerted_at?: string | null
+          created_at?: string
+          id?: never
+          key_name?: string
+          status?: number
+        }
+        Relationships: []
+      }
+      ai_usage_log: {
+        Row: {
+          completion_tokens: number
+          created_at: string
+          feature: string
+          id: string
+          model: string | null
+          prompt_tokens: number
+          provider: string
+          total_tokens: number
+        }
+        Insert: {
+          completion_tokens?: number
+          created_at?: string
+          feature: string
+          id?: string
+          model?: string | null
+          prompt_tokens?: number
+          provider: string
+          total_tokens?: number
+        }
+        Update: {
+          completion_tokens?: number
+          created_at?: string
+          feature?: string
+          id?: string
+          model?: string | null
+          prompt_tokens?: number
+          provider?: string
+          total_tokens?: number
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           key: string
@@ -29,6 +86,27 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      battle_lexicon: {
+        Row: {
+          first_seen: string
+          last_seen: string
+          uses: number
+          word: string
+        }
+        Insert: {
+          first_seen?: string
+          last_seen?: string
+          uses?: number
+          word: string
+        }
+        Update: {
+          first_seen?: string
+          last_seen?: string
+          uses?: number
+          word?: string
         }
         Relationships: []
       }
@@ -140,6 +218,83 @@ export type Database = {
         }
         Relationships: []
       }
+      boss_presence_alerts: {
+        Row: {
+          kind: string
+          last_sent_at: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          last_sent_at?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          last_sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bot_catchphrase_seen: {
+        Row: {
+          phrase_id: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          phrase_id: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          phrase_id?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_catchphrase_seen_phrase_id_fkey"
+            columns: ["phrase_id"]
+            isOneToOne: false
+            referencedRelation: "bot_catchphrases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_catchphrases: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          kind: string
+          phrase: string
+          source: string
+          times_used: number
+          tone: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          kind: string
+          phrase: string
+          source?: string
+          times_used?: number
+          tone: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          kind?: string
+          phrase?: string
+          source?: string
+          times_used?: number
+          tone?: string
+        }
+        Relationships: []
+      }
       bot_tokens: {
         Row: {
           allowed_domain: string | null
@@ -178,6 +333,24 @@ export type Database = {
           },
         ]
       }
+      chat_image_allowance: {
+        Row: {
+          last_free_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_free_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_free_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coin_transactions: {
         Row: {
           amount: number
@@ -205,11 +378,45 @@ export type Database = {
         }
         Relationships: []
       }
+      community_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      community_history_clears: {
+        Row: {
+          cleared_at: string
+          user_id: string
+        }
+        Insert: {
+          cleared_at?: string
+          user_id: string
+        }
+        Update: {
+          cleared_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       community_messages: {
         Row: {
           content: string
           created_at: string
           display_name: string | null
+          guest_id: string | null
           id: string
           role: string
           score_tenths: number | null
@@ -219,6 +426,7 @@ export type Database = {
           content: string
           created_at?: string
           display_name?: string | null
+          guest_id?: string | null
           id?: string
           role: string
           score_tenths?: number | null
@@ -228,10 +436,38 @@ export type Database = {
           content?: string
           created_at?: string
           display_name?: string | null
+          guest_id?: string | null
           id?: string
           role?: string
           score_tenths?: number | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      community_reports: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          reason: string
+          reported_user_id: string | null
+          reporter_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id?: string
         }
         Relationships: []
       }
@@ -280,6 +516,81 @@ export type Database = {
           device_id?: string
           id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      generation_attempts: {
+        Row: {
+          context: Json
+          created_at: string
+          error_message: string | null
+          id: string
+          song_id: string | null
+          stage: string
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          song_id?: string | null
+          stage?: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          song_id?: string | null
+          stage?: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ledgerly_settings: {
+        Row: {
+          api_key: string | null
+          enabled: boolean
+          id: number
+          key_name: string | null
+          last_error: string | null
+          last_sync_at: string | null
+          last_test_at: string | null
+          last_test_ok: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          enabled?: boolean
+          id?: number
+          key_name?: string | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_test_at?: string | null
+          last_test_ok?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          enabled?: boolean
+          id?: number
+          key_name?: string | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_test_at?: string | null
+          last_test_ok?: boolean | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -583,6 +894,7 @@ export type Database = {
       profiles: {
         Row: {
           artist_bio: string | null
+          boss_notified_at: string | null
           coin_balance: number
           created_at: string
           custom_bot_name: string
@@ -601,6 +913,7 @@ export type Database = {
           last_page_at: string | null
           last_path: string | null
           last_sign_in_at: string | null
+          og_vip_id: string | null
           referral_code: string | null
           sign_in_count: number
           telegram_chat_id: number | null
@@ -609,10 +922,13 @@ export type Database = {
           telegram_username: string | null
           total_bot_interactions: number
           updated_at: string
+          vip_trial_ends_at: string | null
+          vip_trial_started_at: string | null
           widget_deployed_domains: string[]
         }
         Insert: {
           artist_bio?: string | null
+          boss_notified_at?: string | null
           coin_balance?: number
           created_at?: string
           custom_bot_name?: string
@@ -631,6 +947,7 @@ export type Database = {
           last_page_at?: string | null
           last_path?: string | null
           last_sign_in_at?: string | null
+          og_vip_id?: string | null
           referral_code?: string | null
           sign_in_count?: number
           telegram_chat_id?: number | null
@@ -639,10 +956,13 @@ export type Database = {
           telegram_username?: string | null
           total_bot_interactions?: number
           updated_at?: string
+          vip_trial_ends_at?: string | null
+          vip_trial_started_at?: string | null
           widget_deployed_domains?: string[]
         }
         Update: {
           artist_bio?: string | null
+          boss_notified_at?: string | null
           coin_balance?: number
           created_at?: string
           custom_bot_name?: string
@@ -661,6 +981,7 @@ export type Database = {
           last_page_at?: string | null
           last_path?: string | null
           last_sign_in_at?: string | null
+          og_vip_id?: string | null
           referral_code?: string | null
           sign_in_count?: number
           telegram_chat_id?: number | null
@@ -669,6 +990,8 @@ export type Database = {
           telegram_username?: string | null
           total_bot_interactions?: number
           updated_at?: string
+          vip_trial_ends_at?: string | null
+          vip_trial_started_at?: string | null
           widget_deployed_domains?: string[]
         }
         Relationships: []
@@ -874,12 +1197,14 @@ export type Database = {
           duration_seconds: number | null
           error_message: string | null
           extra_context: string | null
+          failure_class: string | null
           foul_intensity: number
           foul_mouth: boolean
           generation_started_at: string | null
           id: string
           is_public: boolean
           is_variation: boolean
+          last_auto_retry_at: string | null
           lyric_video_error: string | null
           lyric_video_full_path: string | null
           lyric_video_preview_path: string | null
@@ -892,8 +1217,14 @@ export type Database = {
           lyrics_progress: number | null
           lyrics_stage: string | null
           lyrics_started_at: string | null
+          next_retry_at: string | null
+          orchestration: Json | null
+          orchestration_attempts: number
+          orchestration_due_at: string | null
           portal_id: string | null
           prompt: string
+          retry_count: number
+          retry_payload: Json | null
           revealed: boolean
           sample_path: string | null
           status: string
@@ -922,12 +1253,14 @@ export type Database = {
           duration_seconds?: number | null
           error_message?: string | null
           extra_context?: string | null
+          failure_class?: string | null
           foul_intensity?: number
           foul_mouth?: boolean
           generation_started_at?: string | null
           id?: string
           is_public?: boolean
           is_variation?: boolean
+          last_auto_retry_at?: string | null
           lyric_video_error?: string | null
           lyric_video_full_path?: string | null
           lyric_video_preview_path?: string | null
@@ -940,8 +1273,14 @@ export type Database = {
           lyrics_progress?: number | null
           lyrics_stage?: string | null
           lyrics_started_at?: string | null
+          next_retry_at?: string | null
+          orchestration?: Json | null
+          orchestration_attempts?: number
+          orchestration_due_at?: string | null
           portal_id?: string | null
           prompt: string
+          retry_count?: number
+          retry_payload?: Json | null
           revealed?: boolean
           sample_path?: string | null
           status?: string
@@ -970,12 +1309,14 @@ export type Database = {
           duration_seconds?: number | null
           error_message?: string | null
           extra_context?: string | null
+          failure_class?: string | null
           foul_intensity?: number
           foul_mouth?: boolean
           generation_started_at?: string | null
           id?: string
           is_public?: boolean
           is_variation?: boolean
+          last_auto_retry_at?: string | null
           lyric_video_error?: string | null
           lyric_video_full_path?: string | null
           lyric_video_preview_path?: string | null
@@ -988,8 +1329,14 @@ export type Database = {
           lyrics_progress?: number | null
           lyrics_stage?: string | null
           lyrics_started_at?: string | null
+          next_retry_at?: string | null
+          orchestration?: Json | null
+          orchestration_attempts?: number
+          orchestration_due_at?: string | null
           portal_id?: string | null
           prompt?: string
+          retry_count?: number
+          retry_payload?: Json | null
           revealed?: boolean
           sample_path?: string | null
           status?: string
@@ -1063,6 +1410,77 @@ export type Database = {
             columns: ["store_item_id"]
             isOneToOne: false
             referencedRelation: "store_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sports_guide_posts: {
+        Row: {
+          chat_id: number
+          created_at: string
+          event_time: string | null
+          id: string
+          posted_at: string
+          raw_text: string
+          sport_category: string
+          telegram_message_id: number
+          updated_at: string
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          event_time?: string | null
+          id?: string
+          posted_at?: string
+          raw_text: string
+          sport_category?: string
+          telegram_message_id: number
+          updated_at?: string
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          event_time?: string | null
+          id?: string
+          posted_at?: string
+          raw_text?: string
+          sport_category?: string
+          telegram_message_id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sports_guide_reminders: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          remind_at: string
+          sent_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          remind_at: string
+          sent_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          remind_at?: string
+          sent_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sports_guide_reminders_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "sports_guide_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -1301,6 +1719,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      telegram_ephemeral_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          delete_at: string
+          id: string
+          message_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          delete_at: string
+          id?: string
+          message_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          delete_at?: string
+          id?: string
+          message_id?: number
+        }
+        Relationships: []
       }
       telegram_processed_updates: {
         Row: {
@@ -1601,20 +2043,110 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vault_webhook_settings: {
+        Row: {
+          enabled: boolean
+          id: number
+          last_error: string | null
+          last_sent_at: string | null
+          last_test_at: string | null
+          last_test_ok: boolean | null
+          secret: string | null
+          target_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          last_error?: string | null
+          last_sent_at?: string | null
+          last_test_at?: string | null
+          last_test_ok?: boolean | null
+          secret?: string | null
+          target_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          last_error?: string | null
+          last_sent_at?: string | null
+          last_test_at?: string | null
+          last_test_ok?: boolean | null
+          secret?: string | null
+          target_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vip_acknowledgements: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          og_vip_id: string | null
+          plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          og_vip_id?: string | null
+          plan?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          og_vip_id?: string | null
+          plan?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vip_expiry_reminders: {
+        Row: {
+          expires_at: string
+          kind: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          expires_at: string
+          kind: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string
+          kind?: string
+          sent_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1690,6 +2222,36 @@ export type Database = {
           },
         ]
       }
+      vip_promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          environment: string
+          id: string
+          redeemed_at: string | null
+          stripe_promotion_code_id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          environment: string
+          id?: string
+          redeemed_at?: string | null
+          stripe_promotion_code_id: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          redeemed_at?: string | null
+          stripe_promotion_code_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1699,10 +2261,15 @@ export type Database = {
         Args: { _earned_tenths: number; _user_id: string }
         Returns: Json
       }
+      add_catchphrases: {
+        Args: { p_kind: string; p_phrases: string[]; p_tone: string }
+        Returns: number
+      }
       admin_delete_lexicon_phrase: {
         Args: { p_phrase: string }
         Returns: boolean
       }
+      admin_has_vault_pass: { Args: { p_user: string }; Returns: boolean }
       admin_list_lexicon: {
         Args: never
         Returns: {
@@ -1747,6 +2314,7 @@ export type Database = {
         }
         Returns: string
       }
+      assign_og_vip_id: { Args: { p_user: string }; Returns: string }
       boss_burn_coins: {
         Args: { amount: number; boss_notes?: string; target_user_id: string }
         Returns: number
@@ -1769,9 +2337,147 @@ export type Database = {
       }
       check_generation_capacity: { Args: { p_user: string }; Returns: Json }
       claim_daily_drop: { Args: never; Returns: Json }
+      claim_due_orchestrations: {
+        Args: { p_limit?: number }
+        Returns: {
+          audio_path: string | null
+          beat_path: string | null
+          completed_at: string | null
+          cover_url: string | null
+          created_at: string
+          drive_archived_at: string | null
+          drive_audio_id: string | null
+          drive_audio_link: string | null
+          drive_lyrics_id: string | null
+          drive_lyrics_link: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          extra_context: string | null
+          failure_class: string | null
+          foul_intensity: number
+          foul_mouth: boolean
+          generation_started_at: string | null
+          id: string
+          is_public: boolean
+          is_variation: boolean
+          last_auto_retry_at: string | null
+          lyric_video_error: string | null
+          lyric_video_full_path: string | null
+          lyric_video_preview_path: string | null
+          lyric_video_progress: number
+          lyric_video_rendered_at: string | null
+          lyric_video_stage: string | null
+          lyric_video_status: string
+          lyric_video_unlocked: boolean
+          lyrics: string | null
+          lyrics_progress: number | null
+          lyrics_stage: string | null
+          lyrics_started_at: string | null
+          next_retry_at: string | null
+          orchestration: Json | null
+          orchestration_attempts: number
+          orchestration_due_at: string | null
+          portal_id: string | null
+          prompt: string
+          retry_count: number
+          retry_payload: Json | null
+          revealed: boolean
+          sample_path: string | null
+          status: string
+          stream_audio_url: string | null
+          style: string | null
+          suno_clip_id: string | null
+          suno_task_id: string | null
+          target_duration_sec: number | null
+          title: string | null
+          unlocked: boolean
+          updated_at: string
+          user_id: string
+          vocals_only: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "songs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_due_song_retries: {
+        Args: { p_limit?: number }
+        Returns: {
+          audio_path: string | null
+          beat_path: string | null
+          completed_at: string | null
+          cover_url: string | null
+          created_at: string
+          drive_archived_at: string | null
+          drive_audio_id: string | null
+          drive_audio_link: string | null
+          drive_lyrics_id: string | null
+          drive_lyrics_link: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          extra_context: string | null
+          failure_class: string | null
+          foul_intensity: number
+          foul_mouth: boolean
+          generation_started_at: string | null
+          id: string
+          is_public: boolean
+          is_variation: boolean
+          last_auto_retry_at: string | null
+          lyric_video_error: string | null
+          lyric_video_full_path: string | null
+          lyric_video_preview_path: string | null
+          lyric_video_progress: number
+          lyric_video_rendered_at: string | null
+          lyric_video_stage: string | null
+          lyric_video_status: string
+          lyric_video_unlocked: boolean
+          lyrics: string | null
+          lyrics_progress: number | null
+          lyrics_stage: string | null
+          lyrics_started_at: string | null
+          next_retry_at: string | null
+          orchestration: Json | null
+          orchestration_attempts: number
+          orchestration_due_at: string | null
+          portal_id: string | null
+          prompt: string
+          retry_count: number
+          retry_payload: Json | null
+          revealed: boolean
+          sample_path: string | null
+          status: string
+          stream_audio_url: string | null
+          style: string | null
+          suno_clip_id: string | null
+          suno_task_id: string | null
+          target_duration_sec: number | null
+          title: string | null
+          unlocked: boolean
+          updated_at: string
+          user_id: string
+          vocals_only: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "songs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_presence_alert: {
+        Args: { p_cooldown_minutes: number; p_kind: string; p_user: string }
+        Returns: boolean
+      }
       claim_referral: { Args: { p_referrer: string }; Returns: boolean }
       claim_referrer_permanent: {
         Args: { p_acknowledged: boolean; p_referrer: string }
+        Returns: Json
+      }
+      consume_chat_image_edit: {
+        Args: { p_reference: string; p_user: string }
         Returns: Json
       }
       create_og_bot_invite: {
@@ -1822,6 +2528,7 @@ export type Database = {
       gen_og_referral_code: { Args: never; Returns: string }
       get_my_referrer: { Args: never; Returns: Json }
       get_referral_summary: { Args: never; Returns: Json }
+      grant_vault_pass: { Args: { p_user: string }; Returns: boolean }
       grant_welcome_bonus: {
         Args: { _eligible: boolean; _user_id: string }
         Returns: Json
@@ -1833,6 +2540,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_sports_guide_access: { Args: { _user: string }; Returns: boolean }
       increment_bot_interactions: {
         Args: { p_delta?: number }
         Returns: number
@@ -1841,6 +2549,7 @@ export type Database = {
         Args: { _delta: number; _user_id: string }
         Returns: number
       }
+      learn_battle_words: { Args: { p_words: string[] }; Returns: undefined }
       list_community_songs: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
@@ -1900,12 +2609,24 @@ export type Database = {
         Returns: undefined
       }
       payout_battle_reward: { Args: { _user_id: string }; Returns: Json }
+      pick_catchphrases: {
+        Args: { p_tone: string; p_user: string }
+        Returns: Json
+      }
+      pick_roasts: {
+        Args: { p_n?: number; p_tone: string; p_user: string }
+        Returns: Json
+      }
       purchase_bot_token: {
         Args: { p_allowed_domain?: string }
         Returns: {
           id: string
           token_string: string
         }[]
+      }
+      purchase_owner_track: {
+        Args: { p_song: string; p_user: string }
+        Returns: Json
       }
       purchase_sports_guide_access: { Args: never; Returns: Json }
       purchase_sports_guide_access_for_user: {
@@ -1914,7 +2635,18 @@ export type Database = {
       }
       purchase_vip: { Args: never; Returns: number }
       purchase_vip_pass_for_user: { Args: { p_user: string }; Returns: Json }
+      purge_expired_vip_roles: { Args: never; Returns: number }
       redeem_og_bot_invite: { Args: { p_code: string }; Returns: string }
+      referral_rate_pct: { Args: { p_user: string }; Returns: number }
+      refund_chat_image_edit: {
+        Args: {
+          p_free: boolean
+          p_prev: string
+          p_reference: string
+          p_user: string
+        }
+        Returns: undefined
+      }
       refund_generation_charge: {
         Args: { p_amount: number; p_reference: string; p_user: string }
         Returns: number
@@ -1968,6 +2700,14 @@ export type Database = {
         Args: { p_key: string; p_value: string }
         Returns: string
       }
+      set_vault_pass_admin: {
+        Args: {
+          admin_notes?: string
+          grant_access: boolean
+          target_user_id: string
+        }
+        Returns: boolean
+      }
       set_vip_admin: {
         Args: {
           admin_notes?: string
@@ -1976,6 +2716,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_vip_expiry_admin: {
+        Args: {
+          admin_notes?: string
+          new_expires_at: string
+          target_user_id: string
+        }
+        Returns: string
+      }
+      start_vip_trial_once: { Args: never; Returns: Json }
+      sync_owner_track_bonus: { Args: { p_song: string }; Returns: undefined }
       unrevoke_og_bot_token: {
         Args: { admin_notes?: string; target_user_id: string }
         Returns: boolean
@@ -1984,6 +2734,7 @@ export type Database = {
         Args: { p_origin: string; p_token: string }
         Returns: boolean
       }
+      verify_song_retry_token: { Args: { p_token: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "vip" | "og_bot" | "dev" | "boss"

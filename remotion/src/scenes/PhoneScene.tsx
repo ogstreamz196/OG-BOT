@@ -37,13 +37,7 @@ export const PhoneScene: React.FC<Props> = ({
           display: "flex",
         }}
       >
-        <Phone
-          src={screenshot}
-          delay={6}
-          width={520}
-          rotate={phoneRight ? -6 : 6}
-          pan={pan}
-        />
+        <Phone src={screenshot} delay={6} width={520} rotate={phoneRight ? -6 : 6} pan={pan} />
       </div>
 
       <div

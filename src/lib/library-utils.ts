@@ -55,6 +55,33 @@ export const POOLS: Record<Category, string[]> = {
     "Filipino",
     "Tagalog",
     "Lithuanian",
+    "Polish",
+    "Ukrainian",
+    "Swedish",
+    "Norwegian",
+    "Danish",
+    "Finnish",
+    "Hungarian",
+    "Czech",
+    "Bulgarian",
+    "Serbian",
+    "Croatian",
+    "Vietnamese",
+    "Thai",
+    "Indonesian",
+    "Malay",
+    "Somali",
+    "Amharic",
+    "Kurdish",
+    "Persian",
+    "Hebrew",
+    "Pashto",
+    "Nepali",
+    "Sinhala",
+    "Irish",
+    "Welsh",
+    "Zulu",
+    "Hausa",
   ]),
 
   genre: [
@@ -86,7 +113,35 @@ export const POOLS: Record<Category, string[]> = {
     "Dancehall",
     "Garage",
     "Bossa Nova",
+    "Grime",
+    "UK Drill",
+    "Afro Trap",
+    "Afro House",
+    "Reggaeton",
+    "Salsa",
+    "Bachata",
+    "Dubstep",
+    "Techno",
+    "Trance",
+    "Jersey Club",
+    "Phonk",
+    "Synthwave",
+    "Gospel",
+    "Soul",
+    "Blues",
+    "Acoustic",
+    "Folk",
+    "Metal",
+    "Punk",
+    "Bollywood",
+    "Qawwali",
+    "Classical",
+    "Cinematic",
+    "Disco",
+    "Emo Rap",
+    "Boom Bap",
   ],
+
   mood: [
     "Happy & Upbeat",
     "Sad & Slow",
@@ -311,8 +366,8 @@ export function personalDetailsCheck(
 ): PersonalDetailsCheck {
   const len = text.length;
   const trimmed = text.trim();
-  const hasName = /name\s*[:\-]/i.test(trimmed) || /^[A-Z][a-z]+/m.test(trimmed);
-  const hasDetail = /(occasion|love|joke|story|city|place)\s*[:\-]/i.test(trimmed);
+  const hasName = /name\s*[:-]/i.test(trimmed) || /^[A-Z][a-z]+/m.test(trimmed);
+  const hasDetail = /(occasion|love|joke|story|city|place)\s*[:-]/i.test(trimmed);
   const pct = (len / max) * 100;
 
   let status: PersonalDetailsStatus;
@@ -371,3 +426,7 @@ export function languageFromPrompt(text: string | null | undefined): string | nu
   const found = m?.[1]?.trim();
   return found || null;
 }
+
+/** Styles free members can use; everything else needs OG VIP (or the trial). */
+export const FREE_STYLES = ["Hip Hop", "Rap", "Pop", "R&B", "Lo-fi", "Nasheed"];
+export const isFreeStyle = (s: string) => FREE_STYLES.includes(s);

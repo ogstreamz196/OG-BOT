@@ -29,7 +29,9 @@ export function CookingDialog({
   onOpenChange,
   title,
   etaMinutes = 5,
+  safeToLeave = true,
 }: {
+  safeToLeave?: boolean;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title?: string;
@@ -107,7 +109,9 @@ export function CookingDialog({
           </li>
           <li className="flex items-start gap-2">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            You can close this page. Your track keeps rendering in the background.
+            {safeToLeave
+              ? "You can close this page. Your track keeps rendering in the background."
+              : "Keep this page open for a few seconds while lyrics are written — then you can close it."}
           </li>
           <li className="flex items-start gap-2">
             <Music4 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />

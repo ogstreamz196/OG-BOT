@@ -29,6 +29,7 @@ import {
 } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useRole } from "@/hooks/use-role";
+import { OwnershipCertificate } from "@/components/purchases/OwnershipCertificate";
 
 function formatDate(iso: string) {
   try {
@@ -66,45 +67,19 @@ function refundStatusFor(d: StripePurchaseDetails | null | undefined) {
 }
 
 function ReceiptLink({ row }: { row: PurchaseRow }) {
-  const stripe = parseStripeRef(row.reference);
-  const fetchReceipt = useServerFn(getStripeReceiptUrl);
-  const [loading, setLoading] = useState(false);
-  if (!stripe) return null;
-
-  async function open() {
-    setLoading(true);
-    try {
-      // Use the env encoded in the reference — the session was created
-      // in that account and only exists there. Falling back to the current
-      // client env produces "No such checkout.session" when envs differ.
-      const env = stripe!.env;
-      const res = await fetchReceipt({ data: { sessionId: stripe!.sessionId, environment: env } });
-      if ("error" in res) {
-        toast.error(res.error);
-        return;
-      }
-      window.open(res.url, "_blank", "noopener,noreferrer");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't fetch receipt");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={open}
-      disabled={loading}
-      className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline disabled:opacity-50"
-    >
-      {loading ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <ExternalLink className="h-3 w-3" />
-      )}
-      Receipt
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 text-xs font-bold text-primary underline-offset-2 hover:underline"
+      >
+        <Receipt className="h-3 w-3" />
+        Certificate &amp; receipt
+      </button>
+      {open && <OwnershipCertificate row={row} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -430,7 +405,9 @@ function RefundsPanel() {
       const next = !prev;
       try {
         window.localStorage.setItem(EMAIL_OPT_IN_KEY, next ? "1" : "0");
-      } catch {}
+      } catch {
+        // storage may be blocked (private mode)
+      }
       toast(next ? "Email alerts on for refund status changes" : "Email alerts off");
       return next;
     });

@@ -19,6 +19,7 @@ import {
   createCustomCoinCheckoutSession,
 } from "@/lib/payments.functions";
 import { CURRENCY_SYMBOL, COIN_PACKS, CUSTOM_COIN_UNIT } from "@/lib/coin-packs";
+import { purchaseStoreName } from "@/lib/revenuecat";
 import { useRevenueCat } from "@/components/revenuecat/RevenueCatProvider";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +58,7 @@ export function QuickTopUpSheet({
 
   async function buyNative(productId: string) {
     if (rc.loading) {
-      toast.info("Connecting to Google Play…");
+      toast.info(`Connecting to ${purchaseStoreName()}…`);
       return;
     }
     const pkg = rc.offerings?.current?.availablePackages.find((p) => {
@@ -71,7 +72,7 @@ export function QuickTopUpSheet({
     });
     if (!pkg) {
       toast.error(
-        "Google Play doesn't have this product yet — it becomes available once the app release is live on Play.",
+        `This pack isn't available from ${purchaseStoreName()} yet — please try again soon.`,
       );
       return;
     }

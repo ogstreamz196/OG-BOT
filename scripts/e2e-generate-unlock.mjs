@@ -58,7 +58,10 @@ try {
 
   // 3. Trigger generation
   await page.goto(`${BASE}/musichub`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /generate( lyrics)?/i }).first().click();
+  await page
+    .getByRole("button", { name: /generate( lyrics)?/i })
+    .first()
+    .click();
   await shot("02-generate-clicked");
 
   // 4. Wait for balance to drop (deduction confirmed)
@@ -80,7 +83,10 @@ try {
   const firstSong = page.getByTestId("song-card").first();
   await firstSong.waitFor({ timeout: 120_000 });
   await firstSong.click();
-  await page.getByRole("button", { name: /play|preview/i }).first().waitFor({ timeout: 60_000 });
+  await page
+    .getByRole("button", { name: /play|preview/i })
+    .first()
+    .waitFor({ timeout: 60_000 });
   await shot("03-preview-ready");
 
   // 6. Download button must be disabled until unlock
@@ -90,12 +96,16 @@ try {
   // 7. Unlock
   await page.getByRole("button", { name: /unlock.*download/i }).click();
   await dl.waitFor({ state: "visible" });
-  await page.waitForFunction(() => {
-    const btn = [...document.querySelectorAll("button")].find((b) =>
-      /download full/i.test(b.textContent || ""),
-    );
-    return btn && !btn.disabled;
-  }, null, { timeout: 30_000 });
+  await page.waitForFunction(
+    () => {
+      const btn = [...document.querySelectorAll("button")].find((b) =>
+        /download full/i.test(b.textContent || ""),
+      );
+      return btn && !btn.disabled;
+    },
+    null,
+    { timeout: 30_000 },
+  );
   await shot("04-unlocked");
 
   console.log("[e2e] OK");

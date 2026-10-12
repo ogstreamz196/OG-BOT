@@ -5,6 +5,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, type ReactNode } from "react";
@@ -26,6 +27,8 @@ import { PersistentBackgroundMusic } from "@/components/PersistentBackgroundMusi
 import { TrackUnlockReturnHandler } from "@/components/library/TrackUnlockReturnHandler";
 import { NativeAppLinkBridge } from "@/components/NativeAppLinkBridge";
 import { RevenueCatBridge } from "@/components/revenuecat/RevenueCatBridge";
+import { registerAppServiceWorker } from "@/lib/register-sw";
+import { TrackReadyNotifier } from "@/components/TrackReadyNotifier";
 
 function NotFoundComponent() {
   return (
@@ -44,7 +47,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -80,7 +83,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover, interactive-widget=resizes-content",
       },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -102,7 +106,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Generate full songs from a prompt, chat with OG Bot, and run your creator economy in one place.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://ogwidget.lovable.app" },
+      { property: "og:url", content: "https://ogbot.co.uk" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "OG Streamz — AI Song Generator & OG Bot Hub" },
       {
@@ -132,11 +136,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "preload",
         as: "style",
-        href: "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Unbounded:wght@400;500;600;700;800&family=Luckiest+Guy&family=Cabin+Sketch:wght@400;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Unbounded:wght@400;500;600;700;800&family=Luckiest+Guy&family=Cabin+Sketch:wght@400;700&display=swap",
       },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Unbounded:wght@400;500;600;700;800&family=Luckiest+Guy&family=Cabin+Sketch:wght@400;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Unbounded:wght@400;500;600;700;800&family=Luckiest+Guy&family=Cabin+Sketch:wght@400;700&display=swap",
       },
 
       // Preload the most critical glyph subsets (Latin woff2) so the display
@@ -170,13 +174,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.gstatic.com/s/bitcountgriddouble/v3/WBK7rFjbakJVFOargiWSKQysDITG_S0VtG0x3HD2FYHVdlZI-rLlahmEAPp8wjYMvkPq48MVQo5RQf2svjnxa5Anx8-Y-pHdkVb0ByRHaxzbXaLbA9wfZNtjSZYdig.woff2",
         crossOrigin: "anonymous",
       },
-      {
-        rel: "preload",
-        as: "font",
-        type: "font/woff2",
-        href: "https://fonts.gstatic.com/s/bungee/v14/N0bU2SZBIuF2PU_0Cn40Kd_PmA.woff2",
-        crossOrigin: "anonymous",
-      },
     ],
     scripts: [
       {
@@ -185,7 +182,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "OG Streamz",
-          url: "https://ogwidget.lovable.app",
+          url: "https://ogbot.co.uk",
           description: "AI song generation, OG Bot assistant, and a coin-powered creator economy.",
         }),
       },
@@ -195,7 +192,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "OG Streamz",
-          url: "https://ogwidget.lovable.app",
+          url: "https://ogbot.co.uk",
         }),
       },
     ],
@@ -229,6 +226,10 @@ function RootComponent() {
   const bootstrapUser = useServerFn(ensureCurrentUserBootstrap);
 
   useEffect(() => {
+    registerAppServiceWorker();
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     const bootstrap = async () => {
@@ -255,7 +256,7 @@ function RootComponent() {
             typeof window !== "undefined" ? localStorage.getItem("og_pending_ref") : null;
           if (pending) {
             let referrerId = pending;
-            if (/^OG-[A-Z0-9]{6}$/i.test(pending)) {
+            if (!/^[0-9a-f-]{36}$/i.test(pending)) {
               const { data: lookup, error: lookupError } = await supabase.rpc(
                 "lookup_referrer_by_code",
                 { p_code: pending.toUpperCase() },
@@ -341,8 +342,9 @@ function RootComponent() {
           <TrackUnlockReturnHandler />
           <UserActivityArchiver />
           <NativeAppLinkBridge />
-          <Outlet />
           <InstallAppPrompt />
+          <Outlet />
+          <TrackReadyNotifier />
           <Toaster position="top-center" offset={72} />
         </RevenueCatBridge>
       </AuthProvider>

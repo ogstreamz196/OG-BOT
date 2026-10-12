@@ -1,4 +1,7 @@
+import { useServerFn } from "@tanstack/react-start";
+import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSessionRunState } from "@/hooks/use-session-run-state";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { requestFullTrackPlay } from "@/lib/full-track-autoplay";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,6 +16,8 @@ import {
   AlertCircle,
   Play,
   RefreshCw,
+  Download,
+  Lock,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -38,10 +43,12 @@ import {
 
 import { useProfile } from "@/hooks/use-profile";
 import { useVariations } from "@/hooks/use-variations";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
+import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
 import { CoinPill } from "@/components/ui/coin-pill";
-import { StageStepper, type Stage } from "./song-workspace/StageStepper";
+import { type Stage } from "./song-workspace/StageStepper";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VariationsCard } from "./song-workspace/VariationsCard";
 import { UnlockConfirmDialog } from "./UnlockConfirmDialog";
 import { QuickTopUpSheet } from "@/components/store/QuickTopUpSheet";
@@ -56,7 +63,7 @@ import {
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useRole } from "@/hooks/use-role";
-import { POOLS, orderLanguages } from "@/lib/library-utils";
+import { POOLS, orderLanguages, isFreeStyle } from "@/lib/library-utils";
 import { LENGTH_OPTIONS, MIN_LENGTH, MAX_LENGTH } from "./CreateNowWizard";
 
 const LANGUAGES = orderLanguages([
@@ -174,6 +181,18 @@ function setBriefLanguage(brief: string, language: string): string {
   return brief.trim() ? `${brief.trim()}\n${line}` : line;
 }
 
+// The wizard saves the user's original idea inside the prompt as "— Idea: …"
+// (the dash stops the language matcher from swallowing it).
+const IDEA_RE = /\n?— Idea:\s*([\s\S]*?)(?=\nLanguage:|$)/;
+function getIdea(brief: string): string {
+  return (brief.match(IDEA_RE)?.[1] ?? "").trim();
+}
+function setIdea(brief: string, idea: string): string {
+  const base = brief.replace(IDEA_RE, "").trimEnd();
+  const clean = idea.trim();
+  return clean ? `${base}\n— Idea: ${clean}` : base;
+}
+
 interface Props {
   song: WorkspaceSong;
   onSaved?: () => void;
@@ -203,8 +222,11 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   const lyricsCost = settings?.coins_per_lyrics_generation ?? 0;
   const previewCost = settings?.coins_per_generation ?? 0;
   const fullUnlockCost = settings?.coins_per_full_unlock ?? 5;
+  const unlockCost = fullUnlockCost;
   const balance = profile?.coin_balance ?? 0;
   const isOwner = !!profile?.id && song.user_id === profile.id;
+  // Re-cooking a finished track is an edit: 2 coins, charged once on submit.
+  const editCost = song.status === "completed" ? 2 : 0;
 
   const [title] = useState(song.title ?? "");
   const [brief, setBrief] = useState(song.prompt ?? "");
@@ -229,6 +251,23 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   const [saving, setSaving] = useState(false);
   const [genLyrics, setGenLyrics] = useState(false);
   const [genPreview, setGenPreview] = useState(false);
+  // True from the moment the user taps "cook" until the NEW take finishes.
+  // While true, the old sample is hidden so it can't be mistaken for the new one.
+  // Kept app-wide (and across reloads) so leaving the page mid-cook doesn't
+  // lose the "cooking your new take" state for this song.
+  const [cooking, setCooking] = useSessionRunState<boolean>(`edit-cook:${song.id}`, false, true);
+  const [freshReady, setFreshReady] = useSessionRunState<boolean>(
+    `edit-fresh:${song.id}`,
+    false,
+    true,
+  );
+  const [sawPending, setSawPending] = useSessionRunState<boolean>(
+    `edit-saw:${song.id}`,
+    false,
+    true,
+  );
+  const sawPendingRef = useRef(sawPending);
+  sawPendingRef.current = sawPending;
   const [unlocking, setUnlocking] = useState(false);
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [topUp, setTopUp] = useState<{ needed: number; reason: string } | null>(null);
@@ -283,17 +322,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   );
   const languageChanged = languageValue !== detectLanguages(song.prompt).join(" + ");
 
-  const {
-    variations,
-    basket,
-    busyVariation,
-    checkingOut,
-    variationCost,
-    revealOne,
-    toggleBasket,
-    clearBasket,
-    checkoutBasket,
-  } = useVariations({
+  const { variations } = useVariations({
     songId: song.id,
     songStatus: song.status,
     balance,
@@ -305,6 +334,27 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   const isPending = song.status === "pending" || song.status === "processing";
   const isReady = song.status === "completed";
   const isFailed = song.status === "failed";
+
+  // Track the re-cook lifecycle: wait until we've seen the row go pending,
+  // then finish when it lands on completed/failed.
+  useEffect(() => {
+    if (!cooking) return;
+    if (isPending) {
+      if (!sawPendingRef.current) setSawPending(true);
+      return;
+    }
+    if (sawPendingRef.current && (isReady || isFailed)) {
+      setSawPending(false);
+      setCooking(false);
+      if (isReady) setFreshReady(true);
+    }
+  }, [cooking, isPending, isReady, isFailed, setSawPending, setCooking, setFreshReady]);
+
+  function startCooking() {
+    setSawPending(false);
+    setFreshReady(false);
+    setCooking(true);
+  }
 
   // Realtime + polling fallback: while the song is generating, listen for the row
   // flipping to completed/failed and ask the parent to refetch so the UI moves
@@ -367,6 +417,9 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   }, [isPending, song.generation_started_at]);
 
   const stage: Stage = isReady ? 3 : hasLyrics ? 2 : 1;
+  const [tab, setTab] = useState<string>(
+    isReady ? "preview" : hasLyrics ? "preview" : "lyrics",
+  );
 
   const dirty =
     savedStyleValue !== (song.style ?? "") ||
@@ -423,6 +476,15 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       return;
     }
     setGenLyrics(true);
+    startCooking();
+    let started = false;
+    // Jump straight to Preview so the cooking visuals show immediately.
+    setTab("preview");
+    requestAnimationFrame(() =>
+      document
+        .getElementById("studio-preview")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
     try {
       await saveSettingsPatch();
 
@@ -438,11 +500,12 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
           foulMouth: isNasheed ? false : foulMouth,
           foulIntensity: displayedFoulIntensity,
           language: languageValue,
+          personalDetails: getIdea(nextBriefValue) || undefined,
         },
       });
 
       if (error) {
-        const msg = invokeError(error, "Lyrics generation failed");
+        const msg = await readInvokeError(error, "Lyrics generation failed");
         toast.error(
           msg.toLowerCase().includes("insufficient")
             ? "Not enough coins for a lyrics generation"
@@ -456,56 +519,106 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
         return;
       }
       setLyrics(next);
-      toast.success("Lyrics ready · free", {
-        description: "Scroll down to review your new lyrics.",
-      });
-      // Scroll into view + focus the editor so the user immediately sees the result
-      requestAnimationFrame(() => {
-        const el = lyricsRef.current;
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.focus({ preventScroll: true });
-        }
+      toast.success("Lyrics ready — cooking your track now", {
+        description: "Your preview will appear at the bottom when it's done.",
       });
       onSaved?.();
+      // Straight into the track: no second button to hunt for.
+      setGenLyrics(false);
+      setTab("preview");
+      started = await generatePreview(next);
+      requestAnimationFrame(() =>
+        document
+          .getElementById("studio-preview")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lyrics generation failed");
     } finally {
       setGenLyrics(false);
+      if (!started) setCooking(false);
     }
   }
 
+  // Single "Cook now": apply any edits, rewrite lyrics only when needed
+  // (none yet, or the language changed), otherwise cook the current lyrics.
+  async function cookNow() {
+    if (dirty) {
+      setSaving(true);
+      try {
+        await saveSettingsPatch();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save changes");
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+    // Changing the idea, styles, voice or language rewrites the lyrics so the
+    // new track really reflects the edit — unless the user hand-edited lyrics.
+    const lyricsHandEdited = lyrics !== (song.lyrics ?? "");
+    const ideaChanged = getIdea(nextBriefValue) !== getIdea(song.prompt ?? "");
+    const styleChanged = savedStyleValue !== (song.style ?? "");
+    if (!hasLyrics || languageChanged || ((ideaChanged || styleChanged) && !lyricsHandEdited)) {
+      await generateLyrics();
+    } else {
+      await cookCurrentLyrics();
+    }
+  }
+
+  async function cookCurrentLyrics() {
+    setTab("preview");
+    requestAnimationFrame(() =>
+      document
+        .getElementById("studio-preview")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+    await generatePreview();
+  }
+
   const submitLockRef = useRef(false);
-  async function generatePreview() {
-    if (submitLockRef.current) return;
+  async function generatePreview(lyricsOverride?: string): Promise<boolean> {
+    const useLyrics = typeof lyricsOverride === "string" ? lyricsOverride : lyrics;
+    if (submitLockRef.current) return false;
     if (missing) {
       toast.error("This song is no longer available");
-      return;
+      return false;
     }
 
-    if (!hasLyrics) {
+    if (!useLyrics.trim()) {
       toast.error("Generate lyrics first");
-      return;
+      return false;
     }
-    if (balance < previewCost) {
-      setTopUp({ needed: previewCost, reason: "finish this track" });
-      return;
+    if (balance < previewCost + editCost) {
+      setTopUp({ needed: previewCost + editCost, reason: "edit this track" });
+      return false;
+    }
+    // A draft (or someone else's song) becomes a brand-new sample: free, but
+    // needs 5 coins, and costs 2 coins after 3 unpaid tracks.
+    if ((!isOwner || song.status === "draft") && !(await confirmGenerationAllowed())) {
+      return false;
     }
     submitLockRef.current = true;
     setGenPreview(true);
+    startCooking();
+    let ok = false;
     try {
       localStorage.setItem("welcome.personal_banner.dismissed", "1");
-    } catch {}
+    } catch {
+      // storage may be blocked (private mode)
+    }
     try {
       window.dispatchEvent(new CustomEvent("og:generate-start"));
-    } catch {}
+    } catch {
+      // storage may be blocked (private mode)
+    }
     try {
-      if (dirty) await saveSettingsPatch();
+      if (dirty && lyricsOverride === undefined) await saveSettingsPatch();
       const { data, error } = await supabase.functions.invoke("suno-generate", {
         body: {
           song_id: isOwner ? song.id : null,
           prompt: nextBriefValue,
-          lyrics,
+          lyrics: useLyrics,
           title: title.trim() || null,
           style: styleValue || song.style || null,
           language: languageValue,
@@ -517,58 +630,66 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       });
 
       if (error) {
-        const msg = invokeError(error, "Could not start generation");
-        if (/song not found/i.test(msg)) {
+        const msg = await readInvokeError(error, "Could not start generation");
+        if (/already generating/i.test(msg)) {
+          // A duplicate tap/auto-start raced the first request — that one is cooking.
+          ok = true;
+          onSaved?.();
+        } else if (/song not found/i.test(msg)) {
           setMissing(true);
           toast.error(
             "This song is no longer available — it may have been deleted. Start a new one from the studio.",
           );
-          return;
+        } else {
+          toast.error(msg);
         }
-        toast.error(msg);
-        return;
-      }
-      if (data?.accepted === false) {
+      } else if (data?.accepted === false) {
         toast.info(data.error || "Your current generations need to finish first");
-        return;
+      } else {
+        ok = true;
+        announceSampleCharge(data);
+        toast.success(
+          editCost > 0
+            ? `${editCost} OG coins used · OG Bot is cooking your new take`
+            : "OG Bot is cooking your new take",
+        );
+        refreshCoinBalance();
+        onSaved?.();
       }
-      toast.success("OG Bot is creating your track — no credits charged");
-      onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start generation");
     } finally {
       setGenPreview(false);
       submitLockRef.current = false;
+      if (!ok) setCooking(false);
     }
+    return ok;
   }
 
   async function unlockFull() {
     if (!isReady) return;
     // Already-unlocked owners skip the confirmation modal — they've already paid.
-    if (song.unlocked) {
+    if (ownsFull) {
       await performUnlock();
-      return;
-    }
-    if (balance < fullUnlockCost) {
-      setTopUp({ needed: fullUnlockCost, reason: "unlock the HQ version" });
       return;
     }
     setUnlockDialogOpen(true);
   }
 
   const navigate = useNavigate();
+  const { isVip: isVipUser, isBoss } = useRole();
+  // Boss accounts play and download everything, so treat them as owners.
+  const ownsFull = !!song.unlocked || !!isBoss;
+  const buyOwnerTrack = useServerFn(purchaseOwnerTrack);
   async function performUnlock() {
     setUnlocking(true);
     try {
-      if (!song.unlocked) {
-        const { data, error } = await supabase.functions.invoke("unlock-full-song", {
-          body: { song_id: song.id },
-        });
-        if (error) {
-          toast.error(invokeError(error, "Could not unlock"));
-          return;
-        }
-        if (!data?.already) toast.success(`Unlocked · -${data?.cost ?? fullUnlockCost} coins`);
+      if (!ownsFull) {
+        const data = await buyOwnerTrack({ data: { songId: song.id } });
+        if (!data?.already) toast.success(`Unlocked + Take 2 free · -${data?.cost ?? unlockCost} coins`);
+        void queryClient.invalidateQueries({ queryKey: ["library"] });
+        void queryClient.invalidateQueries({ queryKey: ["recent-songs"] });
+        void queryClient.invalidateQueries({ queryKey: ["variations"] });
         refreshCoinBalance();
         onSaved?.();
       }
@@ -582,13 +703,19 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       const fileName = `${song.title || "song"}.mp3`;
       const blob = await downloadFile(urlData.url as string, fileName);
       setUnlockDialogOpen(false);
-      await shareTrack({ title: song.title || "My track", blob, filename: fileName });
+      await shareTrack({
+        title: song.title || "My track",
+        blob,
+        filename: fileName,
+        songId: song.id,
+      });
       // Payment complete — refresh so the preview flips to the full track.
       refreshCoinBalance();
       onSaved?.();
       onRefresh?.();
+      // Stay on the track: the player swaps to the full version and carries on
+      // from where the sample stopped.
       requestFullTrackPlay(song.id);
-      void navigate({ to: "/library" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not unlock");
     } finally {
@@ -643,7 +770,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
 
   return (
     <div className="space-y-6">
-      {isPending && (
+      {isPending && tab !== "preview" && (
         <div className="sticky top-2 z-30">
           <GeneratingProgress
             sampleSeconds={settings?.sample_seconds ?? 60}
@@ -655,56 +782,46 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
           />
         </div>
       )}
-      <StageStepper current={stage} sampleSeconds={settings?.sample_seconds ?? 60} />
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-3 p-1">
+          <TabsTrigger value="lyrics" className="text-xs sm:text-sm">Edit</TabsTrigger>
+          <TabsTrigger value="preview" className="text-xs sm:text-sm">Preview</TabsTrigger>
+          <TabsTrigger value="takes" className="text-xs sm:text-sm">Takes</TabsTrigger>
+        </TabsList>
 
-      {/* Compact summary bar — replaces the old side rail */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border bg-card/70 px-3 py-3 sm:px-4">
-        <div className="min-w-0">
-          <p className="line-clamp-2 break-words text-sm font-semibold leading-snug">
-            {title.trim() || "Untitled track"}
-          </p>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground sm:text-xs">
-            Create free · Download {fullUnlockCost} credits or 99p
-          </p>
-        </div>
-        <div className="grid shrink-0 gap-1.5 min-[380px]:grid-cols-2 min-[380px]:items-center">
-          <span className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border border-border bg-background/60 px-2.5 py-1 text-sm font-bold tabular-nums">
-            <Coins className="h-4 w-4 text-coin" /> {balance.toLocaleString()}
-          </span>
-          <Button asChild variant="outline" size="sm" className="px-2.5">
-            <Link to="/buy-coins">Top up</Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {/* Step 1 — Details & lyrics */}
-        <Card className={cn(stage > 1 && !dirty && "border-primary/30")}>
-          <Collapsible open={step1Open} onOpenChange={setStep1Open}>
-            <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5">
+        <TabsContent value="lyrics" className="mt-0">
+        <Card>
+          <Collapsible open>
+            <CollapsibleTrigger className="pointer-events-none flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5 [&>svg]:hidden">
               <div className="min-w-0">
                 <span className="flex items-center gap-2 text-lg font-semibold">
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />1 · Lyrics
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />Lyrics & vibe
                 </span>
                 <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {hasLyrics ? "Ready — tap to edit" : "Write the lyrics · Free"}
+                  {hasLyrics ? "Tweak, save, re-cook" : "Write the lyrics · Free"}
                 </span>
               </div>
-              <ChevronDown
-                className={cn("h-5 w-5 shrink-0 transition-transform", step1Open && "rotate-180")}
-              />
+              <ChevronDown className="h-5 w-5 shrink-0" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-4">
-                {/* Locked identity — the track name and story stay as created */}
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                  <p className="text-sm font-semibold">{title.trim() || "Untitled track"}</p>
-                  <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
-                    {brief.trim() || "No description saved."}
-                  </p>
-                  <p className="mt-2 text-[11px] text-muted-foreground/80">
-                    Name and story can't be changed — everything below can.
-                  </p>
+                {/* Original idea from the wizard — editable, rewrites lyrics on Cook now */}
+                <div className="space-y-2">
+                  <Label htmlFor="song-idea">
+                    Your idea{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      (change it and Cook now writes fresh lyrics)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="song-idea"
+                    value={getIdea(brief)}
+                    onChange={(e) => setBrief((b) => setIdea(b, e.target.value))}
+                    placeholder="What's the song about? Names, stories, inside jokes…"
+                    rows={3}
+                    maxLength={500}
+                    disabled={!isOwner}
+                  />
                 </div>
 
                 {/* Styles — stack as many as you like */}
@@ -718,12 +835,20 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                   <div className="flex flex-wrap gap-1.5">
                     {STYLE_OPTIONS.map((s) => {
                       const on = styles.includes(s);
+                      const locked = !isVipUser && !isFreeStyle(s) && !on;
                       return (
                         <button
                           key={s}
                           type="button"
                           aria-pressed={on}
                           onClick={() => {
+                            if (locked) {
+                              toast(`👑 ${s} is an OG VIP style`, {
+                                description: "Unlock all 50+ styles & moods, plus custom requests.",
+                                action: { label: "Get VIP", onClick: () => void navigate({ to: "/buy-coins" }) },
+                              });
+                              return;
+                            }
                             if (s === "Nasheed") {
                               setStyles(on ? [] : ["Nasheed"]);
                               setStyleExtra("");
@@ -749,6 +874,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                               : "border-border bg-background/40 text-muted-foreground hover:border-primary/50",
                           )}
                         >
+                          {locked && <span className="mr-1">🔒👑</span>}
                           {s}
                         </button>
                       );
@@ -770,7 +896,12 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                       (mix as many as you like)
                     </span>
                   </Label>
-                  <div className="flex flex-wrap gap-1.5">
+                  <details className="group rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold">
+                    <span className="truncate">{languages.join(" + ")}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {LANGUAGES.map((l) => {
                       const on = languages.includes(l);
                       return (
@@ -796,6 +927,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                       );
                     })}
                   </div>
+                  </details>
                 </div>
 
                 {/* Voice + length */}
@@ -861,7 +993,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
 
                 {hasLyrics && languageChanged && (
                   <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground/80">
-                    Language changed to <b>{languageValue}</b> — regenerate lyrics to rewrite them.
+                    Language changed to <b>{languageValue}</b> — Cook now will rewrite the lyrics.
                   </div>
                 )}
 
@@ -961,44 +1093,39 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                     </div>
                   )}
                   <Button
-                    variant="ghost"
-                    onClick={handleSave}
-                    disabled={!dirty || saving}
-                    className="min-w-0"
+                    onClick={() => void cookNow()}
+                    disabled={genLyrics || genPreview || isPending || cooking || saving || missing}
+                    className="col-span-2 min-w-0 gap-2"
                   >
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-                  </Button>
-
-                  <Button
-                    onClick={generateLyrics}
-                    disabled={genLyrics || missing}
-                    className="min-w-0 gap-1.5 sm:gap-2"
-                  >
-                    {genLyrics ? (
+                    {genLyrics || genPreview || saving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
-                    {hasLyrics ? "Regenerate lyrics · Free" : "Generate lyrics · Free"}
+                    {editCost > 0 ? `Cook now · ${editCost} coins` : "Cook now"}
                   </Button>
                 </div>
               </CardContent>
             </CollapsibleContent>
           </Collapsible>
         </Card>
+        </TabsContent>
 
+        <TabsContent value="preview" id="studio-preview" className="mt-0 scroll-mt-20">
         {/* Stage 2 — Sample */}
-        <Card
-          className={cn(stage === 2 && "border-primary/40 shadow-glow", stage < 2 && "opacity-60")}
-        >
-          <Collapsible open={step2Open} onOpenChange={setStep2Open}>
-            <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5">
+        <Card>
+          <Collapsible open>
+            <CollapsibleTrigger className="pointer-events-none flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5 [&>svg]:hidden">
               <div className="min-w-0">
                 <span className="flex items-center gap-2 text-lg font-semibold">
-                  <Play className="h-4 w-4 shrink-0 text-primary" />2 · Preview
+                  <Play className="h-4 w-4 shrink-0 text-primary" />Preview
                 </span>
                 <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {isReady
+                  {cooking
+                    ? "Cooking your new version…"
+                    : isReady && ownsFull
+                    ? "Full track ready"
+                    : isReady
                     ? `Free ${settings?.sample_seconds ?? 60}s sample ready`
                     : isPending
                       ? "Generating…"
@@ -1011,8 +1138,11 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-3">
-                {!hasLyrics && (
+                {!hasLyrics && !genLyrics && (
                   <p className="text-sm text-muted-foreground">Generate lyrics in step 1 first.</p>
+                )}
+                {!isPending && (genLyrics || genPreview || cooking) && (
+                  <LyricsSkeleton songId={song.id} />
                 )}
                 {isPending && (
                   <>
@@ -1029,7 +1159,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                     )}
                   </>
                 )}
-                {isFailed && (
+                {isFailed && !cooking && (
                   <div
                     role="alert"
                     className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
@@ -1048,7 +1178,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={generatePreview}
+                        onClick={() => void generatePreview()}
                         disabled={!hasLyrics || genPreview || balance < previewCost || missing}
                         className="gap-1.5"
                       >
@@ -1066,7 +1196,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          setStep1Open(true);
+                          setTab("lyrics");
                           setLyricsOpen(true);
                           requestAnimationFrame(() =>
                             lyricsRef.current?.scrollIntoView({
@@ -1089,10 +1219,33 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                     </div>
                   </div>
                 )}
-                {isReady && <InlineSamplePlayer songId={song.id} unlocked={!!song.unlocked} />}
+                {isReady && !genLyrics && !genPreview && !cooking && (
+                  <>
+                    {freshReady && (
+                      <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" /> Your new take is ready!
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setTab("takes")}
+                          className="text-xs font-medium underline underline-offset-2"
+                        >
+                          Compare takes
+                        </button>
+                      </div>
+                    )}
+                    <InlineSamplePlayer
+                      key={`${song.id}-${song.updated_at ?? ""}`}
+                      songId={song.id}
+                      unlocked={!!song.unlocked}
+                    />
+                  </>
+                )}
+                {!isReady && !cooking && (
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
-                    onClick={generatePreview}
+                    onClick={() => void generatePreview()}
                     disabled={
                       !hasLyrics || genPreview || isPending || balance < previewCost || missing
                     }
@@ -1118,46 +1271,25 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                     </span>
                   </Button>
                 </div>
+                )}
               </CardContent>
             </CollapsibleContent>
           </Collapsible>
-        </Card>
-
-        {/* Stage 3 — Final song */}
-        <Card
-          className={cn(stage === 3 && "border-primary/40 shadow-glow", stage < 3 && "opacity-60")}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Music2 className="h-4 w-4 text-primary" />3 · Full HQ
-            </CardTitle>
-            <CardDescription>
-              Choose {fullUnlockCost} credits or a one-off 99p payment to unlock and download.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {!isReady ? (
-              <p className="text-sm text-muted-foreground">
-                Once the preview is ready, the full track unlocks here.
-              </p>
-            ) : (
+          {isReady && !cooking && (
+          <CardContent className="space-y-3 border-t border-border/50 pt-4">
               <>
-                <p className="text-sm text-muted-foreground">
-                  {song.unlocked
-                    ? "Full HQ unlocked. Download as many times as you like."
-                    : "Unlock once to download the full HQ track."}
-                </p>
 
-                {!song.unlocked && balance < fullUnlockCost && (
+
+                {!ownsFull && balance < unlockCost && (
                   <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                     <Coins className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                     <div className="flex-1">
                       <p className="font-semibold text-amber-100">
-                        You need {fullUnlockCost - balance} more coin
-                        {fullUnlockCost - balance === 1 ? "" : "s"} to unlock
+                        You need {unlockCost - balance} more coin
+                        {unlockCost - balance === 1 ? "" : "s"} to unlock
                       </p>
                       <p className="text-xs text-amber-200/80">
-                        Balance: {balance} · Cost: {fullUnlockCost}
+                        Balance: {balance} · Cost: {unlockCost}
                       </p>
                     </div>
                     <Button asChild size="sm" className="shrink-0">
@@ -1166,57 +1298,63 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                   </div>
                 )}
 
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button
-                    onClick={unlockFull}
-                    disabled={unlocking || (!song.unlocked && balance < fullUnlockCost)}
-                    className="gap-2"
-                    aria-live="polite"
-                  >
-                    {unlocking ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {song.unlocked ? "Preparing download…" : "Processing payment…"}
-                      </>
-                    ) : (
-                      <>
-                        <Music2 className="h-4 w-4" />
-                        {song.unlocked
-                          ? "Download full HQ"
-                          : `Unlock & download · ${fullUnlockCost} coins`}
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button
+                  onClick={unlockFull}
+                  disabled={!!(
+                    unlocking ||
+                    (ownsFull && (!isReady || !song.audio_path))
+                  )}
+                  variant={ownsFull ? "default" : "outline"}
+                  className="h-12 w-full gap-2"
+                  aria-live="polite"
+                >
+                  {unlocking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {ownsFull ? "Preparing download…" : "Processing payment…"}
+                    </>
+                  ) : ownsFull && (!isReady || !song.audio_path) ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Download pending — finishing track…
+                    </>
+                  ) : ownsFull ? (
+                    <>
+                      <Download className="h-4 w-4" /> Download to device
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4" /> Unlock full track · {unlockCost} coins
+                    </>
+                  )}
+                </Button>
               </>
-            )}
           </CardContent>
+          )}
         </Card>
+        </TabsContent>
 
-        <VariationsCard
-          variations={variations}
-          variationCost={variationCost}
-          basket={basket}
-          busyVariation={busyVariation}
-          checkingOut={checkingOut}
-          balance={balance}
-          onToggleBasket={toggleBasket}
-          onRevealOne={revealOne}
-          onClearBasket={clearBasket}
-          onCheckoutBasket={checkoutBasket}
-        />
-      </div>
+        <TabsContent value="takes" className="mt-0">
+        {cooking ? (
+          <p className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+            Your old takes are hidden while OG Bot cooks the new version.
+          </p>
+        ) : (
+          <VariationsCard variations={variations} />
+        )}
+        </TabsContent>
+      </Tabs>
 
       <UnlockConfirmDialog
         open={unlockDialogOpen}
         onOpenChange={setUnlockDialogOpen}
         onConfirm={performUnlock}
         busy={unlocking}
-        cost={fullUnlockCost}
+        cost={unlockCost}
         royalty={0}
         balance={balance}
         songTitle={song.title ?? title}
         songId={song.id}
+        includesSecondTake={isOwner}
       />
 
       <QuickTopUpSheet
@@ -1473,14 +1611,19 @@ function GeneratingProgress({
     if (!songId || cancelling) return;
     setCancelling(true);
     try {
-      const { error } = await supabase.functions.invoke("suno-cancel", {
+      const { data, error } = await supabase.functions.invoke("suno-cancel", {
         body: { song_id: songId },
       });
       if (error) {
-        toast.error(invokeError(error, "Could not cancel"));
+        toast.error(await readInvokeError(error, "Could not cancel"));
         return;
       }
-      toast.success("Generation cancelled — coins refunded");
+      const refunded = Number((data as { refunded?: number } | null)?.refunded ?? 0);
+      toast.success(
+        refunded > 0
+          ? `Generation cancelled — ${refunded} coins refunded`
+          : "Generation cancelled",
+      );
       onCancelled?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not cancel");
@@ -1675,9 +1818,16 @@ function InlineSamplePlayer({ songId, unlocked = false }: { songId: string; unlo
   const canPlayFull = unlocked || isBoss;
   const [playingFull, setPlayingFull] = useState(canPlayFull);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // When a sample flips to the full track, remember where the listener was so
+  // the full version carries on from that exact spot.
+  const resumeAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const prev = audioRef.current;
+    if (canPlayFull && prev && prev.currentTime > 0) {
+      resumeAtRef.current = prev.currentTime;
+    }
     setError(null);
     setUrl(null);
     setLoading(true);
@@ -1700,7 +1850,7 @@ function InlineSamplePlayer({ songId, unlocked = false }: { songId: string; unlo
         });
         if (cancelled) return;
         if (error || !data?.url) {
-          setError(invokeError(error, "Could not load preview"));
+          setError(await readInvokeError(error, "Could not load preview"));
         } else {
           setUrl(data.url as string);
         }
@@ -1748,6 +1898,14 @@ function InlineSamplePlayer({ songId, unlocked = false }: { songId: string; unlo
           src={url}
           controls
           preload="auto"
+          onLoadedMetadata={(e) => {
+            const at = resumeAtRef.current;
+            if (at == null || !playingFull) return;
+            resumeAtRef.current = null;
+            const el = e.currentTarget;
+            el.currentTime = at;
+            void el.play().catch(() => {});
+          }}
           className="w-full rounded-lg bg-black/30"
           aria-label="Sample preview"
         />

@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791385865233,
+      "tag": "0000_generation_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791399456432,
+      "tag": "0001_ledgerly_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791402192927,
+      "tag": "0002_ledgerly_status_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791413920781,
+      "tag": "0003_free_second_take_unlock",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791415554000,
+      "tag": "0004_community_includes_own_tracks",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791495731018,
+      "tag": "0005_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791564561361,
+      "tag": "0006_vault_independent",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791658470993,
+      "tag": "0007_admin_vault_pass_toggle",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791658487166,
+      "tag": "0008_admin_has_vault_pass",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791736108104,
+      "tag": "0009_guest_battle_and_personal_clear",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791737808463,
+      "tag": "0010_vip_expiry_reminders",
+      "breakpoints": true
+    }
+  ]
+}

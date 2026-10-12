@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
+import { VipAcknowledgements } from "@/components/admin/VipAcknowledgements";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,9 +23,11 @@ import {
   X,
   Send,
   Trash2,
+  KeyRound,
 } from "lucide-react";
 import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
 import { ConfirmAction } from "@/components/admin/ConfirmAction";
+import { VipExpiryDialog, useVipExpiry, formatVipExpiry } from "@/components/admin/VipExpiryDialog";
 import { listUsersPro } from "@/lib/sign-in-tracking.functions";
 import { getAllCoinPurchases, type AdminPurchaseTotals } from "@/lib/payments.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -49,7 +52,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdminEditModeToggle } from "@/components/admin/AdminEditMode";
 import { BulkReconcilePanel } from "@/components/admin/BulkReconcilePanel";
+import { BossNav } from "@/components/admin/BossNav";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { sendTelegramDm } from "@/lib/telegram-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: AdminUsersPage,
@@ -70,7 +76,7 @@ interface RoleRow {
 
 type ProUserRow = Awaited<ReturnType<typeof listUsersPro>>[number];
 
-type RoleFilter = "all" | "admin" | "vip" | "og_bot" | "user";
+type RoleFilter = "all" | "admin" | "vip" | "telegram" | "og_bot" | "user";
 type SortKey = "joined" | "balance" | "name" | "spend" | "buys";
 
 function AdminUsersPage() {
@@ -140,7 +146,9 @@ function AdminUsersPage() {
     const needle = q.trim().toLowerCase();
     let list = usersQ.data ?? [];
 
-    if (roleFilter !== "all") {
+    if (roleFilter === "telegram") {
+      list = list.filter((u) => !!proByUser.get(u.id)?.telegram_chat_id);
+    } else if (roleFilter !== "all") {
       list = list.filter((u) => {
         const r = rolesByUser.get(u.id) ?? [];
         if (roleFilter === "user") return r.length === 0 || (r.length === 1 && r[0] === "user");
@@ -172,7 +180,7 @@ function AdminUsersPage() {
     });
 
     return sorted;
-  }, [usersQ.data, q, roleFilter, rolesByUser, sort, sortDir, spendByUser]);
+  }, [usersQ.data, q, roleFilter, rolesByUser, proByUser, sort, sortDir, spendByUser]);
 
   if (roleLoading) {
     return (
@@ -189,6 +197,7 @@ function AdminUsersPage() {
   const totalCoins = (usersQ.data ?? []).reduce((sum, p) => sum + (p.coin_balance ?? 0), 0);
   const totalVip = (rolesQ.data ?? []).filter((r) => r.role === "vip").length;
   const totalBots = (rolesQ.data ?? []).filter((r) => r.role === "og_bot").length;
+  const totalTelegram = (proQ.data ?? []).filter((p) => !!p.telegram_chat_id).length;
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -201,21 +210,18 @@ function AdminUsersPage() {
   return (
     <TooltipProvider delayDuration={200}>
       <DashboardShell title="Users">
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="boss-ui mx-auto max-w-7xl space-y-5">
+          <BossNav />
+          <VipAcknowledgements />
           {/* Header */}
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border bg-card p-4 sm:flex sm:flex-wrap">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-brand">
-                <ShieldCheck className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="truncate font-semibold">User control panel</h2>
-                <p className="truncate text-xs text-muted-foreground">
-                  Manage members, balances, roles, and audits — all from one place.
-                </p>
-              </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-xl">User Management</h2>
+              <p className="text-xs text-muted-foreground">
+                Members, balances, roles and audits in one place.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <AdminEditModeToggle />
               <Link to="/admin">
                 <Button variant="outline" size="sm">
@@ -226,7 +232,7 @@ function AdminUsersPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard
               icon={<UserCog className="h-4 w-4" />}
               label="Total users"
@@ -235,7 +241,7 @@ function AdminUsersPage() {
             />
             <StatCard
               icon={<Coins className="h-4 w-4" />}
-              label="Coins in circulation"
+              label="Coins held"
               value={totalCoins}
               accent="coin"
             />
@@ -299,7 +305,7 @@ function AdminUsersPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {(["all", "admin", "vip", "og_bot", "user"] as RoleFilter[]).map((r) => (
+              {(["all", "admin", "vip", "telegram", "og_bot", "user"] as RoleFilter[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -310,7 +316,7 @@ function AdminUsersPage() {
                       : "border-border bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   }`}
                 >
-                  {r === "og_bot" ? "OG bot" : r}
+                  {r === "og_bot" ? "OG bot" : r === "telegram" ? `Telegram (${totalTelegram})` : r}
                 </button>
               ))}
             </div>
@@ -326,64 +332,74 @@ function AdminUsersPage() {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : filtered.length > 0 ? (
-              <div
-                className="-mx-px overflow-x-auto touch-pan-x touch-pan-y"
-                style={{ WebkitOverflowScrolling: "touch", overscrollBehaviorX: "contain" }}
-              >
-                <div className="min-w-[640px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <SortableHead
-                          label="User"
-                          active={sort === "name"}
-                          dir={sortDir}
-                          onClick={() => toggleSort("name")}
-                        />
-                        <TableHead>Roles</TableHead>
-                        <SortableHead
-                          label="Balance"
-                          align="right"
-                          active={sort === "balance"}
-                          dir={sortDir}
-                          onClick={() => toggleSort("balance")}
-                        />
-                        <SortableHead
-                          label="Spent"
-                          align="right"
-                          active={sort === "spend"}
-                          dir={sortDir}
-                          onClick={() => toggleSort("spend")}
-                        />
-                        <SortableHead
-                          label="Buys"
-                          align="right"
-                          active={sort === "buys"}
-                          dir={sortDir}
-                          onClick={() => toggleSort("buys")}
-                        />
-                        <SortableHead
-                          label="Joined"
-                          active={sort === "joined"}
-                          dir={sortDir}
-                          onClick={() => toggleSort("joined")}
-                        />
-                        <TableHead className="text-right">Quick actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((u) => {
-                        const roles = rolesByUser.get(u.id) ?? [];
-                        const pro = proByUser.get(u.id);
-                        const spend = spendByUser[u.id];
-                        return (
-                          <UserRow key={u.id} user={u} roles={roles} pro={pro} spend={spend} />
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+              <>
+                <ul className="divide-y divide-border sm:hidden">
+                  {filtered.map((u) => (
+                    <MobileUserCard
+                      key={u.id}
+                      user={u}
+                      roles={rolesByUser.get(u.id) ?? []}
+                      pro={proByUser.get(u.id)}
+                      spend={spendByUser[u.id]}
+                    />
+                  ))}
+                </ul>
+                <div className="hidden overflow-x-auto sm:block">
+                  <div className="min-w-[640px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <SortableHead
+                            label="User"
+                            active={sort === "name"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("name")}
+                          />
+                          <TableHead>Roles</TableHead>
+                          <SortableHead
+                            label="Balance"
+                            align="right"
+                            active={sort === "balance"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("balance")}
+                          />
+                          <SortableHead
+                            label="Spent"
+                            align="right"
+                            active={sort === "spend"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("spend")}
+                          />
+                          <SortableHead
+                            label="Buys"
+                            align="right"
+                            active={sort === "buys"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("buys")}
+                          />
+                          <SortableHead
+                            label="Joined"
+                            active={sort === "joined"}
+                            dir={sortDir}
+                            onClick={() => toggleSort("joined")}
+                          />
+                          <TableHead className="text-right">Quick actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filtered.map((u) => {
+                          const roles = rolesByUser.get(u.id) ?? [];
+                          const pro = proByUser.get(u.id);
+                          const spend = spendByUser[u.id];
+                          return (
+                            <UserRow key={u.id} user={u} roles={roles} pro={pro} spend={spend} />
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="grid place-items-center gap-2 py-16 text-muted-foreground">
                 <UsersIcon className="h-8 w-8" />
@@ -507,6 +523,50 @@ function InlineNameEdit({ user }: { user: ProfileRow }) {
   );
 }
 
+function TelegramMessageButton({ user }: { user: ProfileRow }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const sendFn = useServerFn(sendTelegramDm);
+  const send = useMutation({
+    mutationFn: () => sendFn({ data: { userId: user.id, text } }),
+    onSuccess: () => {
+      toast.success("Sent via OG Bot ✅");
+      setText("");
+      setOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Message on Telegram">
+          <Send className="h-3.5 w-3.5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] space-y-2">
+        <p className="text-sm font-semibold">
+          Message {user.display_name ?? user.email ?? "user"}
+        </p>
+        <p className="text-[11px] text-muted-foreground">Delivered by OG Bot on Telegram.</p>
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={4000}
+          rows={4}
+          placeholder="Type your message…"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">{text.length}/4000</span>
+          <Button size="sm" onClick={() => send.mutate()} disabled={!text.trim() || send.isPending}>
+            {send.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+            Send
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function UserRow({
   user,
   roles,
@@ -564,6 +624,7 @@ function UserRow({
           <div className="flex flex-wrap items-center gap-1">
             {isAdminUser && <RoleChip label="Admin" tone="primary" />}
             {isVip && <RoleChip label="VIP" tone="amber" />}
+            {pro?.telegram_chat_id && <RoleChip label="Telegram" tone="primary-soft" />}
             {isOgBot && <RoleChip label="Bot" tone="primary-soft" />}
             {!isAdminUser && !isVip && !isOgBot && <RoleChip label="User" tone="muted" />}
           </div>
@@ -594,6 +655,7 @@ function UserRow({
 
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
+            {pro?.telegram_chat_id && <TelegramMessageButton user={user} />}
             <VipQuickToggle userId={user.id} checked={isVip} />
             <CoinsPopover userId={user.id} balance={user.coin_balance ?? 0} />
             <EditUserPopover user={user} roles={roles} />
@@ -640,10 +702,93 @@ function UserRow({
   );
 }
 
+/* ---------- Mobile card ---------- */
+
+function MobileUserCard({
+  user,
+  roles,
+  pro,
+  spend,
+}: {
+  user: ProfileRow;
+  roles: string[];
+  pro?: ProUserRow;
+  spend?: { totalCoins: number; purchaseCount: number };
+}) {
+  const isVip = roles.includes("vip");
+  const isOgBot = roles.includes("og_bot");
+  const isAdminUser = roles.includes("admin");
+  return (
+    <li className="space-y-3 p-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-brand text-sm font-semibold text-primary-foreground">
+          {(user.display_name ?? user.email ?? "?").slice(0, 1).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <InlineNameEdit user={user} />
+          <p className="truncate text-xs text-muted-foreground">{user.email ?? "—"}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {isAdminUser && <RoleChip label="Admin" tone="primary" />}
+            {isVip && <RoleChip label="VIP" tone="amber" />}
+            {pro?.telegram_chat_id && <RoleChip label="Telegram" tone="primary-soft" />}
+            {isOgBot && <RoleChip label="Bot" tone="primary-soft" />}
+            {!isAdminUser && !isVip && !isOgBot && <RoleChip label="User" tone="muted" />}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
+          <p className="text-[10px] uppercase text-muted-foreground">Balance</p>
+          <p className="font-mono text-sm font-bold tabular-nums text-coin">
+            {(user.coin_balance ?? 0).toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
+          <p className="text-[10px] uppercase text-muted-foreground">Spent</p>
+          <p className="font-mono text-sm font-bold tabular-nums text-amber-300">
+            {(spend?.totalCoins ?? 0).toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
+          <p className="text-[10px] uppercase text-muted-foreground">Joined</p>
+          <p className="text-xs font-semibold">{new Date(user.created_at).toLocaleDateString()}</p>
+        </div>
+      </div>
+
+      {pro && (pro.last_sign_in_at || pro.telegram_chat_id) && (
+        <p className="text-[11px] text-muted-foreground">
+          {pro.last_sign_in_at
+            ? `Last sign-in ${new Date(pro.last_sign_in_at).toLocaleDateString()}${pro.sign_in_count ? ` · ${pro.sign_in_count} total` : ""}`
+            : ""}
+          {pro.telegram_chat_id ? " · Telegram linked" : " · No Telegram"}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+        <VipQuickToggle userId={user.id} checked={isVip} />
+        <VaultQuickToggle userId={user.id} />
+        <div className="flex items-center gap-1">
+          {pro?.telegram_chat_id && <TelegramMessageButton user={user} />}
+          <CoinsPopover userId={user.id} balance={user.coin_balance ?? 0} />
+          <EditUserPopover user={user} roles={roles} />
+          <Link to="/admin/users/$userId" params={{ userId: user.id }}>
+            <Button size="sm" variant="outline" className="h-8">
+              Open <ExternalLink className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 /* ---------- Inline actions ---------- */
 
 function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean }) {
   const qc = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const expiry = useVipExpiry(userId, checked);
   const mut = useMutation({
     mutationFn: async (next: boolean) => {
       const { error } = await supabase.rpc(
@@ -667,20 +812,101 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex h-8 items-center rounded-md border border-border bg-background/40 px-2">
-          <Crown
-            className={`mr-1.5 h-3.5 w-3.5 ${checked ? "text-amber-500" : "text-muted-foreground"}`}
-          />
+        <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-border bg-background/40 px-2.5 text-sm">
+          <Crown className={`h-4 w-4 ${checked ? "text-amber-500" : "text-muted-foreground"}`} />
+          <span
+            className={`whitespace-nowrap ${checked ? "text-amber-400" : "text-muted-foreground"}`}
+          >
+            VIP
+          </span>
           <Switch
             checked={checked}
             disabled={mut.isPending}
-            onCheckedChange={(v) => mut.mutate(v)}
+            onCheckedChange={(v) => (v ? setDialogOpen(true) : mut.mutate(false))}
             aria-label="Toggle VIP"
-            className="scale-75"
           />
-        </div>
+          {checked && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setDialogOpen(true);
+              }}
+              className="text-xs text-amber-400 underline-offset-2 hover:underline"
+              title="Adjust VIP expiry"
+            >
+              {expiry.isLoading ? "…" : formatVipExpiry(expiry.data)}
+            </button>
+          )}
+        </label>
       </TooltipTrigger>
-      <TooltipContent>{checked ? "Revoke VIP" : "Grant VIP"}</TooltipContent>
+      <TooltipContent>{checked ? "Revoke VIP or tap date to adjust" : "Grant VIP"}</TooltipContent>
+      <VipExpiryDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        userId={userId}
+        isVip={checked}
+        currentExpiry={expiry.data}
+      />
+    </Tooltip>
+  );
+}
+
+function VaultQuickToggle({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const vaultQ = useQuery({
+    queryKey: ["admin-user-vault", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("admin_has_vault_pass", { p_user: userId });
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    },
+  });
+  const checked = vaultQ.data ?? false;
+  const mut = useMutation({
+    mutationFn: async (next: boolean) => {
+      const { error } = await supabase.rpc("set_vault_pass_admin", {
+        target_user_id: userId,
+        grant_access: next,
+        admin_notes: "users_list_quick_toggle",
+      });
+      if (error) throw new Error(error.message);
+      return next;
+    },
+    onSuccess: (next) => {
+      toast.success(next ? "Vault access granted" : "Vault access revoked");
+      qc.invalidateQueries({ queryKey: ["admin-user-vault", userId] });
+    },
+    onError: (e: Error) => {
+      const m = e.message.toLowerCase();
+      if (m.includes("no active vault credentials")) {
+        toast.error("No active Vault logins in the pool — add one in Boss Controls first.");
+      } else {
+        toast.error(e.message);
+      }
+    },
+  });
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-border bg-background/40 px-2.5 text-sm">
+          <KeyRound className={`h-4 w-4 ${checked ? "text-amber-500" : "text-muted-foreground"}`} />
+          <span
+            className={`whitespace-nowrap ${checked ? "text-amber-400" : "text-muted-foreground"}`}
+          >
+            Vault
+          </span>
+          <Switch
+            checked={checked}
+            disabled={mut.isPending || vaultQ.isLoading}
+            onCheckedChange={(v) => mut.mutate(v)}
+            aria-label="Toggle OG Vault access"
+          />
+        </label>
+      </TooltipTrigger>
+      <TooltipContent>
+        {checked ? "Revoke OG Vault access" : "Grant OG Vault access (free, independent of VIP)"}
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -732,20 +958,40 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
         <TooltipContent>Grant or remove coins</TooltipContent>
       </Tooltip>
       <PopoverContent align="end" className="w-72 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">Adjust coins</p>
-          <span className="text-xs text-muted-foreground">
-            current: <span className="font-mono">{balance.toLocaleString()}</span>
-          </span>
+        <div>
+          <p className="text-sm font-semibold">Add or take away coins</p>
+          <p className="text-xs text-muted-foreground">
+            The number you type is added to (or taken from) their balance.
+          </p>
+        </div>
+        <div className="rounded-md border border-border bg-background/40 px-3 py-2 text-xs">
+          Balance now: <span className="font-mono font-semibold">{balance.toLocaleString()}</span>
         </div>
         <Input
           type="number"
           min={1}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="Amount"
+          placeholder="How many coins?"
+          aria-label="How many coins to add or take away"
           autoFocus
         />
+        {valid && (
+          <div className="space-y-0.5 text-xs text-muted-foreground">
+            <p>
+              Add → balance becomes{" "}
+              <span className="font-mono font-semibold text-foreground">
+                {(balance + n).toLocaleString()}
+              </span>
+            </p>
+            <p>
+              Take away → balance becomes{" "}
+              <span className="font-mono font-semibold text-foreground">
+                {Math.max(0, balance - n).toLocaleString()}
+              </span>
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Button
             onClick={() => mut.mutate(n)}
@@ -756,7 +1002,7 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                <Plus className="mr-1 h-4 w-4" /> Grant
+                <Plus className="mr-1 h-4 w-4" /> Add {valid ? n : ""}
               </>
             )}
           </Button>
@@ -765,10 +1011,10 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
             onClick={() => mut.mutate(-n)}
             disabled={!valid || mut.isPending}
           >
-            <Minus className="mr-1 h-4 w-4" /> Remove
+            <Minus className="mr-1 h-4 w-4" /> Take {valid ? n : ""}
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">All adjustments are audited.</p>
+        <p className="text-[11px] text-muted-foreground">Every change is logged.</p>
       </PopoverContent>
     </Popover>
   );
@@ -894,7 +1140,7 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
 
         <div className="space-y-1.5">
           <Label htmlFor={`bal-${user.id}`} className="text-xs">
-            Set balance
+            Replace total balance with (overwrites, does not add)
           </Label>
           <div className="flex gap-1.5">
             <Input
@@ -905,7 +1151,7 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
               onChange={(e) => setBalance(e.target.value)}
             />
             <Button size="sm" onClick={() => saveBalance.mutate()} disabled={saveBalance.isPending}>
-              {saveBalance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Set"}
+              {saveBalance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Replace"}
             </Button>
           </div>
         </div>
@@ -1038,15 +1284,15 @@ function StatCard({
     amber: "bg-amber-500/15 text-amber-400",
   };
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card">
-      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${ring[accent]}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="truncate text-xs text-muted-foreground">{label}</div>
-        <div className="text-2xl font-bold tabular-nums leading-tight">
-          {value.toLocaleString()}
+    <div className="min-w-0 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="truncate text-sm text-muted-foreground">{label}:</div>
+        <div className={`grid h-6 w-6 shrink-0 place-items-center rounded-md ${ring[accent]}`}>
+          {icon}
         </div>
+      </div>
+      <div className="mt-1 text-2xl font-normal tabular-nums leading-tight sm:text-3xl">
+        {value.toLocaleString()}
       </div>
     </div>
   );

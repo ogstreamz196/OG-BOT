@@ -226,14 +226,15 @@ function SettingsPage() {
 
           <div className="space-y-2">
             <div className="flex items-end justify-between gap-2">
-              <Label htmlFor="artist-bio" className="flex flex-col gap-1">
+              <Label htmlFor="artist-bio" className="flex min-w-0 flex-col gap-1">
                 <span>Artist bio · woven into your lyrics</span>
                 <span className="text-xs font-normal text-muted-foreground">
-                  MusicHub uses your display name and this bio by default — they'll appear naturally
-                  a couple of times per song, not in every line. Leave blank to opt out.
+                  Your name and bio appear a couple of times per song. Leave blank to opt out.
                 </span>
               </Label>
-              <span className="text-[10px] text-muted-foreground">{bio.length}/400</span>
+              <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
+                {bio.length}/400
+              </span>
             </div>
             <Textarea
               id="artist-bio"
@@ -768,6 +769,25 @@ function PrivacySection({ userId }: { userId: string }) {
         >
           {storagePersisted === true ? "Enabled" : "Enable"}
         </Button>
+      </div>
+
+      {/* Legal — required in-app links for the app stores */}
+      <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1 text-xs">
+        <Link
+          to="/policy"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          Privacy Policy
+        </Link>
+        <Link to="/terms" className="font-semibold text-primary underline-offset-4 hover:underline">
+          Terms of Use
+        </Link>
+        <Link
+          to="/delete-account"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          How account deletion works
+        </Link>
       </div>
     </section>
   );

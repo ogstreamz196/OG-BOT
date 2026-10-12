@@ -6,11 +6,16 @@
 // - Inserts a 'pending' songs row; suno-callback fills it in + adds extra rows for sibling clips
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireUserOrService } from "../_shared/clients.ts";
+import { watchKeyFailures } from "../_shared/key-failures.ts";
+
+watchKeyFailures();
 import { injectSignature, withSignatureHint } from "../_shared/track-signature.ts";
+import { sanitizeLyrics } from "../_shared/lyrics-sanitize.ts";
+import { languageVoiceHint } from "../_shared/language-guide.ts";
 import {
   isModerationRejection,
   MODERATION_MESSAGE,
-  softenForModeration,
 } from "../_shared/moderation-safe.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -87,14 +92,9 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Missing auth" }, 401);
 
-    const anonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseUser = createClient(SUPABASE_URL, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-    } = await supabaseUser.auth.getUser();
-    if (!user) return json({ error: "Unauthorized" }, 401);
+    const auth = await requireUserOrService(req);
+    if (auth.error) return auth.error;
+    const user = auth.user;
 
     const body = await req.json();
     const prompt = (body.prompt ?? "").toString().trim();
@@ -157,8 +157,8 @@ Deno.serve(async (req) => {
     );
     const languageStyleHint = languageList.length
       ? languageList.length > 1
-        ? `multilingual vocals sung in ${languageList.join(" and ")}, switch language per section exactly as the lyric section markers indicate, keep native pronunciation for each language`
-        : `vocals sung in ${languageList[0]} with native pronunciation`
+        ? `multilingual vocals sung in ${languageList.join(" and ")}, switch language per section exactly as the lyric section markers indicate, ${languageVoiceHint(languageList)}`
+        : `vocals sung in ${languageList[0]}, ${languageVoiceHint(languageList)}`
       : null;
     // Multiple styles: make the section-to-section genre changes explicit.
     const styleCount = rawStyle ? rawStyle.split(/\s*,\s*/).filter(Boolean).length : 0;
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
           vocalsOnlyStyle,
           lengthStyleHint,
         ];
-    const style = limitText(styleParts.filter(Boolean).join(", ") || null, MAX_STYLE_CHARS);
+    let style = limitText(styleParts.filter(Boolean).join(", ") || null, MAX_STYLE_CHARS);
     const lyrics = limitText((body.lyrics ?? "").toString().trim() || null, MAX_PROMPT_CHARS);
     const title = limitText((body.title ?? "").toString().trim() || null, MAX_TITLE_CHARS);
     const instrumental = !!body.instrumental;
@@ -215,7 +215,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Creation and rendering are free. Users pay only at final full-track download.
+    // Creation is free. Editing a finished track costs EDIT_COST (charged below).
+    const EDIT_COST = 2;
     let coinCost = 0;
 
     // If this generation came from a portal, force the hardcoded language into the Suno prompt
@@ -229,10 +230,19 @@ Deno.serve(async (req) => {
       if (!p) return json({ error: "Portal not found" }, 404);
       if (p.status === "maintenance") return json({ error: "Portal is in maintenance mode" }, 423);
       portalLanguage = p.language ?? null;
+      // Portal language must reach the voice even when lyrics were supplied.
+      if (portalLanguage && !languageStyleHint) {
+        style = limitText(
+          [`vocals sung in ${portalLanguage}, ${languageVoiceHint([portalLanguage])}`, style]
+            .filter(Boolean)
+            .join(", "),
+          MAX_STYLE_CHARS,
+        );
+      }
       // Portal generations follow the same free-until-download rule.
     }
-    const effectiveLyrics =
-      lyrics && portalLanguage ? `[Language: ${portalLanguage}]\n${lyrics}` : lyrics;
+    // Language goes in the style hint only — never into sung lyrics.
+    const effectiveLyrics = lyrics ? sanitizeLyrics(lyrics) || lyrics : lyrics;
     const effectivePrompt =
       !lyrics && portalLanguage ? `[Language: ${portalLanguage}] ${prompt}` : prompt;
 
@@ -283,6 +293,33 @@ Deno.serve(async (req) => {
         );
       }
       existing = row;
+      // Editing a finished track (re-cook) costs 2 coins, taken once at submit.
+      // Retries of failed jobs and first-time creation stay free.
+      if (row.status === "completed") {
+        const { error: chargeErr } = await admin.rpc("deduct_coins", {
+          p_user: user.id,
+          p_amount: EDIT_COST,
+          p_reference: `edit:${row.id}:${generationStartedAt}`,
+        });
+        if (chargeErr) {
+          await admin
+            .from("songs")
+            .update({ status: "completed" })
+            .eq("id", row.id)
+            .eq("status", "pending");
+          const insufficient = /insufficient/i.test(chargeErr.message);
+          return json(
+            {
+              error: insufficient
+                ? `Editing a track costs ${EDIT_COST} coins — top up to continue`
+                : "Could not charge for this edit",
+              code: insufficient ? "insufficient_coins" : "charge_failed",
+            },
+            insufficient ? 402 : 500,
+          );
+        }
+        coinCost = EDIT_COST;
+      }
     }
 
     // Read the current balance for the response without charging creation.
@@ -298,10 +335,21 @@ Deno.serve(async (req) => {
     // Create or reuse the song row now that the charge has succeeded.
     let song: { id: string } | null = null;
     if (existing) {
+      // Never erase the user's saved "— Idea:" from the wizard.
+      const { data: prev } = await admin
+        .from("songs")
+        .select("prompt")
+        .eq("id", existing.id)
+        .maybeSingle();
+      const prevPrompt = ((prev as { prompt?: string | null } | null)?.prompt ?? "") as string;
+      const keepPrompt =
+        prevPrompt.includes("— Idea:") && !effectivePrompt.includes("— Idea:")
+          ? prevPrompt
+          : effectivePrompt;
       const { data: upd, error: updErr } = await admin
         .from("songs")
         .update({
-          prompt: effectivePrompt,
+          prompt: keepPrompt,
           style,
           lyrics: effectiveLyrics,
           title,
@@ -348,6 +396,54 @@ Deno.serve(async (req) => {
       song = inserted;
     }
     const songId = song!.id;
+
+    // Brand-new samples (not a retry of a failed song, not an edit of a
+    // finished one): creating is free but needs at least 5 coins, and after
+    // 3 unpaid tracks each new sample costs 2 coins until the member unlocks
+    // one of their own tracks. Checked and charged atomically in the DB.
+    const isNewSample = !existing || existing.status === "draft";
+    let sampleTerms: { charged?: number; unpaid_count?: number; warning?: boolean } = {};
+    if (isNewSample) {
+      const { data: terms, error: termsErr } = await admin.rpc("start_generation_charge", {
+        p_user: user.id,
+        p_song: songId,
+        p_reference: `sample:${songId}:${generationStartedAt}`,
+      });
+      const t = (terms ?? {}) as {
+        ok?: boolean;
+        reason?: string;
+        balance?: number;
+        charged?: number;
+        unpaid_count?: number;
+        warning?: boolean;
+      };
+      if (termsErr || !t.ok) {
+        // Put the song back as a draft so nothing is lost and it can be
+        // started again once the member has coins.
+        const minBalance = t.reason === "min_balance";
+        const message = minBalance
+          ? "You need at least 5 OG coins in your balance to create a song. Making it is free — earn coins by inviting friends, or top up."
+          : "Couldn't start your song. Please try again.";
+        await admin
+          .from("songs")
+          .update({ status: "draft", error_message: message })
+          .eq("id", songId)
+          .eq("status", "pending");
+        if (termsErr) console.error("start_generation_charge failed", termsErr.message);
+        return json(
+          {
+            error: message,
+            code: minBalance ? "min_balance" : "charge_failed",
+            balance: t.balance ?? balance,
+            min_balance: 5,
+            song_id: songId,
+          },
+          minBalance ? 402 : 500,
+        );
+      }
+      sampleTerms = t;
+      if ((t.charged ?? 0) > 0) coinCost = t.charged!;
+    }
 
     const encoder = new TextEncoder();
     const hmacKey = await crypto.subtle.importKey(
@@ -403,33 +499,57 @@ Deno.serve(async (req) => {
             "[Humming vocal interlude — voices only, no instruments]",
           )
         : effectiveLyrics;
-    const signedLyrics = isInstrumental
+    // VIP members (role or active subscription) get clean tracks: no signature.
+    const { data: isVipRole } = await admin.rpc("has_role", { _user_id: user.id, _role: "vip" });
+    const { count: activeSubs } = await admin
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("status", ["active", "trialing"]);
+    const unsigned = isInstrumental || !!isVipRole || (activeSubs ?? 0) > 0;
+    const signedLyrics = unsigned
       ? voiceOnlyLyrics
       : limitText(injectSignature(voiceOnlyLyrics, { acappella }), MAX_PROMPT_CHARS);
-    const signedPrompt = isInstrumental
+    const signedPrompt = unsigned
       ? effectivePrompt
       : (limitText(
           acappella
-            ? `${effectivePrompt}\n\nInclude a clearly audible vocal tag, performed by voice alone with no instruments, saying "this track is made by O G Bot, don't forget to visit O G Streamz dot co dot uk" in English, about once every minute.`
+            ? `${effectivePrompt}\n\nInclude ONE clearly audible vocal tag, performed by voice alone with no instruments, saying "this track was made by O G Bot dot co dot uk" in English, only once, at the very end of the track.`
             : withSignatureHint(effectivePrompt),
           MAX_PROMPT_CHARS,
         ) ?? effectivePrompt);
-    // Submit to Suno. If the engine's moderation blocks the explicit lyrics we
-    // soften the strongest words once and resubmit, instead of burning the job.
+    // Preserve the artist's lyrics exactly. A moderation rejection is shown
+    // honestly; never silently create a radio edit of an explicit track.
     const submit = async (
       lyricsText: string | null,
       promptText: string | null,
       styleText: string | null,
-    ) =>
-      await fetch(beatUrl ? SUNO_UPLOAD_COVER_URL : SUNO_API_URL, {
+    ) => {
+      const retryPayload = {
+        prompt: lyricsText || promptText,
+        style:
+          (portalLanguage && lyricsText
+            ? [`sung entirely in ${portalLanguage}`, styleText].filter(Boolean).join(", ")
+            : styleText) || undefined,
+        title: customMode ? sunoTitle : undefined,
+        customMode,
+        instrumental: vocalsOnly ? false : instrumental,
+        usesUploadedBeat: !!beatUrl,
+        ...(vocalGender ? { vocalGender } : {}),
+        model: "V5",
+        negativeTags: acappella
+          ? `low quality, muddy mix, distorted, lo-fi, amateur, bad vocals, ${NO_INSTRUMENT_NEGATIVES}`
+          : "low quality, muddy mix, distorted, lo-fi, amateur, bad vocals",
+      };
+      // Keep the exact provider request for service-only retries. This contains
+      // generated lyrics/settings, never credentials or user account details.
+      await admin.from("songs").update({ retry_payload: retryPayload }).eq("id", songId);
+      const { usesUploadedBeat: _usesUploadedBeat, ...providerPayload } = retryPayload;
+      return await fetch(beatUrl ? SUNO_UPLOAD_COVER_URL : SUNO_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUNO_API_KEY}` },
         body: JSON.stringify({
-          prompt: lyricsText || promptText,
-          style: styleText || undefined,
-          title: customMode ? sunoTitle : undefined,
-          customMode,
-          instrumental: vocalsOnly ? false : instrumental,
+          ...providerPayload,
           ...(beatUrl ? { uploadUrl: beatUrl } : {}),
           ...(vocalGender ? { vocalGender } : {}),
           model: "V5",
@@ -439,17 +559,14 @@ Deno.serve(async (req) => {
           callBackUrl: callbackUrl,
         }),
       });
+    };
 
-    let attemptLyrics = signedLyrics;
-    let attemptPrompt = signedPrompt;
-    let attemptStyle = style;
-    let softened = false;
     let taskId: string | null = null;
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 1; attempt++) {
       let sunoRes: Response;
       try {
-        sunoRes = await submit(attemptLyrics, attemptPrompt, attemptStyle);
+        sunoRes = await submit(signedLyrics, signedPrompt, style);
       } catch (_e) {
         await refund(admin, user.id, songId, "Suno API unreachable", coinCost);
         return json({
@@ -475,14 +592,6 @@ Deno.serve(async (req) => {
 
       console.error("Suno rejected task", codeNum, reason);
 
-      if (!softened && isModerationRejection(reason)) {
-        softened = true;
-        attemptLyrics = softenForModeration(attemptLyrics);
-        attemptPrompt = softenForModeration(attemptPrompt);
-        attemptStyle = softenForModeration(attemptStyle);
-        continue;
-      }
-
       const friendly = isModerationRejection(reason) ? MODERATION_MESSAGE : reason;
       await refund(admin, user.id, songId, friendly, coinCost);
       return json({ accepted: false, error: friendly, code: codeNum });
@@ -498,14 +607,22 @@ Deno.serve(async (req) => {
 
     await admin
       .from("songs")
-      .update({ status: "processing", suno_task_id: taskId })
+      .update({
+        status: "processing",
+        suno_task_id: taskId,
+        failure_class: "retryable",
+        next_retry_at: new Date(Date.now() + 8 * 60_000).toISOString(),
+      })
       .eq("id", songId);
 
     return json({
       accepted: true,
       song_id: songId,
       task_id: taskId,
-      coin_balance: balance,
+      coin_balance: sampleTerms.charged ? balance - sampleTerms.charged : balance,
+      sample_charged: sampleTerms.charged ?? 0,
+      unpaid_count: sampleTerms.unpaid_count ?? null,
+      sample_fee_warning: !!sampleTerms.warning,
       gifted,
     });
   } catch (e) {
@@ -515,12 +632,15 @@ Deno.serve(async (req) => {
 });
 
 async function refund(admin: any, userId: string, songId: string, reason: string, amount: number) {
+  const terminal = isModerationRejection(reason);
   await admin
     .from("songs")
     .update({
       status: "failed",
       error_message: reason,
       suno_task_id: null,
+      failure_class: terminal ? "terminal" : "retryable",
+      next_retry_at: terminal ? null : new Date(Date.now() + 60_000).toISOString(),
     })
     .eq("id", songId);
   const { error } = await admin.rpc("refund_generation_charge", {

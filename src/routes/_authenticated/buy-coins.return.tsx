@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { reconcileCoinSession } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { OgVipIdCard } from "@/components/vip/OgVipIdCard";
 
 export const Route = createFileRoute("/_authenticated/buy-coins/return")({
   component: BuyCoinsReturn,
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/buy-coins/return")({
 type State =
   | { kind: "loading" }
   | { kind: "done"; coins: number; balance: number }
-  | { kind: "vip" }
+  | { kind: "vip"; ogVipId: string | null }
   | { kind: "pending" }
   | { kind: "error"; message: string };
 
@@ -54,7 +55,8 @@ function BuyCoinsReturn() {
           return;
         }
         if (res.status === "pending") setState({ kind: "pending" });
-        else if (res.status === "vip_granted") setState({ kind: "vip" });
+        else if (res.status === "vip_granted")
+          setState({ kind: "vip", ogVipId: "ogVipId" in res ? (res.ogVipId ?? null) : null });
         else
           setState({
             kind: "done",
@@ -108,6 +110,7 @@ function BuyCoinsReturn() {
             {state.kind === "done" &&
               `${state.coins} OG coins added. Your balance is now ${state.balance}.`}
           </p>
+          {state.kind === "vip" && state.ogVipId && <OgVipIdCard id={state.ogVipId} />}
 
           <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-center">
             <Button asChild className="font-black uppercase tracking-[0.1em]">

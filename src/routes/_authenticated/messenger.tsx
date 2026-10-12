@@ -74,6 +74,12 @@ function MessengerPage() {
   const isCommunity = mode === "community";
   const [pendingMode, setPendingMode] = useState<MessengerMode | null>(null);
 
+  // Stepping into the OG Battle Zone is what starts the background soundtrack.
+  useEffect(() => {
+    if (!isReady || !isCommunity) return;
+    window.dispatchEvent(new Event("og:background-music-enter-battle"));
+  }, [isReady, isCommunity]);
+
   function handleGreetChoice(next: MessengerMode) {
     markGreeted(uid);
     if (next !== mode) {
@@ -97,14 +103,93 @@ function MessengerPage() {
     setPendingMode(null);
   }
 
-  const { ref: fillRef, height: fillHeight } = useFillViewport<HTMLDivElement>(0);
+  const {
+    ref: fillRef,
+    height: fillHeight,
+    pin: kbPin,
+  } = useFillViewport<HTMLDivElement>(0);
+
+  // While pinned above the keyboard, ancestors with transform/filter would
+  // trap position:fixed inside them — neutralise those for the duration.
+  useEffect(() => {
+    if (!kbPin || !fillRef.current) return;
+    const touched: Array<[HTMLElement, string, string, string, string]> = [];
+    let el = fillRef.current.parentElement;
+    while (el && el !== document.body) {
+      const cs = getComputedStyle(el);
+      if (
+        cs.transform !== "none" ||
+        cs.filter !== "none" ||
+        (cs as CSSStyleDeclaration & { backdropFilter?: string }).backdropFilter !== "none" ||
+        cs.perspective !== "none" ||
+        /paint|layout|strict|content/.test(cs.contain) ||
+        /transform|filter/.test(cs.willChange)
+      ) {
+        touched.push([el, el.style.transform, el.style.filter, el.style.animation, el.style.contain]);
+        el.style.animation = "none";
+        el.style.transform = "none";
+        el.style.filter = "none";
+        el.style.setProperty("backdrop-filter", "none");
+        el.style.contain = "none";
+      }
+      el = el.parentElement;
+    }
+    return () => {
+      for (const [n, t, f, a, c] of touched) {
+        n.style.transform = t;
+        n.style.filter = f;
+        n.style.animation = a;
+        n.style.contain = c;
+        n.style.removeProperty("backdrop-filter");
+      }
+    };
+  }, [kbPin, fillRef]);
+
+  // Lock the outer page on the messenger so only the chat list scrolls and the
+  // phone keyboard can't shove the header off the top of the screen.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = [html.style.overflow, body.style.overflow, html.style.overscrollBehavior];
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    const pin = () => {
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+    };
+    window.addEventListener("scroll", pin, { passive: true });
+    window.visualViewport?.addEventListener("resize", pin);
+    return () => {
+      [html.style.overflow, body.style.overflow, html.style.overscrollBehavior] = prev as [
+        string,
+        string,
+        string,
+      ];
+      window.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("resize", pin);
+    };
+  }, []);
 
   return (
     <DashboardShell title={modeHeading(mode)}>
       <div
         ref={fillRef}
-        style={fillHeight ? { height: fillHeight } : undefined}
-        className={`relative -mx-4 -mt-5 -mb-[calc(env(safe-area-inset-bottom)+72px+1.25rem)] flex flex-col overflow-hidden font-sans sm:-mx-6 sm:-mt-8 sm:-mb-[calc(env(safe-area-inset-bottom)+72px+2rem)] md:-mb-8 lg:-mx-8 lg:-mt-10 lg:-mb-10 ${foulMouth ? "hell-aura" : ""}`}
+        style={
+          kbPin
+            ? {
+                position: "fixed",
+                top: kbPin.top,
+                left: 0,
+                right: 0,
+                height: kbPin.height,
+                margin: 0,
+                zIndex: 60,
+              }
+            : fillHeight
+              ? { height: fillHeight }
+              : undefined
+        }
+        className={`relative -mx-4 -mt-5 -mb-[calc(env(safe-area-inset-bottom)+72px+1.25rem)] flex flex-col overflow-hidden font-sans sm:-mx-6 sm:-mt-8 sm:-mb-[calc(env(safe-area-inset-bottom)+72px+2rem)] md:-mb-8 lg:-mx-8 lg:-mt-10 lg:-mb-10 ${kbPin ? "bg-background" : ""} ${foulMouth ? "hell-aura" : ""}`}
       >
         {foulMouth && (
           <>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Copy,
@@ -25,6 +25,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { AllPurchasesPanel } from "@/components/admin/AllPurchasesPanel";
 import { Button } from "@/components/ui/button";
@@ -40,12 +41,12 @@ export const Route = createFileRoute("/_authenticated/referrals")({
       { title: "Earn Dashboard | OG BOT" },
       {
         name: "description",
-        content: "Track referral earnings, Global releases, and listening activity in OG BOT.",
+        content: "Track referral earnings, Community releases, and listening activity in OG BOT.",
       },
       { property: "og:title", content: "Earn Dashboard | OG BOT" },
       {
         property: "og:description",
-        content: "Track referral earnings, Global releases, and listening activity in OG BOT.",
+        content: "Track referral earnings, Community releases, and listening activity in OG BOT.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -59,7 +60,8 @@ type Summary = {
   recent: {
     id: string;
     amount: number;
-    type?: "referral_cashback" | "referral_payment";
+    type?:
+      "referral_cashback" | "referral_payment" | "referral_payment_reversal" | "referral_backpay";
     reference: string | null;
     created_at: string;
     referee_id: string | null;
@@ -95,6 +97,11 @@ async function copyTextWithFallback(text: string): Promise<boolean> {
 
 function ReferralsPage() {
   const { user } = useAuth();
+  // Cashback rate follows actual VIP status only (matches referral_rate_pct):
+  // the 15-day introductory offer and free-access mode still earn 6%.
+  const { hasVipRole, isAdmin, roles } = useRole();
+  const isVip = hasVipRole || isAdmin || roles.includes("boss");
+  const ratePct = isVip ? 13 : 6;
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
 
@@ -176,15 +183,22 @@ function ReferralsPage() {
         },
         (payload) => {
           const row = payload.new as { type?: string; amount?: number } | null;
-          if (row?.type === "referral_cashback" || row?.type === "referral_payment") {
+          if (
+            row?.type === "referral_cashback" ||
+            row?.type === "referral_payment" ||
+            row?.type === "referral_payment_reversal" ||
+            row?.type === "referral_backpay"
+          ) {
             qc.invalidateQueries({ queryKey: ["referral-summary", user.id] });
             qc.invalidateQueries({ queryKey: ["profile", user.id] });
             if (typeof row.amount === "number" && row.amount > 0) {
               toast.success(`+${row.amount} OG Coins referral reward`, {
                 description:
-                  row.type === "referral_payment"
-                    ? "A referred member paid — your reward is in."
-                    : "A referred member used coins — your share is in.",
+                  row.type === "referral_backpay"
+                    ? "Cashback you were owed has been paid back."
+                    : row.type === "referral_payment"
+                      ? "A referred member paid — your reward is in."
+                      : "A referred member used coins — your share is in.",
               });
             }
           }
@@ -221,7 +235,6 @@ function ReferralsPage() {
   };
 
   const copy = () => handleCopy("Referral link copied");
-  const inviteAgain = () => handleCopy("Link copied — paste it to invite again 🎁");
 
   const share = async () => {
     if (typeof navigator !== "undefined" && "share" in navigator) {
@@ -285,7 +298,7 @@ function ReferralsPage() {
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" /> Live
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-orange-900/30">
-            <Sparkles className="h-3 w-3" /> 10% Lifetime
+            <Sparkles className="h-3 w-3" /> {ratePct}% Lifetime{isVip ? " · VIP" : ""}
           </span>
           {myRefQ.data?.has_referrer ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
@@ -296,199 +309,127 @@ function ReferralsPage() {
               onClick={() =>
                 document.getElementById("bind-referrer")?.scrollIntoView({ behavior: "smooth" })
               }
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-300 transition hover:bg-amber-500/20"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-500/20 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-amber-200 shadow-lg transition hover:bg-amber-500/30 sm:w-auto"
             >
-              <ShieldAlert className="h-3 w-3" /> Bind your OG Leader
+              <ShieldAlert className="h-4 w-4" /> Got invited? Tap here to bind your OG Leader →
             </button>
           )}
         </div>
 
-        <section aria-label="Earn dashboard" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <DashboardMetric
-            icon={<Coins className="h-4 w-4" />}
-            label="Referral earnings"
-            value={`${summary.total_earned.toLocaleString()} OG`}
-            note="Paid referrals + coin use"
-            tone="primary"
-          />
-          <DashboardMetric
-            icon={<Users className="h-4 w-4" />}
-            label="Your network"
-            value={summary.total_referred.toLocaleString()}
-            note="Referred members"
-            tone="emerald"
-          />
-          <DashboardMetric
-            icon={<Radio className="h-4 w-4" />}
-            label="Published tracks"
-            value={publishedQ.isLoading ? "—" : (publishedQ.data ?? 0).toLocaleString()}
-            note="Live in Global"
-            tone="sky"
-          />
-        </section>
-
-        {/* HERO — oversized wallet counter */}
+        {/* 1. HOW IT WORKS — the deal, stated once */}
         <section
-          data-testid="referrals-hero"
-          className="relative overflow-hidden rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-2xl sm:p-10"
+          data-testid="earn-scheme"
+          className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card/70 p-5 backdrop-blur-2xl sm:p-8"
         >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/20 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -left-10 -bottom-10 h-48 w-48 rounded-full bg-destructive/15 blur-3xl"
-          />
-
-          <div className="relative text-center">
-            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground sm:mb-3 sm:tracking-[0.4em]">
-              OG Coin Cashback Wallet
-            </p>
-            <div className="relative inline-block max-w-full">
-              <div
-                aria-hidden
-                className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-primary via-fuchsia-500 to-destructive opacity-25 blur-2xl"
-              />
-              <div className="relative flex items-baseline justify-center gap-2 sm:gap-3">
-                <span className="font-bungee bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-6xl font-black tabular-nums tracking-tight text-transparent drop-shadow-[0_4px_24px_rgba(239,68,68,0.35)] sm:text-8xl">
-                  {summary.total_earned.toLocaleString()}
-                </span>
-                <span className="text-base font-black uppercase tracking-widest text-primary sm:text-2xl">
-                  OG
-                </span>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:mt-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-300">
-                <TrendingUp className="h-3 w-3" /> {summary.total_referred}{" "}
-                {summary.total_referred === 1 ? "referral" : "referrals"} · auto-paid
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">
+            OG Partner Scheme
+          </p>
+          <h2 className="mt-2 font-bungee text-2xl leading-tight sm:text-4xl">
+            Get {ratePct}% of every coin your friends spend — forever.
+            {!isVip && (
+              <span className="mt-1 block text-sm font-sans font-bold text-amber-300">
+                OG VIPs earn 13% — upgrade to boost your cut.
               </span>
-              <span className="text-muted-foreground">
-                Rewards from their payments and coin use
-              </span>
-            </div>
-
-            <div className="mt-5 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:justify-center">
-              <Button
-                onClick={share}
-                size="lg"
-                className="h-12 w-full gap-2 bg-gradient-to-r from-primary to-fuchsia-500 px-6 font-black uppercase tracking-wider shadow-glow hover:scale-[1.02] sm:w-auto"
-              >
-                <Share2 className="h-4 w-4" /> Share & earn
-              </Button>
-              <Button
-                onClick={copy}
-                variant="secondary"
-                size="lg"
-                className="h-12 w-full gap-2 font-bold uppercase tracking-wider sm:w-auto"
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? "Copied" : "Copy link"}
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* PAID / PENDING / NETWORK — tight stat tiles */}
-        <section
-          data-testid="referrals-stat-tiles"
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-        >
-          <StatTile
-            tone="emerald"
-            icon={<CheckCircle2 className="h-4 w-4" />}
-            label="Paid"
-            value={paidCoins.toLocaleString()}
-            sub={`${paidEvents} cashback ${paidEvents === 1 ? "event" : "events"}`}
-            unit="OG"
-          />
-          <StatTile
-            tone="amber"
-            icon={<Hourglass className="h-4 w-4" />}
-            label="Pending"
-            value={pendingReferees.toLocaleString()}
-            sub="Awaiting first burn"
-            unit="refs"
-          />
-          <div className="col-span-2 sm:col-span-1">
-            <StatTile
-              tone="sky"
-              icon={<Users className="h-4 w-4" />}
-              label="Network"
-              value={summary.total_referred.toLocaleString()}
-              sub="Lifetime sign-ups"
-              unit="nodes"
+            )}
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <Mission
+              tone="primary"
+              n={1}
+              icon={<Link2 className="h-5 w-5" />}
+              title={
+                <button
+                  type="button"
+                  onClick={() => {
+                    document
+                      .querySelector('[data-testid="share-hub"]')
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    void handleCopy("Link copied — paste it anywhere to share");
+                  }}
+                  className="text-left underline decoration-primary/60 underline-offset-4 hover:text-primary"
+                >
+                  Share your link
+                </button>
+              }
+              body="Tap above to copy your link. Or let them scan your QR."
+            />
+            <Mission
+              tone="fuchsia"
+              n={2}
+              icon={<UserPlus className="h-5 w-5" />}
+              title="They join & make songs"
+              body="They're linked to you for life."
+            />
+            <Mission
+              tone="destructive"
+              n={3}
+              icon={<Flame className="h-5 w-5" />}
+              title={`You earn ${ratePct}%`}
+              body="Paid automatically in OG Coins. No limit, no expiry."
             />
           </div>
+          <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <PiggyBank className="h-3.5 w-3.5 text-amber-300" />
+            Example: a friend uses 100 coins → you get +{ratePct} OG{isVip ? "" : " (+13 as VIP)"}.
+          </p>
         </section>
 
-        {/* SHARE LINK + QR — fused command bar */}
-        <section className="rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
-              Your OG Link
-            </div>
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
-              Active
-            </span>
+        {/* 2. SHARE HUB — the only place to share */}
+        <section
+          data-testid="share-hub"
+          className="rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6"
+        >
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+            Your invite
           </div>
-
-          <div className="mt-3 grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
+          <div className="mt-3 grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div className="space-y-3">
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="relative flex-1">
-                  <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    readOnly
-                    value={shortLink}
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="h-11 pl-9 font-mono text-xs sm:text-sm"
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={copy} className="h-11 gap-2">
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? "Copied" : "Copy"}
-                  </Button>
-                  <Button variant="secondary" onClick={inviteAgain} className="h-11 gap-2">
-                    <Gift className="h-4 w-4" /> Invite
-                  </Button>
-                  <Button variant="outline" onClick={share} className="h-11 gap-2">
-                    <Share2 className="h-4 w-4" /> Share
-                  </Button>
-                </div>
+              <div className="relative">
+                <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  readOnly
+                  value={shortLink}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="h-11 pl-9 font-mono text-xs sm:text-sm"
+                />
               </div>
-
-              {/* OG Leader Code */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={share}
+                  className="h-11 gap-2 bg-gradient-to-r from-primary to-fuchsia-500 font-black uppercase tracking-wider"
+                >
+                  <Share2 className="h-4 w-4" /> Share
+                </Button>
+                <Button onClick={copy} variant="secondary" className="h-11 gap-2 font-bold">
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? "Copied" : "Copy link"}
+                </Button>
+              </div>
               {user && (
-                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
-                      Your OG Leader code
+                <div className="flex items-center justify-between gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                      Or they can enter your code
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={!myCode}
-                      onClick={async () => {
-                        if (!myCode) return;
-                        const ok = await copyTextWithFallback(myCode);
-                        ok ? toast.success(`Code ${myCode} copied`) : toast.error("Couldn't copy");
-                      }}
-                      className="h-7 gap-1.5 px-2 text-[11px]"
-                    >
-                      <Copy className="h-3 w-3" /> Copy code
-                    </Button>
+                    <div className="font-mono text-lg font-black tracking-widest">
+                      {codeQ.isLoading ? "Loading…" : (myCode ?? "—")}
+                    </div>
                   </div>
-                  <div className="mt-1 font-mono text-2xl font-black tracking-widest text-foreground">
-                    {codeQ.isLoading ? "Loading…" : (myCode ?? "—")}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    Friends paste this in "Connect OG Leader" — locks you in for life. 10% of every
-                    coin they burn → yours.
-                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!myCode}
+                    onClick={async () => {
+                      if (!myCode) return;
+                      const ok = await copyTextWithFallback(myCode);
+                      if (ok) toast.success(`Code ${myCode} copied`);
+                      else toast.error("Couldn't copy");
+                    }}
+                    className="h-8 gap-1.5 px-2 text-xs"
+                  >
+                    <Copy className="h-3 w-3" /> Copy
+                  </Button>
                 </div>
               )}
             </div>
@@ -499,13 +440,10 @@ function ReferralsPage() {
                   <QRCodeSVG
                     id="og-referral-qr"
                     value={link}
-                    size={144}
+                    size={128}
                     level="M"
                     includeMargin={false}
                   />
-                </div>
-                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                  <QrCode className="h-3 w-3" /> Scan to join
                 </div>
                 <Button
                   type="button"
@@ -519,42 +457,74 @@ function ReferralsPage() {
               </div>
             )}
           </div>
+
+          {myCode && (
+            <div className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-500/5 p-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-amber-300">
+                How friends bind you as their OG Leader
+              </p>
+              <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-xs text-muted-foreground">
+                <li>Open your link above (or scan your QR) and sign up — done automatically.</li>
+                <li>
+                  Already signed up? Go to the <b>Earn</b> tab, tap “Bind your OG Leader” and enter{" "}
+                  <b className="text-foreground">{myCode}</b>.
+                </li>
+              </ol>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-2 h-8 gap-1.5 text-xs"
+                onClick={async () => {
+                  const msg = `Join me on OG Streamz to make AI music! Sign up with my link ${link} — or open the Earn tab, tap "Bind your OG Leader" and enter my code ${myCode}.`;
+                  const ok = await copyTextWithFallback(msg);
+                  if (ok) toast.success("Invite message copied");
+                  else toast.error("Couldn't copy");
+                }}
+              >
+                <Copy className="h-3 w-3" /> Copy invite message
+              </Button>
+            </div>
+          )}
         </section>
 
-        {/* EARNING MISSIONS — How it works as gamified tiles */}
-        <section className="grid gap-3 sm:grid-cols-3">
-          <Mission
-            tone="primary"
-            n={1}
-            icon={<Link2 className="h-5 w-5" />}
-            title="Drop your link"
-            body="Group chats, bio, DMs — one link works everywhere."
-          />
-          <Mission
-            tone="fuchsia"
-            n={2}
-            icon={<UserPlus className="h-5 w-5" />}
-            title="Crew signs up"
-            body="They open it, register, and start cooking on MusicHub."
-          />
-          <Mission
-            tone="destructive"
-            n={3}
-            icon={<Flame className="h-5 w-5" />}
-            title="You bank 10% forever"
-            body="Their successful payments and coin use reward your wallet automatically."
-          />
-        </section>
-
-        {/* BIND LEADER — kept anchor */}
+        {/* 3. YOUR NUMBERS — one row */}
         <section
-          id="bind-referrer"
-          className="scroll-mt-24 rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6"
+          data-testid="referrals-stat-tiles"
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
         >
-          <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">
-            <KeyRound className="h-3.5 w-3.5" /> Connect your OG Leader
-          </div>
-          <BindReferrerCard />
+          <StatTile
+            tone="emerald"
+            icon={<Coins className="h-4 w-4" />}
+            label="Earned"
+            value={paidCoins.toLocaleString()}
+            sub={`${paidEvents} ${paidEvents === 1 ? "reward" : "rewards"}`}
+            unit="OG"
+          />
+          <StatTile
+            tone="sky"
+            icon={<Users className="h-4 w-4" />}
+            label="Friends"
+            value={summary.total_referred.toLocaleString()}
+            sub="Joined with your link"
+            unit=""
+          />
+          <StatTile
+            tone="amber"
+            icon={<Hourglass className="h-4 w-4" />}
+            label="Waiting"
+            value={pendingReferees.toLocaleString()}
+            sub="Not spent coins yet"
+            unit=""
+          />
+          <StatTile
+            tone="sky"
+            icon={<Radio className="h-4 w-4" />}
+            label="Your tracks"
+            value={publishedQ.isLoading ? "—" : (publishedQ.data ?? 0).toLocaleString()}
+            sub="Live in Community"
+            unit=""
+          />
         </section>
 
         {/* CASHBACK FEED — dense activity */}
@@ -579,16 +549,15 @@ function ReferralsPage() {
                 </div>
                 <div className="text-sm font-bold">No cashback yet</div>
                 <div className="max-w-xs text-xs text-muted-foreground">
-                  Share your OG Link — the first burn from a referee lands here.
+                  When a friend you invited spends coins, your reward shows up here.
                 </div>
-                <Button size="sm" onClick={share} className="mt-2 gap-2">
-                  <Share2 className="h-3.5 w-3.5" /> Share your link
-                </Button>
               </div>
             )}
             {summary.recent.map((tx) => {
               const burned = Number(tx.reference?.match(/burn:(\d+)/)?.[1] ?? 0);
               const isPayment = tx.type === "referral_payment";
+              const isReversal = tx.type === "referral_payment_reversal";
+              const isBackpay = tx.type === "referral_backpay";
               const when = new Date(tx.created_at);
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -598,20 +567,32 @@ function ReferralsPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 truncate text-sm font-bold">
-                        {tx.referee_name ?? "Referred user"}
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
-                          <CheckCircle2 className="h-2.5 w-2.5" /> Paid
-                        </span>
+                        {isBackpay ? "OG Bot" : (tx.referee_name ?? "Referred user")}
+                        {isReversal ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
+                            Refunded
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                            <CheckCircle2 className="h-2.5 w-2.5" /> Paid
+                          </span>
+                        )}
                       </div>
                       <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-                        {isPayment ? (
+                        {isBackpay ? (
+                          <>Cashback you were owed, paid back = </>
+                        ) : isReversal ? (
+                          <>Payment refunded, reward reversed = </>
+                        ) : isPayment ? (
                           <>Successful payment reward = </>
                         ) : burned > 0 ? (
-                          <>{burned} used × 10% = </>
+                          <>{burned} used → </>
                         ) : (
                           <>Cashback = </>
                         )}
-                        <span className="font-bold text-primary">+{tx.amount} OG</span>
+                        <span className="font-bold text-primary">
+                          {tx.amount >= 0 ? `+${tx.amount}` : `−${Math.abs(tx.amount)}`} OG
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -623,6 +604,17 @@ function ReferralsPage() {
               );
             })}
           </div>
+        </section>
+
+        {/* 5. CONNECT YOUR LEADER — for people invited by someone else */}
+        <section
+          id="bind-referrer"
+          className="scroll-mt-24 rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6"
+        >
+          <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">
+            <KeyRound className="h-3.5 w-3.5" /> Were you invited? Connect your OG Leader
+          </div>
+          <BindReferrerCard />
         </section>
 
         <AllPurchasesPanel />
@@ -722,7 +714,7 @@ function Mission({
   tone: "primary" | "fuchsia" | "destructive";
   n: number;
   icon: React.ReactNode;
-  title: string;
+  title: ReactNode;
   body: string;
 }) {
   const tones = {

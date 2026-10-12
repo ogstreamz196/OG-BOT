@@ -12,45 +12,24 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isModerationRejection, MODERATION_MESSAGE } from "../_shared/moderation-safe.ts";
+import { hostAllowed, materialiseClips } from "../_shared/suno-materialise.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// ~1 MB sample — covers >30s of mp3 audio at typical Suno bitrates.
-const SAMPLE_BYTES = 1_048_576;
-
-// Allow-list of hostnames we'll fetch audio from (defence-in-depth SSRF guard).
-const AUDIO_HOST_ALLOWLIST = [
-  "apibox.erweima.ai",
-  "cdn1.suno.ai",
-  "cdn2.suno.ai",
-  "audiopipe.suno.ai",
-  "mfile.erweima.ai",
-  "sunoapi.org",
-  "tempfile.aiquickdraw.com",
-  "aiquickdraw.com",
-  "musicfile.removeai.ai",
-  "removeai.ai",
-  // Live stream host used by the early "first"/"text" callback.
-  "audiostream.api.box",
-  "api.box",
-];
-
-function hostAllowed(u: string): boolean {
-  try {
-    const h = new URL(u).hostname.toLowerCase();
-    return AUDIO_HOST_ALLOWLIST.some((d) => h === d || h.endsWith("." + d));
-  } catch { return false; }
-}
-
 async function expectedToken(songId: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
-    "raw", enc.encode(SERVICE_ROLE),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    "raw",
+    enc.encode(SERVICE_ROLE),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
   const buf = await crypto.subtle.sign("HMAC", key, enc.encode(songId));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function timingSafeEq(a: string, b: string): boolean {
@@ -60,9 +39,41 @@ function timingSafeEq(a: string, b: string): boolean {
   return r === 0;
 }
 
-// Owner-tagged storage metadata so every object can be traced back to its user.
-function ownerMeta(userId: string, songId: string, kind: "sample" | "full") {
-  return { user_id: userId, song_id: songId, kind, uploaded_at: new Date().toISOString() };
+async function notifyTelegram(admin: any, song: any) {
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("telegram_chat_id")
+    .eq("id", song.user_id)
+    .maybeSingle();
+  const chatId = prof?.telegram_chat_id;
+  if (!chatId) return;
+  const botToken = Deno.env.get("OG_BOT_TOKEN");
+  const tgKey = Deno.env.get("TELEGRAM_API_KEY");
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const url = botToken
+    ? `https://api.telegram.org/bot${botToken}/sendMessage`
+    : "https://connector-gateway.lovable.dev/telegram/sendMessage";
+  if (!botToken && (!tgKey || !lovableKey)) return;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (!botToken) {
+    headers.Authorization = `Bearer ${lovableKey}`;
+    headers["X-Connection-Api-Key"] = tgKey!;
+  }
+  const title = String(song.title || "Your track").replace(/[<>&]/g, "");
+  await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      chat_id: chatId,
+      parse_mode: "HTML",
+      text: `🎵 <b>Track ready!</b>\n\n<b>${title}</b> is done and waiting in your library. Type /tracks anytime to see your latest songs.`,
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "▶️ Listen now", url: `https://ogbot.co.uk/library/${song.id}` }],
+        ],
+      },
+    }),
+  });
 }
 
 Deno.serve(async (req) => {
@@ -78,7 +89,11 @@ Deno.serve(async (req) => {
   }
 
   let payload: any = {};
-  try { payload = await req.json(); } catch { /* tolerate empty */ }
+  try {
+    payload = await req.json();
+  } catch {
+    /* tolerate empty */
+  }
   console.log("Suno callback for", songId, JSON.stringify(payload).slice(0, 800));
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -95,16 +110,34 @@ Deno.serve(async (req) => {
     }
     const refundAmt = 0;
     const rawReason = payload?.msg || payload?.message || "Suno reported failure";
-    await admin.from("songs").update({
-      status: "failed",
-      error_message: isModerationRejection(rawReason) ? MODERATION_MESSAGE : rawReason,
-    }).eq("id", songId);
+    const terminal = isModerationRejection(rawReason);
+    await admin
+      .from("songs")
+      .update({
+        status: "failed",
+        error_message: terminal
+          ? MODERATION_MESSAGE
+          : "Retrying automatically after a temporary music-engine problem.",
+        failure_class: terminal ? "terminal" : "retryable",
+        next_retry_at: terminal ? null : new Date(Date.now() + 60_000).toISOString(),
+      })
+      .eq("id", songId);
     if (refundAmt > 0) {
       await admin.from("coin_transactions").insert({
-        user_id: parentSong.user_id, amount: refundAmt, type: "refund", reference: songId,
+        user_id: parentSong.user_id,
+        amount: refundAmt,
+        type: "refund",
+        reference: songId,
       });
-      const { data: prof } = await admin.from("profiles").select("coin_balance").eq("id", parentSong.user_id).single();
-      await admin.from("profiles").update({ coin_balance: (prof?.coin_balance ?? 0) + refundAmt }).eq("id", parentSong.user_id);
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("coin_balance")
+        .eq("id", parentSong.user_id)
+        .single();
+      await admin
+        .from("profiles")
+        .update({ coin_balance: (prof?.coin_balance ?? 0) + refundAmt })
+        .eq("id", parentSong.user_id);
     }
     return new Response("ok", { status: 200 });
   }
@@ -119,14 +152,16 @@ Deno.serve(async (req) => {
 
   const clipsRaw = items.map((c: any) => ({
     audioUrl: c?.audio_url || c?.audioUrl || c?.source_audio_url,
-    streamUrl: c?.stream_audio_url || c?.streamAudioUrl || c?.streamAudioURL || c?.source_stream_audio_url,
+    streamUrl:
+      c?.stream_audio_url || c?.streamAudioUrl || c?.streamAudioURL || c?.source_stream_audio_url,
     coverUrl: c?.image_url || c?.imageUrl || c?.cover_url,
     title: c?.title,
     duration: c?.duration,
     clipId: c?.id || c?.clip_id,
   }));
 
-  const callbackTaskId = payload?.data?.task_id || payload?.data?.taskId || payload?.task_id || payload?.taskId || null;
+  const callbackTaskId =
+    payload?.data?.task_id || payload?.data?.taskId || payload?.task_id || payload?.taskId || null;
   if (callbackTaskId && !parentSong.suno_task_id) {
     await admin.from("songs").update({ suno_task_id: callbackTaskId }).eq("id", songId);
   }
@@ -137,139 +172,76 @@ Deno.serve(async (req) => {
   if (callbackType === "first" || callbackType === "text") {
     const firstStream = clipsRaw.find((c) => c.streamUrl && hostAllowed(c.streamUrl!));
     if (firstStream?.streamUrl && !parentSong.stream_audio_url) {
-      await admin.from("songs").update({
-        stream_audio_url: firstStream.streamUrl,
-        cover_url: firstStream.coverUrl ?? parentSong.cover_url,
-        title: firstStream.title ?? parentSong.title,
-      }).eq("id", songId);
+      await admin
+        .from("songs")
+        .update({
+          stream_audio_url: firstStream.streamUrl,
+          cover_url: firstStream.coverUrl ?? parentSong.cover_url,
+          title: firstStream.title ?? parentSong.title,
+        })
+        .eq("id", songId);
       console.log("Stream URL stored for live preview:", songId);
     }
     return new Response("streaming", { status: 200 });
   }
 
-  let clips = clipsRaw.filter((c) => !!c.audioUrl && hostAllowed(c.audioUrl!));
+  const clips = clipsRaw.filter((c) => !!c.audioUrl && hostAllowed(c.audioUrl!));
 
   if (clips.length === 0) {
     console.log("No audio clips ready yet (or all rejected by host allow-list)");
     return new Response("waiting", { status: 200 });
   }
 
-  // Respect admin "songs per generation" setting (default 1). Suno always returns
-  // 2 clips per task, but we only materialise as many song rows as the boss allows.
-  let maxVariants = 1;
   try {
-    const { data: vs } = await admin.from("app_settings").select("value").eq("key", "songs_per_generation").maybeSingle();
-    const v = vs?.value;
-    const n = typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
-    if (Number.isFinite(n) && n >= 1 && n <= 4) maxVariants = n;
-  } catch { /* default to 1 */ }
-  if (clips.length > maxVariants) clips = clips.slice(0, maxVariants);
-
-  try {
-    for (let i = 0; i < clips.length; i++) {
-      const clip = clips[i];
-
-      // Idempotency: if we've already materialised a row for this Suno clip
-      // (parent or sibling), skip — repeated callbacks must not duplicate.
-      if (clip.clipId) {
-        const { data: existing } = await admin
-          .from("songs").select("id").eq("suno_clip_id", clip.clipId).maybeSingle();
-        if (existing) {
-          console.log("Skipping duplicate clip", clip.clipId, "→ existing song", existing.id);
-          continue;
+    const result = await materialiseClips(admin, parentSong, clips, {
+      scheduleBackground: (task) => {
+        // @ts-expect-error Deno Edge Runtime
+        if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+          // @ts-expect-error Deno global
+          EdgeRuntime.waitUntil(task);
+        } else {
+          task.catch(() => {});
         }
-      }
+      },
+    });
 
-      // --- Phase 1: short sample (fast) ---
-      const sampleRes = await fetch(clip.audioUrl!, { headers: { Range: `bytes=0-${SAMPLE_BYTES - 1}` } });
-      if (!sampleRes.ok && sampleRes.status !== 206) {
-        throw new Error(`Sample download failed: ${sampleRes.status}`);
-      }
-      const sampleBuf = new Uint8Array(await sampleRes.arrayBuffer());
+    console.log("Materialise result for", songId, JSON.stringify(result));
 
-      let targetId: string | null = i === 0 ? songId : null;
-      if (!targetId) {
-        const { data: sib, error: sibErr } = await admin.from("songs").insert({
-          user_id: parentSong.user_id,
-          prompt: parentSong.prompt,
-          style: parentSong.style,
-          lyrics: parentSong.lyrics,
-          title: clip.title ?? parentSong.title,
-          status: "processing",
-          suno_task_id: parentSong.suno_task_id,
-          suno_clip_id: clip.clipId ?? null,
-          portal_id: parentSong.portal_id ?? null,
-          is_variation: true,
-          revealed: false,
-        }).select("id").single();
-        if (sibErr) {
-          // Unique-index race: another concurrent callback already inserted this clip.
-          if ((sibErr as { code?: string }).code === "23505") {
-            console.log("Sibling insert race for clip", clip.clipId, "— already exists, skipping");
-            continue;
-          }
-          throw sibErr;
-        }
-        targetId = sib.id;
-      }
+    // Every take Suno produced was broken on their CDN and nothing landed.
+    // Mark the row failed with a recoverable message so the retry button can
+    // re-check the same task later (the CDN usually heals within minutes).
+    if (!result.parentCompleted && result.completed === 0 && result.skipped.length === 0) {
+      await admin
+        .from("songs")
+        .update({
+          status: "failed",
+          error_message: "Retrying automatically while the music engine's file server recovers.",
+          failure_class: "recoverable_cdn",
+          next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+        })
+        .eq("id", songId);
+      return new Response("clip-download-failed", { status: 200 });
+    }
 
-      const samplePath = `${parentSong.user_id}/${targetId}.sample.mp3`;
-      const { error: sampleUpErr } = await admin.storage.from("song-files").upload(samplePath, sampleBuf, {
-        contentType: "audio/mpeg",
-        upsert: true,
-        metadata: ownerMeta(parentSong.user_id, targetId, "sample"),
-      } as any);
-      if (sampleUpErr) throw sampleUpErr;
-
-      // Mark completed now — UI can play the sample immediately.
-      await admin.from("songs").update({
-        status: "completed",
-        sample_path: samplePath,
-        cover_url: clip.coverUrl ?? null,
-        title: clip.title ?? parentSong.title,
-        suno_clip_id: clip.clipId ?? null,
-        duration_seconds: clip.duration ?? null,
-        completed_at: new Date().toISOString(),
-      }).eq("id", targetId);
-
-      // --- Phase 2: full download in background ---
-      const finalId = targetId;
-      const audioUrl = clip.audioUrl!;
-      const bgTask = (async () => {
-        try {
-          const fullRes = await fetch(audioUrl);
-          if (!fullRes.ok) throw new Error(`Full download failed: ${fullRes.status}`);
-          const fullBuf = new Uint8Array(await fullRes.arrayBuffer());
-          const fullPath = `${parentSong.user_id}/${finalId}.mp3`;
-          const { error: fullUpErr } = await admin.storage.from("song-files").upload(fullPath, fullBuf, {
-            contentType: "audio/mpeg",
-            upsert: true,
-            metadata: ownerMeta(parentSong.user_id, finalId, "full"),
-          } as any);
-          if (fullUpErr) throw fullUpErr;
-          await admin.from("songs").update({ audio_path: fullPath }).eq("id", finalId);
-          console.log("Full track stored for", finalId);
-        } catch (e) {
-          console.error("Background full-download failed for", finalId, e);
-        }
-      })();
-      // @ts-ignore Deno Edge Runtime
-      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
-        // @ts-ignore
-        EdgeRuntime.waitUntil(bgTask);
-      } else {
-        // Fallback: don't block the response, but we have no waitUntil guarantee.
-        bgTask.catch(() => {});
-      }
+    // Ping the owner on Telegram once, on the first transition to completed.
+    if (result.parentCompleted && parentSong.status !== "completed") {
+      await notifyTelegram(admin, parentSong).catch((e) =>
+        console.warn("telegram notify failed", e),
+      );
     }
 
     return new Response("ok", { status: 200 });
   } catch (e) {
     console.error("Audio processing failed", e);
-    await admin.from("songs").update({
-      status: "failed",
-      error_message: `Audio processing failed: ${(e as Error).message}`,
-    }).eq("id", songId);
+    await admin
+      .from("songs")
+      .update({
+        status: "failed",
+        error_message: `Audio processing failed: ${(e as Error).message}`,
+        failure_class: "retryable",
+        next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+      })
+      .eq("id", songId);
     return new Response("error", { status: 500 });
   }
 });

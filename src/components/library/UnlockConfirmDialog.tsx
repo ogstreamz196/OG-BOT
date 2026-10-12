@@ -17,7 +17,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { arePaymentsEnabled } from "@/lib/stripe";
+import { arePaymentsEnabled, getStripeEnvironment } from "@/lib/stripe";
+import { Capacitor } from "@capacitor/core";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { createTrackUnlockCheckoutSession } from "@/lib/payments.functions";
+import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
 
 /** One-off card price shown in the UI. Must match TRACK_UNLOCK_PENCE server-side. */
 const CARD_PRICE_LABEL = "99p";
@@ -33,6 +38,7 @@ type Props = {
   songTitle?: string | null;
   /** Enables the "pay by card" option for this track. */
   songId?: string;
+  includesSecondTake?: boolean;
 };
 
 export function UnlockConfirmDialog({
@@ -45,11 +51,17 @@ export function UnlockConfirmDialog({
   balance,
   songTitle,
   songId,
+  includesSecondTake = false,
 }: Props) {
   const [payByCard, setPayByCard] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const createCheckout = useServerFn(createTrackUnlockCheckoutSession);
   const burnt = Math.max(0, cost - royalty);
   const canAfford = balance >= cost;
-  const cardAvailable = !!songId && arePaymentsEnabled();
+  // Card checkout is web-only; app stores require their own billing.
+  const cardAvailable =
+    !!songId && arePaymentsEnabled() && !(typeof window !== "undefined" && Capacitor.isNativePlatform());
 
   const returnUrl =
     typeof window === "undefined"
@@ -62,6 +74,8 @@ export function UnlockConfirmDialog({
         })();
 
   return (
+    <>
+    <StripeCheckoutDialog clientSecret={clientSecret} onClose={() => setClientSecret(null)} />
     <Dialog
       open={open}
       onOpenChange={(v) => {
@@ -89,15 +103,47 @@ export function UnlockConfirmDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {includesSecondTake && (
+          <div className="border-l-4 border-primary bg-primary/10 px-4 py-3">
+            <p className="text-base font-bold text-foreground">2 tracks for the price of 1</p>
+            <p className="mt-1 text-sm text-muted-foreground">Unlock this track and get Take 2 free in your library. No extra coins or card payment.</p>
+          </div>
+        )}
+
         {payByCard ? (
           <div className="space-y-3">
-            <div className="flex flex-col items-center justify-center p-8 bg-muted/30 rounded-xl border border-border">
-              <p className="text-center text-muted-foreground mb-4">
-                Google Play Billing is being configured.
+            <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/30 p-6 text-center">
+              <CreditCard className="mb-2 h-8 w-8 text-primary" />
+              <p className="mb-4 text-sm text-muted-foreground">
+                One-off payment · Card, Apple Pay or Google Pay. No coins needed.
               </p>
-              <Button disabled>
-                <Lock className="w-4 h-4 mr-2" />
-                Pay 99p
+              <Button
+                className="w-full"
+                disabled={starting || !songId}
+                onClick={async () => {
+                  if (!songId) return;
+                  setStarting(true);
+                  try {
+                    const res = await createCheckout({
+                      data: { songId, returnUrl, environment: getStripeEnvironment() },
+                    });
+                    if ("error" in res && res.error) throw new Error(res.error);
+                    const secret = (res as { clientSecret?: string }).clientSecret;
+                    if (!secret) throw new Error("Checkout unavailable right now");
+                    setClientSecret(secret);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Checkout failed");
+                  } finally {
+                    setStarting(false);
+                  }
+                }}
+              >
+                {starting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Lock className="mr-2 h-4 w-4" />
+                )}
+                Pay {CARD_PRICE_LABEL} securely
               </Button>
             </div>
             <Button variant="ghost" className="w-full" onClick={() => setPayByCard(false)}>
@@ -139,11 +185,12 @@ export function UnlockConfirmDialog({
             {/* Payment options — side by side */}
             <div className="grid grid-cols-2 gap-3">
               {/* Pay with Coins */}
-              <button
+               <Button
+                 variant="outline"
                 type="button"
                 onClick={onConfirm}
                 disabled={busy || !canAfford}
-                className="group relative flex flex-col items-center gap-2 rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 text-center transition hover:border-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                 className="group relative h-auto min-h-40 flex-col gap-2 rounded-lg border-2 border-primary/30 bg-primary/5 p-4 text-center transition hover:border-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/15">
                   <Coins className="h-5 w-5 text-primary" />
@@ -160,14 +207,15 @@ export function UnlockConfirmDialog({
                 ) : (
                   <Download className="h-4 w-4 text-muted-foreground transition group-hover:text-primary" />
                 )}
-              </button>
+               </Button>
 
               {/* Pay by Card */}
-              <button
+               <Button
+                 variant="outline"
                 type="button"
                 onClick={() => setPayByCard(true)}
                 disabled={busy || !cardAvailable}
-                className="group relative flex flex-col items-center gap-2 rounded-2xl border-2 border-foreground/15 bg-card p-4 text-center transition hover:border-foreground/30 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40"
+                 className="group relative h-auto min-h-40 flex-col gap-2 rounded-lg border-2 border-foreground/15 bg-card p-4 text-center transition hover:border-foreground/30 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-foreground/10">
                   <CreditCard className="h-5 w-5 text-foreground" />
@@ -181,13 +229,13 @@ export function UnlockConfirmDialog({
                     Unavailable
                   </span>
                 )}
-              </button>
+               </Button>
             </div>
 
             {/* Insufficient coins note */}
             {!canAfford && (
               <p className="text-center text-xs text-destructive">
-                Not enough coins — pay {CARD_PRICE_LABEL} by card, or top up in the Store.
+                {cardAvailable ? `Not enough coins — pay ${CARD_PRICE_LABEL} by card, or top up in the Store.` : "Not enough coins — top up in the Store."}
               </p>
             )}
 
@@ -203,5 +251,6 @@ export function UnlockConfirmDialog({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }

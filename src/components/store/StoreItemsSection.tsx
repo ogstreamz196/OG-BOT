@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, PackageOpen } from "lucide-react";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
 import { arePaymentsEnabled } from "@/lib/stripe";
 import { StoreItemCard } from "@/components/store/StoreItemCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +39,19 @@ export function StoreItemsSection() {
   const vipStatus = useQuery({ queryKey: ["vip-pass-status"], queryFn: () => getVipStatus() });
   const categories = catalog.data?.categories ?? [];
   const allItems = useMemo(() => categories.flatMap((category) => category.items), [categories]);
+  useEffect(() => {
+    if (allItems.length === 0 || typeof window === "undefined") return;
+    const hash = window.location.hash.slice(1);
+    if (!hash.startsWith("item-")) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(hash);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-4", "ring-coin");
+      setTimeout(() => el.classList.remove("ring-4", "ring-coin"), 2500);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [allItems.length]);
   const returnUrl = useMemo(
     () =>
       `${typeof window === "undefined" ? "" : window.location.origin}/buy-coins/return?session_id={CHECKOUT_SESSION_ID}`,
@@ -52,7 +66,7 @@ export function StoreItemsSection() {
         queryClient.invalidateQueries({ queryKey: ["profile"] }),
         queryClient.invalidateQueries({ queryKey: ["coin-transactions"] }),
       ]);
-      toast.success("Sports Guide access unlocked — your private link is ready");
+      toast.success("Sports Guide unlocked — open it from your dashboard");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -80,8 +94,12 @@ export function StoreItemsSection() {
       vipPass.mutate();
       return;
     }
-    if (!arePaymentsEnabled()) {
-      toast.info("This item can be bought on ogbot.co.uk.");
+    startCheckout(itemId);
+  };
+
+  const startCheckout = (itemId: string) => {
+    if (!arePaymentsEnabled() || Capacitor.isNativePlatform()) {
+      toast.info("This item isn't available in the app yet.");
       return;
     }
     setStartingId(itemId);
@@ -99,6 +117,7 @@ export function StoreItemsSection() {
       key={item.id}
       item={item}
       onBuy={buy}
+      onBuyCash={item.slug === "og-vip-pass" ? startCheckout : undefined}
       buying={
         (item.slug === "og-sports-guide-access" && sportsGuide.isPending) ||
         (item.slug === "og-vip-pass" && vipPass.isPending) ||
