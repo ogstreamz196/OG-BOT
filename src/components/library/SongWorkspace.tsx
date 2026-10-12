@@ -1604,14 +1604,19 @@ function GeneratingProgress({
     if (!songId || cancelling) return;
     setCancelling(true);
     try {
-      const { error } = await supabase.functions.invoke("suno-cancel", {
+      const { data, error } = await supabase.functions.invoke("suno-cancel", {
         body: { song_id: songId },
       });
       if (error) {
         toast.error(invokeError(error, "Could not cancel"));
         return;
       }
-      toast.success("Generation cancelled — coins refunded");
+      const refunded = Number((data as { refunded?: number } | null)?.refunded ?? 0);
+      toast.success(
+        refunded > 0
+          ? `Generation cancelled — ${refunded} coins refunded`
+          : "Generation cancelled",
+      );
       onCancelled?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not cancel");

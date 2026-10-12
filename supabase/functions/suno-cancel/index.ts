@@ -1,4 +1,5 @@
-// Cancels an in-flight Suno generation: marks the song failed and refunds coins.
+// Cancels an in-flight Suno generation: marks the song failed (never auto-retried)
+// and refunds the edit fee if this run was a paid edit.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -35,52 +36,23 @@ Deno.serve(async (req) => {
     if (!song_id) return json({ error: "Missing song_id" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data: song } = await admin
-      .from("songs")
-      .select("id, user_id, status, portal_id")
-      .eq("id", song_id)
-      .maybeSingle();
-    if (!song) return json({ error: "Song not found" }, 404);
-    if (song.user_id !== user.id) return json({ error: "Forbidden" }, 403);
-    if (song.status !== "pending" && song.status !== "processing") {
-      return json({ ok: true, already: true });
-    }
-
-    let refundAmt = 3;
-    if (song.portal_id) {
-      const { data: portal } = await admin
-        .from("portals")
-        .select("coin_cost_per_generation")
-        .eq("id", song.portal_id)
-        .maybeSingle();
-      if (typeof portal?.coin_cost_per_generation === "number")
-        refundAmt = portal.coin_cost_per_generation;
-    } else {
-      const { data: setting } = await admin
-        .from("app_settings")
-        .select("value")
-        .eq("key", "coins_per_generation")
-        .maybeSingle();
-      if (typeof setting?.value === "number") refundAmt = setting.value;
-    }
-
-    await admin
-      .from("songs")
-      .update({
-        status: "failed",
-        error_message: "Cancelled by user",
-        suno_task_id: null,
-      })
-      .eq("id", song_id);
-
-    const { error: refundErr } = await admin.rpc("refund_generation_charge", {
+    // One atomic step: only one cancel wins, the song is marked terminal so the
+    // auto-retry worker never resubmits it, and the refund is exactly the edit
+    // fee charged for this run (creation itself is free), at most once.
+    const { data, error } = await admin.rpc("cancel_song_generation", {
       p_user: user.id,
-      p_amount: refundAmt,
-      p_reference: song_id,
+      p_song: song_id,
     });
-    if (refundErr) console.error("Refund failed", refundErr.message);
+    if (error) {
+      console.error("cancel_song_generation failed", error.message);
+      return json({ error: "Could not cancel this song. Please try again." }, 500);
+    }
+    const result = (data ?? {}) as { ok?: boolean; reason?: string; already?: boolean; refunded?: number };
+    if (result.reason === "not_found") return json({ error: "Song not found" }, 404);
+    if (result.reason === "forbidden") return json({ error: "Forbidden" }, 403);
+    if (result.already) return json({ ok: true, already: true });
 
-    return json({ ok: true, refunded: refundAmt });
+    return json({ ok: true, refunded: result.refunded ?? 0 });
   } catch (e) {
     console.error("suno-cancel error", e);
     return json({ error: (e as Error).message }, 500);

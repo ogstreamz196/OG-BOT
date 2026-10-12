@@ -13,7 +13,7 @@ const ACTIVE = new Set(["pending", "processing"]);
 /** Cancel (if in flight) then permanently delete the song row. */
 export async function deleteQueuedSong(song: { id: string; status?: string | null }) {
   if (ACTIVE.has((song.status ?? "").toLowerCase())) {
-    // Refunds the coins and releases the concurrency slot before we remove it.
+    // Releases the concurrency slot (and refunds a paid edit) before we remove it.
     await supabase.functions.invoke("suno-cancel", { body: { song_id: song.id } });
   }
   const { error } = await supabase.from("songs").delete().eq("id", song.id);
