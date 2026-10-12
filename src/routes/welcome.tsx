@@ -678,7 +678,44 @@ function AuthModal() {
       setFromBattle(!!d?.fromBattle);
       setOpen(true);
     };
-...
+    window.addEventListener(OPEN_AUTH, on);
+    // Old #sign-in links still open the form.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href="#sign-in"]');
+      if (a) {
+        e.preventDefault();
+        setFromBattle(false);
+        setOpen(true);
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener(OPEN_AUTH, on);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto">
+        <DialogTitle className="sr-only">Sign in or join OG Streamz</DialogTitle>
+        <div id="sign-in">
+          {songTitle && (
+            <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
+              <p className="font-display text-xl font-black">Your track is ready to cook 🎧</p>
+              <p className="mt-1 text-sm">
+                <span className="font-bold">"{songTitle}"</span> is saved. Join free and it starts
+                cooking straight away.
+              </p>
+              <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
+                <li>🪙 Free welcome coins to make it</li>
+                <li>👑 15 days of VIP — every style unlocked</li>
+                <li>💸 Earn commission when friends join</li>
+              </ul>
+              <p className="mt-3 text-xs font-medium text-card-foreground/80">
+                🔒 100% free. Email only for password resets — no spam, ever.
+              </p>
+            </div>
+          )}
           {fromBattle && (
             <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
               <p className="font-display text-xl font-black">Don't stop now 🔥</p>
