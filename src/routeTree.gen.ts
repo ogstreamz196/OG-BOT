@@ -52,9 +52,12 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminApiKeysRouteImport } from './routes/_authenticated/admin.api-keys'
 import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
+import { Route as AuthenticatedAdminBotRouteImport } from './routes/_authenticated/admin.bot'
 import { Route as AuthenticatedAdminCoinAuditRouteImport } from './routes/_authenticated/admin.coin-audit'
+import { Route as AuthenticatedAdminCoinsRouteImport } from './routes/_authenticated/admin.coins'
 import { Route as AuthenticatedAdminDebugContextRouteImport } from './routes/_authenticated/admin.debug-context'
 import { Route as AuthenticatedAdminHealthRouteImport } from './routes/_authenticated/admin.health'
+import { Route as AuthenticatedAdminMusicRouteImport } from './routes/_authenticated/admin.music'
 import { Route as AuthenticatedAdminOgPersonaRouteImport } from './routes/_authenticated/admin.og-persona'
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin.onboarding'
 import { Route as AuthenticatedAdminReferralsAuditRouteImport } from './routes/_authenticated/admin.referrals-audit'
@@ -294,12 +297,22 @@ const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
   path: '/admin/audit',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminBotRoute = AuthenticatedAdminBotRouteImport.update({
+  id: '/admin/bot',
+  path: '/admin/bot',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminCoinAuditRoute =
   AuthenticatedAdminCoinAuditRouteImport.update({
     id: '/admin/coin-audit',
     path: '/admin/coin-audit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminCoinsRoute = AuthenticatedAdminCoinsRouteImport.update({
+  id: '/admin/coins',
+  path: '/admin/coins',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminDebugContextRoute =
   AuthenticatedAdminDebugContextRouteImport.update({
     id: '/admin/debug-context',
@@ -312,6 +325,11 @@ const AuthenticatedAdminHealthRoute =
     path: '/admin/health',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminMusicRoute = AuthenticatedAdminMusicRouteImport.update({
+  id: '/admin/music',
+  path: '/admin/music',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminOgPersonaRoute =
   AuthenticatedAdminOgPersonaRouteImport.update({
     id: '/admin/og-persona',
@@ -497,9 +515,12 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/api-keys': typeof AuthenticatedAdminApiKeysRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/bot': typeof AuthenticatedAdminBotRoute
   '/admin/coin-audit': typeof AuthenticatedAdminCoinAuditRoute
+  '/admin/coins': typeof AuthenticatedAdminCoinsRoute
   '/admin/debug-context': typeof AuthenticatedAdminDebugContextRoute
   '/admin/health': typeof AuthenticatedAdminHealthRoute
+  '/admin/music': typeof AuthenticatedAdminMusicRoute
   '/admin/og-persona': typeof AuthenticatedAdminOgPersonaRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
@@ -567,9 +588,12 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/api-keys': typeof AuthenticatedAdminApiKeysRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/bot': typeof AuthenticatedAdminBotRoute
   '/admin/coin-audit': typeof AuthenticatedAdminCoinAuditRoute
+  '/admin/coins': typeof AuthenticatedAdminCoinsRoute
   '/admin/debug-context': typeof AuthenticatedAdminDebugContextRoute
   '/admin/health': typeof AuthenticatedAdminHealthRoute
+  '/admin/music': typeof AuthenticatedAdminMusicRoute
   '/admin/og-persona': typeof AuthenticatedAdminOgPersonaRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
@@ -639,9 +663,12 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/api-keys': typeof AuthenticatedAdminApiKeysRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/_authenticated/admin/bot': typeof AuthenticatedAdminBotRoute
   '/_authenticated/admin/coin-audit': typeof AuthenticatedAdminCoinAuditRoute
+  '/_authenticated/admin/coins': typeof AuthenticatedAdminCoinsRoute
   '/_authenticated/admin/debug-context': typeof AuthenticatedAdminDebugContextRoute
   '/_authenticated/admin/health': typeof AuthenticatedAdminHealthRoute
+  '/_authenticated/admin/music': typeof AuthenticatedAdminMusicRoute
   '/_authenticated/admin/og-persona': typeof AuthenticatedAdminOgPersonaRoute
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
@@ -711,9 +738,12 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/api-keys'
     | '/admin/audit'
+    | '/admin/bot'
     | '/admin/coin-audit'
+    | '/admin/coins'
     | '/admin/debug-context'
     | '/admin/health'
+    | '/admin/music'
     | '/admin/og-persona'
     | '/admin/onboarding'
     | '/admin/referrals-audit'
@@ -781,9 +811,12 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/api-keys'
     | '/admin/audit'
+    | '/admin/bot'
     | '/admin/coin-audit'
+    | '/admin/coins'
     | '/admin/debug-context'
     | '/admin/health'
+    | '/admin/music'
     | '/admin/og-persona'
     | '/admin/onboarding'
     | '/admin/referrals-audit'
@@ -852,9 +885,12 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/api-keys'
     | '/_authenticated/admin/audit'
+    | '/_authenticated/admin/bot'
     | '/_authenticated/admin/coin-audit'
+    | '/_authenticated/admin/coins'
     | '/_authenticated/admin/debug-context'
     | '/_authenticated/admin/health'
+    | '/_authenticated/admin/music'
     | '/_authenticated/admin/og-persona'
     | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/referrals-audit'
@@ -1211,11 +1247,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/bot': {
+      id: '/_authenticated/admin/bot'
+      path: '/admin/bot'
+      fullPath: '/admin/bot'
+      preLoaderRoute: typeof AuthenticatedAdminBotRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/coin-audit': {
       id: '/_authenticated/admin/coin-audit'
       path: '/admin/coin-audit'
       fullPath: '/admin/coin-audit'
       preLoaderRoute: typeof AuthenticatedAdminCoinAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/coins': {
+      id: '/_authenticated/admin/coins'
+      path: '/admin/coins'
+      fullPath: '/admin/coins'
+      preLoaderRoute: typeof AuthenticatedAdminCoinsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/debug-context': {
@@ -1230,6 +1280,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/health'
       fullPath: '/admin/health'
       preLoaderRoute: typeof AuthenticatedAdminHealthRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/music': {
+      id: '/_authenticated/admin/music'
+      path: '/admin/music'
+      fullPath: '/admin/music'
+      preLoaderRoute: typeof AuthenticatedAdminMusicRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/og-persona': {
@@ -1439,9 +1496,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminApiKeysRoute: typeof AuthenticatedAdminApiKeysRoute
   AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
+  AuthenticatedAdminBotRoute: typeof AuthenticatedAdminBotRoute
   AuthenticatedAdminCoinAuditRoute: typeof AuthenticatedAdminCoinAuditRoute
+  AuthenticatedAdminCoinsRoute: typeof AuthenticatedAdminCoinsRoute
   AuthenticatedAdminDebugContextRoute: typeof AuthenticatedAdminDebugContextRoute
   AuthenticatedAdminHealthRoute: typeof AuthenticatedAdminHealthRoute
+  AuthenticatedAdminMusicRoute: typeof AuthenticatedAdminMusicRoute
   AuthenticatedAdminOgPersonaRoute: typeof AuthenticatedAdminOgPersonaRoute
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminReferralsAuditRoute: typeof AuthenticatedAdminReferralsAuditRoute
@@ -1474,9 +1534,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminApiKeysRoute: AuthenticatedAdminApiKeysRoute,
   AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
+  AuthenticatedAdminBotRoute: AuthenticatedAdminBotRoute,
   AuthenticatedAdminCoinAuditRoute: AuthenticatedAdminCoinAuditRoute,
+  AuthenticatedAdminCoinsRoute: AuthenticatedAdminCoinsRoute,
   AuthenticatedAdminDebugContextRoute: AuthenticatedAdminDebugContextRoute,
   AuthenticatedAdminHealthRoute: AuthenticatedAdminHealthRoute,
+  AuthenticatedAdminMusicRoute: AuthenticatedAdminMusicRoute,
   AuthenticatedAdminOgPersonaRoute: AuthenticatedAdminOgPersonaRoute,
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminReferralsAuditRoute: AuthenticatedAdminReferralsAuditRoute,

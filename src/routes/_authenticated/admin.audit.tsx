@@ -1,22 +1,50 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Receipt, Scale, Users } from "lucide-react";
+import { History, Receipt, Scale, Users } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
+import { BossAuditLog } from "@/components/admin/BossAuditLog";
 import { CoinAuditPage } from "./admin.coin-audit";
 import { ReferralsAuditPage } from "./admin.referrals-audit";
 import { AccountantLogPanel } from "@/components/admin/AccountantLogPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/audit")({
+  validateSearch: (s: Record<string, unknown>): { tab?: string } =>
+    typeof s.tab === "string" ? { tab: s.tab } : {},
   component: AdminAuditHub,
 });
 
-const TABS = [
-  { value: "card", label: "Card transactions", Icon: Receipt, Panel: AccountantLogPanel },
-  { value: "coins", label: "Coin audit", Icon: Scale, Panel: CoinAuditPage },
-  { value: "referrals", label: "Referral audit", Icon: Users, Panel: ReferralsAuditPage },
-] as const;
+const TABS: readonly BossTab[] = [
+  {
+    value: "card",
+    label: "Card payments",
+    Icon: Receipt,
+    hint: "Every card payment and refund, for your accounts.",
+    Panel: AccountantLogPanel,
+  },
+  {
+    value: "coins",
+    label: "Coin check",
+    Icon: Scale,
+    hint: "Compares every balance with its coin history and flags mismatches.",
+    Panel: CoinAuditPage,
+  },
+  {
+    value: "referrals",
+    label: "Referrals",
+    Icon: Users,
+    hint: "Referral codes, who invited whom and what leaders were paid.",
+    Panel: ReferralsAuditPage,
+  },
+  {
+    value: "actions",
+    label: "Boss actions",
+    Icon: History,
+    hint: "Everything done from Boss controls, newest first.",
+    Panel: BossAuditLog,
+  },
+];
 
 function AdminAuditHub() {
   const { isAdmin, isLoading } = useRole();
@@ -34,30 +62,10 @@ function AdminAuditHub() {
 
   return (
     <DashboardShell title="Audit">
-      <BossNav />
-      <header className="mb-5 border-b border-border/60 pb-4">
-        <h1 className="font-display text-2xl font-black">Audit</h1>
-        <p className="text-sm text-muted-foreground">Coin ledger and referral payouts.</p>
-      </header>
-      <Tabs defaultValue="card" className="w-full">
-        <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-4 rounded-none border-0 border-b border-border/60 bg-transparent p-0">
-          {TABS.map(({ value, label, Icon }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="flex items-center gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 pt-0 text-sm font-bold text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {TABS.map(({ value, Panel }) => (
-          <TabsContent key={value} value={value} className="mt-0">
-            <Panel />
-          </TabsContent>
-        ))}
-      </Tabs>
+      <div className="boss-ui mx-auto w-full min-w-0 max-w-5xl">
+        <BossNav />
+        <BossTabs tabs={TABS} />
+      </div>
     </DashboardShell>
   );
 }

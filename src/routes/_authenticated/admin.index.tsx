@@ -1,132 +1,33 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
-  Bot,
-  ChevronDown,
+  AlertTriangle,
+  CheckCircle2,
   ChevronRight,
-  Coins,
-  HeartPulse,
-  KeyRound,
+  FlaskConical,
+  Gift,
+  Hourglass,
   Loader2,
-  Map,
-  Music2,
-  Radio,
-  Rocket,
-  Save,
-  Scale,
-  Settings2,
-  Share2,
-  Store,
-  Users,
-  Webhook,
+  Sparkles,
+  UserSearch,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
-import { useSettings } from "@/hooks/use-settings";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { PortalManager } from "@/components/admin/PortalManager";
-import { MintCoinsPanel } from "@/components/admin/MintCoinsPanel";
-import { OgCoinsPanel } from "@/components/admin/OgCoinsPanel";
-import { BossAuditLog } from "@/components/admin/BossAuditLog";
-import { BossNav } from "@/components/admin/BossNav";
-import { HardwiredCapabilities } from "@/components/admin/HardwiredCapabilities";
-import { AppToggles } from "@/components/admin/AppToggles";
-import { GeminiUsagePanel } from "@/components/admin/GeminiUsagePanel";
-import { OgBotPing } from "@/components/admin/OgBotPing";
-import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
-import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
-import { TelegramSmokeTest } from "@/components/admin/TelegramSmokeTest";
-import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
-import { FoulMouthSmokeTest } from "@/components/admin/FoulMouthSmokeTest";
-import { AdminCollapsible } from "@/components/admin/AdminCollapsible";
+import { BOSS_AREAS, BossNav } from "@/components/admin/BossNav";
 import { BossKpiStrip, ProviderPulse } from "@/components/admin/BossOverview";
-import { MusicDesk } from "@/components/admin/MusicDesk";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  component: AdminPanel,
+  component: AdminDashboard,
 });
 
-const PAGE_LINKS = [
-  { to: "/admin/users", label: "Users", desc: "Roles, coins, VIP, accounts", Icon: Users },
-  { to: "/admin/store", label: "Store", desc: "Products & prices", Icon: Store },
-  { to: "/admin/og-persona", label: "OG persona", desc: "Bot personality", Icon: Bot },
-  { to: "/admin/onboarding", label: "Onboarding", desc: "Welcome flow", Icon: Rocket },
-  { to: "/admin/system", label: "System", desc: "Runtime status", Icon: Settings2 },
-  { to: "/admin/health", label: "API health", desc: "Provider checks", Icon: HeartPulse },
-  { to: "/admin/webhooks", label: "Webhooks", desc: "Delivery logs", Icon: Webhook },
-  { to: "/admin/coin-audit", label: "Coin audit", desc: "Coin ledger checks", Icon: Coins },
-  {
-    to: "/admin/referrals-audit",
-    label: "Referrals audit",
-    desc: "Commission checks",
-    Icon: Share2,
-  },
-  { to: "/admin/audit", label: "Audit", desc: "Boss actions", Icon: Scale },
-  { to: "/admin/api-keys", label: "API keys", desc: "Key status", Icon: KeyRound },
-  { to: "/admin/route-map", label: "Route map", desc: "All app pages", Icon: Map },
-  { to: "/developer", label: "Live users", desc: "Who's online", Icon: Radio },
-] as const;
-
-const DESKS = [
-  {
-    id: "music",
-    label: "Music",
-    title: "Music desk",
-    desc: "Live tracks, retries and locks",
-    Icon: Music2,
-  },
-  {
-    id: "economy",
-    label: "Coins",
-    title: "Coins & pricing",
-    desc: "Balances, minting and pricing rules",
-    Icon: Coins,
-  },
-  {
-    id: "bot",
-    label: "Bot",
-    title: "Bot & Telegram",
-    desc: "OG Bot, webhook and your DMs",
-    Icon: Bot,
-  },
-  {
-    id: "system",
-    label: "App",
-    title: "App & diagnostics",
-    desc: "Feature switches and tests",
-    Icon: Settings2,
-  },
-  {
-    id: "pages",
-    label: "Tools",
-    title: "Users, store & tools",
-    desc: "Every other Boss page",
-    Icon: Users,
-  },
-  {
-    id: "activity",
-    label: "Audit",
-    title: "Audit log",
-    desc: "Recent Boss actions",
-    Icon: Activity,
-  },
-] as const;
-type DeskId = (typeof DESKS)[number]["id"];
-
-function AdminPanel() {
+function AdminDashboard() {
   const { isAdmin, isLoading: roleLoading } = useRole();
-  const [desk, setDesk] = useState<DeskId>("music");
 
   if (roleLoading) {
     return (
-      <DashboardShell title="Admin Controls">
+      <DashboardShell title="Boss dashboard">
         <div className="grid place-items-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -135,208 +36,56 @@ function AdminPanel() {
   }
   if (!isAdmin) return <Navigate to="/" />;
 
-  const current = DESKS.find((d) => d.id === desk)!;
-
   return (
-    <DashboardShell title="Admin Controls">
+    <DashboardShell title="Boss dashboard">
       <div className="boss-ui mx-auto w-full min-w-0 max-w-5xl">
         <BossNav />
 
         <div className="space-y-6">
-          {/* Overview */}
           <section className="space-y-3">
-            <SectionHeading title="Overview" desc="Live numbers, refreshed every minute" />
+            <SectionHeading title="Today" desc="Live numbers, refreshed every minute" />
             <BossKpiStrip />
             <ProviderPulse />
           </section>
 
-          {/* Desks */}
+          <NeedsAttention />
+
           <section className="space-y-3">
-            <SectionHeading title="Management" desc="Pick an area to manage" />
-            <div
-              role="tablist"
-              aria-label="Boss areas"
-              className="grid grid-cols-3 gap-2 sm:grid-cols-6"
-            >
-              {DESKS.map(({ id, label, Icon }) => {
-                const active = id === desk;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setDesk(id)}
-                    className={cn(
-                      "flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-sm transition",
-                      active
-                        ? "border-primary bg-primary/15 text-foreground"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon className={cn("h-5 w-5", active && "text-primary")} />
-                    <span className="leading-none">{label}</span>
-                  </button>
-                );
-              })}
+            <SectionHeading title="Quick actions" desc="The things you do most" />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <QuickAction to="/admin/users" Icon={UserSearch} label="Find a user" />
+              <QuickAction to="/admin/coins" tab="grant" Icon={Gift} label="Grant coins" />
+              <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG Bot persona" />
+              <QuickAction
+                to="/admin/system"
+                tab="tests"
+                Icon={FlaskConical}
+                label="Run diagnostics"
+              />
             </div>
+          </section>
 
-            <div
-              role="tabpanel"
-              className="min-w-0 rounded-xl border border-border bg-card/60 p-3 sm:p-4"
-            >
-              <div className="mb-3 flex min-w-0 items-center gap-3 border-b border-border pb-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                  <current.Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <h2 className="text-lg leading-tight">{current.title}</h2>
-                  <p className="text-xs text-muted-foreground">{current.desc}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {desk === "music" && <MusicDesk />}
-
-                {desk === "economy" && (
-                  <>
-                    <Panel
-                      group="economy"
-                      k="og-coins"
-                      title="OG Coins overview"
-                      subtitle="Balances in circulation"
-                      open
-                    >
-                      <OgCoinsPanel />
-                    </Panel>
-                    <Panel
-                      group="economy"
-                      k="mint"
-                      title="Mint coins"
-                      subtitle="Grant coins to a user"
-                    >
-                      <MintCoinsPanel />
-                    </Panel>
-                    <Panel
-                      group="economy"
-                      k="pricing"
-                      title="Pricing & limits"
-                      subtitle="Generation and unlock costs"
-                    >
-                      <PricingControls />
-                    </Panel>
-                  </>
-                )}
-
-                {desk === "bot" && (
-                  <>
-                    <Panel
-                      group="bot"
-                      k="og-bot-ping"
-                      title="OG Bot ping"
-                      subtitle="Check OG Bot is reachable"
-                      open
-                    >
-                      <GeminiUsagePanel />
-                      <OgBotPing />
-                    </Panel>
-                    <Panel
-                      group="bot"
-                      k="telegram-webhook"
-                      title="Telegram webhook"
-                      subtitle="Live delivery status"
-                    >
-                      <TelegramWebhookStatus />
-                    </Panel>
-                    <Panel
-                      group="bot"
-                      k="telegram-smoke"
-                      title="Telegram smoke test"
-                      subtitle="Bot + webhook check"
-                    >
-                      <TelegramSmokeTest />
-                    </Panel>
-                    <Panel
-                      group="bot"
-                      k="boss-notifs"
-                      title="Boss DM notifications"
-                      subtitle="What gets sent to you"
-                    >
-                      <BossNotificationsPanel />
-                    </Panel>
-                  </>
-                )}
-
-                {desk === "system" && (
-                  <>
-                    <Panel
-                      group="system"
-                      k="app-toggles"
-                      title="App toggles"
-                      subtitle="Global feature switches"
-                      open
-                    >
-                      <AppToggles />
-                    </Panel>
-                    <Panel
-                      group="system"
-                      k="portals"
-                      title="Portals"
-                      subtitle="Manage portal definitions"
-                    >
-                      <PortalManager />
-                    </Panel>
-                    <Panel
-                      group="system"
-                      k="e2e-smoke"
-                      title="End-to-end test"
-                      subtitle="Full app flow"
-                    >
-                      <E2ESmokeTest />
-                    </Panel>
-                    <Panel
-                      group="system"
-                      k="foul-smoke"
-                      title="Foul-mouth test"
-                      subtitle="VIP gating + reply quality"
-                    >
-                      <FoulMouthSmokeTest />
-                    </Panel>
-                    <Panel
-                      group="system"
-                      k="capabilities"
-                      title="Hardwired capabilities"
-                      subtitle="Runtime status"
-                    >
-                      <HardwiredCapabilities />
-                    </Panel>
-                  </>
-                )}
-
-                {desk === "pages" && (
-                  <div className="overflow-hidden rounded-xl border border-border bg-card">
-                    {PAGE_LINKS.map(({ to, label, desc, Icon }, i) => (
-                      <Link
-                        key={to}
-                        to={to}
-                        className={cn(
-                          "flex min-h-[56px] min-w-0 items-center gap-3 px-4 py-2.5 transition hover:bg-muted/30",
-                          i > 0 && "border-t border-border",
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0 text-primary" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[15px] leading-tight">{label}</span>
-                          <span className="block text-xs text-muted-foreground">{desc}</span>
-                        </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </Link>
-                    ))}
-                  </div>
-                )}
-
-                {desk === "activity" && <BossAuditLog />}
-              </div>
+          <section className="space-y-3">
+            <SectionHeading title="Everything else" desc="Every Boss area in one place" />
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {BOSS_AREAS.filter((a) => a.to !== "/admin").map(
+                ({ to, label, desc, icon: Icon }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    className="group flex min-h-[72px] min-w-0 items-center gap-3 rounded-xl border border-border bg-card/80 px-4 py-3 transition hover:border-primary/50 hover:bg-card"
+                  >
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold leading-tight">{label}</span>
+                      <span className="block text-xs text-muted-foreground">{desc}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+                  </Link>
+                ),
+              )}
             </div>
           </section>
         </div>
@@ -354,207 +103,104 @@ function SectionHeading({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-function Panel({
-  k,
-  group,
-  title,
-  subtitle,
-  open,
-  children,
+function QuickAction({
+  to,
+  tab,
+  Icon,
+  label,
 }: {
-  k: string;
-  group: string;
-  title: string;
-  subtitle: string;
-  open?: boolean;
-  children: React.ReactNode;
+  to: "/admin/users" | "/admin/coins" | "/admin/bot" | "/admin/system";
+  tab?: string;
+  Icon: typeof Gift;
+  label: string;
 }) {
   return (
-    <AdminCollapsible
-      storageKey={k}
-      group={group}
-      title={title}
-      subtitle={subtitle}
-      defaultOpen={open}
+    <Link
+      to={to}
+      search={tab ? { tab } : {}}
+      className="flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card/80 px-2 py-3 text-center text-sm transition hover:border-primary/50 hover:bg-card"
     >
-      {children}
-    </AdminCollapsible>
+      <Icon className="h-5 w-5 text-primary" />
+      <span className="leading-tight">{label}</span>
+    </Link>
   );
 }
 
-type FieldRule = { min: number; max: number; integer?: boolean; label: string; help?: string };
-const PRICING_RULES: Record<string, FieldRule> = {
-  signup_credits: {
-    min: 0,
-    max: 1000,
-    integer: true,
-    label: "Free-tier signup OG Coins",
-    help: "Granted once on first sign-in.",
-  },
-  coins_per_generation: {
-    min: 0,
-    max: 10000,
-    integer: true,
-    label: "Coins per song generation",
-    help: "Charged when a user generates new audio tracks.",
-  },
-  coins_per_lyrics_generation: {
-    min: 0,
-    max: 10000,
-    integer: true,
-    label: "Coins per lyrics generation",
-    help: "Charged each time AI lyrics are generated or regenerated.",
-  },
-  songs_per_generation: {
-    min: 1,
-    max: 4,
-    integer: true,
-    label: "Songs per generation",
-    help: "How many audio variations are produced per request.",
-  },
-  coins_per_variation_divisor: {
-    min: 1,
-    max: 20,
-    integer: true,
-    label: "Variation cost divisor",
-    help: "Reveal cost per extra variation = generation cost ÷ this number.",
-  },
-  sample_seconds: {
-    min: 5,
-    max: 600,
-    integer: true,
-    label: "Sample length (seconds)",
-    help: "Max preview duration the player will stream.",
-  },
-  coins_per_full_unlock: {
-    min: 0,
-    max: 100000,
-    integer: true,
-    label: "Coins to unlock full song",
-    help: "Charged when a user downloads the HQ full version.",
-  },
-};
+const STUCK_MINUTES = 20;
 
-function validatePricing(key: string, raw: string): string | null {
-  const rule = PRICING_RULES[key];
-  if (!rule) return null;
-  if (raw.trim() === "") return "Required";
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return "Must be a number";
-  if (rule.integer && !Number.isInteger(n)) return "Must be a whole number";
-  if (n < rule.min) return `Must be ≥ ${rule.min}`;
-  if (n > rule.max) return `Must be ≤ ${rule.max}`;
-  return null;
-}
-
-function PricingControls() {
-  const { data: settings } = useSettings();
-  const qc = useQueryClient();
-  const [values, setValues] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (settings) {
-      setValues(
-        Object.fromEntries(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
-          Object.keys(PRICING_RULES).map((k) => [k, String((settings as any)[k])]),
-        ),
-      );
-    }
-  }, [settings]);
-
-  const errors: Record<string, string | null> = Object.fromEntries(
-    Object.keys(PRICING_RULES).map((k) => [k, validatePricing(k, values[k] ?? "")]),
-  );
-  const hasErrors = Object.values(errors).some((e) => e !== null);
-  const dirty =
-    !!settings &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
-    Object.keys(PRICING_RULES).some((k) => String((settings as any)[k]) !== (values[k] ?? ""));
-
-  const save = useMutation({
-    mutationFn: async () => {
-      if (hasErrors) throw new Error("Fix validation errors first");
-      const updates = Object.keys(PRICING_RULES).map((k) => ({ key: k, value: Number(values[k]) }));
-      for (const u of updates) {
-        const { error } = await supabase
-          .from("app_settings")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
-          .upsert({ key: u.key, value: u.value as any }, { onConflict: "key" });
-        if (error) throw error;
-      }
+/** Problems worth a look right now. Counts only; each row links to where it is fixed. */
+function NeedsAttention() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["boss", "needs-attention"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+      const stuckBefore = new Date(Date.now() - STUCK_MINUTES * 60_000).toISOString();
+      const [failed, stuck] = await Promise.all([
+        supabase
+          .from("songs")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "failed")
+          .gte("created_at", dayAgo),
+        supabase
+          .from("songs")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["pending", "processing"])
+          .lt("generation_started_at", stuckBefore),
+      ]);
+      return { failed: failed.count ?? 0, stuck: stuck.count ?? 0 };
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["app-settings"] });
-      toast.success("Pricing updated — applies to new generations immediately");
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
 
-  const renderField = (key: string) => {
-    const rule = PRICING_RULES[key];
-    const err = errors[key];
-    return (
-      <div key={key}>
-        <Label htmlFor={key}>{rule.label}</Label>
-        <Input
-          id={key}
-          type="number"
-          min={rule.min}
-          max={rule.max}
-          step={rule.integer ? 1 : "any"}
-          value={values[key] ?? ""}
-          onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
-          className={cn("mt-2", err && "border-destructive focus-visible:ring-destructive")}
-          aria-invalid={!!err}
-        />
-        {err ? (
-          <p className="mt-1 text-xs text-destructive">{err}</p>
-        ) : rule.help ? (
-          <p className="mt-1 text-xs text-muted-foreground">{rule.help}</p>
-        ) : null}
-      </div>
-    );
-  };
+  const items = [
+    {
+      key: "failed",
+      count: data?.failed ?? 0,
+      label: (n: number) => `${n} song${n === 1 ? "" : "s"} failed in the last 24 hours`,
+      tab: "failures",
+      Icon: AlertTriangle,
+    },
+    {
+      key: "stuck",
+      count: data?.stuck ?? 0,
+      label: (n: number) =>
+        `${n} song${n === 1 ? " has" : "s have"} been generating for over ${STUCK_MINUTES} minutes`,
+      tab: "tracks",
+      Icon: Hourglass,
+    },
+  ].filter((i) => i.count > 0);
 
   return (
-    <div className="min-w-0 p-1 sm:p-2">
-      <div className="mb-3 flex items-center gap-2">
-        <Coins className="h-4 w-4 text-coin" />
-        <h3 className="font-semibold">Pricing & limits</h3>
+    <section className="space-y-3">
+      <SectionHeading title="Needs your attention" desc="Checked every minute" />
+      <div className="overflow-hidden rounded-xl border border-border bg-card/80">
+        {isLoading ? (
+          <div className="flex items-center gap-2 px-4 py-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Checking…
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex items-center gap-2 px-4 py-4 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> All clear. Nothing needs you right
+            now.
+          </div>
+        ) : (
+          items.map(({ key, count, label, tab, Icon }, i) => (
+            <Link
+              key={key}
+              to="/admin/music"
+              search={{ tab }}
+              className={cn(
+                "flex min-h-[56px] items-center gap-3 px-4 py-3 transition hover:bg-muted/30",
+                i > 0 && "border-t border-border",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0 text-amber-400" />
+              <span className="min-w-0 flex-1 text-sm">{label(count)}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          ))
+        )}
       </div>
-      <div className="mb-4 flex flex-wrap items-center gap-2 break-all rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-        <span className="font-bold uppercase tracking-wider text-primary">Live</span>
-        <code className="rounded bg-background/60 px-1.5 py-0.5 font-mono">
-          app_settings.songs_per_generation
-        </code>
-        <span className="text-muted-foreground">=</span>
-        <span className="font-bold text-foreground">
-          {settings
-            ? ((settings as { songs_per_generation?: number }).songs_per_generation ?? "—")
-            : "…"}
-        </span>
-        <span className="text-muted-foreground">
-          · edge function <code className="font-mono">suno-callback</code> reads this exact key.
-        </span>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Object.keys(PRICING_RULES).map(renderField)}
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        Changes take effect for the next generation. In-flight jobs keep the pricing captured at
-        request time.
-      </p>
-      <div className="mt-4 flex justify-end">
-        <Button onClick={() => save.mutate()} disabled={save.isPending || hasErrors || !dirty}>
-          {save.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          Save pricing
-        </Button>
-      </div>
-    </div>
+    </section>
   );
 }
