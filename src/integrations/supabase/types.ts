@@ -996,6 +996,32 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_cashback_accrual: {
+        Row: {
+          pending_hundredths: number
+          referrer_id: string
+          updated_at: string
+        }
+        Insert: {
+          pending_hundredths?: number
+          referrer_id: string
+          updated_at?: string
+        }
+        Update: {
+          pending_hundredths?: number
+          referrer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_cashback_accrual_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           created_at: string
@@ -2620,6 +2646,10 @@ export type Database = {
       og_learn_insult: {
         Args: { p_phrase: string; p_user_id: string }
         Returns: undefined
+      }
+      pay_referral_cashback: {
+        Args: { p_burn: number; p_referee: string; p_reference: string }
+        Returns: number
       }
       payout_battle_reward: { Args: { _user_id: string }; Returns: Json }
       pick_catchphrases: {
