@@ -2476,6 +2476,15 @@ export type Database = {
         Args: { p_acknowledged: boolean; p_referrer: string }
         Returns: Json
       }
+      clawback_stripe_purchase: {
+        Args: {
+          _mode: string
+          _purchase_reference: string
+          _refund_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
       consume_chat_image_edit: {
         Args: { p_reference: string; p_user: string }
         Returns: Json
@@ -2654,6 +2663,10 @@ export type Database = {
       regenerate_og_bot_token: {
         Args: { target_user_id: string }
         Returns: string
+      }
+      restore_instant_refund_clawback: {
+        Args: { _purchase_reference: string; _user_id: string }
+        Returns: Json
       }
       revoke_og_bot_invite: { Args: { p_invite_id: string }; Returns: boolean }
       revoke_og_bot_token: {
