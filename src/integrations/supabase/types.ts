@@ -2668,6 +2668,10 @@ export type Database = {
         Args: { _purchase_reference: string; _user_id: string }
         Returns: Json
       }
+      reverse_referral_rewards_for_refund: {
+        Args: { _env: string; _referee_id: string; _session_id: string }
+        Returns: Json
+      }
       revoke_og_bot_invite: { Args: { p_invite_id: string }; Returns: boolean }
       revoke_og_bot_token: {
         Args: { admin_notes?: string; target_user_id: string }
