@@ -2335,6 +2335,10 @@ export type Database = {
         Args: { amount: number; boss_notes?: string; target_user_id: string }
         Returns: number
       }
+      cancel_song_generation: {
+        Args: { p_song: string; p_user: string }
+        Returns: Json
+      }
       check_generation_capacity: { Args: { p_user: string }; Returns: Json }
       claim_daily_drop: { Args: never; Returns: Json }
       claim_due_orchestrations: {
