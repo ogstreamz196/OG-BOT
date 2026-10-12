@@ -60,7 +60,7 @@ type Summary = {
   recent: {
     id: string;
     amount: number;
-    type?: "referral_cashback" | "referral_payment";
+    type?: "referral_cashback" | "referral_payment" | "referral_payment_reversal";
     reference: string | null;
     created_at: string;
     referee_id: string | null;
@@ -179,7 +179,11 @@ function ReferralsPage() {
         },
         (payload) => {
           const row = payload.new as { type?: string; amount?: number } | null;
-          if (row?.type === "referral_cashback" || row?.type === "referral_payment") {
+          if (
+            row?.type === "referral_cashback" ||
+            row?.type === "referral_payment" ||
+            row?.type === "referral_payment_reversal"
+          ) {
             qc.invalidateQueries({ queryKey: ["referral-summary", user.id] });
             qc.invalidateQueries({ queryKey: ["profile", user.id] });
             if (typeof row.amount === "number" && row.amount > 0) {
@@ -545,6 +549,7 @@ function ReferralsPage() {
             {summary.recent.map((tx) => {
               const burned = Number(tx.reference?.match(/burn:(\d+)/)?.[1] ?? 0);
               const isPayment = tx.type === "referral_payment";
+              const isReversal = tx.type === "referral_payment_reversal";
               const when = new Date(tx.created_at);
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -555,19 +560,29 @@ function ReferralsPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 truncate text-sm font-bold">
                         {tx.referee_name ?? "Referred user"}
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
-                          <CheckCircle2 className="h-2.5 w-2.5" /> Paid
-                        </span>
+                        {isReversal ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
+                            Refunded
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                            <CheckCircle2 className="h-2.5 w-2.5" /> Paid
+                          </span>
+                        )}
                       </div>
                       <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-                        {isPayment ? (
+                        {isReversal ? (
+                          <>Payment refunded, reward reversed = </>
+                        ) : isPayment ? (
                           <>Successful payment reward = </>
                         ) : burned > 0 ? (
                           <>{burned} used → </>
                         ) : (
                           <>Cashback = </>
                         )}
-                        <span className="font-bold text-primary">+{tx.amount} OG</span>
+                        <span className="font-bold text-primary">
+                          {tx.amount >= 0 ? `+${tx.amount}` : `−${Math.abs(tx.amount)}`} OG
+                        </span>
                       </div>
                     </div>
                   </div>

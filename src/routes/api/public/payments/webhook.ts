@@ -391,6 +391,7 @@ async function upsertRefundRow(opts: {
       refundId: opts.refundId,
       env: opts.env,
     });
+    await reverseReferralRewardsForRefund(userId, sessionId, opts.env);
   }
 
   if (opts.env === "live" && opts.status === "succeeded" && opts.amount > 0) {
@@ -436,6 +437,25 @@ async function clawbackCoinsForRefund(opts: {
     coins: result?.coins,
     reason: result?.reason,
   });
+}
+
+// Take back the referral reward a refunded payment earned (coin pack, VIP,
+// track or store). Idempotent per reward; never pushes the referrer below 0.
+async function reverseReferralRewardsForRefund(userId: string, sessionId: string, env: StripeEnv) {
+  const supabase = await getAdminClient();
+  const { data, error } = await (supabase as any).rpc("reverse_referral_rewards_for_refund", {
+    _referee_id: userId,
+    _env: env,
+    _session_id: sessionId,
+  });
+  if (error) {
+    log("error", "referral reversal failed", { userId, sessionId, err: error.message });
+    throw new Error(`referral reversal failed: ${error.message}`);
+  }
+  const result = data as { reversed?: number; coins?: number } | null;
+  if (result?.reversed) {
+    log("info", "referral reward reversed", { userId, sessionId, ...result });
+  }
 }
 
 async function handleRefundEvent(refund: any, env: StripeEnv) {
