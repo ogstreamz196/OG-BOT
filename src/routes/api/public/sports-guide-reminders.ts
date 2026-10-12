@@ -71,7 +71,7 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
         } catch (e) {
           console.error("[tg] ephemeral sweep failed", e);
         }
-        // VIP ending reminders on Telegram: 3 days and 1 day before expiry, once each.
+        // VIP ending reminders on Telegram: weekly from 1 month out, plus a final-day nudge, once each.
         let vipReminded = 0;
         try {
           const now = Date.now();
@@ -81,11 +81,12 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
             .eq("role", "vip")
             .not("expires_at", "is", null)
             .gt("expires_at", new Date(now).toISOString())
-            .lte("expires_at", new Date(now + 3 * 86400_000).toISOString())
+            .lte("expires_at", new Date(now + 30 * 86400_000).toISOString())
             .limit(200);
           for (const v of vips ?? []) {
             const left = new Date(v.expires_at as string).getTime() - now;
-            const kind = left <= 86400_000 ? "1d" : "3d";
+            const days = Math.ceil(left / 86400_000);
+            const kind = days <= 1 ? "1d" : `w${Math.min(4, Math.ceil(days / 7))}`;
             const { error: dupe } = await supabaseAdmin
               .from("vip_expiry_reminders")
               .insert({ user_id: v.user_id, expires_at: v.expires_at as string, kind });
@@ -96,7 +97,7 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
               .eq("id", v.user_id)
               .maybeSingle();
             if (!prof?.telegram_chat_id) continue;
-            const when = kind === "1d" ? "tomorrow" : "in 3 days";
+            const when = days <= 1 ? "tomorrow" : `in ${days} days`;
             const ok = await sendTelegramText(
               prof.telegram_chat_id,
               `👑 <b>Heads up, VIP</b>\n\nYour OG VIP ends ${when}. Renew now to keep every style, perk and priority cooking.\n\n<a href="https://www.ogbot.co.uk/store">Renew VIP</a>`,

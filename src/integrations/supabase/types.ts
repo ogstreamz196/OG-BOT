@@ -922,6 +922,7 @@ export type Database = {
           telegram_username: string | null
           total_bot_interactions: number
           updated_at: string
+          vip_name_confirmed_at: string | null
           vip_trial_ends_at: string | null
           vip_trial_started_at: string | null
           widget_deployed_domains: string[]
@@ -956,6 +957,7 @@ export type Database = {
           telegram_username?: string | null
           total_bot_interactions?: number
           updated_at?: string
+          vip_name_confirmed_at?: string | null
           vip_trial_ends_at?: string | null
           vip_trial_started_at?: string | null
           widget_deployed_domains?: string[]
@@ -990,6 +992,7 @@ export type Database = {
           telegram_username?: string | null
           total_bot_interactions?: number
           updated_at?: string
+          vip_name_confirmed_at?: string | null
           vip_trial_ends_at?: string | null
           vip_trial_started_at?: string | null
           widget_deployed_domains?: string[]
@@ -2654,6 +2657,7 @@ export type Database = {
         Args: { p_phrase: string; p_user_id: string }
         Returns: undefined
       }
+      og_vip_id_for: { Args: { p_name: string }; Returns: string }
       pay_referral_cashback: {
         Args: { p_burn: number; p_referee: string; p_reference: string }
         Returns: number
