@@ -2739,6 +2739,15 @@ export type Database = {
       }
       start_vip_trial_once: { Args: never; Returns: Json }
       sync_owner_track_bonus: { Args: { p_song: string }; Returns: undefined }
+      unlock_community_track: {
+        Args: {
+          _buyer: string
+          _cost: number
+          _royalty: number
+          _song_id: string
+        }
+        Returns: Json
+      }
       unrevoke_og_bot_token: {
         Args: { admin_notes?: string; target_user_id: string }
         Returns: boolean
