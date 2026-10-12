@@ -27,6 +27,7 @@ import { useRole } from "@/hooks/use-role";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "./AppSidebar";
 import { VipTrialWelcome } from "./VipTrialWelcome";
+import { VipNamePrompt } from "@/components/vip/VipNamePrompt";
 import { HighContrastToggle } from "./HighContrastToggle";
 import { WelcomeBackdrop } from "./WelcomeBackdrop";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -113,6 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="relative flex min-h-dvh w-full bg-background/80 text-foreground">
           <AppSidebar />
           <VipTrialWelcome />
+          <VipNamePrompt />
 
           <div className="flex min-w-0 flex-1 flex-col">
             <header

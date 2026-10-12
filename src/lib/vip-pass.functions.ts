@@ -26,6 +26,7 @@ export const getVipPassStatus = createServerFn({ method: "GET" })
     ]);
     const trialEnds = (prof as { vip_trial_ends_at?: string | null } | null)?.vip_trial_ends_at ?? null;
     const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
+    void onTrial;
     const isStaff = (staff?.length ?? 0) > 0;
     let username: string | null = null;
     let password: string | null = null;
@@ -35,7 +36,8 @@ export const getVipPassStatus = createServerFn({ method: "GET" })
       .eq("active", true)
       .order("created_at", { ascending: true });
     const available = creds?.length ?? 0;
-    const owned = !!purchase || onTrial || isStaff;
+    // The intro VIP offer no longer includes Vault access.
+    const owned = !!purchase || isStaff;
     if (owned && creds && creds.length > 0) {
       const windowIndex = Math.floor(Date.now() / (2 * 60 * 60 * 1000));
       const cred = creds[windowIndex % creds.length];
@@ -45,10 +47,10 @@ export const getVipPassStatus = createServerFn({ method: "GET" })
     return {
       owned,
       purchased: !!purchase,
-      trial: onTrial && !purchase && !isStaff,
-      trialEndsAt: onTrial ? trialEnds : null,
+      trial: false,
+      trialEndsAt: null,
       // kept for older callers: true while the free trial is what unlocks it
-      vipFree: onTrial && !purchase && !isStaff,
+      vipFree: false,
       username,
       password,
       available,

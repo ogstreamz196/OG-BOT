@@ -628,6 +628,8 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
 const OPEN_AUTH = "og:open-auth";
 const OPEN_WIZARD = "og:open-guest-wizard";
 const openAuth = () => window.dispatchEvent(new Event(OPEN_AUTH));
+const openAuthFromBattle = () =>
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { fromBattle: true } }));
 const openSongAuth = (title: string) =>
   window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
@@ -668,9 +670,12 @@ function GuestWizard() {
 function AuthModal() {
   const [open, setOpen] = useState(false);
   const [songTitle, setSongTitle] = useState<string | null>(null);
+  const [fromBattle, setFromBattle] = useState(false);
   useEffect(() => {
     const on = (e: Event) => {
-      setSongTitle((e as CustomEvent<{ songTitle?: string }>).detail?.songTitle ?? null);
+      const d = (e as CustomEvent<{ songTitle?: string; fromBattle?: boolean }>).detail;
+      setSongTitle(d?.songTitle ?? null);
+      setFromBattle(!!d?.fromBattle);
       setOpen(true);
     };
     window.addEventListener(OPEN_AUTH, on);
@@ -679,6 +684,7 @@ function AuthModal() {
       const a = (e.target as HTMLElement | null)?.closest?.('a[href="#sign-in"]');
       if (a) {
         e.preventDefault();
+        setFromBattle(false);
         setOpen(true);
       }
     };
@@ -708,6 +714,17 @@ function AuthModal() {
               <p className="mt-3 text-xs font-medium text-card-foreground/80">
                 🔒 100% free. Email only for password resets — no spam, ever.
               </p>
+            </div>
+          )}
+          {fromBattle && (
+            <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
+              <p className="font-display text-xl font-black">Don't stop now 🔥</p>
+              <p className="mt-1 text-sm">Join free to keep battling — your chat comes with you.</p>
+              <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
+                <li>🔒 Unlock Private chat — just you &amp; OG Bot, nobody else sees a word</li>
+                <li>🪙 Earn OG Coins for every roast you land</li>
+                <li>👑 15 days of VIP on us</li>
+              </ul>
             </div>
           )}
           <AuthButtons size="xl" />
@@ -808,61 +825,64 @@ function TopNav() {
   );
 }
 
-/** Giant red hazard-striped "create a track now" button. */
-function HazardCta({ className = "" }: { className?: string }) {
-  const stripes =
-    "repeating-linear-gradient(45deg, #FACC15 0 16px, #0B0B12 16px 32px)";
+/** Tile card matching the welcome superpower cards. */
+function TileCta({
+  emoji,
+  title,
+  body,
+  cta,
+  onClick,
+  className = "",
+}: {
+  emoji: string;
+  title: string;
+  body: string;
+  cta: string;
+  onClick: () => void;
+  className?: string;
+}) {
   return (
     <button
       type="button"
-      onClick={openWizard}
-      aria-label="Create a track now"
-      className={`group relative w-full max-w-md overflow-hidden rounded-2xl bg-red-600 px-6 py-5 text-center text-2xl font-black uppercase tracking-wide text-red-50 shadow-[0_0_45px_-8px_rgba(220,38,38,0.9)] ring-4 ring-red-500/60 transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-red-300 active:scale-[0.98] sm:px-10 sm:py-7 sm:text-3xl ${className}`}
+      onClick={onClick}
+      aria-label={title}
+      className={`group relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card p-5 text-left shadow-card transition-transform hover:scale-[1.02] hover:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/50 active:scale-[0.98] sm:p-6 ${className}`}
     >
-      <span
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-2.5 transition-transform group-hover:animate-none"
-        style={{ background: stripes }}
-      />
-      <span
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-2.5"
-        style={{ background: stripes }}
-      />
-      <span className="relative inline-flex items-center justify-center gap-3 [text-wrap:balance]">
-        <span className="text-3xl sm:text-4xl" aria-hidden>
-          ⚠️
-        </span>
-        Create a Track Now
+      <span className="text-4xl" aria-hidden>
+        {emoji}
+      </span>
+      <span className="font-display mt-3 block text-2xl font-black tracking-tight">{title}</span>
+      <span className="mt-2 block text-sm text-muted-foreground sm:text-base">{body}</span>
+      <span className="mt-4 inline-flex items-center gap-1 text-sm font-black uppercase tracking-wide text-primary">
+        {cta} →
       </span>
     </button>
   );
 }
 
-/** Black/yellow danger-zone button that opens the Battle Zone popup. */
-function DangerZoneCta({ className = "" }: { className?: string }) {
-  const stripes =
-    "repeating-linear-gradient(-45deg, #FACC15 0 14px, #0B0B12 14px 28px)";
+function HazardCta({ className = "" }: { className?: string }) {
   return (
-    <button
-      type="button"
+    <TileCta
+      emoji="🎤"
+      title="Create a Track Now"
+      body="Your words, real vocals and cover art — cooked in minutes."
+      cta="Start creating"
+      onClick={openWizard}
+      className={className}
+    />
+  );
+}
+
+function DangerZoneCta({ className = "" }: { className?: string }) {
+  return (
+    <TileCta
+      emoji="🤬"
+      title="Enter Battle Zone"
+      body="Everyone vs OG Bot. Throw your best roast and see who wins."
+      cta="Roast the bot"
       onClick={openBattle}
-      aria-label="Enter Battle Zone"
-      className={`group relative w-full max-w-md overflow-hidden rounded-2xl p-2.5 shadow-[0_0_45px_-8px_rgba(250,204,21,0.8)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow-300 active:scale-[0.98] ${className}`}
-      style={{ background: stripes }}
-    >
-      <span className="relative flex flex-col items-center justify-center rounded-xl bg-zinc-950 px-6 py-4 sm:px-10 sm:py-5">
-        <span className="inline-flex items-center gap-3 text-2xl font-black uppercase tracking-wide text-yellow-300 sm:text-3xl">
-          <span className="text-3xl group-hover:animate-bounce sm:text-4xl" aria-hidden>
-            🤬
-          </span>
-          Enter Battle Zone
-        </span>
-        <span className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-yellow-100/80">
-          ☠️ Danger zone · roast the bot
-        </span>
-      </span>
-    </button>
+      className={className}
+    />
   );
 }
 
@@ -881,7 +901,7 @@ function BattleModal() {
         <GuestBattle
           onNeedAccount={() => {
             setOpen(false);
-            setTimeout(openAuth, 150);
+            setTimeout(openAuthFromBattle, 150);
           }}
         />
       </DialogContent>
@@ -914,9 +934,9 @@ function Hero() {
           Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
         </p>
 
-        <div className="mt-6 flex flex-col items-stretch justify-center gap-4 sm:items-center">
-          <HazardCta className="sm:w-auto sm:min-w-[26rem]" />
-          <DangerZoneCta className="sm:w-auto sm:min-w-[26rem]" />
+        <div className="mx-auto mt-6 grid max-w-3xl gap-3 sm:grid-cols-2 sm:gap-5">
+          <HazardCta className="max-w-none" />
+          <DangerZoneCta className="max-w-none" />
         </div>
 
         <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">

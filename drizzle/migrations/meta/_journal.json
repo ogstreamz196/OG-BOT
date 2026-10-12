@@ -78,6 +78,62 @@
       "when": 1791737808463,
       "tag": "0010_vip_expiry_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791787495149,
+      "tag": "0011_coin_refund_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791787522141,
+      "tag": "0012_unlock_community_track",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791843014093,
+      "tag": "0013_refund_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791843032921,
+      "tag": "0014_cancel_song_generation",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791843081497,
+      "tag": "0015_referral_cashback_accrual",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791843135183,
+      "tag": "0016_referral_rules_backpay",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791843151486,
+      "tag": "0017_song_creation_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791845711959,
+      "tag": "0018_vip_username_lock",
+      "breakpoints": true
     }
   ]
 }
