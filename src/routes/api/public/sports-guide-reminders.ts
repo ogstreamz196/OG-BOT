@@ -86,7 +86,7 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
           for (const v of vips ?? []) {
             const left = new Date(v.expires_at as string).getTime() - now;
             const days = Math.ceil(left / 86400_000);
-            const kind = days <= 1 ? "1d" : `w${Math.ceil(days / 7)}`;
+            const kind = days <= 1 ? "1d" : `w${Math.min(4, Math.ceil(days / 7))}`;
             const { error: dupe } = await supabaseAdmin
               .from("vip_expiry_reminders")
               .insert({ user_id: v.user_id, expires_at: v.expires_at as string, kind });
