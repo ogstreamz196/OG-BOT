@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Compact, share-first reminder: shows the user's OG referral code and the
- * 10% commission promise. Drop it anywhere coins are being spent or bought
+ * 6%–13% commission promise. Drop it anywhere coins are being spent or bought
  * so the cashback loop stays top-of-mind.
  */
 export function ReferralReminder({ className }: { className?: string }) {
@@ -42,7 +42,7 @@ export function ReferralReminder({ className }: { className?: string }) {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      toast.success("Link copied — share it to earn 10% cashback");
+      toast.success("Link copied — share it to earn up to 13% cashback");
       setTimeout(() => setCopied(false), 1800);
     } catch {
       toast.error("Couldn't copy");
@@ -85,13 +85,13 @@ export function ReferralReminder({ className }: { className?: string }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold uppercase text-foreground/85">
-              Earn 10% cashback
+              Earn up to 13% cashback
             </div>
             <p
               className="text-foreground [overflow-wrap:anywhere]"
               style={{ fontSize: "clamp(0.8125rem, 2.6vw, 0.9375rem)", lineHeight: 1.35 }}
             >
-              Share your code and bank 10% of every coin they burn — forever.
+              Share your code and bank 6% of every coin they burn — 13% as an OG VIP. Forever.
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
               <code

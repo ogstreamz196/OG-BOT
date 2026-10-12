@@ -44,10 +44,7 @@ try {
     const page = await ctx.newPage();
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     if (storageKey && sessionJson) {
-      await page.evaluate(
-        ([k, v]) => window.localStorage.setItem(k, v),
-        [storageKey, sessionJson],
-      );
+      await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
     }
     for (const route of ROUTES) {
       const slug = route.replace(/^\//, "").replace(/\//g, "_") || "home";

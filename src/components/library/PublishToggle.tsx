@@ -27,7 +27,7 @@ export function PublishToggle({ songId, isPublic, onChanged }: Props) {
         .update({ is_public: next } as never)
         .eq("id", songId);
       if (error) throw error;
-      toast.success(next ? "Published to the global player" : "Removed from the global player");
+      toast.success(next ? "Published to Community" : "Removed from Community");
       onChanged?.();
     } catch (e) {
       setValue(!next);
@@ -48,7 +48,7 @@ export function PublishToggle({ songId, isPublic, onChanged }: Props) {
         </span>
         <span className="min-w-0 break-words leading-snug">
           <span className="block font-semibold">
-            {value ? "Shared in the global player" : "Private to your library"}
+            {value ? "Shared in Community" : "Private to your library"}
           </span>
           <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
             {value
@@ -64,7 +64,7 @@ export function PublishToggle({ songId, isPublic, onChanged }: Props) {
           checked={value}
           disabled={saving}
           onCheckedChange={update}
-          aria-label={value ? "Turn off global sharing" : "Turn on global sharing"}
+          aria-label={value ? "Remove from Community" : "Share to Community"}
           className="w-20"
         />
       </span>

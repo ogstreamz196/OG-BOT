@@ -83,6 +83,7 @@ export function MintCoinsPanel() {
       const ids = Array.from(new Set(list.map((t) => t.user_id)));
       if (!ids.length) return list;
       const { data: profs } = await supabase.from("profiles").select("id, email").in("id", ids);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
       const map = new Map((profs ?? []).map((p: any) => [p.id, p.email]));
       return list.map((t) => ({ ...t, email: map.get(t.user_id) ?? null }));
     },

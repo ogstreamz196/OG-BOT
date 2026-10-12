@@ -1,3 +1,5 @@
+import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -76,6 +78,8 @@ export function FreshTrackCard({
     };
   }, [song.id, unlocked]);
   const title = song.title || "Your track";
+  // Never offer a download until the finished master exists.
+  const fullReady = song.status === "completed" && !!song.audio_path;
   const cap = Math.max(5, sampleSeconds);
 
   // Fetch the preview URL and start playing straight away.
@@ -138,27 +142,18 @@ export function FreshTrackCard({
     }
   }
 
+  const buyOwnerTrack = useServerFn(purchaseOwnerTrack);
   async function confirmUnlock() {
     setBusy(true);
     try {
-      const { data: unlockData, error: unlockErr } = await supabase.functions.invoke(
-        "unlock-full-song",
-        { body: { song_id: song.id } },
-      );
-      if (unlockErr) {
-        throw new Error(
-          (unlockErr as { context?: { error?: string } })?.context?.error ||
-            unlockErr.message ||
-            "Could not unlock track",
-        );
-      }
+      const unlockData = await buyOwnerTrack({ data: { songId: song.id } });
       setUnlocked(true);
       audioRef.current?.pause();
       requestFullTrackPlay(song.id);
       await qc.invalidateQueries({ queryKey: ["profile"] });
       await qc.invalidateQueries({ queryKey: ["library"] });
       if (!unlockData?.already) {
-        toast.success(`Full track unlocked · -${unlockData?.cost ?? unlockCost} coins`);
+        toast.success(`Full track unlocked + Take 2 free · -${unlockData?.cost ?? unlockCost} coins`);
       }
       const { data, error } = await supabase.functions.invoke("song-url", {
         body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
@@ -166,7 +161,7 @@ export function FreshTrackCard({
       if (error) throw new Error(error.message || "Download failed");
       const blob = await downloadFile(data.url as string, `${title}.mp3`);
       setUnlockOpen(false);
-      await shareTrack({ title, blob, filename: `${title}.mp3` });
+      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Unlock failed");
     } finally {
@@ -183,7 +178,7 @@ export function FreshTrackCard({
       });
       if (error || !data?.url) throw new Error("Could not prepare the track");
       const blob = await downloadFile(data.url as string, `${title}.mp3`);
-      await shareTrack({ title, blob, filename: `${title}.mp3` });
+      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Share failed");
     } finally {
@@ -266,17 +261,21 @@ export function FreshTrackCard({
           <Button
             type="button"
             onClick={() => setUnlockOpen(true)}
-            disabled={busy}
+            disabled={busy || (unlocked && !fullReady)}
             className="min-h-12 w-full gap-2 rounded-2xl bg-gradient-brand font-black uppercase tracking-[0.12em] text-primary-foreground shadow-glow sm:col-span-2"
           >
-            {busy ? (
+            {busy || (unlocked && !fullReady) ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : unlocked ? (
               <Download className="h-4 w-4" />
             ) : (
               <Lock className="h-4 w-4" />
             )}
-            {unlocked ? "Download full track" : `Unlock full version · ${unlockCost} coins`}
+            {unlocked
+              ? fullReady
+                ? "Download full track"
+                : "Download pending…"
+              : `Unlock full version · ${unlockCost} coins`}
           </Button>
           {unlocked && (
             <Button
@@ -324,6 +323,7 @@ export function FreshTrackCard({
         balance={balance}
         songTitle={title}
         songId={song.id}
+        includesSecondTake
       />
     </section>
   );

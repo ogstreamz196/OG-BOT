@@ -5,7 +5,6 @@ import {
   Loader2,
   Plus,
   ShoppingBag,
-  ArrowLeft,
   Trash2,
   Pencil,
   Package,
@@ -16,7 +15,7 @@ import {
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { FlameHeading } from "@/components/ui/flame-heading";
+import { BossNav } from "@/components/admin/BossNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -262,23 +261,12 @@ function AdminStorePage() {
 
   return (
     <DashboardShell title="Store admin">
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+      <div className="boss-ui mx-auto w-full min-w-0 max-w-5xl space-y-6">
+        <BossNav />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Link
-              to="/admin"
-              className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3 w-3" /> Boss Console
-            </Link>
-            <FlameHeading as="h1" size="xl">
-              Store Admin
-            </FlameHeading>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add unlimited items across coins, subscriptions, and random loot. Each item is
-              checkout-ready via Google Play.
-            </p>
-          </div>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Add items across coins, subscriptions and random loot. Each item is checkout-ready.
+          </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setCatDialog(true)}>
               <Plus className="mr-1 h-4 w-4" /> Category

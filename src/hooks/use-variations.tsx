@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "@/hooks/use-settings";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 import type { Variation } from "@/components/library/song-workspace/types";
 
 interface UseVariationsArgs {
@@ -30,10 +30,13 @@ export function useVariations({
   const [busyVariation, setBusyVariation] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
 
-  const variationDivisor = Math.max(1, settings?.coins_per_variation_divisor ?? 2);
+  // Flat remake price, mirrored from supabase/functions/reveal-variation.
+  const remakePrice = Number(
+    (settings as { coins_per_remake?: number } | undefined)?.coins_per_remake,
+  );
   const variationCost = useMemo(
-    () => Math.max(1, Math.ceil(previewCost / variationDivisor)),
-    [previewCost, variationDivisor],
+    () => (Number.isFinite(remakePrice) && remakePrice >= 1 ? Math.round(remakePrice) : 2),
+    [remakePrice],
   );
 
   useEffect(() => {
@@ -69,13 +72,15 @@ export function useVariations({
         const { data, error } = await supabase.functions.invoke("reveal-variation", {
           body: { song_id: id },
         });
-        if (error) throw new Error(invokeError(error, "Reveal failed"));
+        if (error) throw new Error(await readInvokeError(error, "Reveal failed"));
         if (!data?.already)
-          toast.success(`Alt take revealed · -${data?.cost ?? variationCost} coins`);
+          toast.success(
+            `Remake ready! New version added to your library · -${data?.cost ?? variationCost} coins`,
+          );
         setVariations((vs) => vs.map((v) => (v.id === id ? { ...v, revealed: true } : v)));
         onChanged?.();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Reveal failed");
+        toast.error(e instanceof Error ? e.message : "Remake failed");
         throw e;
       } finally {
         setBusyVariation(null);

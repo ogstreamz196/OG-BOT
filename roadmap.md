@@ -32,3 +32,41 @@
 - [x] "Use this vibe" remix button on library and global tracks
 - [x] Purchase-complete page after card checkout (/buy-coins/return)
 - [x] Enlarge and polish private and global Messenger typing areas, then verify phone behavior
+- [x] Share tracks with audio, OG BOT branding, and a permanent track-specific listening link
+
+## Library Phase 2
+
+- [x] Build two-tier track rows with metadata chips, seek bar, and action drawer
+- [x] Add All, Unlocked, and Styles Library filters
+- [ ] Walk generation, player, shuffle, and second-take playback end to end
+- [x] Verify the finished Library experience on mobile
+
+## Generation reliability (Oct 2026)
+
+- [x] Remove one/two-track choice; include Take 2 free when first track is paid/unlocked
+- [x] Show two tracks for the price of one on coin/card payment selection and verify both paths
+
+- [x] Move web installation prompt to the top with Install now; exclude native Android
+- [x] Enforce lyric slider levels, especially Savage, and verify targeted tests
+
+- [x] Automatically recover or retry failed track generations in the background without charging coins
+- [x] Verify retry scheduling, terminal failures, and clean app build
+
+## Pending
+
+- [x] Use the supplied OG-STREAMZ artwork on Welcome back and enlarge both welcome and sign-in logos
+- [x] Free AI fallback cascade (Groq, OpenRouter) — waiting on user to add GROQ_API_KEY and OPENROUTER_API_KEY
+- [x] Use Lexcel32 as the username example and derive yearly VIP IDs as OG plus the uppercase username
+
+## Later
+
+- [ ] Fix the primary Gemini key (Google says "project denied access") so lyrics stop using the paid backup key — blocked on owner checking Google Cloud
+
+## Native store compliance (Oct 2026)
+
+- [x] Battle Zone Report message / Block user in phone apps
+- [x] iOS privacy manifest
+- [x] Android app link package name = og.bot
+- [x] Platform-correct store wording, no web checkout links in apps
+- [ ] iOS production RevenueCat key — pending (owner to supply)
+- [ ] Age rating questionnaires 16+/17+ at store submission (owner)

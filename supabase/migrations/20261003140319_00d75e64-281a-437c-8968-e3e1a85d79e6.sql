@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.protect_vip_trial() FROM PUBLIC, anon, authenticated;

@@ -70,13 +70,13 @@ export const chatOgBot = createServerFn({ method: "POST" })
     const [profileRes, rolesRes, prefRes, siteRes, learnedRes, freeRes] = await Promise.all([
       supabaseAdmin
         .from("profiles")
-        .select("display_name, email, coin_balance")
+        .select("display_name, email, coin_balance, vip_trial_ends_at")
         .eq("id", context.userId)
         .maybeSingle(),
       supabaseAdmin.from("user_roles").select("role").eq("user_id", context.userId),
       supabaseAdmin
         .from("user_preferences")
-        .select("foul_mouth")
+        .select("foul_mouth, foul_intensity")
         .eq("user_id", context.userId)
         .maybeSingle(),
       supabaseAdmin
@@ -100,9 +100,6 @@ export const chatOgBot = createServerFn({ method: "POST" })
     if (!rawProfile) throw new Error("Profile not found");
     const { maskDevIdentity } = await import("@/lib/dev-identity");
     const profile = maskDevIdentity(rawProfile)!;
-    if ((profile.coin_balance ?? 0) <= 0) {
-      throw new Error("Out of OG coins. Top up from Buy OG Coins or grab VIP to keep chatting.");
-    }
 
     const roles = (rolesRes.data ?? []).map((r) => r.role);
     const personaMap = new Map<string, string>(
@@ -121,30 +118,40 @@ export const chatOgBot = createServerFn({ method: "POST" })
         ? new Date(freeExpRaw).getTime() <= Date.now()
         : false;
     const freeAccess = (freeRaw === true || freeRaw === "true") && !freeExpired;
-    const isVip = roles.includes("vip") || roles.includes("admin") || freeAccess;
+    const trialEnds = (rawProfile as { vip_trial_ends_at?: string | null }).vip_trial_ends_at;
+    const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
+    const isVip = roles.includes("vip") || roles.includes("admin") || freeAccess || onTrial;
 
     const foulMouth = isVip ? (prefRes.data?.foul_mouth ?? true) : false;
+
+    // The messenger has no level selector — VIP chat always runs at full DEMON intensity.
+    const foulIntensity = isVip ? 3 : 1;
 
     const userCtx: UserContextSummary = {
       display_name: profile.display_name,
       email: profile.email,
       coin_balance: profile.coin_balance ?? 0,
-      is_admin: roles.includes("admin"),
+      is_admin: roles.includes("admin") || roles.includes("boss"),
       is_vip: roles.includes("vip"),
       page_context: data.pageContext || undefined,
     };
 
     const learnedInsults = (learnedRes.data ?? []).map((r: { phrase: string }) => r.phrase);
 
-    const effectiveLanguage = isVip ? data.language || "English" : "English";
+    const effectiveLanguage = data.language || "English";
 
     const { buildSystemPrompt, detectSongIntent } = await import("@/lib/og-persona.server");
+    const { loadUserDossier } = await import("@/lib/og-user-dossier.server");
+    const dossier = await loadUserDossier(supabaseAdmin, context.userId).catch(() => null);
 
     const latestUserMsg = [...data.messages].reverse().find((m) => m.role === "user");
     const songIntent =
       detectSongIntent(latestUserMsg?.content) || detectSongIntent(data.pageContext);
 
-    const system = buildSystemPrompt({
+    const intensityNote = foulMouth
+      ? `\n\nSWEAR INTENSITY: ${["", "MILD — light cheeky swearing only", "SPICY — regular swearing and sharp roasts", "DEMON — maximum savage, uncensored roasting"][foulIntensity]}.`
+      : "";
+    const baseSystem = buildSystemPrompt({
       mode: data.mode,
       foulMouth,
       bossScript: personaMap.get("og_persona.script") ?? null,
@@ -154,7 +161,30 @@ export const chatOgBot = createServerFn({ method: "POST" })
       language: effectiveLanguage,
       user: userCtx,
       songIntent,
+      dossier,
     });
+    let promo: import("@/lib/vip-promo.server").PromoResult | null = null;
+    let promoNote = "";
+    {
+      const vp = await import("@/lib/vip-promo.server");
+      if (vp.detectPromoIntent(latestUserMsg?.content)) {
+        promo = await vp.getOrCreateVipPromo(supabaseAdmin, context.userId, {
+          isPaidVip: roles.includes("vip"),
+        });
+        promoNote = vp.promoPromptNote(promo);
+      }
+    }
+    let sportsNote = "";
+    try {
+      const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
+      const block = await buildSportsGuideContext(supabaseAdmin, context.userId, latestUserMsg?.content ?? "");
+      if (block) sportsNote = `\n\n${block}`;
+    } catch (e) {
+      console.warn("sports guide context failed", e);
+    }
+    const cp = await import("@/lib/og-catchphrases.server");
+    const phrases = await cp.pickCatchphrases(supabaseAdmin as never, context.userId, cp.toneFor(data.mode, foulMouth));
+    const system = baseSystem + intensityNote + promoNote + sportsNote + cp.catchphraseNote(phrases);
 
     // 1b. Learn fresh insults from the latest user message (fire-and-forget upsert).
     let newlyLearned: string[] = [];
@@ -185,18 +215,8 @@ export const chatOgBot = createServerFn({ method: "POST" })
       }
     }
 
-    // 2. Deduct 1 coin atomically BEFORE the AI call to avoid double-spend on retry.
-    const { data: newBalance, error: deductErr } = await supabaseAdmin.rpc("deduct_coins", {
-      p_user: context.userId,
-      p_amount: 1,
-      p_reference: "og_messenger_chat",
-    });
-    if (deductErr) {
-      if (/insufficient_coins/i.test(deductErr.message)) {
-        throw new Error("Out of OG coins. Top up to keep chatting.");
-      }
-      throw new Error(deductErr.message);
-    }
+    // 2. Private mode is free — no coins are charged.
+    const newBalance: number | null = profile.coin_balance ?? 0;
 
     // 3. Use Perplexity only when the message clearly needs current web facts.
     const outgoing = [...data.messages];
@@ -216,7 +236,7 @@ export const chatOgBot = createServerFn({ method: "POST" })
     }
 
     // 4. Call Gemini or ChatGPT, with one retryable cross-provider fallback.
-    try {
+    {
       const { response: res, provider } = await fetchAiChat(
         {
           temperature: data.mode === "og" && foulMouth ? 0.9 : data.mode === "og" ? 0.75 : 0.6,
@@ -237,40 +257,37 @@ export const chatOgBot = createServerFn({ method: "POST" })
           ],
         },
         context.userId,
+        { foulMouth: data.mode === "og" && !!foulMouth },
       );
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         console.error(`${provider} API error`, res.status, text);
-        if (res.status === 429) throw new Error("OG Bot is rate-limited, try again soon.");
-        if (res.status === 402)
-          throw new Error(
-            `${provider === "gemini" ? "Gemini" : "ChatGPT"} account quota is exhausted.`,
-          );
+        if (res.status === 429 || res.status === 402) {
+          if (/quota|credit|billing/i.test(text))
+            throw new Error("OG Bot is taking a break right now — please try again later.");
+          throw new Error("OG Bot is rate-limited, try again soon.");
+        }
         throw new Error(`OG Bot couldn't respond right now (HTTP ${res.status})`);
       }
 
       const json = (await res.json().catch(() => ({}))) as {
         choices?: { message?: { content?: string } }[];
       };
-      const reply = (json.choices?.[0]?.message?.content ?? "").trim() || "…";
+      let reply = (json.choices?.[0]?.message?.content ?? "").trim() || "…";
+      if (data.mode === "og" && foulMouth && (!data.language || /^english$/i.test(data.language))) {
+        const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
+        reply = ensureFoulFlavour(reply);
+      }
+      if (promo) {
+        const { ensureCodeInReply } = await import("@/lib/vip-promo.server");
+        reply = ensureCodeInReply(reply, promo);
+      }
 
       return {
         reply,
-        coin_balance: (newBalance as number | null) ?? userCtx.coin_balance - 1,
+        coin_balance: newBalance ?? userCtx.coin_balance,
         learned_insults: newlyLearned,
       };
-    } catch (err) {
-      // Refund the coin on hard AI failure so the user isn't charged for nothing.
-      try {
-        await supabaseAdmin.rpc("mint_coins_admin", {
-          target_user_id: context.userId,
-          amount: 1,
-          admin_notes: "og_messenger_chat_refund",
-        });
-      } catch {
-        // best-effort refund; do not mask the original failure
-      }
-      throw err;
     }
   });

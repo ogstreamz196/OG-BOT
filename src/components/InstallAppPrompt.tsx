@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { X, Share, Plus } from "lucide-react";
+import { Download, Smartphone, X } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Button } from "@/components/ui/button";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,170 +12,68 @@ const DISMISS_KEY = "og:install-dismissed-at";
 const DISMISS_DAYS = 7;
 
 function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(display-mode: standalone)").matches ||
-    // iOS Safari
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
-function isIOS(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  return window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
 function wasDismissedRecently(): boolean {
   try {
-    const v = localStorage.getItem(DISMISS_KEY);
-    if (!v) return false;
-    const ts = Number(v);
-    if (!Number.isFinite(ts)) return false;
-    return Date.now() - ts < DISMISS_DAYS * 24 * 60 * 60 * 1000;
-  } catch {
-    return false;
-  }
+    const ts = Number(localStorage.getItem(DISMISS_KEY));
+    return ts > 0 && Number.isFinite(ts) && Date.now() - ts < DISMISS_DAYS * 86400000;
+  } catch { return false; }
 }
 
 export function InstallAppPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [open, setOpen] = useState(false);
-  const [iosHelp, setIosHelp] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (isStandalone() || wasDismissedRecently()) return;
-    // iOS: install prompt removed — never show anything on iPhone/iPad.
-    if (isIOS()) return;
-
+    // Installed Capacitor apps must never receive a browser install prompt.
+    if (Capacitor.isNativePlatform() || isStandalone() || wasDismissedRecently()) return;
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
-      setOpen(true);
     };
+    const installed = () => setDeferred(null);
     window.addEventListener("beforeinstallprompt", handler);
-
-    const installedHandler = () => setOpen(false);
-    window.addEventListener("appinstalled", installedHandler);
-
+    window.addEventListener("appinstalled", installed);
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
-      window.removeEventListener("appinstalled", installedHandler);
+      window.removeEventListener("appinstalled", installed);
     };
   }, []);
 
-  function dismiss(e?: { preventDefault?: () => void; stopPropagation?: () => void }) {
-    e?.preventDefault?.();
-    e?.stopPropagation?.();
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    } catch {
-      /* ignore */
-    }
-    setOpen(false);
-    setIosHelp(false);
+  function dismiss() {
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* storage unavailable */ }
+    setDeferred(null);
   }
 
   async function install() {
-    if (deferred) {
+    if (!deferred || installing) return;
+    setInstalling(true);
+    try {
       await deferred.prompt();
       const choice = await deferred.userChoice;
-      if (choice.outcome === "accepted") {
-        setOpen(false);
-      } else {
-        dismiss();
-      }
-      setDeferred(null);
-      return;
-    }
-    // No native prompt → iOS instructions
-    setIosHelp(true);
+      if (choice.outcome === "dismissed") dismiss();
+      else setDeferred(null);
+    } catch { setDeferred(null); }
+    finally { setInstalling(false); }
   }
 
-  if (!open) return null;
-  if (isIOS()) return null;
-
-  const ios = isIOS();
-
-  // iOS expanded helper — still compact, anchored bottom, points to Share in Safari toolbar.
-  if (iosHelp) {
-    return (
-      <div
-        role="dialog"
-        aria-label="Add OG to your Home Screen"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
-        className="fixed inset-x-3 z-[70] mx-auto max-w-xs animate-fade-in sm:left-auto sm:right-4 sm:mx-0"
-      >
-        <div className="glass-panel-strong relative overflow-hidden rounded-2xl border border-primary/40 p-3 pr-11 text-xs shadow-glow">
-          <button
-            type="button"
-            onPointerUp={dismiss}
-            onClick={dismiss}
-            aria-label="Dismiss"
-            className="absolute right-1 top-1 grid h-10 w-10 touch-manipulation place-items-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="font-semibold text-foreground">Do this first 👇</div>
-          <ol className="mt-1.5 space-y-1 text-muted-foreground">
-            <li>
-              1. Tap <Share className="mx-0.5 inline h-3 w-3 text-primary" />{" "}
-              <span className="text-foreground">Share</span> below
-            </li>
-            <li>
-              2. Pick <Plus className="mx-0.5 inline h-3 w-3 text-primary" />{" "}
-              <span className="text-foreground">Add to Home Screen</span>
-            </li>
-          </ol>
-          <ArrowAnchor />
-        </div>
-      </div>
-    );
-  }
-
-  // Default tiny pill — bottom-center, points down to device toolbar.
+  if (!deferred) return null;
   return (
-    <div
-      role="dialog"
-      aria-label="Install OG app"
-      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
-      className="fixed inset-x-0 z-[60] mx-auto w-fit max-w-[92vw] animate-fade-in"
-    >
-      <div className="glass-panel-strong relative flex items-center gap-1.5 rounded-full border border-primary/40 py-1 pl-3 pr-1 text-xs shadow-glow">
-        <span className="font-semibold text-foreground">Do this first 👇</span>
-        <button
-          type="button"
-          onClick={install}
-          className="touch-manipulation rounded-full bg-gradient-brand px-3 py-2 text-xs font-semibold text-primary-foreground shadow-card transition hover:brightness-110"
-        >
-          {ios ? "Install" : "Add app"}
-        </button>
-        <button
-          type="button"
-          onPointerUp={dismiss}
-          onClick={dismiss}
-          aria-label="Dismiss"
-          className="grid h-10 w-10 touch-manipulation place-items-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <ArrowAnchor />
+    <aside aria-label="Install OG BOT" className="sticky top-0 z-[70] w-full border-b border-primary/30 bg-background text-foreground shadow-card">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2 sm:px-6">
+        <Smartphone className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1 text-sm font-bold">OG BOT</span>
+        <Button onClick={install} disabled={installing} className="shrink-0 px-4 font-semibold">
+          <Download aria-hidden="true" />{installing ? "Installing…" : "Install now"}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={dismiss} aria-label="Dismiss install prompt" title="Dismiss" className="shrink-0 text-muted-foreground">
+          <X />
+        </Button>
       </div>
-    </div>
-  );
-}
-
-// Downward-pointing arrow that visually anchors the pill to the device's bottom toolbar.
-function ArrowAnchor() {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 text-primary"
-    >
-      <svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor">
-        <path d="M7 8L0 0h14L7 8z" />
-      </svg>
-    </span>
+    </aside>
   );
 }

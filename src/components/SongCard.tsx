@@ -5,6 +5,8 @@ import { useSongAudio } from "@/hooks/use-song-audio";
 import { useReferralUrl } from "@/hooks/use-referral-url";
 import { shareLyricClip } from "@/lib/share-clip";
 import { Button } from "@/components/ui/button";
+import { CreatorTag } from "@/components/library/CreatorTag";
+
 import { cn } from "@/lib/utils";
 
 export interface Song {
@@ -25,6 +27,14 @@ export interface Song {
   suno_task_id?: string | null;
   stream_audio_url?: string | null;
   unlocked?: boolean | null;
+  /** True when the track's creator unlocked the master — everyone can listen free. */
+  artistUnlocked?: boolean | null;
+  is_variation?: boolean | null;
+  revealed?: boolean | null;
+  drive_audio_link?: string | null;
+  retry_count?: number | null;
+  next_retry_at?: string | null;
+  failure_class?: "recoverable_cdn" | "retryable" | "terminal" | null;
 }
 
 function SongCardImpl({ song }: { song: Song }) {
@@ -49,18 +59,8 @@ function SongCardImpl({ song }: { song: Song }) {
     });
 
   return (
-    <div
-      className={cn(
-        "group flex gap-4 rounded-2xl border p-4 transition-all duration-300",
-        playing
-          ? "border-primary/50 bg-primary/5 shadow-glow scale-[1.01]"
-          : "border-border bg-card shadow-card hover:shadow-glow hover:-translate-y-0.5"
-      )}
-    >
-      <div className={cn(
-        "relative h-24 w-24 shrink-0 overflow-hidden rounded-xl",
-        playing ? "silver-fire-aura" : "bg-gradient-brand-soft"
-      )}>
+    <div className="group flex gap-4 rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:shadow-glow">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gradient-brand-soft">
         {song.cover_url ? (
           <img
             src={song.cover_url}
@@ -107,6 +107,7 @@ function SongCardImpl({ song }: { song: Song }) {
               {song.style}
             </span>
           )}
+          <CreatorTag userId={song.user_id} className="mt-1" />
         </div>
 
         {isReady && (
@@ -186,6 +187,7 @@ function SongCardImpl({ song }: { song: Song }) {
         className="hidden"
         data-og-track={song.id}
         data-og-title={song.title || "OG track"}
+        data-og-full={unlocked ? "1" : undefined}
       />
     </div>
   );

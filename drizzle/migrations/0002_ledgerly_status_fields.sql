@@ -1,0 +1,1 @@
+ALTER TABLE public.ledgerly_settings ADD COLUMN IF NOT EXISTS last_sync_at timestamptz, ADD COLUMN IF NOT EXISTS key_name text;

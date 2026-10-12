@@ -102,13 +102,13 @@ export function DodgyLogo({
 
   return (
     <div
-      className={`pointer-events-none inline-flex items-center justify-center ${className}`}
-      style={{ width: size, height: size }}
+      className={`pointer-events-none inline-flex max-w-full items-center justify-center ${className}`}
+      style={{ width: `min(${size}px, 100%)`, aspectRatio: "1 / 1" }}
     >
       <div
         ref={wrapRef}
         className={isFine ? "will-change-transform" : "animate-[wcBob_4s_ease-in-out_infinite]"}
-        style={{ width: size, height: size, transition: isFine ? undefined : "transform 0.3s" }}
+        style={{ width: "100%", height: "100%", transition: isFine ? undefined : "transform 0.3s" }}
       >
         <img
           src={src ?? ogBotAsset.url}

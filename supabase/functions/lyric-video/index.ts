@@ -34,12 +34,17 @@ Deno.serve(async (req) => {
     if (!song_id) return jsonResponse({ error: "Missing song_id" }, 400);
 
     const admin = adminClient();
-    const { data: song } = await admin.from("songs")
-      .select("id, user_id, title, lyrics, cover_url, audio_path, sample_path, status, unlocked, duration_seconds, lyric_video_status, lyric_video_preview_path, lyric_video_full_path, lyric_video_unlocked, lyric_video_error")
-      .eq("id", song_id).maybeSingle();
+    const { data: song } = await admin
+      .from("songs")
+      .select(
+        "id, user_id, title, lyrics, cover_url, audio_path, sample_path, status, unlocked, duration_seconds, lyric_video_status, lyric_video_preview_path, lyric_video_full_path, lyric_video_unlocked, lyric_video_error",
+      )
+      .eq("id", song_id)
+      .maybeSingle();
     if (!song || song.user_id !== userId) return jsonResponse({ error: "Not found" }, 404);
     if (song.status !== "completed") return jsonResponse({ error: "Song not ready" }, 409);
-    if (!song.unlocked) return jsonResponse({ error: "Unlock the MP3 first", code: "mp3_locked" }, 403);
+    if (!song.unlocked)
+      return jsonResponse({ error: "Unlock the MP3 first", code: "mp3_locked" }, 403);
 
     if (action === "status") {
       return jsonResponse({
@@ -65,7 +70,9 @@ Deno.serve(async (req) => {
 
     if (action === "render_preview") {
       if (song.lyric_video_preview_path) {
-        const { data } = await admin.storage.from(BUCKET).createSignedUrl(song.lyric_video_preview_path, 60 * 10);
+        const { data } = await admin.storage
+          .from(BUCKET)
+          .createSignedUrl(song.lyric_video_preview_path, 60 * 10);
         return jsonResponse({ url: data?.signedUrl, status: "completed", cached: true });
       }
       const out = await renderAndStore(song, "preview", admin);
@@ -76,32 +83,49 @@ Deno.serve(async (req) => {
 
     if (action === "unlock") {
       // Settings: cost
-      const { data: row } = await admin.from("app_settings").select("value").eq("key", "coins_per_lyric_video").maybeSingle();
+      const { data: row } = await admin
+        .from("app_settings")
+        .select("value")
+        .eq("key", "coins_per_lyric_video")
+        .maybeSingle();
       const cost = typeof row?.value === "number" ? row.value : 5;
 
       const reference = `lyric_video:${song_id}`;
       let charged = false;
       if (!song.lyric_video_unlocked) {
         // Idempotency: marker row protects against double-charge on rapid retries.
-        const { data: existing } = await admin.from("coin_transactions")
-          .select("id").eq("reference", reference).eq("type", "lyric_video_unlock").maybeSingle();
+        const { data: existing } = await admin
+          .from("coin_transactions")
+          .select("id")
+          .eq("reference", reference)
+          .eq("type", "lyric_video_unlock")
+          .maybeSingle();
         if (!existing) {
           // Insert marker FIRST so a concurrent retry sees it before we deduct.
           const { error: markErr } = await admin.from("coin_transactions").insert({
-            user_id: userId, amount: 0, type: "lyric_video_unlock", reference,
+            user_id: userId,
+            amount: 0,
+            type: "lyric_video_unlock",
+            reference,
           });
           if (markErr) {
             // Likely a concurrent request beat us to it — treat as already-charged.
           } else {
             const { error: dErr } = await admin.rpc("deduct_coins", {
-              p_user: userId, p_amount: cost, p_reference: reference,
+              p_user: userId,
+              p_amount: cost,
+              p_reference: reference,
             });
             if (dErr) {
               // Roll back the marker so the user can retry after topping up.
-              await admin.from("coin_transactions").delete()
-                .eq("reference", reference).eq("type", "lyric_video_unlock");
+              await admin
+                .from("coin_transactions")
+                .delete()
+                .eq("reference", reference)
+                .eq("type", "lyric_video_unlock");
               const msg = dErr.message?.includes("insufficient_coins")
-                ? "Not enough coins" : (dErr.message ?? "Charge failed");
+                ? "Not enough coins"
+                : (dErr.message ?? "Charge failed");
               return jsonResponse({ error: msg, code: "charge_failed" }, 402);
             }
             charged = true;
@@ -118,7 +142,9 @@ Deno.serve(async (req) => {
           // Refund the charge so user is never billed for a missing video
           if (charged) {
             await admin.rpc("refund_generation_charge", {
-              p_user: userId, p_amount: cost, p_reference: `refund:lyric_video:${song_id}`,
+              p_user: userId,
+              p_amount: cost,
+              p_reference: `refund:lyric_video:${song_id}`,
             });
             await admin.from("songs").update({ lyric_video_unlocked: false }).eq("id", song_id);
           }
@@ -140,8 +166,13 @@ Deno.serve(async (req) => {
 // ---------- Renderer ----------
 
 type SongRow = {
-  id: string; title: string | null; lyrics: string | null; cover_url: string | null;
-  audio_path: string | null; sample_path: string | null; duration_seconds: number | null;
+  id: string;
+  title: string | null;
+  lyrics: string | null;
+  cover_url: string | null;
+  audio_path: string | null;
+  sample_path: string | null;
+  duration_seconds: number | null;
 };
 
 async function renderAndStore(
@@ -150,12 +181,15 @@ async function renderAndStore(
   admin: ReturnType<typeof adminClient>,
 ): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
   const setProgress = async (progress: number, stage: string) => {
-    await admin.from("songs").update({
-      lyric_video_status: "processing",
-      lyric_video_progress: Math.max(0, Math.min(100, Math.round(progress))),
-      lyric_video_stage: stage,
-      lyric_video_error: null,
-    }).eq("id", song.id);
+    await admin
+      .from("songs")
+      .update({
+        lyric_video_status: "processing",
+        lyric_video_progress: Math.max(0, Math.min(100, Math.round(progress))),
+        lyric_video_stage: stage,
+        lyric_video_error: null,
+      })
+      .eq("id", song.id);
   };
   await setProgress(2, mode === "preview" ? "Queued preview render" : "Queued full render");
 
@@ -173,35 +207,49 @@ async function renderAndStore(
       try {
         const r = await fetch(song.cover_url);
         if (r.ok) coverBytes = new Uint8Array(await r.arrayBuffer());
-      } catch { /* fall back to gradient */ }
+      } catch {
+        /* fall back to gradient */
+      }
     }
 
     await setProgress(25, "Building subtitles");
     const fullDuration = Math.max(15, song.duration_seconds ?? 180);
     const duration = mode === "preview" ? 30 : fullDuration;
-    const lyricsForRender = mode === "preview"
-      ? sliceLyricsForPreview(song.lyrics ?? "", duration, fullDuration)
-      : (song.lyrics ?? "");
+    const lyricsForRender =
+      mode === "preview"
+        ? sliceLyricsForPreview(song.lyrics ?? "", duration, fullDuration)
+        : (song.lyrics ?? "");
     const ass = buildAssSubtitles(lyricsForRender, duration, song.title ?? "", mode === "preview");
 
     await setProgress(30, "Rendering video");
     const mp4 = await renderMp4({
-      audioBytes, coverBytes, assText: ass, duration,
+      audioBytes,
+      coverBytes,
+      assText: ass,
+      duration,
       onProgress: (pct) => {
         // Map ffmpeg's 0..1 to the 30..90 band reserved for encoding.
         const mapped = 30 + Math.max(0, Math.min(1, pct)) * 60;
         // Fire-and-forget — don't block ffmpeg loop on the DB write.
-        admin.from("songs").update({
-          lyric_video_progress: Math.round(mapped),
-          lyric_video_stage: "Encoding frames",
-        }).eq("id", song.id).then(() => {}, () => {});
+        admin
+          .from("songs")
+          .update({
+            lyric_video_progress: Math.round(mapped),
+            lyric_video_stage: "Encoding frames",
+          })
+          .eq("id", song.id)
+          .then(
+            () => {},
+            () => {},
+          );
       },
     });
 
     await setProgress(92, "Uploading MP4");
     const outPath = `${song.id}/lyric-${mode}-${Date.now()}.mp4`;
     const { error: upErr } = await admin.storage.from(BUCKET).upload(outPath, mp4, {
-      contentType: "video/mp4", upsert: true,
+      contentType: "video/mp4",
+      upsert: true,
     });
     if (upErr) throw upErr;
 
@@ -218,27 +266,43 @@ async function renderAndStore(
     return { ok: true, path: outPath };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await admin.from("songs").update({
-      lyric_video_status: "failed",
-      lyric_video_error: msg,
-      lyric_video_stage: "Render failed",
-    }).eq("id", song.id);
+    await admin
+      .from("songs")
+      .update({
+        lyric_video_status: "failed",
+        lyric_video_error: msg,
+        lyric_video_stage: "Render failed",
+      })
+      .eq("id", song.id);
     return { ok: false, error: msg };
   }
 }
 
-
-function sliceLyricsForPreview(lyrics: string, previewDuration: number, fullDuration: number): string {
-  const lines = lyrics.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+function sliceLyricsForPreview(
+  lyrics: string,
+  previewDuration: number,
+  fullDuration: number,
+): string {
+  const lines = lyrics
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length === 0) return "";
   const ratio = Math.min(1, previewDuration / Math.max(1, fullDuration));
   const take = Math.max(1, Math.min(lines.length, Math.ceil(lines.length * ratio)));
   return lines.slice(0, take).join("\n");
 }
 
-function buildAssSubtitles(lyrics: string, duration: number, title: string, watermark: boolean): string {
-
-  const lines = lyrics.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+function buildAssSubtitles(
+  lyrics: string,
+  duration: number,
+  title: string,
+  watermark: boolean,
+): string {
+  const lines = lyrics
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length === 0) lines.push(title || "♪ Instrumental ♪");
   const per = duration / lines.length;
   const fmt = (s: number) => {
@@ -261,20 +325,23 @@ Style: Mark,Arial,28,&H88FFFFFF,&H00000000,&H00000000,1,2,0,9,20
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
-  const events = lines.map((line, i) => {
-    const start = fmt(i * per);
-    const end = fmt(Math.min(duration, (i + 1) * per));
-    const safe = line.replace(/[{}\\]/g, "").slice(0, 120);
-    return `Dialogue: 0,${start},${end},Lyric,,0,0,0,,${safe}`;
-  }).join("\n");
-  const mark = watermark
-    ? `\nDialogue: 0,0:00:00.00,${fmt(duration)},Mark,,0,0,0,,PREVIEW`
-    : "";
+  const events = lines
+    .map((line, i) => {
+      const start = fmt(i * per);
+      const end = fmt(Math.min(duration, (i + 1) * per));
+      const safe = line.replace(/[{}\\]/g, "").slice(0, 120);
+      return `Dialogue: 0,${start},${end},Lyric,,0,0,0,,${safe}`;
+    })
+    .join("\n");
+  const mark = watermark ? `\nDialogue: 0,0:00:00.00,${fmt(duration)},Mark,,0,0,0,,PREVIEW` : "";
   return header + events + mark + "\n";
 }
 
 async function renderMp4(args: {
-  audioBytes: Uint8Array; coverBytes: Uint8Array | null; assText: string; duration: number;
+  audioBytes: Uint8Array;
+  coverBytes: Uint8Array | null;
+  assText: string;
+  duration: number;
   onProgress?: (pct: number) => void;
 }): Promise<Uint8Array> {
   const { FFmpeg } = await import("https://esm.sh/@ffmpeg/ffmpeg@0.12.10");
@@ -289,7 +356,9 @@ async function renderMp4(args: {
       ff.on("progress", ({ progress }: { progress: number }) => {
         if (typeof progress === "number" && isFinite(progress)) args.onProgress!(progress);
       });
-    } catch { /* progress API optional */ }
+    } catch {
+      /* progress API optional */
+    }
   }
 
   await ff.writeFile("audio.mp3", args.audioBytes);
@@ -306,14 +375,26 @@ async function renderMp4(args: {
 
   await ff.exec([
     ...inputs,
-    "-vf", "ass=subs.ass,scale=720:720",
-    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "24", "-preset", "veryfast",
-    "-c:a", "aac", "-b:a", "128k",
-    "-shortest", "-t", String(args.duration),
+    "-vf",
+    "ass=subs.ass,scale=720:720",
+    "-c:v",
+    "libx264",
+    "-pix_fmt",
+    "yuv420p",
+    "-r",
+    "24",
+    "-preset",
+    "veryfast",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    "-shortest",
+    "-t",
+    String(args.duration),
     "output.mp4",
   ]);
 
   const data = await ff.readFile("output.mp4");
   return data as Uint8Array;
 }
-

@@ -31,10 +31,7 @@ const page = await ctx.newPage();
 
 await page.goto(BASE, { waitUntil: "domcontentloaded" });
 if (storageKey && sessionJson) {
-  await page.evaluate(
-    ([k, v]) => window.localStorage.setItem(k, v),
-    [storageKey, sessionJson],
-  );
+  await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
 }
 
 const failures = [];
@@ -73,8 +70,7 @@ for (const route of ROUTES) {
     return { horizontalScroll, offenders: offenders.slice(0, 15) };
   }, VIEWPORT.width);
 
-  const routeFailed =
-    result.horizontalScroll > 1 || result.offenders.length > 0;
+  const routeFailed = result.horizontalScroll > 1 || result.offenders.length > 0;
   const tag = routeFailed ? "FAIL" : "ok";
   console.log(
     `[${tag}] ${route}  scroll=${result.horizontalScroll}px  offenders=${result.offenders.length}`,
@@ -82,9 +78,7 @@ for (const route of ROUTES) {
   if (routeFailed) {
     failures.push({ route, ...result });
     result.offenders.slice(0, 5).forEach((o) => {
-      console.log(
-        `   ↳ <${o.tag}> right=${o.right}px width=${o.width}px "${o.text}"  ${o.cls}`,
-      );
+      console.log(`   ↳ <${o.tag}> right=${o.right}px width=${o.width}px "${o.text}"  ${o.cls}`);
     });
   }
 }
@@ -92,9 +86,7 @@ for (const route of ROUTES) {
 await browser.close();
 
 if (failures.length > 0) {
-  console.error(
-    `\n${failures.length} route(s) overflow at ${VIEWPORT.width}px.`,
-  );
+  console.error(`\n${failures.length} route(s) overflow at ${VIEWPORT.width}px.`);
   process.exit(1);
 }
 console.log(`\nAll ${ROUTES.length} routes clean at ${VIEWPORT.width}px.`);

@@ -18,36 +18,46 @@ Deno.serve(async (req) => {
 
   const admin = adminClient();
 
-  const { data: song } = await admin.from("songs")
+  const { data: song } = await admin
+    .from("songs")
     .select("id, user_id, is_variation, revealed")
-    .eq("id", song_id).single();
+    .eq("id", song_id)
+    .single();
   if (!song || song.user_id !== user.id) return jsonResponse({ error: "Not found" }, 404);
   if (!song.is_variation) return jsonResponse({ error: "Not a variation" }, 400);
   if (song.revealed) return jsonResponse({ ok: true, already: true });
 
-  // Pricing: ceil(coins_per_generation / coins_per_variation_divisor)
-  const { data: rows } = await admin.from("app_settings")
-    .select("key, value").in("key", ["coins_per_generation", "coins_per_variation_divisor"]);
+  // Pricing: flat "remake" price (app_settings.coins_per_remake, default 2).
+  const { data: rows } = await admin
+    .from("app_settings")
+    .select("key, value")
+    .in("key", ["coins_per_remake"]);
   const map = new Map((rows ?? []).map((r: { key: string; value: unknown }) => [r.key, r.value]));
-  const base = Number(map.get("coins_per_generation") ?? 4);
-  const div = Math.max(1, Number(map.get("coins_per_variation_divisor") ?? 2));
-  const cost = Math.max(1, Math.ceil(base / div));
+  const raw = Number(map.get("coins_per_remake"));
+  const cost = Number.isFinite(raw) && raw >= 1 ? Math.round(raw) : 2;
+
+  // Claim the reveal atomically first so double taps / retries can't charge twice.
+  const { data: claimed, error: claimErr } = await admin
+    .from("songs")
+    .update({ revealed: true })
+    .eq("id", song_id)
+    .eq("user_id", user.id)
+    .eq("revealed", false)
+    .select("id");
+  if (claimErr) return jsonResponse({ error: claimErr.message }, 500);
+  if (!claimed || claimed.length === 0) return jsonResponse({ ok: true, already: true });
 
   const { error: deductErr } = await admin.rpc("deduct_coins", {
-    p_user: user.id, p_amount: cost, p_reference: `variation:${song_id}`,
+    p_user: user.id,
+    p_amount: cost,
+    p_reference: `variation:${song_id}`,
   });
-  if (deductErr) return jsonResponse({ error: deductErr.message, code: "insufficient_coins" }, 402);
-
-  const { error: upErr } = await admin.from("songs")
-    .update({ revealed: true }).eq("id", song_id);
-  if (upErr) {
-    // Best-effort refund — mirrors suno-callback pattern.
-    await admin.from("coin_transactions").insert({
-      user_id: user.id, amount: cost, type: "refund", reference: `variation_refund:${song_id}`,
-    });
-    const { data: prof } = await admin.from("profiles").select("coin_balance").eq("id", user.id).single();
-    await admin.from("profiles").update({ coin_balance: (prof?.coin_balance ?? 0) + cost }).eq("id", user.id);
-    return jsonResponse({ error: upErr.message }, 500);
+  if (deductErr) {
+    await admin.from("songs").update({ revealed: false }).eq("id", song_id);
+    return jsonResponse(
+      { error: "Not enough coins for this remake", code: "insufficient_coins" },
+      402,
+    );
   }
 
   return jsonResponse({ ok: true, cost });

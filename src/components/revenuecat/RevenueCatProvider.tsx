@@ -55,7 +55,9 @@ export function RevenueCatProvider({
         getOfferings(),
         checkVipEntitlement(),
       ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
       setCustomerInfo(info as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
       setOfferings(offers as any);
       setIsVip(vipStatus);
     } catch (error) {
@@ -69,6 +71,7 @@ export function RevenueCatProvider({
     try {
       const updatedInfo = await rcPurchasePackage(pkg);
       if (updatedInfo) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
         setCustomerInfo(updatedInfo as any);
         const vipStatus = updatedInfo.entitlements.active["og_vip_pass"] !== undefined;
         setIsVip(vipStatus);

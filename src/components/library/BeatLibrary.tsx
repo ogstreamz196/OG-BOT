@@ -229,19 +229,26 @@ export function BeatLibrary({
     }
   }
 
+  const isEmpty = !loading && beats.length === 0;
+
   return (
-    <section className="studio-panel px-4 py-4 sm:px-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
+    <section className={cn("studio-panel px-4 sm:px-5", isEmpty ? "py-3" : "py-4")}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
             <Disc3 className="h-4 w-4" />
           </span>
-          <div>
-            <h2 className="font-display text-xl font-black tracking-tight sm:text-2xl">
+          <div className="min-w-0">
+            <h2
+              className={cn(
+                "whitespace-nowrap font-display font-black tracking-tight",
+                isEmpty ? "text-base" : "text-xl sm:text-2xl",
+              )}
+            >
               Beat library
             </h2>
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-              Save beats · remix anytime
+            <p className="truncate text-[11px] text-muted-foreground">
+              {isEmpty ? "Got your own beat? Add it and sing over it." : "Save beats · remix anytime"}
             </p>
           </div>
         </div>
@@ -261,21 +268,18 @@ export function BeatLibrary({
           variant="secondary"
           disabled={uploading || !userId}
           onClick={() => fileRef.current?.click()}
-          className="gap-1.5 font-black uppercase tracking-wide"
+          className="shrink-0 gap-1 px-2.5 text-xs font-black uppercase tracking-wide"
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Add beat
+          Add
         </Button>
       </div>
 
-      <div className="mt-4">
+      <div className={cn(isEmpty ? "hidden" : "mt-4")}>
         {loading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Loading your beats…</p>
-        ) : beats.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-sm text-muted-foreground">
-            No beats yet. Upload an instrumental to sing over.
-          </p>
-        ) : (
+        ) : beats.length === 0 ? null : (
+
           <ul className="grid w-full gap-1.5">
             {beats.map((b) => {
               const busy = busyPath === b.path;

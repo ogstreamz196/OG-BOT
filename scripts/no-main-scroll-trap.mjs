@@ -19,9 +19,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-const SHELL_FILES = [
-  "src/components/layout/AppShell.tsx",
-];
+const SHELL_FILES = ["src/components/layout/AppShell.tsx"];
 
 const TRAP_PATTERNS = [
   /overflow-y-(?:auto|scroll)/,

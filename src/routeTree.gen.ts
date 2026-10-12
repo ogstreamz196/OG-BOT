@@ -11,105 +11,84 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WelcomeRouteImport } from './routes/welcome'
-import { Route as TrustRouteImport } from './routes/trust'
-import { Route as SignInReturnRouteImport } from './routes/sign-in-return'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PolicyRouteImport } from './routes/policy'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as MPreviewRouteImport } from './routes/m-preview'
-import { Route as DeleteAccountRouteImport } from './routes/delete-account'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AppReturnRouteImport } from './routes/app-return'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as RCodeRouteImport } from './routes/r.$code'
-import { Route as PortalSlugRouteImport } from './routes/portal.$slug'
-import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
-import { Route as AuthenticatedPurchaseHistoryRouteImport } from './routes/_authenticated/purchase-history'
-import { Route as AuthenticatedPortalsRouteImport } from './routes/_authenticated/portals'
-import { Route as AuthenticatedMessengerRouteImport } from './routes/_authenticated/messenger'
-import { Route as AuthenticatedDeveloperRouteImport } from './routes/_authenticated/developer'
-import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
-import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AppReturnRouteImport } from './routes/app-return'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MPreviewRouteImport } from './routes/m-preview'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as PolicyRouteImport } from './routes/policy'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SignInReturnRouteImport } from './routes/sign-in-return'
+import { Route as SigninRouteImport } from './routes/signin'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SportsGuideRouteImport } from './routes/sports-guide'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TrustRouteImport } from './routes/trust'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authenticated/buy-coins.index'
-import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
-import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
-import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
-import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authenticated/admin.webhooks'
-import { Route as AuthenticatedAdminUsersProRouteImport } from './routes/_authenticated/admin.users-pro'
-import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
-import { Route as AuthenticatedAdminUserSettingsRouteImport } from './routes/_authenticated/admin.user-settings'
-import { Route as AuthenticatedAdminSystemRouteImport } from './routes/_authenticated/admin.system'
-import { Route as AuthenticatedAdminStoreRouteImport } from './routes/_authenticated/admin.store'
-import { Route as AuthenticatedAdminRouteMapRouteImport } from './routes/_authenticated/admin.route-map'
-import { Route as AuthenticatedAdminReferralsAuditRouteImport } from './routes/_authenticated/admin.referrals-audit'
-import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin.onboarding'
-import { Route as AuthenticatedAdminOgPersonaRouteImport } from './routes/_authenticated/admin.og-persona'
-import { Route as AuthenticatedAdminHealthRouteImport } from './routes/_authenticated/admin.health'
-import { Route as AuthenticatedAdminDebugContextRouteImport } from './routes/_authenticated/admin.debug-context'
-import { Route as AuthenticatedAdminCoinAuditRouteImport } from './routes/_authenticated/admin.coin-audit'
-import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
-import { Route as AuthenticatedAdminApiKeysRouteImport } from './routes/_authenticated/admin.api-keys'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
+import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
+import { Route as AuthenticatedDeveloperRouteImport } from './routes/_authenticated/developer'
+import { Route as AuthenticatedMessengerRouteImport } from './routes/_authenticated/messenger'
+import { Route as AuthenticatedPortalsRouteImport } from './routes/_authenticated/portals'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedPurchaseHistoryRouteImport } from './routes/_authenticated/purchase-history'
+import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSportsRouteImport } from './routes/_authenticated/sports'
+import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
+import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
+import { Route as PortalSlugRouteImport } from './routes/portal.$slug'
+import { Route as RCodeRouteImport } from './routes/r.$code'
+import { Route as TrackSongIdRouteImport } from './routes/track.$songId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
-import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
-import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
-import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminApiKeysRouteImport } from './routes/_authenticated/admin.api-keys'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
+import { Route as AuthenticatedAdminBotRouteImport } from './routes/_authenticated/admin.bot'
+import { Route as AuthenticatedAdminCoinAuditRouteImport } from './routes/_authenticated/admin.coin-audit'
+import { Route as AuthenticatedAdminCoinsRouteImport } from './routes/_authenticated/admin.coins'
+import { Route as AuthenticatedAdminDebugContextRouteImport } from './routes/_authenticated/admin.debug-context'
+import { Route as AuthenticatedAdminHealthRouteImport } from './routes/_authenticated/admin.health'
+import { Route as AuthenticatedAdminMusicRouteImport } from './routes/_authenticated/admin.music'
+import { Route as AuthenticatedAdminOgPersonaRouteImport } from './routes/_authenticated/admin.og-persona'
+import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin.onboarding'
+import { Route as AuthenticatedAdminReferralsAuditRouteImport } from './routes/_authenticated/admin.referrals-audit'
+import { Route as AuthenticatedAdminRouteMapRouteImport } from './routes/_authenticated/admin.route-map'
+import { Route as AuthenticatedAdminStoreRouteImport } from './routes/_authenticated/admin.store'
+import { Route as AuthenticatedAdminSystemRouteImport } from './routes/_authenticated/admin.system'
+import { Route as AuthenticatedAdminUserSettingsRouteImport } from './routes/_authenticated/admin.user-settings'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedAdminUsersProRouteImport } from './routes/_authenticated/admin.users-pro'
+import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authenticated/admin.webhooks'
+import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authenticated/buy-coins.index'
+import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
+import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
+import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
+import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
+import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as ApiPublicV1VaultCredentialsRouteImport } from './routes/api/public/v1/vault/credentials'
+import { Route as ApiPublicV1VaultPingRouteImport } from './routes/api/public/v1/vault/ping'
+import { Route as ApiPublicV1VaultVerifyRouteImport } from './routes/api/public/v1/vault/verify'
 
 const AuthenticatedLibraryIndexLazyRouteImport = createFileRoute(
   '/_authenticated/library/',
 )()
 
-const WelcomeRoute = WelcomeRouteImport.update({
-  id: '/welcome',
-  path: '/welcome',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TrustRoute = TrustRouteImport.update({
-  id: '/trust',
-  path: '/trust',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignInReturnRoute = SignInReturnRouteImport.update({
-  id: '/sign-in-return',
-  path: '/sign-in-return',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PolicyRoute = PolicyRouteImport.update({
-  id: '/policy',
-  path: '/policy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MPreviewRoute = MPreviewRouteImport.update({
-  id: '/m-preview',
-  path: '/m-preview',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DeleteAccountRoute = DeleteAccountRouteImport.update({
-  id: '/delete-account',
-  path: '/delete-account',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppReturnRoute = AppReturnRouteImport.update({
@@ -117,64 +96,101 @@ const AppReturnRoute = AppReturnRouteImport.update({
   path: '/app-return',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MPreviewRoute = MPreviewRouteImport.update({
+  id: '/m-preview',
+  path: '/m-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PolicyRoute = PolicyRouteImport.update({
+  id: '/policy',
+  path: '/policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInReturnRoute = SignInReturnRouteImport.update({
+  id: '/sign-in-return',
+  path: '/sign-in-return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SportsGuideRoute = SportsGuideRouteImport.update({
+  id: '/sports-guide',
+  path: '/sports-guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrustRoute = TrustRouteImport.update({
+  id: '/trust',
+  path: '/trust',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const RCodeRoute = RCodeRouteImport.update({
-  id: '/r/$code',
-  path: '/r/$code',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortalSlugRoute = PortalSlugRouteImport.update({
-  id: '/portal/$slug',
-  path: '/portal/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedStoreRoute = AuthenticatedStoreRouteImport.update({
-  id: '/store',
-  path: '/store',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
-  id: '/referrals',
-  path: '/referrals',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedPurchaseHistoryRoute =
-  AuthenticatedPurchaseHistoryRouteImport.update({
-    id: '/purchase-history',
-    path: '/purchase-history',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedPortalsRoute = AuthenticatedPortalsRouteImport.update({
-  id: '/portals',
-  path: '/portals',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedMessengerRoute = AuthenticatedMessengerRouteImport.update({
-  id: '/messenger',
-  path: '/messenger',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedDeveloperRoute = AuthenticatedDeveloperRouteImport.update({
-  id: '/developer',
-  path: '/developer',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
-  id: '/community',
-  path: '/community',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedChangePasswordRoute =
@@ -183,17 +199,206 @@ const AuthenticatedChangePasswordRoute =
     path: '/change-password',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
+const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDeveloperRoute = AuthenticatedDeveloperRouteImport.update({
+  id: '/developer',
+  path: '/developer',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMessengerRoute = AuthenticatedMessengerRouteImport.update({
+  id: '/messenger',
+  path: '/messenger',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPortalsRoute = AuthenticatedPortalsRouteImport.update({
+  id: '/portals',
+  path: '/portals',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPurchaseHistoryRoute =
+  AuthenticatedPurchaseHistoryRouteImport.update({
+    id: '/purchase-history',
+    path: '/purchase-history',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSportsRoute = AuthenticatedSportsRouteImport.update({
+  id: '/sports',
+  path: '/sports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedStoreRoute = AuthenticatedStoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth_/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalSlugRoute = PortalSlugRouteImport.update({
+  id: '/portal/$slug',
+  path: '/portal/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RCodeRoute = RCodeRouteImport.update({
+  id: '/r/$code',
+  path: '/r/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackSongIdRoute = TrackSongIdRouteImport.update({
+  id: '/track/$songId',
+  path: '/track/$songId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminApiKeysRoute =
+  AuthenticatedAdminApiKeysRouteImport.update({
+    id: '/admin/api-keys',
+    path: '/admin/api-keys',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminBotRoute = AuthenticatedAdminBotRouteImport.update({
+  id: '/admin/bot',
+  path: '/admin/bot',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminCoinAuditRoute =
+  AuthenticatedAdminCoinAuditRouteImport.update({
+    id: '/admin/coin-audit',
+    path: '/admin/coin-audit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminCoinsRoute = AuthenticatedAdminCoinsRouteImport.update({
+  id: '/admin/coins',
+  path: '/admin/coins',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminDebugContextRoute =
+  AuthenticatedAdminDebugContextRouteImport.update({
+    id: '/admin/debug-context',
+    path: '/admin/debug-context',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminHealthRoute =
+  AuthenticatedAdminHealthRouteImport.update({
+    id: '/admin/health',
+    path: '/admin/health',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminMusicRoute = AuthenticatedAdminMusicRouteImport.update({
+  id: '/admin/music',
+  path: '/admin/music',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminOgPersonaRoute =
+  AuthenticatedAdminOgPersonaRouteImport.update({
+    id: '/admin/og-persona',
+    path: '/admin/og-persona',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminOnboardingRoute =
+  AuthenticatedAdminOnboardingRouteImport.update({
+    id: '/admin/onboarding',
+    path: '/admin/onboarding',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminReferralsAuditRoute =
+  AuthenticatedAdminReferralsAuditRouteImport.update({
+    id: '/admin/referrals-audit',
+    path: '/admin/referrals-audit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminRouteMapRoute =
+  AuthenticatedAdminRouteMapRouteImport.update({
+    id: '/admin/route-map',
+    path: '/admin/route-map',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminStoreRoute = AuthenticatedAdminStoreRouteImport.update({
+  id: '/admin/store',
+  path: '/admin/store',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminSystemRoute =
+  AuthenticatedAdminSystemRouteImport.update({
+    id: '/admin/system',
+    path: '/admin/system',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminUserSettingsRoute =
+  AuthenticatedAdminUserSettingsRouteImport.update({
+    id: '/admin/user-settings',
+    path: '/admin/user-settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminUsersProRoute =
+  AuthenticatedAdminUsersProRouteImport.update({
+    id: '/admin/users-pro',
+    path: '/admin/users-pro',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminWebhooksRoute =
+  AuthenticatedAdminWebhooksRouteImport.update({
+    id: '/admin/webhooks',
+    path: '/admin/webhooks',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBuyCoinsIndexRoute =
+  AuthenticatedBuyCoinsIndexRouteImport.update({
+    id: '/buy-coins/',
+    path: '/buy-coins/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBuyCoinsReturnRoute =
+  AuthenticatedBuyCoinsReturnRouteImport.update({
+    id: '/buy-coins/return',
+    path: '/buy-coins/return',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedLibraryIndexLazyRoute =
   AuthenticatedLibraryIndexLazyRouteImport.update({
@@ -203,142 +408,33 @@ const AuthenticatedLibraryIndexLazyRoute =
   } as any).lazy(() =>
     import('./routes/_authenticated/library.index.lazy').then((d) => d.Route),
   )
-const AuthenticatedBuyCoinsIndexRoute =
-  AuthenticatedBuyCoinsIndexRouteImport.update({
-    id: '/buy-coins/',
-    path: '/buy-coins/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedLibrarySongIdRoute =
   AuthenticatedLibrarySongIdRouteImport.update({
     id: '/library/$songId',
     path: '/library/$songId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedBuyCoinsReturnRoute =
-  AuthenticatedBuyCoinsReturnRouteImport.update({
-    id: '/buy-coins/return',
-    path: '/buy-coins/return',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminWebhooksRoute =
-  AuthenticatedAdminWebhooksRouteImport.update({
-    id: '/admin/webhooks',
-    path: '/admin/webhooks',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminUsersProRoute =
-  AuthenticatedAdminUsersProRouteImport.update({
-    id: '/admin/users-pro',
-    path: '/admin/users-pro',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => AuthenticatedRouteRoute,
+const ApiPublicNewUserAlertRoute = ApiPublicNewUserAlertRouteImport.update({
+  id: '/api/public/new-user-alert',
+  path: '/api/public/new-user-alert',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAdminUserSettingsRoute =
-  AuthenticatedAdminUserSettingsRouteImport.update({
-    id: '/admin/user-settings',
-    path: '/admin/user-settings',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminSystemRoute =
-  AuthenticatedAdminSystemRouteImport.update({
-    id: '/admin/system',
-    path: '/admin/system',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminStoreRoute = AuthenticatedAdminStoreRouteImport.update({
-  id: '/admin/store',
-  path: '/admin/store',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAdminRouteMapRoute =
-  AuthenticatedAdminRouteMapRouteImport.update({
-    id: '/admin/route-map',
-    path: '/admin/route-map',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminReferralsAuditRoute =
-  AuthenticatedAdminReferralsAuditRouteImport.update({
-    id: '/admin/referrals-audit',
-    path: '/admin/referrals-audit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminOnboardingRoute =
-  AuthenticatedAdminOnboardingRouteImport.update({
-    id: '/admin/onboarding',
-    path: '/admin/onboarding',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminOgPersonaRoute =
-  AuthenticatedAdminOgPersonaRouteImport.update({
-    id: '/admin/og-persona',
-    path: '/admin/og-persona',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminHealthRoute =
-  AuthenticatedAdminHealthRouteImport.update({
-    id: '/admin/health',
-    path: '/admin/health',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminDebugContextRoute =
-  AuthenticatedAdminDebugContextRouteImport.update({
-    id: '/admin/debug-context',
-    path: '/admin/debug-context',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminCoinAuditRoute =
-  AuthenticatedAdminCoinAuditRouteImport.update({
-    id: '/admin/coin-audit',
-    path: '/admin/coin-audit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
-  id: '/admin/audit',
-  path: '/admin/audit',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAdminApiKeysRoute =
-  AuthenticatedAdminApiKeysRouteImport.update({
-    id: '/admin/api-keys',
-    path: '/admin/api-keys',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
+const ApiPublicSportsGuideRemindersRoute =
+  ApiPublicSportsGuideRemindersRouteImport.update({
+    id: '/api/public/sports-guide-reminders',
+    path: '/api/public/sports-guide-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
+const ApiPublicSunoRetryRoute = ApiPublicSunoRetryRouteImport.update({
+  id: '/api/public/suno-retry',
+  path: '/api/public/suno-retry',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
-  id: '/lovable/email/auth/webhook',
-  path: '/lovable/email/auth/webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
-  id: '/lovable/email/auth/preview',
-  path: '/lovable/email/auth/preview',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicTelegramWebhookRoute =
-  ApiPublicTelegramWebhookRouteImport.update({
-    id: '/api/public/telegram/webhook',
-    path: '/api/public/telegram/webhook',
-    getParentRoute: () => rootRouteImport,
+const AuthenticatedAdminUsersUserIdRoute =
+  AuthenticatedAdminUsersUserIdRouteImport.update({
+    id: '/$userId',
+    path: '/$userId',
+    getParentRoute: () => AuthenticatedAdminUsersRoute,
   } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
@@ -346,23 +442,56 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedAdminUsersUserIdRoute =
-  AuthenticatedAdminUsersUserIdRouteImport.update({
-    id: '/$userId',
-    path: '/$userId',
-    getParentRoute: () => AuthenticatedAdminUsersRoute,
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
   } as any)
+const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
+  id: '/lovable/email/auth/preview',
+  path: '/lovable/email/auth/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
+  id: '/lovable/email/auth/webhook',
+  path: '/lovable/email/auth/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1VaultCredentialsRoute =
+  ApiPublicV1VaultCredentialsRouteImport.update({
+    id: '/api/public/v1/vault/credentials',
+    path: '/api/public/v1/vault/credentials',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1VaultPingRoute = ApiPublicV1VaultPingRouteImport.update({
+  id: '/api/public/v1/vault/ping',
+  path: '/api/public/v1/vault/ping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1VaultVerifyRoute = ApiPublicV1VaultVerifyRouteImport.update({
+  id: '/api/public/v1/vault/verify',
+  path: '/api/public/v1/vault/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
+  '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
   '/m-preview': typeof MPreviewRoute
   '/mcp': typeof McpRoute
   '/policy': typeof PolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in-return': typeof SignInReturnRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
+  '/sports-guide': typeof SportsGuideRoute
+  '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -372,19 +501,26 @@ export interface FileRoutesByFullPath {
   '/developer': typeof AuthenticatedDeveloperRoute
   '/messenger': typeof AuthenticatedMessengerRoute
   '/portals': typeof AuthenticatedPortalsRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/track/$songId': typeof TrackSongIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/api-keys': typeof AuthenticatedAdminApiKeysRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/bot': typeof AuthenticatedAdminBotRoute
   '/admin/coin-audit': typeof AuthenticatedAdminCoinAuditRoute
+  '/admin/coins': typeof AuthenticatedAdminCoinsRoute
   '/admin/debug-context': typeof AuthenticatedAdminDebugContextRoute
   '/admin/health': typeof AuthenticatedAdminHealthRoute
+  '/admin/music': typeof AuthenticatedAdminMusicRoute
   '/admin/og-persona': typeof AuthenticatedAdminOgPersonaRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
@@ -397,6 +533,9 @@ export interface FileRoutesByFullPath {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
+  '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/library/': typeof AuthenticatedLibraryIndexLazyRoute
@@ -405,16 +544,26 @@ export interface FileRoutesByFullPath {
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
+  '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
+  '/api/public/v1/vault/ping': typeof ApiPublicV1VaultPingRoute
+  '/api/public/v1/vault/verify': typeof ApiPublicV1VaultVerifyRoute
 }
 export interface FileRoutesByTo {
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
+  '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
   '/m-preview': typeof MPreviewRoute
   '/mcp': typeof McpRoute
   '/policy': typeof PolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in-return': typeof SignInReturnRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
+  '/sports-guide': typeof SportsGuideRoute
+  '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -424,20 +573,27 @@ export interface FileRoutesByTo {
   '/developer': typeof AuthenticatedDeveloperRoute
   '/messenger': typeof AuthenticatedMessengerRoute
   '/portals': typeof AuthenticatedPortalsRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/track/$songId': typeof TrackSongIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/api-keys': typeof AuthenticatedAdminApiKeysRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/bot': typeof AuthenticatedAdminBotRoute
   '/admin/coin-audit': typeof AuthenticatedAdminCoinAuditRoute
+  '/admin/coins': typeof AuthenticatedAdminCoinsRoute
   '/admin/debug-context': typeof AuthenticatedAdminDebugContextRoute
   '/admin/health': typeof AuthenticatedAdminHealthRoute
+  '/admin/music': typeof AuthenticatedAdminMusicRoute
   '/admin/og-persona': typeof AuthenticatedAdminOgPersonaRoute
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
@@ -450,6 +606,9 @@ export interface FileRoutesByTo {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
+  '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/buy-coins': typeof AuthenticatedBuyCoinsIndexRoute
   '/library': typeof AuthenticatedLibraryIndexLazyRoute
@@ -458,18 +617,28 @@ export interface FileRoutesByTo {
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
+  '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
+  '/api/public/v1/vault/ping': typeof ApiPublicV1VaultPingRoute
+  '/api/public/v1/vault/verify': typeof ApiPublicV1VaultVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
+  '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
   '/m-preview': typeof MPreviewRoute
   '/mcp': typeof McpRoute
   '/policy': typeof PolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in-return': typeof SignInReturnRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
+  '/sports-guide': typeof SportsGuideRoute
+  '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -479,20 +648,27 @@ export interface FileRoutesById {
   '/_authenticated/developer': typeof AuthenticatedDeveloperRoute
   '/_authenticated/messenger': typeof AuthenticatedMessengerRoute
   '/_authenticated/portals': typeof AuthenticatedPortalsRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/sports': typeof AuthenticatedSportsRoute
   '/_authenticated/store': typeof AuthenticatedStoreRoute
+  '/auth_/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/track/$songId': typeof TrackSongIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/api-keys': typeof AuthenticatedAdminApiKeysRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/_authenticated/admin/bot': typeof AuthenticatedAdminBotRoute
   '/_authenticated/admin/coin-audit': typeof AuthenticatedAdminCoinAuditRoute
+  '/_authenticated/admin/coins': typeof AuthenticatedAdminCoinsRoute
   '/_authenticated/admin/debug-context': typeof AuthenticatedAdminDebugContextRoute
   '/_authenticated/admin/health': typeof AuthenticatedAdminHealthRoute
+  '/_authenticated/admin/music': typeof AuthenticatedAdminMusicRoute
   '/_authenticated/admin/og-persona': typeof AuthenticatedAdminOgPersonaRoute
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
@@ -505,6 +681,9 @@ export interface FileRoutesById {
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
+  '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/_authenticated/library/': typeof AuthenticatedLibraryIndexLazyRoute
@@ -513,6 +692,9 @@ export interface FileRoutesById {
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
+  '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
+  '/api/public/v1/vault/ping': typeof ApiPublicV1VaultPingRoute
+  '/api/public/v1/vault/verify': typeof ApiPublicV1VaultVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -520,12 +702,19 @@ export interface FileRouteTypes {
     | '/'
     | '/app-return'
     | '/auth'
+    | '/dashboard'
     | '/delete-account'
+    | '/home'
+    | '/login'
     | '/m-preview'
     | '/mcp'
     | '/policy'
     | '/reset-password'
     | '/sign-in-return'
+    | '/signin'
+    | '/signup'
+    | '/sports-guide'
+    | '/terms'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -535,19 +724,26 @@ export interface FileRouteTypes {
     | '/developer'
     | '/messenger'
     | '/portals'
+    | '/profile'
     | '/purchase-history'
     | '/referrals'
     | '/settings'
+    | '/sports'
     | '/store'
+    | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/track/$songId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/api-keys'
     | '/admin/audit'
+    | '/admin/bot'
     | '/admin/coin-audit'
+    | '/admin/coins'
     | '/admin/debug-context'
     | '/admin/health'
+    | '/admin/music'
     | '/admin/og-persona'
     | '/admin/onboarding'
     | '/admin/referrals-audit'
@@ -560,6 +756,9 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/new-user-alert'
+    | '/api/public/sports-guide-reminders'
+    | '/api/public/suno-retry'
     | '/admin/'
     | '/buy-coins/'
     | '/library/'
@@ -568,16 +767,26 @@ export interface FileRouteTypes {
     | '/api/public/telegram/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
+    | '/api/public/v1/vault/credentials'
+    | '/api/public/v1/vault/ping'
+    | '/api/public/v1/vault/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app-return'
     | '/auth'
+    | '/dashboard'
     | '/delete-account'
+    | '/home'
+    | '/login'
     | '/m-preview'
     | '/mcp'
     | '/policy'
     | '/reset-password'
     | '/sign-in-return'
+    | '/signin'
+    | '/signup'
+    | '/sports-guide'
+    | '/terms'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -587,20 +796,27 @@ export interface FileRouteTypes {
     | '/developer'
     | '/messenger'
     | '/portals'
+    | '/profile'
     | '/purchase-history'
     | '/referrals'
     | '/settings'
+    | '/sports'
     | '/store'
+    | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/track/$songId'
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/api-keys'
     | '/admin/audit'
+    | '/admin/bot'
     | '/admin/coin-audit'
+    | '/admin/coins'
     | '/admin/debug-context'
     | '/admin/health'
+    | '/admin/music'
     | '/admin/og-persona'
     | '/admin/onboarding'
     | '/admin/referrals-audit'
@@ -613,6 +829,9 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/new-user-alert'
+    | '/api/public/sports-guide-reminders'
+    | '/api/public/suno-retry'
     | '/admin'
     | '/buy-coins'
     | '/library'
@@ -621,17 +840,27 @@ export interface FileRouteTypes {
     | '/api/public/telegram/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
+    | '/api/public/v1/vault/credentials'
+    | '/api/public/v1/vault/ping'
+    | '/api/public/v1/vault/verify'
   id:
     | '__root__'
     | '/_authenticated'
     | '/app-return'
     | '/auth'
+    | '/dashboard'
     | '/delete-account'
+    | '/home'
+    | '/login'
     | '/m-preview'
     | '/mcp'
     | '/policy'
     | '/reset-password'
     | '/sign-in-return'
+    | '/signin'
+    | '/signup'
+    | '/sports-guide'
+    | '/terms'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -641,20 +870,27 @@ export interface FileRouteTypes {
     | '/_authenticated/developer'
     | '/_authenticated/messenger'
     | '/_authenticated/portals'
+    | '/_authenticated/profile'
     | '/_authenticated/purchase-history'
     | '/_authenticated/referrals'
     | '/_authenticated/settings'
+    | '/_authenticated/sports'
     | '/_authenticated/store'
+    | '/auth_/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/track/$songId'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/api-keys'
     | '/_authenticated/admin/audit'
+    | '/_authenticated/admin/bot'
     | '/_authenticated/admin/coin-audit'
+    | '/_authenticated/admin/coins'
     | '/_authenticated/admin/debug-context'
     | '/_authenticated/admin/health'
+    | '/_authenticated/admin/music'
     | '/_authenticated/admin/og-persona'
     | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/referrals-audit'
@@ -667,6 +903,9 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/buy-coins/return'
     | '/_authenticated/library/$songId'
+    | '/api/public/new-user-alert'
+    | '/api/public/sports-guide-reminders'
+    | '/api/public/suno-retry'
     | '/_authenticated/admin/'
     | '/_authenticated/buy-coins/'
     | '/_authenticated/library/'
@@ -675,95 +914,57 @@ export interface FileRouteTypes {
     | '/api/public/telegram/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
+    | '/api/public/v1/vault/credentials'
+    | '/api/public/v1/vault/ping'
+    | '/api/public/v1/vault/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppReturnRoute: typeof AppReturnRoute
   AuthRoute: typeof AuthRoute
+  DashboardRoute: typeof DashboardRoute
   DeleteAccountRoute: typeof DeleteAccountRoute
+  HomeRoute: typeof HomeRoute
+  LoginRoute: typeof LoginRoute
   MPreviewRoute: typeof MPreviewRoute
   McpRoute: typeof McpRoute
   PolicyRoute: typeof PolicyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignInReturnRoute: typeof SignInReturnRoute
+  SigninRoute: typeof SigninRoute
+  SignupRoute: typeof SignupRoute
+  SportsGuideRoute: typeof SportsGuideRoute
+  TermsRoute: typeof TermsRoute
   TrustRoute: typeof TrustRoute
   WelcomeRoute: typeof WelcomeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   PortalSlugRoute: typeof PortalSlugRoute
   RCodeRoute: typeof RCodeRoute
+  TrackSongIdRoute: typeof TrackSongIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
+  ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
+  ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
+  ApiPublicV1VaultCredentialsRoute: typeof ApiPublicV1VaultCredentialsRoute
+  ApiPublicV1VaultPingRoute: typeof ApiPublicV1VaultPingRoute
+  ApiPublicV1VaultVerifyRoute: typeof ApiPublicV1VaultVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/welcome': {
-      id: '/welcome'
-      path: '/welcome'
-      fullPath: '/welcome'
-      preLoaderRoute: typeof WelcomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/trust': {
-      id: '/trust'
-      path: '/trust'
-      fullPath: '/trust'
-      preLoaderRoute: typeof TrustRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sign-in-return': {
-      id: '/sign-in-return'
-      path: '/sign-in-return'
-      fullPath: '/sign-in-return'
-      preLoaderRoute: typeof SignInReturnRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/policy': {
-      id: '/policy'
-      path: '/policy'
-      fullPath: '/policy'
-      preLoaderRoute: typeof PolicyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m-preview': {
-      id: '/m-preview'
-      path: '/m-preview'
-      fullPath: '/m-preview'
-      preLoaderRoute: typeof MPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/delete-account': {
-      id: '/delete-account'
-      path: '/delete-account'
-      fullPath: '/delete-account'
-      preLoaderRoute: typeof DeleteAccountRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app-return': {
@@ -773,102 +974,116 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/': {
-      id: '/_authenticated/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/r/$code': {
-      id: '/r/$code'
-      path: '/r/$code'
-      fullPath: '/r/$code'
-      preLoaderRoute: typeof RCodeRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/portal/$slug': {
-      id: '/portal/$slug'
-      path: '/portal/$slug'
-      fullPath: '/portal/$slug'
-      preLoaderRoute: typeof PortalSlugRouteImport
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/store': {
-      id: '/_authenticated/store'
-      path: '/store'
-      fullPath: '/store'
-      preLoaderRoute: typeof AuthenticatedStoreRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/referrals': {
-      id: '/_authenticated/referrals'
-      path: '/referrals'
-      fullPath: '/referrals'
-      preLoaderRoute: typeof AuthenticatedReferralsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/m-preview': {
+      id: '/m-preview'
+      path: '/m-preview'
+      fullPath: '/m-preview'
+      preLoaderRoute: typeof MPreviewRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/purchase-history': {
-      id: '/_authenticated/purchase-history'
-      path: '/purchase-history'
-      fullPath: '/purchase-history'
-      preLoaderRoute: typeof AuthenticatedPurchaseHistoryRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/portals': {
-      id: '/_authenticated/portals'
-      path: '/portals'
-      fullPath: '/portals'
-      preLoaderRoute: typeof AuthenticatedPortalsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/policy': {
+      id: '/policy'
+      path: '/policy'
+      fullPath: '/policy'
+      preLoaderRoute: typeof PolicyRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/messenger': {
-      id: '/_authenticated/messenger'
-      path: '/messenger'
-      fullPath: '/messenger'
-      preLoaderRoute: typeof AuthenticatedMessengerRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/developer': {
-      id: '/_authenticated/developer'
-      path: '/developer'
-      fullPath: '/developer'
-      preLoaderRoute: typeof AuthenticatedDeveloperRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/sign-in-return': {
+      id: '/sign-in-return'
+      path: '/sign-in-return'
+      fullPath: '/sign-in-return'
+      preLoaderRoute: typeof SignInReturnRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/community': {
-      id: '/_authenticated/community'
-      path: '/community'
-      fullPath: '/community'
-      preLoaderRoute: typeof AuthenticatedCommunityRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/change-password': {
-      id: '/_authenticated/change-password'
-      path: '/change-password'
-      fullPath: '/change-password'
-      preLoaderRoute: typeof AuthenticatedChangePasswordRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/sports-guide': {
+      id: '/sports-guide'
+      path: '/sports-guide'
+      fullPath: '/sports-guide'
+      preLoaderRoute: typeof SportsGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trust': {
+      id: '/trust'
+      path: '/trust'
+      fullPath: '/trust'
+      preLoaderRoute: typeof TrustRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -878,151 +1093,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/library/': {
-      id: '/_authenticated/library/'
-      path: '/library'
-      fullPath: '/library/'
-      preLoaderRoute: typeof AuthenticatedLibraryIndexLazyRouteImport
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/buy-coins/': {
-      id: '/_authenticated/buy-coins/'
-      path: '/buy-coins'
-      fullPath: '/buy-coins/'
-      preLoaderRoute: typeof AuthenticatedBuyCoinsIndexRouteImport
+    '/_authenticated/change-password': {
+      id: '/_authenticated/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof AuthenticatedChangePasswordRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/': {
-      id: '/_authenticated/admin/'
-      path: '/admin'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+    '/_authenticated/community': {
+      id: '/_authenticated/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof AuthenticatedCommunityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/library/$songId': {
-      id: '/_authenticated/library/$songId'
-      path: '/library/$songId'
-      fullPath: '/library/$songId'
-      preLoaderRoute: typeof AuthenticatedLibrarySongIdRouteImport
+    '/_authenticated/developer': {
+      id: '/_authenticated/developer'
+      path: '/developer'
+      fullPath: '/developer'
+      preLoaderRoute: typeof AuthenticatedDeveloperRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/buy-coins/return': {
-      id: '/_authenticated/buy-coins/return'
-      path: '/buy-coins/return'
-      fullPath: '/buy-coins/return'
-      preLoaderRoute: typeof AuthenticatedBuyCoinsReturnRouteImport
+    '/_authenticated/messenger': {
+      id: '/_authenticated/messenger'
+      path: '/messenger'
+      fullPath: '/messenger'
+      preLoaderRoute: typeof AuthenticatedMessengerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/webhooks': {
-      id: '/_authenticated/admin/webhooks'
-      path: '/admin/webhooks'
-      fullPath: '/admin/webhooks'
-      preLoaderRoute: typeof AuthenticatedAdminWebhooksRouteImport
+    '/_authenticated/portals': {
+      id: '/_authenticated/portals'
+      path: '/portals'
+      fullPath: '/portals'
+      preLoaderRoute: typeof AuthenticatedPortalsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/users-pro': {
-      id: '/_authenticated/admin/users-pro'
-      path: '/admin/users-pro'
-      fullPath: '/admin/users-pro'
-      preLoaderRoute: typeof AuthenticatedAdminUsersProRouteImport
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/users': {
-      id: '/_authenticated/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+    '/_authenticated/purchase-history': {
+      id: '/_authenticated/purchase-history'
+      path: '/purchase-history'
+      fullPath: '/purchase-history'
+      preLoaderRoute: typeof AuthenticatedPurchaseHistoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/user-settings': {
-      id: '/_authenticated/admin/user-settings'
-      path: '/admin/user-settings'
-      fullPath: '/admin/user-settings'
-      preLoaderRoute: typeof AuthenticatedAdminUserSettingsRouteImport
+    '/_authenticated/referrals': {
+      id: '/_authenticated/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof AuthenticatedReferralsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/system': {
-      id: '/_authenticated/admin/system'
-      path: '/admin/system'
-      fullPath: '/admin/system'
-      preLoaderRoute: typeof AuthenticatedAdminSystemRouteImport
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/store': {
-      id: '/_authenticated/admin/store'
-      path: '/admin/store'
-      fullPath: '/admin/store'
-      preLoaderRoute: typeof AuthenticatedAdminStoreRouteImport
+    '/_authenticated/sports': {
+      id: '/_authenticated/sports'
+      path: '/sports'
+      fullPath: '/sports'
+      preLoaderRoute: typeof AuthenticatedSportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/route-map': {
-      id: '/_authenticated/admin/route-map'
-      path: '/admin/route-map'
-      fullPath: '/admin/route-map'
-      preLoaderRoute: typeof AuthenticatedAdminRouteMapRouteImport
+    '/_authenticated/store': {
+      id: '/_authenticated/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof AuthenticatedStoreRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/referrals-audit': {
-      id: '/_authenticated/admin/referrals-audit'
-      path: '/admin/referrals-audit'
-      fullPath: '/admin/referrals-audit'
-      preLoaderRoute: typeof AuthenticatedAdminReferralsAuditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/auth_/callback': {
+      id: '/auth_/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/onboarding': {
-      id: '/_authenticated/admin/onboarding'
-      path: '/admin/onboarding'
-      fullPath: '/admin/onboarding'
-      preLoaderRoute: typeof AuthenticatedAdminOnboardingRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/portal/$slug': {
+      id: '/portal/$slug'
+      path: '/portal/$slug'
+      fullPath: '/portal/$slug'
+      preLoaderRoute: typeof PortalSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/og-persona': {
-      id: '/_authenticated/admin/og-persona'
-      path: '/admin/og-persona'
-      fullPath: '/admin/og-persona'
-      preLoaderRoute: typeof AuthenticatedAdminOgPersonaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/r/$code': {
+      id: '/r/$code'
+      path: '/r/$code'
+      fullPath: '/r/$code'
+      preLoaderRoute: typeof RCodeRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/health': {
-      id: '/_authenticated/admin/health'
-      path: '/admin/health'
-      fullPath: '/admin/health'
-      preLoaderRoute: typeof AuthenticatedAdminHealthRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/debug-context': {
-      id: '/_authenticated/admin/debug-context'
-      path: '/admin/debug-context'
-      fullPath: '/admin/debug-context'
-      preLoaderRoute: typeof AuthenticatedAdminDebugContextRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/coin-audit': {
-      id: '/_authenticated/admin/coin-audit'
-      path: '/admin/coin-audit'
-      fullPath: '/admin/coin-audit'
-      preLoaderRoute: typeof AuthenticatedAdminCoinAuditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/audit': {
-      id: '/_authenticated/admin/audit'
-      path: '/admin/audit'
-      fullPath: '/admin/audit'
-      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/api-keys': {
-      id: '/_authenticated/admin/api-keys'
-      path: '/admin/api-keys'
-      fullPath: '/admin/api-keys'
-      preLoaderRoute: typeof AuthenticatedAdminApiKeysRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/track/$songId': {
+      id: '/track/$songId'
+      path: '/track/$songId'
+      fullPath: '/track/$songId'
+      preLoaderRoute: typeof TrackSongIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -1032,18 +1219,207 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/auth/webhook': {
-      id: '/lovable/email/auth/webhook'
-      path: '/lovable/email/auth/webhook'
-      fullPath: '/lovable/email/auth/webhook'
-      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/auth/preview': {
-      id: '/lovable/email/auth/preview'
-      path: '/lovable/email/auth/preview'
-      fullPath: '/lovable/email/auth/preview'
-      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/api-keys': {
+      id: '/_authenticated/admin/api-keys'
+      path: '/admin/api-keys'
+      fullPath: '/admin/api-keys'
+      preLoaderRoute: typeof AuthenticatedAdminApiKeysRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/bot': {
+      id: '/_authenticated/admin/bot'
+      path: '/admin/bot'
+      fullPath: '/admin/bot'
+      preLoaderRoute: typeof AuthenticatedAdminBotRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/coin-audit': {
+      id: '/_authenticated/admin/coin-audit'
+      path: '/admin/coin-audit'
+      fullPath: '/admin/coin-audit'
+      preLoaderRoute: typeof AuthenticatedAdminCoinAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/coins': {
+      id: '/_authenticated/admin/coins'
+      path: '/admin/coins'
+      fullPath: '/admin/coins'
+      preLoaderRoute: typeof AuthenticatedAdminCoinsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/debug-context': {
+      id: '/_authenticated/admin/debug-context'
+      path: '/admin/debug-context'
+      fullPath: '/admin/debug-context'
+      preLoaderRoute: typeof AuthenticatedAdminDebugContextRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/health': {
+      id: '/_authenticated/admin/health'
+      path: '/admin/health'
+      fullPath: '/admin/health'
+      preLoaderRoute: typeof AuthenticatedAdminHealthRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/music': {
+      id: '/_authenticated/admin/music'
+      path: '/admin/music'
+      fullPath: '/admin/music'
+      preLoaderRoute: typeof AuthenticatedAdminMusicRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/og-persona': {
+      id: '/_authenticated/admin/og-persona'
+      path: '/admin/og-persona'
+      fullPath: '/admin/og-persona'
+      preLoaderRoute: typeof AuthenticatedAdminOgPersonaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/onboarding': {
+      id: '/_authenticated/admin/onboarding'
+      path: '/admin/onboarding'
+      fullPath: '/admin/onboarding'
+      preLoaderRoute: typeof AuthenticatedAdminOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/referrals-audit': {
+      id: '/_authenticated/admin/referrals-audit'
+      path: '/admin/referrals-audit'
+      fullPath: '/admin/referrals-audit'
+      preLoaderRoute: typeof AuthenticatedAdminReferralsAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/route-map': {
+      id: '/_authenticated/admin/route-map'
+      path: '/admin/route-map'
+      fullPath: '/admin/route-map'
+      preLoaderRoute: typeof AuthenticatedAdminRouteMapRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/store': {
+      id: '/_authenticated/admin/store'
+      path: '/admin/store'
+      fullPath: '/admin/store'
+      preLoaderRoute: typeof AuthenticatedAdminStoreRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/system': {
+      id: '/_authenticated/admin/system'
+      path: '/admin/system'
+      fullPath: '/admin/system'
+      preLoaderRoute: typeof AuthenticatedAdminSystemRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/user-settings': {
+      id: '/_authenticated/admin/user-settings'
+      path: '/admin/user-settings'
+      fullPath: '/admin/user-settings'
+      preLoaderRoute: typeof AuthenticatedAdminUserSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users-pro': {
+      id: '/_authenticated/admin/users-pro'
+      path: '/admin/users-pro'
+      fullPath: '/admin/users-pro'
+      preLoaderRoute: typeof AuthenticatedAdminUsersProRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/webhooks': {
+      id: '/_authenticated/admin/webhooks'
+      path: '/admin/webhooks'
+      fullPath: '/admin/webhooks'
+      preLoaderRoute: typeof AuthenticatedAdminWebhooksRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/buy-coins/': {
+      id: '/_authenticated/buy-coins/'
+      path: '/buy-coins'
+      fullPath: '/buy-coins/'
+      preLoaderRoute: typeof AuthenticatedBuyCoinsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/buy-coins/return': {
+      id: '/_authenticated/buy-coins/return'
+      path: '/buy-coins/return'
+      fullPath: '/buy-coins/return'
+      preLoaderRoute: typeof AuthenticatedBuyCoinsReturnRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/library/': {
+      id: '/_authenticated/library/'
+      path: '/library'
+      fullPath: '/library/'
+      preLoaderRoute: typeof AuthenticatedLibraryIndexLazyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/library/$songId': {
+      id: '/_authenticated/library/$songId'
+      path: '/library/$songId'
+      fullPath: '/library/$songId'
+      preLoaderRoute: typeof AuthenticatedLibrarySongIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/new-user-alert': {
+      id: '/api/public/new-user-alert'
+      path: '/api/public/new-user-alert'
+      fullPath: '/api/public/new-user-alert'
+      preLoaderRoute: typeof ApiPublicNewUserAlertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sports-guide-reminders': {
+      id: '/api/public/sports-guide-reminders'
+      path: '/api/public/sports-guide-reminders'
+      fullPath: '/api/public/sports-guide-reminders'
+      preLoaderRoute: typeof ApiPublicSportsGuideRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/suno-retry': {
+      id: '/api/public/suno-retry'
+      path: '/api/public/suno-retry'
+      fullPath: '/api/public/suno-retry'
+      preLoaderRoute: typeof ApiPublicSunoRetryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin/users/$userId': {
+      id: '/_authenticated/admin/users/$userId'
+      path: '/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AuthenticatedAdminUsersUserIdRouteImport
+      parentRoute: typeof AuthenticatedAdminUsersRoute
+    }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/telegram/webhook': {
@@ -1053,19 +1429,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/payments/webhook': {
-      id: '/api/public/payments/webhook'
-      path: '/api/public/payments/webhook'
-      fullPath: '/api/public/payments/webhook'
-      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+    '/lovable/email/auth/preview': {
+      id: '/lovable/email/auth/preview'
+      path: '/lovable/email/auth/preview'
+      fullPath: '/lovable/email/auth/preview'
+      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/users/$userId': {
-      id: '/_authenticated/admin/users/$userId'
-      path: '/$userId'
-      fullPath: '/admin/users/$userId'
-      preLoaderRoute: typeof AuthenticatedAdminUsersUserIdRouteImport
-      parentRoute: typeof AuthenticatedAdminUsersRoute
+    '/lovable/email/auth/webhook': {
+      id: '/lovable/email/auth/webhook'
+      path: '/lovable/email/auth/webhook'
+      fullPath: '/lovable/email/auth/webhook'
+      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/vault/credentials': {
+      id: '/api/public/v1/vault/credentials'
+      path: '/api/public/v1/vault/credentials'
+      fullPath: '/api/public/v1/vault/credentials'
+      preLoaderRoute: typeof ApiPublicV1VaultCredentialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/vault/ping': {
+      id: '/api/public/v1/vault/ping'
+      path: '/api/public/v1/vault/ping'
+      fullPath: '/api/public/v1/vault/ping'
+      preLoaderRoute: typeof ApiPublicV1VaultPingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/vault/verify': {
+      id: '/api/public/v1/vault/verify'
+      path: '/api/public/v1/vault/verify'
+      fullPath: '/api/public/v1/vault/verify'
+      preLoaderRoute: typeof ApiPublicV1VaultVerifyRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1090,16 +1487,21 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDeveloperRoute: typeof AuthenticatedDeveloperRoute
   AuthenticatedMessengerRoute: typeof AuthenticatedMessengerRoute
   AuthenticatedPortalsRoute: typeof AuthenticatedPortalsRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedPurchaseHistoryRoute: typeof AuthenticatedPurchaseHistoryRoute
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSportsRoute: typeof AuthenticatedSportsRoute
   AuthenticatedStoreRoute: typeof AuthenticatedStoreRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminApiKeysRoute: typeof AuthenticatedAdminApiKeysRoute
   AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
+  AuthenticatedAdminBotRoute: typeof AuthenticatedAdminBotRoute
   AuthenticatedAdminCoinAuditRoute: typeof AuthenticatedAdminCoinAuditRoute
+  AuthenticatedAdminCoinsRoute: typeof AuthenticatedAdminCoinsRoute
   AuthenticatedAdminDebugContextRoute: typeof AuthenticatedAdminDebugContextRoute
   AuthenticatedAdminHealthRoute: typeof AuthenticatedAdminHealthRoute
+  AuthenticatedAdminMusicRoute: typeof AuthenticatedAdminMusicRoute
   AuthenticatedAdminOgPersonaRoute: typeof AuthenticatedAdminOgPersonaRoute
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminReferralsAuditRoute: typeof AuthenticatedAdminReferralsAuditRoute
@@ -1123,16 +1525,21 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDeveloperRoute: AuthenticatedDeveloperRoute,
   AuthenticatedMessengerRoute: AuthenticatedMessengerRoute,
   AuthenticatedPortalsRoute: AuthenticatedPortalsRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedPurchaseHistoryRoute: AuthenticatedPurchaseHistoryRoute,
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSportsRoute: AuthenticatedSportsRoute,
   AuthenticatedStoreRoute: AuthenticatedStoreRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminApiKeysRoute: AuthenticatedAdminApiKeysRoute,
   AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
+  AuthenticatedAdminBotRoute: AuthenticatedAdminBotRoute,
   AuthenticatedAdminCoinAuditRoute: AuthenticatedAdminCoinAuditRoute,
+  AuthenticatedAdminCoinsRoute: AuthenticatedAdminCoinsRoute,
   AuthenticatedAdminDebugContextRoute: AuthenticatedAdminDebugContextRoute,
   AuthenticatedAdminHealthRoute: AuthenticatedAdminHealthRoute,
+  AuthenticatedAdminMusicRoute: AuthenticatedAdminMusicRoute,
   AuthenticatedAdminOgPersonaRoute: AuthenticatedAdminOgPersonaRoute,
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminReferralsAuditRoute: AuthenticatedAdminReferralsAuditRoute,
@@ -1157,25 +1564,40 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppReturnRoute: AppReturnRoute,
   AuthRoute: AuthRoute,
+  DashboardRoute: DashboardRoute,
   DeleteAccountRoute: DeleteAccountRoute,
+  HomeRoute: HomeRoute,
+  LoginRoute: LoginRoute,
   MPreviewRoute: MPreviewRoute,
   McpRoute: McpRoute,
   PolicyRoute: PolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignInReturnRoute: SignInReturnRoute,
+  SigninRoute: SigninRoute,
+  SignupRoute: SignupRoute,
+  SportsGuideRoute: SportsGuideRoute,
+  TermsRoute: TermsRoute,
   TrustRoute: TrustRoute,
   WelcomeRoute: WelcomeRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   PortalSlugRoute: PortalSlugRoute,
   RCodeRoute: RCodeRoute,
+  TrackSongIdRoute: TrackSongIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
+  ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
+  ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
+  ApiPublicV1VaultCredentialsRoute: ApiPublicV1VaultCredentialsRoute,
+  ApiPublicV1VaultPingRoute: ApiPublicV1VaultPingRoute,
+  ApiPublicV1VaultVerifyRoute: ApiPublicV1VaultVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

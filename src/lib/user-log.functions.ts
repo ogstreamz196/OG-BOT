@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SPREADSHEET_ID = "1viHaEm53iWMCDEn9hEKI43YIu4amQ4djrgyn5iTa3Ls";
-const DRIVE_FOLDER_ID = "1D1cE1yKPGVej8mOECikKthF2YENEHW47";
+const DRIVE_FOLDER_ID = "1d5obQLuq7gLf2w-0f0Nk83KICyyGlxTo"; // OG BOT / Track Generations
 const SHEETS_BASE = "https://connector-gateway.lovable.dev/google_sheets/v4";
 const DRIVE_BASE = "https://connector-gateway.lovable.dev/google_drive/drive/v3";
 const DRIVE_UPLOAD = "https://connector-gateway.lovable.dev/google_drive/upload/drive/v3";
@@ -34,7 +34,7 @@ async function gw(url: string, init: RequestInit, connectorKey: string) {
 
 function safeTabName(input: string): string {
   // Sheets: max 100 chars, no : \ / ? * [ ]
-  const cleaned = input.replace(/[:\\/?*\[\]]/g, "_").slice(0, 95);
+  const cleaned = input.replace(/[:\\/?*[\]]/g, "_").slice(0, 95);
   return cleaned || "user";
 }
 

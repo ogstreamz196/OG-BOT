@@ -15,8 +15,7 @@ const BASE = process.argv[2] || process.env.BASE_URL || "http://localhost:8080";
 const storageKey = process.env.LOVABLE_BROWSER_SUPABASE_STORAGE_KEY;
 const sessionJson = process.env.LOVABLE_BROWSER_SUPABASE_SESSION_JSON;
 const supaUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supaKey =
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+const supaKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
 
 if (!storageKey || !sessionJson || !supaUrl || !supaKey) {
   console.error("Missing Supabase session/env. Sign in via preview first.");
@@ -45,10 +44,7 @@ const page = await ctx.newPage();
 
 try {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  await page.evaluate(
-    ([k, v]) => window.localStorage.setItem(k, v),
-    [storageKey, sessionJson],
-  );
+  await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
 
   // Seed to loner first.
   await sideClient

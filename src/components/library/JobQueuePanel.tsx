@@ -1,3 +1,4 @@
+import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ensureFullUrlAllowed } from "@/lib/ensure-full-url-allowed";
 import { Link } from "@tanstack/react-router";
@@ -30,9 +31,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { downloadFile } from "@/lib/download-file";
 import { shareTrack } from "@/lib/share-track";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 import { deleteQueuedSong } from "@/lib/song-queue-actions";
 import { languageFromPrompt } from "@/lib/library-utils";
+import { useServerFn } from "@tanstack/react-start";
+import { recoverStuckSong } from "@/lib/suno-recover.functions";
+
 import { useSettings } from "@/hooks/use-settings";
 import { useProfile } from "@/hooks/use-profile";
 import type { Song } from "@/components/SongCard";
@@ -105,6 +109,7 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
   const [retrying, setRetrying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [detailsSong, setDetailsSong] = useState<Song | null>(null);
+  const recoverSong = useServerFn(recoverStuckSong);
 
   // Tick once per second while there are in-flight jobs so the elapsed/stall
   // indicators stay accurate without forcing a parent refetch.
@@ -169,9 +174,33 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
     return c;
   }, [dedupedSongs]);
 
+  /**
+   * Retry = "fix this track".
+   *
+   * First we ask the music engine what actually happened to the existing job.
+   * When it already finished (a take's file was broken on the engine's CDN and
+   * jammed the delivery), we rebuild the track from the intact take — instant,
+   * free, no regeneration. Only when there's genuinely nothing to recover do we
+   * submit a fresh generation.
+   */
   async function retry(song: Song) {
     setRetrying(song.id);
     try {
+      try {
+        const recovery = await recoverSong({ data: { songId: song.id } });
+        if (recovery.outcome === "completed") {
+          toast.success(recovery.message);
+          onRemoved?.();
+          return;
+        }
+        if (recovery.outcome === "pending" || recovery.outcome === "unavailable") {
+          toast.info(recovery.message);
+          return;
+        }
+      } catch {
+        // Recovery is best-effort — fall through to a fresh generation.
+      }
+
       const { data, error } = await supabase.functions.invoke("suno-generate", {
         body: {
           song_id: song.id,
@@ -182,7 +211,7 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
           language: languageFromPrompt(song.prompt ?? null),
         },
       });
-      if (error) throw new Error(invokeError(error, "Retry failed"));
+      if (error) throw new Error(await readInvokeError(error, "Retry failed"));
       if (data?.accepted === false) {
         throw new Error(data.error || "Your current generations need to finish first");
       }
@@ -246,8 +275,11 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
           const m = META[kind];
           const Icon = m.icon;
           const showRetry = kind === "failed" || stuck;
-          const subline =
-            kind === "failed"
+          const autoRetrying =
+            kind === "failed" && !!song.next_retry_at && song.failure_class !== "terminal";
+          const subline = autoRetrying
+            ? "Retrying automatically in the background"
+            : kind === "failed"
               ? friendlyError(song.error_message)
               : inFlight
                 ? `${m.label} · ${formatElapsed(elapsed)}${stuck ? " · looks stuck" : slow ? " · taking longer than usual" : ""}`
@@ -291,7 +323,7 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
                   {subline}
                 </p>
               </div>
-              {showRetry && (
+              {showRetry && !autoRetrying && (
                 <Button
                   size="icon"
                   variant="secondary"
@@ -465,16 +497,14 @@ function JobDetailsDrawer({
     }
   }
 
+  const buyOwnerTrack = useServerFn(purchaseOwnerTrack);
   async function handleUnlock() {
     if (!song) return;
     setUnlocking(true);
     try {
-      const { error } = await supabase.functions.invoke("unlock-full-song", {
-        body: { song_id: song.id },
-      });
-      if (error) throw new Error(invokeError(error, "Unlock failed"));
+      const result = await buyOwnerTrack({ data: { songId: song.id } });
       setUnlocked(true);
-      toast.success(`Unlocked · -${unlockCost} coins`);
+      toast.success(`Unlocked + Take 2 free · -${result.cost} coins`);
       refetchProfile?.();
       const { data: full } = await supabase.functions.invoke("song-url", {
         body: { song_id: song.id, mode: "full" },
@@ -506,13 +536,18 @@ function JobDetailsDrawer({
             filename: `${song.title || "song"}.mp3`,
           },
         });
-        if (error) throw new Error(invokeError(error, "Download failed"));
+        if (error) throw new Error(await readInvokeError(error, "Download failed"));
         url = data.url as string;
         setFullUrl(url);
       }
       const fileName = `${song.title || "song"}.mp3`;
       const blob = await downloadFile(url!, fileName);
-      await shareTrack({ title: song.title || "My track", blob, filename: fileName });
+      await shareTrack({
+        title: song.title || "My track",
+        blob,
+        filename: fileName,
+        songId: song.id,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Download failed");
     } finally {

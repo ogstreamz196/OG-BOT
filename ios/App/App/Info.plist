@@ -24,6 +24,32 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>OG BOT uses the camera only when you choose to snap a photo to show OG Bot in chat.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OG BOT uses the microphone only while you hold the mic button to send a voice message to OG Bot.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OG BOT lets you pick a photo to show OG Bot in chat.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>OG BOT saves the tracks and lyric cards you create to your device so you can share them.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>uk.co.ogbot.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ogbot</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tg</string>
+		<string>itms-apps</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

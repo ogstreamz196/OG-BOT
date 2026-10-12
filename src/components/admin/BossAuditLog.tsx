@@ -35,6 +35,7 @@ export function BossAuditLog() {
     queryKey: ["boss-audit-log"],
     queryFn: async () => {
       const { data, error } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
         .from("boss_audit_log" as any)
         .select("id, actor_id, action, category, target_key, old_value, new_value, created_at")
         .order("created_at", { ascending: false })

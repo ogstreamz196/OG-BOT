@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,8 +24,12 @@ import {
 import { listStripeWebhookEvents } from "@/lib/stripe-events.functions";
 import { cn } from "@/lib/utils";
 
+// The connector checklist now lives in Boss → System → Setup checklist.
 export const Route = createFileRoute("/_authenticated/admin/onboarding")({
-  component: OnboardingWizard,
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/system", search: { tab: "setup" } });
+  },
+  component: () => null,
   head: () => ({ meta: [{ title: "Onboarding — OG Streamz Admin" }] }),
 });
 
@@ -79,7 +83,7 @@ const STEPS: Step[] = [
 
 type Status = "idle" | "running" | "ok" | "fail";
 
-function OnboardingWizard() {
+export function OnboardingWizard() {
   const { isAdmin, isLoading } = useRole();
   const runCheck = useServerFn(runOnboardingCheck);
   const loadChecks = useServerFn(getOnboardingChecks);
@@ -171,13 +175,7 @@ function OnboardingWizard() {
 
   return (
     <DashboardShell title="Onboarding">
-      <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
-        <Link
-          to="/admin/system"
-          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-        >
-          Open automated API health check <ExternalLink className="h-3 w-3" />
-        </Link>
+      <div className="max-w-4xl space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -203,9 +201,6 @@ function OnboardingWizard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link to="/admin">Back to admin</Link>
-            </Button>
             <Button onClick={runAll} disabled={single.isPending} size="sm">
               {single.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -304,10 +299,10 @@ function OnboardingWizard() {
             </li>
             <li>
               Stripe rows → open{" "}
-              <Link to="/admin" className="underline">
-                Admin
+              <Link to="/admin/system" search={{ tab: "webhooks" }} className="underline">
+                System → Payments webhook
               </Link>{" "}
-              → Payments and re-enable Stripe.
+              and check Stripe events are arriving.
             </li>
             <li>
               Plain key rows (Gemini / Perplexity / Suno / OG_BOT_*) → Project Settings → Secrets.

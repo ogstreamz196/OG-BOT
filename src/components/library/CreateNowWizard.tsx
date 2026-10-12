@@ -3,6 +3,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Coins,
   Globe2,
   Lock,
   Mic2,
@@ -10,6 +13,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+
 import ratingPgImg from "@/assets/rating-pg.png";
 import rating18Img from "@/assets/rating-18.png";
 import {
@@ -33,7 +37,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { POOLS } from "@/lib/library-utils";
+import { POOLS, isFreeStyle } from "@/lib/library-utils";
+import { useRole } from "@/hooks/use-role";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -45,7 +51,10 @@ import {
 } from "@/hooks/use-foul-mouth";
 import { Slider } from "@/components/ui/slider";
 import { useServerFn } from "@tanstack/react-start";
-import { suggestTrackTitle } from "@/lib/track-title.functions";
+import { suggestTrackTitle, fallbackTitle as localFallbackTitle } from "@/lib/track-title.functions";
+
+/** Song designed on the welcome page before sign-up, picked up after login. */
+export const GUEST_PENDING_SONG_KEY = "ogbot.guestPendingSong.v1";
 
 export type WizardResult = {
   title: string;
@@ -67,6 +76,8 @@ export type WizardResult = {
   /** Exact per-track lyric rating selected in this wizard run. */
   foulMouth: boolean;
   foulIntensity: number;
+  /** AI-suggested title still resolving in the background (blank-title runs). */
+  titlePromise?: Promise<string>;
 };
 
 /** Raw wizard inputs — kept by the parent so a retry never loses them. */
@@ -115,16 +126,16 @@ const STYLES: string[] = (() => {
   const featured = [
     "Hip Hop",
     "Rap",
+    "Pop",
+    "R&B",
     "Singing",
     "Drill",
     "Trap",
-    "Drum & Bass",
-    "Pop",
-    "K-Pop",
-    "Slow Jam",
     "Bhangra",
+    "Lo-fi",
+    "Drum & Bass",
+    "Afrobeats",
     "Nasheed",
-    "Nursery Rhyme",
   ];
   const rest = POOLS.genre.filter((g) => !featured.includes(g));
   return [...featured, ...rest];
@@ -136,14 +147,21 @@ export function CreateNowWizard({
   onComplete,
   initialDraft,
   submitLabel = "Create my song",
+  guestMode = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onComplete: (result: WizardResult, draft: WizardDraft) => void;
   initialDraft?: WizardDraft;
   submitLabel?: string;
+  /** Signed-out preview: nothing is saved or generated; all styles browsable. */
+  guestMode?: boolean;
 }) {
   const [step, setStep] = useState(1);
+  const { isVip: roleVip } = useRole();
+  // New accounts start with 15 days of VIP, so guests can pick any style.
+  const isVip = guestMode || roleVip;
+  const navigateVip = useNavigate();
   const [title, setTitle] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [description, setDescription] = useState("");
@@ -153,20 +171,25 @@ export function CreateNowWizard({
   const [vocalsOnly, setVocalsOnly] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(3);
   const [isPublic, setIsPublic] = useState(true);
-  const { foulMouth } = useFoulMouth();
+  const { foulMouth: savedFoulMouth } = useFoulMouth();
   const setFoulMouth = useSetFoulMouth();
-  const ratingSaving = setFoulMouth.isPending;
+  const ratingSaving = !guestMode && setFoulMouth.isPending;
   const { intensity: savedIntensity } = useFoulIntensity();
   const setFoulIntensity = useSetFoulIntensity();
   const [intensityLocal, setIntensityLocal] = useState<number | null>(null);
-  const intensity = intensityLocal ?? savedIntensity;
+  const intensity = intensityLocal ?? (guestMode ? 0 : savedIntensity);
+  const foulMouth = guestMode ? intensity > 0 : savedFoulMouth;
   const isNasheed = styles.includes("Nasheed");
   const [beatPath, setBeatPath] = useState("");
   const [beatName, setBeatName] = useState("");
   const [uploadingBeat, setUploadingBeat] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+
   const wizardScrollRef = useRef<HTMLDivElement | null>(null);
   const [naming, setNaming] = useState(false);
+  const [showAllStyles, setShowAllStyles] = useState(false);
+  const [showAllLanguages, setShowAllLanguages] = useState(false);
+  const explicit = !isNasheed && intensity > 0;
   const suggestTitle = useServerFn(suggestTrackTitle);
 
   const toggle = (list: string[], v: string) =>
@@ -175,6 +198,7 @@ export function CreateNowWizard({
   const selectRating = (explicit: boolean) => {
     const nextIntensity = explicit ? 3 : 0;
     setIntensityLocal(nextIntensity);
+    if (guestMode) return;
     setFoulIntensity.mutate(nextIntensity);
     setFoulMouth.mutate(explicit);
   };
@@ -182,10 +206,12 @@ export function CreateNowWizard({
   const changeIntensity = (next: number) => {
     const value = Math.max(0, Math.min(3, Math.round(next)));
     setIntensityLocal(value);
+    if (guestMode) return;
     if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
   };
 
   const saveIntensity = (next: number) => {
+    if (guestMode) return;
     setFoulIntensity.mutate(Math.max(0, Math.min(3, Math.round(next))));
   };
 
@@ -289,33 +315,33 @@ export function CreateNowWizard({
       setStep((s) => s + 1);
       return;
     }
+    await finish();
+  }
 
-    // Blank title? Name the track from who it's about, the story and styles.
-    let finalTitle = title.trim();
-    if (!finalTitle) {
-      setNaming(true);
-      try {
-        const res = await suggestTitle({
+  async function finish() {
+    if (naming) return;
+
+    // Blank title? Close instantly with a safe default and let the AI name it
+    // in the background — the song only needs its title after lyrics finish.
+    const typedTitle = title.trim();
+    const fallbackTitle = localFallbackTitle(subjectName, description);
+    const finalTitle = typedTitle || fallbackTitle;
+    const titlePromise: Promise<string> | undefined = typedTitle || guestMode
+      ? undefined
+      : suggestTitle({
           data: {
             subjectName: subjectName.trim(),
             description: description.trim(),
             style: styles.filter(Boolean).join(", "),
           },
-        });
-        finalTitle = (res?.title ?? "").trim();
-        if (finalTitle) toast.success(`Named it "${finalTitle}"`);
-      } catch {
-        /* fall through to a safe default below */
-      } finally {
-        setNaming(false);
-      }
-      if (!finalTitle) finalTitle = `Song for ${subjectName.trim() || "you"}`;
-      setTitle(finalTitle);
-    }
+        })
+          .then((res) => (res?.title ?? "").trim() || fallbackTitle)
+          .catch(() => fallbackTitle);
 
     onComplete(
       {
         title: finalTitle,
+        titlePromise,
         subjectName: subjectName.trim(),
         description: description.trim(),
         style: styles.filter(Boolean).join(", "),
@@ -375,6 +401,45 @@ export function CreateNowWizard({
     }
   }
 
+  const lengthControl = (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Length of track
+      </p>
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card/40 p-2">
+        <button
+          type="button"
+          aria-label="Shorter track"
+          disabled={targetMinutes <= MIN_LENGTH}
+          onClick={() => setTargetMinutes((m) => Math.max(MIN_LENGTH, m - 1))}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border bg-background text-lg font-bold transition hover:border-primary/50 disabled:opacity-40"
+        >
+          −
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <p className="text-xl font-bold tabular-nums leading-none">{targetMinutes} min</p>
+          <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+            {targetMinutes > MIN_LENGTH
+              ? `+${targetMinutes - MIN_LENGTH} coin${targetMinutes - MIN_LENGTH === 1 ? "" : "s"}`
+              : "Included"}
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Longer track (1 extra coin)"
+          disabled={targetMinutes >= MAX_LENGTH}
+          onClick={() => setTargetMinutes((m) => Math.min(MAX_LENGTH, m + 1))}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/40 bg-primary/15 text-lg font-bold text-primary transition hover:bg-primary/25 disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Every length is free to create. Pay only when you download the full track.
+      </p>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : requestClose())}>
       <DialogContent
@@ -409,15 +474,14 @@ export function CreateNowWizard({
             />
           </div>
           <DialogTitle className="font-display text-2xl font-black leading-tight sm:text-3xl">
-            {step === 1 && "Your track"}
-            {step === 2 && "Choose a style"}
-            {step === 3 && "Language & vocals"}
+            {step === 1 && "Who's it for?"}
+            {step === 2 && "Pick the sound"}
+            {step === 3 && "Final touches"}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            {step === 1 && "Tell us who it's for, how long it runs, and what it's about."}
-            {step === 2 && "Stack as many styles as you like, then pick the voice."}
-            {step === 3 &&
-              "Pick the language it's sung in. Flip vocals only to sing over your own beat."}
+            {step === 1 && "A name and a little story is all OG Bot needs."}
+            {step === 2 && "Mix styles if you like, then choose who sings."}
+            {step === 3 && "Language, length and rating — then create."}
           </DialogDescription>
         </DialogHeader>
 
@@ -436,10 +500,7 @@ export function CreateNowWizard({
                     htmlFor="wiz-subject"
                     className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
-                    Name of person{" "}
-                    <span className="normal-case tracking-normal text-muted-foreground/80">
-                      — this headlines your track title
-                    </span>
+                    Their name
                   </Label>
                   <Input
                     id="wiz-subject"
@@ -458,7 +519,7 @@ export function CreateNowWizard({
                     htmlFor="wiz-desc"
                     className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
-                    Short description
+                    The story
                   </Label>
                   <Textarea
                     id="wiz-desc"
@@ -473,45 +534,6 @@ export function CreateNowWizard({
                     {description.trim().length}/2000
                   </p>
                 </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Length of track
-                  </p>
-                  <div className="flex items-center gap-3 rounded-lg border border-border bg-card/40 p-2">
-                    <button
-                      type="button"
-                      aria-label="Shorter track"
-                      disabled={targetMinutes <= MIN_LENGTH}
-                      onClick={() => setTargetMinutes((m) => Math.max(MIN_LENGTH, m - 1))}
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border bg-background text-lg font-bold transition hover:border-primary/50 disabled:opacity-40"
-                    >
-                      −
-                    </button>
-                    <div className="min-w-0 flex-1 text-center">
-                      <p className="text-xl font-bold tabular-nums leading-none">
-                        {targetMinutes} min
-                      </p>
-                      <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                        {targetMinutes > MIN_LENGTH
-                          ? `+${targetMinutes - MIN_LENGTH} coin${targetMinutes - MIN_LENGTH === 1 ? "" : "s"}`
-                          : "Included"}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Longer track (1 extra coin)"
-                      disabled={targetMinutes >= MAX_LENGTH}
-                      onClick={() => setTargetMinutes((m) => Math.min(MAX_LENGTH, m + 1))}
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/40 bg-primary/15 text-lg font-bold text-primary transition hover:bg-primary/25 disabled:opacity-40"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Every length is free to create. Pay only when you download the full track.
-                  </p>
-                </div>
               </div>
             )}
 
@@ -522,14 +544,25 @@ export function CreateNowWizard({
                   aria-label="Track styles"
                   className="grid grid-cols-2 gap-2 sm:grid-cols-3"
                 >
-                  {STYLES.map((s) => {
+                  {(showAllStyles
+                    ? STYLES
+                    : STYLES.filter((x, i) => i < 12 || styles.includes(x))
+                  ).map((s) => {
                     const selected = styles.includes(s);
+                    const locked = !isVip && !isFreeStyle(s) && !selected;
                     return (
                       <button
                         key={s}
                         type="button"
                         aria-pressed={selected}
                         onClick={() => {
+                          if (locked) {
+                            toast(`👑 ${s} is an OG VIP style`, {
+                              description: "Unlock all 50+ styles & moods, plus custom style and language requests.",
+                              action: { label: "Get VIP", onClick: () => void navigateVip({ to: "/buy-coins" }) },
+                            });
+                            return;
+                          }
                           if (s === "Nasheed") {
                             setStyles(selected ? [] : ["Nasheed"]);
                             setVocalsOnly(!selected);
@@ -549,14 +582,44 @@ export function CreateNowWizard({
                           "min-h-11 rounded-xl border px-3 py-2.5 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                           selected
                             ? "border-primary bg-primary/20 text-foreground shadow-glow"
-                            : "border-white/10 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                            : locked
+                              ? "border-coin/30 bg-coin/5 text-muted-foreground/70"
+                              : "border-white/10 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground",
                         )}
                       >
+                        {locked && (
+                          <span aria-label="VIP only" className="mr-1 inline-flex items-end text-[11px]">
+                            <span className="relative">🔒<span className="absolute -top-2 left-0.5 text-[9px]">👑</span></span>
+                          </span>
+                        )}
                         {s}
                       </button>
                     );
                   })}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAllStyles((v) => !v)}
+                  aria-expanded={showAllStyles}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/50 bg-primary/10 px-4 text-sm font-black uppercase tracking-wide text-primary transition hover:border-primary hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {showAllStyles ? (
+                    <>
+                      <ChevronUp className="h-4 w-4" />
+                      Show fewer styles
+                    </>
+                  ) : (
+                    <>
+                      <Music4 className="h-4 w-4" />
+                      More styles
+                      <span className="rounded-full bg-primary/25 px-2 py-0.5 text-[11px] font-black tabular-nums">
+                        +{STYLES.length - 12}
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+
                 <div>
                   <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Artist voice
@@ -573,7 +636,7 @@ export function CreateNowWizard({
                           key={g}
                           type="button"
                           aria-pressed={selected}
-                          onClick={() => setGender((prev) => (prev === g ? "" : g))}
+                          onClick={() => setGender(g)}
                           className={cn(
                             "min-h-11 rounded-xl border px-3 py-2 text-xs font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                             selected
@@ -592,6 +655,165 @@ export function CreateNowWizard({
 
             {step === 3 && (
               <div className="space-y-5">
+                {/* Content rating — replaces the old foul mouth toggle. */}
+                <div className="space-y-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                    Lyrics rating
+                  </p>
+                  <div role="group" aria-label="Lyrics rating" className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={!foulMouth}
+                      disabled={ratingSaving}
+                      onClick={() => selectRating(false)}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60",
+                        !foulMouth
+                          ? "border-emerald-400 bg-emerald-400/15"
+                          : "border-border bg-background hover:border-emerald-400/40",
+                      )}
+                    >
+                      <img
+                        src={ratingPgImg}
+                        alt="PG — Parental Guidance rating certificate"
+                        loading="lazy"
+                        width={56}
+                        height={56}
+                        className={cn(
+                          "h-14 w-14 object-contain transition",
+                          !foulMouth ? "opacity-100" : "opacity-50 saturate-50",
+                        )}
+                      />
+                      <span className="text-sm font-bold">PG rated</span>
+                      <span className="text-[11px] text-muted-foreground">Clean, family safe</span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={foulMouth}
+                      disabled={ratingSaving || isNasheed}
+                      onClick={() => selectRating(true)}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60",
+                        foulMouth
+                          ? "border-destructive bg-destructive/20"
+                          : "border-border bg-background hover:border-destructive/40",
+                      )}
+                    >
+                      <img
+                        src={rating18Img}
+                        alt="18 — adults only rating certificate"
+                        loading="lazy"
+                        width={56}
+                        height={56}
+                        className={cn(
+                          "h-14 w-14 object-contain transition",
+                          foulMouth ? "opacity-100" : "opacity-50 saturate-50",
+                        )}
+                      />
+                      <span className="text-sm font-bold">18+ rated</span>
+                      <span className="text-[11px] text-muted-foreground">Explicit, no filter</span>
+                    </button>
+                  </div>
+
+                  {!isNasheed && foulMouth && (
+                    <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <label
+                          htmlFor="foul-intensity"
+                          className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground"
+                        >
+                          Swearing intensity
+                        </label>
+                        <span className="text-[11px] font-bold text-destructive">
+                          {INTENSITY_LABELS[intensity]}
+                        </span>
+                      </div>
+                      <Slider
+                        id="foul-intensity"
+                        aria-label="Swearing intensity"
+                        min={0}
+                        max={3}
+                        step={1}
+                        value={[intensity]}
+                        onValueChange={(v) => changeIntensity(v[0] ?? 3)}
+                        onValueCommit={(v) => saveIntensity(v[0] ?? 3)}
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>Clean</span>
+                        <span>Mild</span>
+                        <span>Strong</span>
+                        <span>Savage</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                      Language
+                    </p>
+                    <p className="text-[11px] font-semibold text-muted-foreground">
+                      {languages.length ? `${languages.length} selected` : "English by default"}
+                    </p>
+                  </div>
+                  <div
+                    role="group"
+                    aria-label="Languages"
+                    style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+                    className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-background/40 p-2 sm:grid-cols-3"
+                  >
+                    {(showAllLanguages
+                      ? POOLS.language
+                      : POOLS.language.filter((x, i) => i < 8 || languages.includes(x))
+                    ).map((l) => {
+                      const selected = languages.includes(l);
+                      return (
+                        <button
+                          key={l}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setLanguages((prev) => toggle(prev, l))}
+                          className={cn(
+                            "min-h-10 rounded-lg border px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                            selected
+                              ? "border-primary bg-primary/20 text-foreground"
+                              : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                          )}
+                        >
+                          {l}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {POOLS.language.length > 8 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllLanguages((v) => !v)}
+                      aria-expanded={showAllLanguages}
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/50 bg-primary/10 px-4 text-sm font-black uppercase tracking-wide text-primary transition hover:border-primary hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      {showAllLanguages ? (
+                        <>
+                          <ChevronUp className="h-4 w-4" />
+                          Show fewer languages
+                        </>
+                      ) : (
+                        <>
+                          <Globe2 className="h-4 w-4" />
+                          More languages
+                          <span className="rounded-full bg-primary/25 px-2 py-0.5 text-[11px] font-black tabular-nums">
+                            +{POOLS.language.length - 8}
+                          </span>
+                          <ChevronDown className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {lengthControl}
+
                 {/* Voice setup: vocals-only and, when on, the beat it rides. */}
                 <div className="space-y-2">
                   <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
@@ -689,168 +911,50 @@ export function CreateNowWizard({
                   )}
                 </div>
 
-                {/* Content rating — replaces the old foul mouth toggle. */}
-                <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                    Lyrics rating
-                  </p>
-                  <div role="group" aria-label="Lyrics rating" className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      aria-pressed={!foulMouth}
-                      disabled={ratingSaving}
-                      onClick={() => selectRating(false)}
-                      className={cn(
-                        "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60",
-                        !foulMouth
-                          ? "border-emerald-400 bg-emerald-400/15"
-                          : "border-border bg-background hover:border-emerald-400/40",
-                      )}
-                    >
-                      <img
-                        src={ratingPgImg}
-                        alt="PG — Parental Guidance rating certificate"
-                        loading="lazy"
-                        width={56}
-                        height={56}
-                        className={cn(
-                          "h-14 w-14 object-contain transition",
-                          !foulMouth ? "opacity-100" : "opacity-50 saturate-50",
-                        )}
-                      />
-                      <span className="text-sm font-bold">PG rated</span>
-                      <span className="text-[11px] text-muted-foreground">Clean, family safe</span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={foulMouth}
-                      disabled={ratingSaving || isNasheed}
-                      onClick={() => selectRating(true)}
-                      className={cn(
-                        "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60",
-                        foulMouth
-                          ? "border-destructive bg-destructive/20"
-                          : "border-border bg-background hover:border-destructive/40",
-                      )}
-                    >
-                      <img
-                        src={rating18Img}
-                        alt="18 — adults only rating certificate"
-                        loading="lazy"
-                        width={56}
-                        height={56}
-                        className={cn(
-                          "h-14 w-14 object-contain transition",
-                          foulMouth ? "opacity-100" : "opacity-50 saturate-50",
-                        )}
-                      />
-                      <span className="text-sm font-bold">18+ rated</span>
-                      <span className="text-[11px] text-muted-foreground">Explicit, no filter</span>
-                    </button>
-                  </div>
 
-                  {!isNasheed && (
-                    <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-3">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <label
-                          htmlFor="foul-intensity"
-                          className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground"
-                        >
-                          Swearing intensity
-                        </label>
-                        <span className="text-[11px] font-bold text-destructive">
-                          {INTENSITY_LABELS[intensity]}
-                        </span>
-                      </div>
-                      <Slider
-                        id="foul-intensity"
-                        aria-label="Swearing intensity"
-                        min={0}
-                        max={3}
-                        step={1}
-                        value={[intensity]}
-                        onValueChange={(v) => changeIntensity(v[0] ?? 3)}
-                        onValueCommit={(v) => saveIntensity(v[0] ?? 3)}
-                      />
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
-                        <span>Clean</span>
-                        <span>Mild</span>
-                        <span>Strong</span>
-                        <span>Savage</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                      Language
+                {/* Compact track recipe so nothing is a surprise before creating. */}
+                <div className="rounded-xl border border-border bg-background/60 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm font-bold text-foreground">
+                      {title.trim() ||
+                        `For ${subjectName.trim().slice(0, 24) || "you"} · OG Bot names it`}
                     </p>
-                    <p className="text-[11px] font-semibold text-muted-foreground">
-                      {languages.length ? `${languages.length} selected` : "English by default"}
-                    </p>
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                      {isPublic ? (
+                        <Globe2 className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <Lock className="h-3.5 w-3.5 text-primary" />
+                      )}
+                      {isPublic ? "Global" : "Private"}
+                    </span>
                   </div>
-                  <div
-                    role="group"
-                    aria-label="Languages"
-                    style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
-                    className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-background/40 p-2 sm:max-h-[200px] sm:grid-cols-3 sm:overflow-y-auto sm:overscroll-contain sm:pr-1"
-                  >
-                    {POOLS.language.map((l) => {
-                      const selected = languages.includes(l);
-                      return (
-                        <button
-                          key={l}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => setLanguages((prev) => toggle(prev, l))}
-                          className={cn(
-                            "min-h-10 rounded-lg border px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                            selected
-                              ? "border-primary bg-primary/20 text-foreground"
-                              : "border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                          )}
-                        >
-                          {l}
-                        </button>
-                      );
-                    })}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[
+                      styles.join(", ") || "No style",
+                      `${targetMinutes} min`,
+                      (languages.length ? languages : ["English"]).join(", "),
+                      gender || "Mix voice",
+                      isNasheed
+                        ? "Nasheed, voice-only"
+                        : vocalsOnly
+                          ? beatPath
+                            ? "Vocals over your beat"
+                            : "A cappella"
+                          : "Full production",
+                      isNasheed
+                        ? "Strictly clean"
+                        : explicit
+                          ? `18+ · ${INTENSITY_LABELS[intensity]}`
+                          : "PG",
+                    ].map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
+                      >
+                        {chip}
+                      </span>
+                    ))}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    It's sung in exactly what you pick — nothing picked means English.
-                  </p>
-                </div>
-
-                {/* Final review so nothing is a surprise before creating. */}
-                <div className="space-y-1 rounded-xl border border-border bg-background/60 p-3 text-xs">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                    Review
-                  </p>
-                  <p className="font-semibold text-foreground">{title.trim() || "Untitled"}</p>
-                  <p className="text-muted-foreground">
-                    {styles.join(", ") || "No style"} · {targetMinutes} min ·{" "}
-                    {(languages.length ? languages : ["English"]).join(", ")}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {gender || "Mix voice"} ·{" "}
-                    {isNasheed
-                      ? "Nasheed, voice-only"
-                      : vocalsOnly
-                        ? beatPath
-                          ? "Vocals over your beat"
-                          : "A cappella, no instruments"
-                        : "Full production"}{" "}
-                    · {isNasheed ? "Strictly clean" : foulMouth ? "18+" : "PG"}
-                  </p>
-                  <p className="flex items-center gap-1.5 font-semibold text-foreground">
-                    {isPublic ? (
-                      <Globe2 className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <Lock className="h-3.5 w-3.5 text-primary" />
-                    )}
-                    {isPublic ? "Global player" : "Private library"}
-                  </p>
                 </div>
               </div>
             )}
@@ -863,7 +967,7 @@ export function CreateNowWizard({
           )}
         </div>
 
-        <div className="sticky bottom-0 z-10 -mx-4 mt-3 shrink-0 border-t border-white/10 bg-card/95 px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:static sm:-mx-6 sm:mt-1 sm:px-6 sm:pb-1">
+        <div className="-mx-4 mt-6 shrink-0 border-t border-white/10 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4 sm:-mx-6 sm:mt-1 sm:px-6 sm:pb-1">
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -969,6 +1073,8 @@ export function CreateNowWizard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+
     </Dialog>
   );
 }

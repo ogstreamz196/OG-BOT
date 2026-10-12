@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Clock,
   Trash2,
+  KeyRound,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { maskDevIdentity } from "@/lib/dev-identity";
@@ -47,6 +48,7 @@ import { Label } from "@/components/ui/label";
 import { UserAuditTrail } from "@/components/admin/UserAuditTrail";
 import { TelegramSignInLog } from "@/components/admin/TelegramSignInLog";
 import { DevBossPanel } from "@/components/admin/DevBossPanel";
+import { VipExpiryDialog, useVipExpiry, formatVipExpiry } from "@/components/admin/VipExpiryDialog";
 import {
   sendTelegramDm,
   retryTelegramDm,
@@ -116,6 +118,16 @@ function UserSettingsPage() {
         .eq("user_id", userId);
       if (error) throw error;
       return (data ?? []).map((r) => r.role as string);
+    },
+  });
+
+  const vaultQ = useQuery({
+    queryKey: ["admin-user-vault", userId],
+    enabled: isAdmin,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase.rpc("admin_has_vault_pass", { p_user: userId });
+      if (error) throw error;
+      return !!data;
     },
   });
 
@@ -374,6 +386,13 @@ function UserSettingsPage() {
             role="vip"
             rpc="set_vip_admin"
             paramKey="make_vip"
+            vipExpiry
+          />
+
+          <VaultToggleRow
+            userId={profile.id}
+            checked={vaultQ.data ?? false}
+            loading={vaultQ.isLoading}
           />
 
           <RoleToggleRow
@@ -443,13 +462,15 @@ function UserSettingsPage() {
           <header>
             <h3 className="font-semibold">Coin balance</h3>
             <p className="text-sm text-muted-foreground">
-              Set an exact balance, or adjust by a delta. All changes are audited.
+              Balance now: <b className="font-mono">{(profile.coin_balance ?? 0).toLocaleString()}</b>.
+              Every change is logged.
             </p>
           </header>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="set-balance">Set exact balance</Label>
+              <Label htmlFor="set-balance">Replace total balance with</Label>
+              <p className="text-[11px] text-muted-foreground">Overwrites the balance — does not add.</p>
               <div className="flex gap-2">
                 <Input
                   id="set-balance"
@@ -467,13 +488,16 @@ function UserSettingsPage() {
                   disabled={!balanceDirty || saveBalance.isPending}
                 >
                   {saveBalance.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
+                  Replace
                 </Button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="adjust-balance">Adjust by amount</Label>
+              <Label htmlFor="adjust-balance">Add or take away coins</Label>
+              <p className="text-[11px] text-muted-foreground">
+                + adds this many to the balance, − takes this many away.
+              </p>
               <div className="flex gap-2">
                 <Input
                   id="adjust-balance"
@@ -797,6 +821,66 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
+function VaultToggleRow({
+  userId,
+  checked,
+  loading,
+}: {
+  userId: string;
+  checked: boolean;
+  loading: boolean;
+}) {
+  const qc = useQueryClient();
+  const mut = useMutation({
+    mutationFn: async (next: boolean) => {
+      const { error } = await supabase.rpc("set_vault_pass_admin", {
+        target_user_id: userId,
+        grant_access: next,
+        admin_notes: "settings_page_toggle",
+      });
+      if (error) throw new Error(error.message);
+      return next;
+    },
+    onSuccess: (next) => {
+      toast.success(`Vault access ${next ? "granted" : "revoked"}`);
+      qc.invalidateQueries({ queryKey: ["admin-user-vault", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-user-audit", userId] });
+    },
+    onError: (e: Error) => {
+      const m = e.message.toLowerCase();
+      if (m.includes("no active vault credentials"))
+        toast.error("No active Vault logins in the pool — add one in Boss Controls first.");
+      else if (m.includes("not authorized")) toast.error("Not allowed.");
+      else toast.error(e.message);
+    },
+  });
+
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-4">
+      <div className="flex items-center gap-3">
+        <KeyRound className="h-5 w-5 text-emerald-500" />
+        <div>
+          <Label className="text-sm font-medium">OG Vault access</Label>
+          <p className="text-xs text-muted-foreground">
+            Grants the Vault pass for free — independent of VIP.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {(mut.isPending || loading) && (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        )}
+        <Switch
+          checked={checked}
+          disabled={mut.isPending || loading}
+          onCheckedChange={(v) => mut.mutate(v)}
+          aria-label="Toggle OG Vault access"
+        />
+      </div>
+    </div>
+  );
+}
+
 interface RoleToggleRowProps {
   icon: React.ReactNode;
   title: string;
@@ -806,6 +890,7 @@ interface RoleToggleRowProps {
   role: string;
   rpc: "set_vip_admin" | "set_og_bot_admin" | "set_dev_admin" | "set_boss_admin";
   paramKey: "make_vip" | "make_og" | "make_dev" | "make_boss";
+  vipExpiry?: boolean;
 }
 
 function RoleToggleRow({
@@ -817,8 +902,11 @@ function RoleToggleRow({
   role: _role,
   rpc,
   paramKey,
+  vipExpiry = false,
 }: RoleToggleRowProps) {
   const qc = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const expiry = useVipExpiry(userId, vipExpiry && checked);
   const mut = useMutation({
     mutationFn: async (next: boolean) => {
       const args: Record<string, unknown> = {
@@ -853,6 +941,15 @@ function RoleToggleRow({
         <div>
           <Label className="text-sm font-medium">{title}</Label>
           <p className="text-xs text-muted-foreground">{description}</p>
+          {vipExpiry && checked && (
+            <button
+              type="button"
+              onClick={() => setDialogOpen(true)}
+              className="mt-1 text-xs font-medium text-amber-400 hover:underline"
+            >
+              {expiry.isLoading ? "…" : formatVipExpiry(expiry.data)} · Adjust expiry
+            </button>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -860,10 +957,19 @@ function RoleToggleRow({
         <Switch
           checked={checked}
           disabled={mut.isPending}
-          onCheckedChange={(v) => mut.mutate(v)}
+          onCheckedChange={(v) => (vipExpiry && v ? setDialogOpen(true) : mut.mutate(v))}
           aria-label={`Toggle ${title}`}
         />
       </div>
+      {vipExpiry && (
+        <VipExpiryDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          userId={userId}
+          isVip={checked}
+          currentExpiry={expiry.data}
+        />
+      )}
     </div>
   );
 }

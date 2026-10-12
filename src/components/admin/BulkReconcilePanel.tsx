@@ -98,6 +98,7 @@ export function BulkReconcilePanel() {
         .select("id, email, coin_balance")
         .in("id", ids);
       if (pErr) throw pErr;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
       const profMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
 
       // Fetch all coin_transactions for these users
@@ -156,9 +157,9 @@ export function BulkReconcilePanel() {
           });
           if (error) throw error;
           ok++;
-        } catch (e: any) {
+        } catch (e) {
           fail++;
-          console.error("reconcile failed", r.user_id, e?.message);
+          console.error("reconcile failed", r.user_id, (e as Error)?.message);
         }
       }
       return { ok, fail };

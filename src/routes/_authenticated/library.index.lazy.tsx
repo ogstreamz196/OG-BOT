@@ -1,6 +1,11 @@
+import { runQueuedSong } from "@/lib/song-queue.functions";
+import { startAttempt, updateAttempt, describeError } from "@/lib/generation-attempts";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+
+const WIZARD_DRAFT_KEY = "ogbot.wizardDraft.v1";
+import { useSessionRunState } from "@/hooks/use-session-run-state";
 
 /** Falling ember config for the hazard CREATE button — staggered so the shower looks random. */
 const SPARKS = [
@@ -44,7 +49,8 @@ import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettings } from "@/hooks/use-settings";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
+import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
 import { SongCard, type Song } from "@/components/SongCard";
 import { SongCardSkeleton } from "@/components/library/SongCardSkeleton";
@@ -61,6 +67,7 @@ import {
   type Category,
   type Selections,
 } from "@/lib/library-utils";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Disc3, Flame } from "lucide-react";
 
@@ -72,10 +79,13 @@ import { CollapsibleStep } from "@/components/library/CollapsibleStep";
 import {
   CreateNowWizard,
   EMPTY_DRAFT,
+  GUEST_PENDING_SONG_KEY,
   type WizardDraft,
+  type WizardResult,
 } from "@/components/library/CreateNowWizard";
 import { CommunityTrackRow } from "@/components/library/CommunityTrackRow";
 import { MiniPlayer } from "@/components/library/MiniPlayer";
+import { LibraryFilters, type LibraryFilterMode } from "@/components/library/LibraryFilters";
 import { PlaylistProvider, PlaylistOrder, usePlaylist } from "@/hooks/use-playlist";
 import { peekFullTrackPlay, clearFullTrackPlay } from "@/lib/full-track-autoplay";
 import { useFoulIntensity, useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
@@ -141,7 +151,7 @@ function LibraryPage() {
   const { user } = useAuth();
   const dev = useDevMode();
   const { isAdmin, isBoss } = useRole();
-  const { data: profile } = useProfile();
+  const { data: profile, refetch: refetchProfile } = useProfile();
   const { data: settings } = useSettings();
   const navigate = useNavigate();
 
@@ -153,6 +163,8 @@ function LibraryPage() {
   const [autoUnlockPrompt, setAutoUnlockPrompt] = useState(false);
   // download cost is configured via settings.coins_per_full_unlock when needed
   const balance = profile?.coin_balance ?? 0;
+
+
   const firstName = useMemo(() => {
     if (dev.isDev) return "Developer";
     const raw = profile?.display_name?.trim() || user?.email?.split("@")[0] || "";
@@ -167,7 +179,51 @@ function LibraryPage() {
   });
   // Last raw wizard answers — kept so a retry (or reopening the wizard after a
   // failure) never loses what the user already typed.
-  const [wizardDraft, setWizardDraft] = useState<WizardDraft>(EMPTY_DRAFT);
+  const [wizardDraft, setWizardDraftState] = useState<WizardDraft>(EMPTY_DRAFT);
+  // Saved on this device the moment Create is pressed, so a lost connection
+  // or failed attempt never makes the user retype their story.
+  const setWizardDraft = useCallback((d: WizardDraft) => {
+    setWizardDraftState(d);
+    try {
+      window.localStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(d));
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(WIZARD_DRAFT_KEY);
+      if (raw) {
+        setWizardDraftState({ ...EMPTY_DRAFT, ...JSON.parse(raw) });
+        return;
+      }
+    } catch {
+      /* ignore corrupt draft */
+    }
+    // New device or cleared storage: recover the answers saved with the
+    // user's latest failed attempt in the backend.
+    if (!user?.id) return;
+    void (async () => {
+      const { data } = await supabase
+        .from("generation_attempts" as never)
+        .select("status, context")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const row = data as { status?: string; context?: { draft?: WizardDraft } } | null;
+      if (row?.status !== "succeeded" && row?.context?.draft) {
+        setWizardDraftState({ ...EMPTY_DRAFT, ...row.context.draft });
+      }
+    })();
+  }, [user?.id]);
+
+  // Home "Create now" thumbnail lands here with #create — open the wizard.
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#create") return;
+    setWizardOpen(true);
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, []);
 
   /**
    * "Use this vibe" — open the wizard pre-loaded with a track's styles and
@@ -329,6 +385,10 @@ function LibraryPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [yoursSearch, setYoursSearch] = useState("");
   const [communitySearch, setCommunitySearch] = useState("");
+  const [yoursFilter, setYoursFilter] = useState<LibraryFilterMode>("all");
+  const [communityFilter, setCommunityFilter] = useState<LibraryFilterMode>("unlocked");
+  const [yoursStyle, setYoursStyle] = useState<string | null>(null);
+  const [communityStyle, setCommunityStyle] = useState<string | null>(null);
 
   // Build a human-readable line from language + freeform style text.
   const selectionsLine = useMemo(() => {
@@ -424,7 +484,7 @@ function LibraryPage() {
         },
       });
       if (error) {
-        const msg = invokeError(error, "Lyrics generation failed");
+        const msg = await readInvokeError(error, "Lyrics generation failed");
         toast.error(
           msg.toLowerCase().includes("insufficient")
             ? `Not enough coins (need ${lyricsCost})`
@@ -458,6 +518,8 @@ function LibraryPage() {
       toast.error(`Need ${audioCost} coins to generate a song`);
       return;
     }
+    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
+    if (!(await confirmGenerationAllowed())) return;
     generateLockRef.current = true;
     setGenSong(true);
     try {
@@ -477,7 +539,9 @@ function LibraryPage() {
         .insert({
           user_id: user.id,
           title: title.trim() || null,
-          prompt: promptText || title.trim() || "Untitled",
+          prompt:
+            (promptText || title.trim() || "Untitled") +
+            (personalDetails.trim() ? `\n— Idea: ${personalDetails.trim()}` : ""),
           style: style || null,
           lyrics,
           status: "draft",
@@ -504,14 +568,15 @@ function LibraryPage() {
         },
       });
       if (genErr) {
-        toast.error(invokeError(genErr, "Could not start generation"));
+        toast.error(await readInvokeError(genErr, "Could not start generation"));
         return;
       }
       if (genData?.accepted === false) {
         toast.info(genData.error || "Your current generations need to finish first");
         return;
       }
-      toast.success("OG Bot is creating your song — no credits charged");
+      announceSampleCharge(genData);
+      toast.success("OG Bot is creating your song");
       navigate({ to: "/library/$songId", params: { songId: row.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not generate song");
@@ -544,16 +609,35 @@ function LibraryPage() {
     durations: Partial<Record<PipelineStage, number>>;
     error?: string;
   };
-  const [pipeline, setPipeline] = useState<PipelineState>({
+  // App-lifetime: an in-flight creation keeps running and is shown again
+  // when the user navigates away and comes back.
+  const [pipeline, setPipeline] = useSessionRunState<PipelineState>("pipeline", {
     stage: "idle",
     startedAt: 0,
     stageStartedAt: 0,
     durations: {},
   });
   const [pipelineNow, setPipelineNow] = useState(0);
+  // Lyrics are written and the track saved from this page, so warn before
+  // closing during those first seconds or the track would be lost.
+  useEffect(() => {
+    // The server queue now owns the job, so leaving the page is always safe.
+    return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [pipeline.stage]);
   const pipelineLockRef = useRef(false);
   // The song we're watching in realtime while its audio renders.
-  const [trackedSongId, setTrackedSongId] = useState<string | null>(null);
+  const [trackedSongId, setTrackedSongId] = useSessionRunState<string | null>(
+    "trackedSongId",
+    null,
+    true,
+  );
+
   const [freshTrack, setFreshTrack] = useState<Song | null>(null);
   // Finished-track player popup: takes over from the wizard/cooking popup.
   const [masterpieceOpen, setMasterpieceOpen] = useState(false);
@@ -578,6 +662,8 @@ function LibraryPage() {
     return () => window.clearInterval(id);
   }, [pipeline.stage, pipeline.stageStartedAt]);
 
+  const pipelineStageRef = useRef<PipelineStage>("idle");
+  pipelineStageRef.current = pipeline.stage;
   const advanceStage = (next: PipelineStage) => {
     setPipeline((p) => {
       const now = Date.now();
@@ -655,6 +741,8 @@ function LibraryPage() {
     /** Exact lyric rating captured when this track was submitted. */
     foulMouth?: boolean;
     foulIntensity?: number;
+    /** AI title resolving in the background; awaited only before saving. */
+    titlePromise?: Promise<string>;
   };
 
   // Keeps the exact payload of the last run so "Try again" reuses it verbatim.
@@ -672,8 +760,10 @@ function LibraryPage() {
     } else if (!canRunPipeline) {
       return;
     }
+    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
+    if (!(await confirmGenerationAllowed())) return;
 
-    const songTitle = (override?.title ?? title).trim();
+    let songTitle = (override?.title ?? title).trim();
     const songSubject = (override?.subjectName ?? subjectName).trim();
     const songStyle = (override?.style ?? styleText).trim();
     const songLanguage = (override?.language ?? selections.language ?? "English").trim();
@@ -723,54 +813,74 @@ function LibraryPage() {
     setPipeline({ stage: "lyrics", startedAt, stageStartedAt: startedAt, durations: {} });
     setPipelineNow(startedAt);
 
+    // Stage the job in the database before any provider call so a failure
+    // anywhere below always leaves a traceable record.
+    let attemptStage = "lyrics";
+    let attemptSongId: string | null = null;
+    let savedDraft: WizardDraft | null = null;
+    try {
+      const raw = window.localStorage.getItem(WIZARD_DRAFT_KEY);
+      savedDraft = raw ? (JSON.parse(raw) as WizardDraft) : null;
+    } catch {
+      savedDraft = null;
+    }
+    const attemptId = await startAttempt(user.id, {
+      title: songTitle || null,
+      stage: attemptStage,
+      context: {
+        language: songLanguage,
+        style: songStyle,
+        vocal: songVocal,
+        vocals_only: vocalsOnly,
+        has_beat: !!beatPath,
+        target_sec: overrideTargetSec,
+        foul_intensity: trackFoulIntensity,
+        // The user's raw wizard answers, so any retry or device can restore them.
+        draft: savedDraft,
+      },
+    });
+
     try {
       const description = songStyle;
       const combinedExtra = extraContext.trim();
-      const { data: lyricData, error: lyricErr } = await supabase.functions.invoke(
-        "generate-lyrics",
-        {
-          body: {
-            songName: songTitle,
-            description,
-            styleTags: songStyleTags,
-            language: songLanguage,
-            vocal: songVocal,
-            foulMouth: trackFoulMouth,
-            foulIntensity: trackFoulIntensity,
-            personalDetails: songDetails || undefined,
-            extraContext: combinedExtra || undefined,
-            subjectName: songSubject || undefined,
-            targetDurationSec: overrideTargetSec,
-            vocalsOnly,
-          },
-        },
-      );
-      if (stale()) return;
-      if (lyricErr) throw new Error(invokeError(lyricErr, "Lyrics generation failed"));
-      setActualDurationLabel((lyricData?.estimated_duration_label ?? null) as string | null);
-      const nextLyrics = (lyricData?.lyrics ?? "").toString();
-      if (!nextLyrics) throw new Error("No lyrics returned");
-      setLyrics(nextLyrics);
-
-      advanceStage("saving");
-      const style = [songStyle, songVocal, ...vocalsOnlyTags].filter(Boolean).join(", ");
-      const promptText = [
-        songTitle,
-        songSubject ? `For: ${songSubject}` : null,
-        style ? `Style: ${style}` : null,
-        songLanguage ? `Language: ${songLanguage}` : null,
-      ]
-        .filter(Boolean)
-        .join(" — ");
-
-      const { data: row, error: insertErr } = await supabase
+      const lyricBody = {
+        songName: songTitle,
+        description,
+        styleTags: songStyleTags,
+        language: songLanguage,
+        vocal: songVocal,
+        foulMouth: trackFoulMouth,
+        foulIntensity: trackFoulIntensity,
+        personalDetails: songDetails || undefined,
+        extraContext: combinedExtra || undefined,
+        subjectName: songSubject || undefined,
+        targetDurationSec: overrideTargetSec,
+        vocalsOnly,
+      };
+      // Save the job on the server first: if this phone sleeps or loses signal,
+      // the background worker finishes the song from these exact answers.
+      const earlyStyle = [songStyle, songVocal, ...vocalsOnlyTags].filter(Boolean).join(", ");
+      const earlyPrompt =
+        ([songTitle, songSubject ? `For: ${songSubject}` : null, earlyStyle ? `Style: ${earlyStyle}` : null, songLanguage ? `Language: ${songLanguage}` : null]
+          .filter(Boolean)
+          .join(" — ") || songTitle || "Untitled") + (songDetails ? `\n— Idea: ${songDetails}` : "");
+      const sunoBase = {
+        prompt: earlyPrompt,
+        title: songTitle || null,
+        style: songStyle || null,
+        language: songLanguage || null,
+        vocal: songVocal || null,
+        vocals_only: vocalsOnly,
+        beat_path: beatPath || null,
+        target_duration_sec: overrideTargetSec,
+      };
+      const { data: staged, error: stageErr } = await supabase
         .from("songs")
         .insert({
           user_id: user.id,
           title: songTitle || null,
-          prompt: promptText || songTitle || "Untitled",
-          style: style || null,
-          lyrics: nextLyrics,
+          prompt: earlyPrompt,
+          style: earlyStyle || null,
           status: "draft",
           vocals_only: vocalsOnly,
           beat_path: beatPath || null,
@@ -779,42 +889,67 @@ function LibraryPage() {
           is_public: override?.isPublic ?? true,
           foul_mouth: trackFoulMouth,
           foul_intensity: trackFoulIntensity,
+          orchestration: { lyrics: lyricBody, suno: sunoBase },
+          orchestration_due_at: new Date(Date.now() + 4 * 60_000).toISOString(),
         } as never)
         .select("id")
         .single();
       if (stale()) return;
-      if (insertErr || !row?.id) throw new Error(insertErr?.message || "Couldn't save song");
-
-      advanceStage("submitting");
-      const { data: genData, error: genErr } = await supabase.functions.invoke("suno-generate", {
-        body: {
-          song_id: row.id,
-          prompt: promptText,
-          lyrics: nextLyrics,
-          title: songTitle || null,
-          style: songStyle || null,
-          language: songLanguage || null,
-          vocal: songVocal || null,
-          vocals_only: vocalsOnly,
-          beat_path: beatPath || null,
-          target_duration_sec: overrideTargetSec,
-        },
+      if (stageErr || !staged?.id) throw new Error(stageErr?.message || "Couldn't save song");
+      const stagedId = (staged as { id: string }).id;
+      attemptSongId = stagedId;
+      void updateAttempt(attemptId, { song_id: stagedId });
+      // Hand the whole job to the server queue. The phone just watches the
+      // row; closing the app or losing signal can't stop the song now.
+      void runQueuedSong({ data: { songId: stagedId } }).catch(() => {
+        /* background worker resumes it from the saved plan */
       });
-      if (stale()) return;
-      if (genErr) throw new Error(invokeError(genErr, "Could not start generation"));
-      if (genData?.accepted === false) {
-        throw new Error(genData.error || "Your current generations need to finish first");
+      setTrackedSongId(stagedId);
+      if (override?.titlePromise) {
+        void override.titlePromise.then((named) => {
+          const t = named.trim();
+          if (!t) return;
+          setTitle(t);
+          const fp =
+            [t, songSubject ? `For: ${songSubject}` : null, earlyStyle ? `Style: ${earlyStyle}` : null, songLanguage ? `Language: ${songLanguage}` : null]
+              .filter(Boolean)
+              .join(" — ") + (songDetails ? `\n— Idea: ${songDetails}` : "");
+          void supabase.from("songs").update({ title: t, prompt: fp } as never).eq("id", stagedId).eq("status", "draft");
+        });
       }
-
+      const row = { id: stagedId };
       // Stay on the page: a realtime subscription on this row drives the
       // status indicator until the track is ready (or fails).
-      advanceStage("rendering");
-      setTrackedSongId(row.id);
+      void updateAttempt(attemptId, { stage: "queued", status: "succeeded", song_id: row.id });
       library.refetch();
-      toast.success("OG Bot is creating your track — no credits charged");
+      toast.success("OG Bot is cooking your track — you can close the app, it'll be in your Library");
+      try {
+        window.localStorage.removeItem(WIZARD_DRAFT_KEY);
+      } catch {
+        /* storage unavailable */
+      }
     } catch (e) {
-      if (stale()) return;
       const msg = e instanceof Error ? e.message : "Something went wrong";
+      void updateAttempt(attemptId, {
+        status: "failed",
+        stage: attemptStage,
+        song_id: attemptSongId,
+        error_message: msg.slice(0, 1000),
+        context: { error: describeError(e), stale: stale(), draft: savedDraft },
+      });
+      // Leave the job queued on the server: the background worker finishes it
+      // from the saved answers within a few minutes, no tap needed.
+      if (attemptSongId) {
+        void supabase
+          .from("songs")
+          .update({
+            error_message: "Finishing in the background — no need to retype anything.",
+            orchestration_due_at: new Date(Date.now() + 60_000).toISOString(),
+          } as never)
+          .eq("id", attemptSongId)
+          .eq("status", "draft");
+      }
+      if (stale()) return;
       setPipeline((p) => ({ ...p, stage: "error", error: msg }));
       toast.error(msg);
     } finally {
@@ -886,9 +1021,12 @@ function LibraryPage() {
     queryKey: ["library", user?.id],
     enabled: !!user,
     queryFn: async (): Promise<Song[]> => {
+      // Filter by owner explicitly: admin RLS can read every song, which put
+      // other users' tracks into the Boss's own library list.
       const { data, error } = await supabase
         .from("songs")
         .select("*")
+        .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(12);
       if (error) throw error;
@@ -923,7 +1061,11 @@ function LibraryPage() {
   }, [library.data, playlist]);
 
   const versionedLibrary = useMemo(() => {
-    const list = library.data ?? [];
+    // Hidden alt-takes stay out of the library until the user pays to remake.
+    const list = (library.data ?? []).filter((s) => {
+      const row = s as Song & { is_variation?: boolean | null; revealed?: boolean | null };
+      return !row.is_variation || !!row.revealed;
+    });
     const sortedAsc = [...list].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     );
@@ -956,6 +1098,15 @@ function LibraryPage() {
   const completedTracks = useMemo(
     () => versionedLibrary.filter((s) => s.status === "completed"),
     [versionedLibrary],
+  );
+  const yoursStyles = useMemo(
+    () =>
+      POOLS.genre.filter((genre) =>
+        completedTracks.some((song) =>
+          (song.style || "").toLowerCase().includes(genre.toLowerCase()),
+        ),
+      ),
+    [completedTracks],
   );
 
   /** Live queue read-out that drives the console meter + status LEDs. */
@@ -1005,16 +1156,38 @@ function LibraryPage() {
         for (const unlock of unlocks ?? []) unlockedIds.add(unlock.song_id);
       }
       // Merge the listener's unlock ledger into the safe public track fields.
+      // artistUnlocked mirrors the creator's unlock: once the artist unlocks a
+      // track, everyone can listen free — only download/share still costs coins.
       return rows.map((s) => ({
         prompt: "",
         ...s,
-        unlocked: unlockedIds.has(String(s.id)),
+        artistUnlocked: !!s.unlocked,
+        // Your own Community tracks follow your own unlock state.
+        unlocked:
+          unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
       })) as unknown as Song[];
     },
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length < COMMUNITY_PAGE_SIZE ? undefined : allPages.length,
+    // Keep the global feed in sync for every user on web, Android and iOS:
+    // other users' songs can't stream via realtime (private rows), so poll
+    // and refresh whenever the app/tab comes back into view.
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: "always",
   });
   const communityTracks = useMemo(() => community.data?.pages.flat() ?? [], [community.data]);
+  const communityStyles = useMemo(
+    () =>
+      POOLS.genre.filter((genre) =>
+        communityTracks.some((song) =>
+          (song.style || "").toLowerCase().includes(genre.toLowerCase()),
+        ),
+      ),
+    [communityTracks],
+  );
   const communitySentinelRef = useRef<HTMLDivElement | null>(null);
   useInfiniteScrollSentinel(communitySentinelRef, {
     enabled: !!community.hasNextPage && !community.isFetchingNextPage,
@@ -1056,6 +1229,18 @@ function LibraryPage() {
 
     const settle = (row: Song) => {
       if (cancelled) return;
+      const orch = (row as unknown as { orchestration?: { stage?: string } | null }).orchestration;
+      if (row.status === "draft") {
+        const ly = (row as unknown as { lyrics?: string | null }).lyrics;
+        if (ly) setLyrics(ly);
+        const st = orch?.stage;
+        if (st === "submitting") advanceStage("submitting");
+        return;
+      }
+      if (row.status === "processing" || row.status === "pending") {
+        if (pipelineStageRef.current !== "rendering" && pipelineStageRef.current !== "idle") advanceStage("rendering");
+        return;
+      }
       if (row.status === "completed") {
         setFreshTrack(row);
         setAutoUnlockPrompt(false);
@@ -1166,6 +1351,54 @@ function LibraryPage() {
     }
   }
 
+  function startFromWizard(v: WizardResult, draft: WizardDraft) {
+    setWizardDraft(draft);
+    setTitle(v.title);
+    setSubjectName(v.subjectName);
+    setPersonalDetails(v.description.slice(0, PERSONAL_DETAILS_MAX));
+    setStyleText(v.style);
+    setSelections({ language: v.language });
+    setTargetMinutes(Math.max(MIN_TRACK_MINUTES, v.targetMinutes || MIN_TRACK_MINUTES));
+    // Everything now runs in the backend — set expectations with a
+    // celebratory "come back in 5" popup instead of a bare toast.
+    setCooking({ open: true, title: v.title });
+    void createSong(v);
+    window.setTimeout(
+      () => libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      250,
+    );
+  }
+
+  // A song designed before sign-up (welcome page wizard) starts cooking once
+  // the account and coins are loaded; short on coins → reopen the filled wizard.
+  const guestPickupRef = useRef(false);
+  useEffect(() => {
+    if (guestPickupRef.current || !user || !profile) return;
+    let pending: { result: WizardResult; draft: WizardDraft } | null = null;
+    try {
+      const raw = window.localStorage.getItem(GUEST_PENDING_SONG_KEY);
+      if (raw) pending = JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    if (!pending?.result || !pending?.draft) return;
+    guestPickupRef.current = true;
+    try {
+      window.localStorage.removeItem(GUEST_PENDING_SONG_KEY);
+    } catch {
+      /* ignore */
+    }
+    const draft = { ...EMPTY_DRAFT, ...pending.draft };
+    if (balance >= totalCost) {
+      toast.success(`Welcome! Cooking "${pending.result.title}" now 🔥`);
+      startFromWizard(pending.result, draft);
+    } else {
+      setWizardDraft(draft);
+      setWizardOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, profile, balance, totalCost]);
+
   return (
     <div
       data-testid="library-root"
@@ -1193,7 +1426,7 @@ function LibraryPage() {
             <p className="text-[9px] font-black uppercase tracking-[0.34em] text-primary/80">
               OG Studio · Live desk
             </p>
-            <h1 className="font-display text-3xl font-black leading-[1.05] tracking-[-0.02em] break-words sm:text-4xl">
+            <h1 className="truncate font-display text-2xl font-black leading-[1.1] tracking-[-0.02em] sm:text-4xl">
               Hey <span className="text-gradient-brand">{firstName}</span>
             </h1>
           </div>
@@ -1364,24 +1597,7 @@ function LibraryPage() {
         onOpenChange={setWizardOpen}
         initialDraft={wizardDraft}
         submitLabel="Create now"
-        onComplete={(v, draft) => {
-          setWizardDraft(draft);
-          setTitle(v.title);
-          setSubjectName(v.subjectName);
-          setPersonalDetails(v.description.slice(0, PERSONAL_DETAILS_MAX));
-          setStyleText(v.style);
-          setSelections({ language: v.language });
-          setTargetMinutes(Math.max(MIN_TRACK_MINUTES, v.targetMinutes || MIN_TRACK_MINUTES));
-          // Everything now runs in the backend — set expectations with a
-          // celebratory "come back in 5" popup instead of a bare toast.
-          setCooking({ open: true, title: v.title });
-          void createSong(v);
-          // Bring the live status panel into view right after the popup.
-          window.setTimeout(
-            () => statusPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
-            250,
-          );
-        }}
+        onComplete={startFromWizard}
       />
 
       <CookingDialog
@@ -1389,6 +1605,7 @@ function LibraryPage() {
         onOpenChange={(o) => setCooking((c) => ({ ...c, open: o }))}
         title={cooking.title}
         etaMinutes={5}
+        safeToLeave
       />
 
       {/* Creation happens entirely inside the Create now wizard — no inline form. */}
@@ -1568,16 +1785,14 @@ function LibraryPage() {
               className="flex min-w-0 items-center gap-2 font-display text-2xl font-black tracking-tight sm:text-3xl"
             >
               <Disc3 className="h-5 w-5 shrink-0 text-primary" />
-              <span className="truncate">Tape vault</span>
+              <span className="truncate">Music Library</span>
             </h2>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              Your tapes and community sounds
+            </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {versionedLibrary.length > 0 && (
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-primary">
-                {versionedLibrary.length} track{versionedLibrary.length === 1 ? "" : "s"}
-              </span>
-            )}
             <Button
               type="button"
               size="sm"
@@ -1618,34 +1833,48 @@ function LibraryPage() {
           </div>
         )}
 
-        <Tabs defaultValue="yours" className="w-full">
-          <TabsList className="mb-5 grid h-auto w-full grid-cols-2 gap-2 rounded-none border-0 border-b border-white/[0.07] bg-transparent p-0">
+        <Tabs
+          defaultValue="yours"
+          className="w-full"
+          onValueChange={() =>
+            requestAnimationFrame(() =>
+              libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+            )
+          }
+        >
+          <TabsList className="mb-4 grid h-auto w-full grid-cols-2 gap-1.5 rounded-2xl border border-border/60 bg-surface p-1.5 shadow-card">
             <TabsTrigger
               value="yours"
-              className="group flex min-w-0 items-center gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 pt-0 text-sm font-bold text-muted-foreground shadow-none transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              className="group flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-transparent bg-white/[0.04] px-1.5 py-3 text-[13px] font-black tracking-tight text-muted-foreground shadow-none transition-all hover:bg-white/[0.08] hover:text-foreground data-[state=active]:border-primary/50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
             >
-              <Crown className="h-4 w-4 text-primary" />
-              <span className="truncate">Mine</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black tabular-nums text-foreground/90">
+              <Crown className="h-4 w-4 shrink-0 text-primary group-data-[state=active]:text-primary-foreground" />
+              <span>My Songs</span>
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-primary-foreground">
                 {completedTracks.length}
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="community"
-              className="group flex min-w-0 items-center gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 pt-0 text-sm font-bold text-muted-foreground shadow-none transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              className="group flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-transparent bg-white/[0.04] px-1.5 py-3 text-[13px] font-black tracking-tight text-muted-foreground shadow-none transition-all hover:bg-white/[0.08] hover:text-foreground data-[state=active]:border-fuchsia-400/50 data-[state=active]:bg-fuchsia-500/90 data-[state=active]:text-white data-[state=active]:shadow-glow"
             >
-              <Users className="h-4 w-4 text-fuchsia-300" />
-              <span className="truncate">Global</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black tabular-nums text-foreground/90">
+              <Users className="h-4 w-4 shrink-0 text-fuchsia-300 group-data-[state=active]:text-white" />
+              <span>Community</span>
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-white">
                 {communityTracks.length}
               </span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="yours" className="mt-0 space-y-3">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              <span className="text-primary">Yours to play &amp; download</span>
-            </p>
+            <LibraryFilters
+              mode={yoursFilter}
+              onModeChange={setYoursFilter}
+              styles={yoursStyles}
+              selectedStyle={yoursStyle}
+              onStyleChange={setYoursStyle}
+              allCount={completedTracks.length}
+              unlockedCount={completedTracks.filter((s) => !!s.unlocked).length}
+            />
 
             {completedTracks.length > 3 && (
               <div className="relative">
@@ -1679,18 +1908,24 @@ function LibraryPage() {
             ) : completedTracks.length > 0 || genSong ? (
               (() => {
                 const q = yoursSearch.trim().toLowerCase();
-                const filtered = q
-                  ? completedTracks.filter(
-                      (s) =>
-                        (s.title || "").toLowerCase().includes(q) ||
-                        (s.prompt || "").toLowerCase().includes(q) ||
-                        (s.style || "").toLowerCase().includes(q),
-                    )
-                  : completedTracks;
+                const filtered = completedTracks.filter((s) => {
+                  const matchesSearch =
+                    !q ||
+                    (s.title || "").toLowerCase().includes(q) ||
+                    (s.prompt || "").toLowerCase().includes(q) ||
+                    (s.style || "").toLowerCase().includes(q);
+                  const matchesMode =
+                    yoursFilter === "all" ||
+                    (yoursFilter === "unlocked" && !!s.unlocked) ||
+                    (yoursFilter === "styles" &&
+                      !!yoursStyle &&
+                      (s.style || "").toLowerCase().includes(yoursStyle.toLowerCase()));
+                  return matchesSearch && matchesMode;
+                });
                 if (filtered.length === 0 && !genSong) {
                   return (
                     <p className="py-6 text-center text-sm text-muted-foreground">
-                      No tracks match "{yoursSearch}".
+                      No tracks match these filters.
                     </p>
                   );
                 }
@@ -1746,6 +1981,21 @@ function LibraryPage() {
           </TabsContent>
 
           <TabsContent value="community" className="mt-0 space-y-3">
+            <LibraryFilters
+              mode={communityFilter}
+              onModeChange={setCommunityFilter}
+              styles={communityStyles}
+              selectedStyle={communityStyle}
+              onStyleChange={setCommunityStyle}
+              allCount={communityTracks.length}
+              unlockedCount={
+                communityTracks.filter((s) => !!s.unlocked || !!s.artistUnlocked).length
+              }
+              lockedCount={
+                communityTracks.filter((s) => !s.unlocked && !s.artistUnlocked).length
+              }
+              hideAll
+            />
             {communityTracks.length > 3 && (
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1790,18 +2040,25 @@ function LibraryPage() {
             ) : communityTracks.length > 0 ? (
               (() => {
                 const q = communitySearch.trim().toLowerCase();
-                const filtered = q
-                  ? communityTracks.filter(
-                      (s) =>
-                        (s.title || "").toLowerCase().includes(q) ||
-                        (s.prompt || "").toLowerCase().includes(q) ||
-                        (s.style || "").toLowerCase().includes(q),
-                    )
-                  : communityTracks;
+                const filtered = communityTracks.filter((s) => {
+                  const matchesSearch =
+                    !q ||
+                    (s.title || "").toLowerCase().includes(q) ||
+                    (s.prompt || "").toLowerCase().includes(q) ||
+                    (s.style || "").toLowerCase().includes(q);
+                  const matchesMode =
+                    communityFilter === "all" ||
+                    (communityFilter === "unlocked" && (!!s.unlocked || !!s.artistUnlocked)) ||
+                    (communityFilter === "locked" && !s.unlocked && !s.artistUnlocked) ||
+                    (communityFilter === "styles" &&
+                      !!communityStyle &&
+                      (s.style || "").toLowerCase().includes(communityStyle.toLowerCase()));
+                  return matchesSearch && matchesMode;
+                });
                 if (filtered.length === 0) {
                   return (
                     <p className="py-6 text-center text-sm text-muted-foreground">
-                      No community tracks match "{communitySearch}".
+                      No community tracks match these filters.
                     </p>
                   );
                 }

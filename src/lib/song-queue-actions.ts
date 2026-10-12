@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { languageFromPrompt } from "@/lib/library-utils";
-import { invokeError } from "@/lib/invoke-error";
+import { readInvokeError } from "@/lib/invoke-error";
 
 /**
  * Shared actions for the generation queue / history surfaces:
@@ -13,7 +13,7 @@ const ACTIVE = new Set(["pending", "processing"]);
 /** Cancel (if in flight) then permanently delete the song row. */
 export async function deleteQueuedSong(song: { id: string; status?: string | null }) {
   if (ACTIVE.has((song.status ?? "").toLowerCase())) {
-    // Refunds the coins and releases the concurrency slot before we remove it.
+    // Releases the concurrency slot (and refunds a paid edit) before we remove it.
     await supabase.functions.invoke("suno-cancel", { body: { song_id: song.id } });
   }
   const { error } = await supabase.from("songs").delete().eq("id", song.id);
@@ -43,7 +43,7 @@ export async function retryGeneration(songId: string) {
       portal_id: song.portal_id,
     },
   });
-  if (genErr) throw new Error(invokeError(genErr, "Could not restart generation"));
+  if (genErr) throw new Error(await readInvokeError(genErr, "Could not restart generation"));
   if (data?.accepted === false) throw new Error(data.error || "Studio is busy — try again shortly");
   return data as { song_id?: string } | null;
 }

@@ -2,7 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, Send, Users, Loader2, Trash2, Coins, Flag, Trophy } from "lucide-react";
+import { ArrowDown, Send, Users, Loader2, Trash2, Coins, Flag, Trophy, Eraser } from "lucide-react";
 import { TypingDots } from "@/components/ui/typing-dots";
 import { toast } from "sonner";
 import {
@@ -10,14 +10,27 @@ import {
   listOlderCommunityMessages,
   postCommunityMessage,
   clearCommunityMessages,
+  clearMyBattleHistory,
+  claimGuestBattleMessages,
   getBattleTally,
   getRoastOfTheDay,
   endBattle,
   getBattleLeaderboard,
+  listMyCommunityBlocks,
+  blockCommunityUser,
+  reportCommunityMessage,
   type BattleLeaderboardRow,
   type CommunityMessage,
 } from "@/lib/community.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
+import { MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
@@ -65,6 +78,56 @@ export function CommunityRoom() {
   const { foulMouth } = useFoulMouth();
   const { isDev, isAdmin } = useRole();
   const canClear = isDev || isAdmin;
+  // Report / Block are app-store safety tools — always visible so store
+  // reviewers (who test in a browser) can see them.
+  const [nativeApp, setNativeApp] = useState(false);
+  useEffect(() => setNativeApp(Capacitor.isNativePlatform()), []);
+  const blocksFn = useServerFn(listMyCommunityBlocks);
+  const blockFn = useServerFn(blockCommunityUser);
+  const reportFn = useServerFn(reportCommunityMessage);
+  const { data: blockData } = useQuery({
+    queryKey: ["community-blocks"],
+    queryFn: () => blocksFn(),
+    enabled: !!myId,
+    staleTime: 60_000,
+  });
+  const blockedSet = useMemo(() => new Set(blockData?.blocked ?? []), [blockData]);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("og-bz-hidden");
+      if (raw) setHiddenIds(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  const reportMsg = async (id: string) => {
+    try {
+      await reportFn({ data: { messageId: id } });
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        try {
+          localStorage.setItem("og-bz-hidden", JSON.stringify([...next].slice(-500)));
+        } catch {
+          /* private mode */
+        }
+        return next;
+      });
+      toast.success("Message reported and hidden from your view. We review reports within 24 hours.");
+    } catch (e) {
+      toast.error((e as Error).message || "Couldn't send report");
+    }
+  };
+  const blockUser = async (uid: string) => {
+    try {
+      await blockFn({ data: { userId: uid } });
+      await qc.invalidateQueries({ queryKey: ["community-blocks"] });
+      toast.success("Blocked — you won't see their messages any more.");
+    } catch (e) {
+      toast.error((e as Error).message || "Couldn't block");
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["community-messages"],
@@ -92,7 +155,13 @@ export function CommunityRoom() {
   });
   const [lastEarned, setLastEarned] = useState<number | null>(null);
   const pendingCoins = ((tally?.pendingTenths ?? 0) / 10).toFixed(2);
-  const messages: CommunityMessage[] = useMemo(() => data?.messages ?? [], [data?.messages]);
+  const messages: CommunityMessage[] = useMemo(
+    () =>
+      (data?.messages ?? []).filter(
+        (m) => !hiddenIds.has(m.id) && (!m.user_id || !blockedSet.has(m.user_id)),
+      ),
+    [data?.messages, blockedSet, hiddenIds],
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -365,6 +434,40 @@ export function CommunityRoom() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const clearMineFn = useServerFn(clearMyBattleHistory);
+  const clearMine = useMutation({
+    mutationFn: () => clearMineFn(),
+    onSuccess: () => {
+      qc.setQueryData(["community-messages"], { messages: [] });
+      toast.success("Your chat history is cleared — only for you.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Bring across anything they typed as a guest on the welcome page.
+  const claimFn = useServerFn(claimGuestBattleMessages);
+  useEffect(() => {
+    if (!myId) return;
+    let gid: string | null = null;
+    try {
+      gid = localStorage.getItem("og-guest-id");
+    } catch {
+      /* private mode */
+    }
+    if (!gid) return;
+    claimFn({ data: { guestId: gid } })
+      .then(() => {
+        try {
+          localStorage.removeItem("og-guest-id");
+        } catch {
+          /* ignore */
+        }
+        void qc.invalidateQueries({ queryKey: ["community-messages"] });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myId]);
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const t = text.trim();
@@ -376,57 +479,78 @@ export function CommunityRoom() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-1.5 p-1.5 font-sans sm:p-2">
-      <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <Coins className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-          <div className="min-w-0 leading-tight">
-            <p className="whitespace-nowrap text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-              Battle purse
-            </p>
-            <p
-              className="truncate text-xs font-black tabular-nums text-foreground sm:text-sm"
-              aria-live="polite"
+          <Coins className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <p
+            className="min-w-0 truncate text-xs font-black tabular-nums text-foreground sm:text-sm"
+            aria-live="polite"
+            title="Battle purse"
+          >
+            {pendingCoins} OG
+            {lastEarned ? (
+              <span className="ml-1 animate-[pop_0.3s_ease-out] text-[10px] font-bold text-primary">
+                +{(lastEarned / 10).toFixed(2)}
+              </span>
+            ) : null}
+          </p>
+          {(tally?.streakDays ?? 0) > 1 ? (
+            <span
+              className="inline-flex shrink-0 items-center rounded-full border border-coin/40 bg-coin/10 px-1.5 py-0.5 text-[10px] font-black text-coin"
+              title={`${tally?.streakDays}-day streak`}
             >
-              {pendingCoins} OG
-              {lastEarned ? (
-                <span className="ml-1 animate-[pop_0.3s_ease-out] text-[10px] font-bold text-primary">
-                  +{(lastEarned / 10).toFixed(2)}
-                </span>
-              ) : null}
-            </p>
-          </div>
+              🔥{tally?.streakDays}
+            </span>
+          ) : null}
         </div>
-        {(tally?.streakDays ?? 0) > 1 ? (
-          <span className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-full border border-coin/40 bg-coin/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-coin">
-            🔥 {tally?.streakDays}-day streak
-          </span>
-        ) : null}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 gap-1 px-2 text-[9px] font-bold uppercase"
+            className="h-7 gap-1 px-2 text-[10px] font-bold uppercase"
             aria-expanded={showBoard}
+            aria-label="Ranks"
             onClick={() => setShowBoard((v) => !v)}
           >
-            <Trophy className="h-3 w-3" />
-            Ranks
+            <Trophy className="h-3.5 w-3.5" />
+            <span className="hidden min-[400px]:inline">Ranks</span>
           </Button>
           <Button
             type="button"
             variant="destructive"
             size="sm"
-            className="h-7 gap-1 px-2 text-[9px] font-bold uppercase"
+            className="h-7 gap-1 px-2 text-[10px] font-bold uppercase"
             disabled={quit.isPending}
+            aria-label="Bank coins"
             onClick={() => quit.mutate()}
           >
             {quit.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Flag className="h-3 w-3" />
+              <Flag className="h-3.5 w-3.5" />
             )}
             <span>Bank</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0"
+            disabled={clearMine.isPending}
+            title="Clear my chat history (only for me)"
+            onClick={() => {
+              if (window.confirm("Clear your Battle Zone history? Only your view is cleared — nobody else is affected.")) {
+                clearMine.mutate();
+              }
+            }}
+          >
+            {clearMine.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Eraser className="h-3 w-3" />
+            )}
+            <span className="sr-only">Clear my history</span>
           </Button>
           {canClear && (
             <Button
@@ -597,6 +721,27 @@ export function CommunityRoom() {
                             {m.content}
                           </p>
                         </div>
+                        {!mine && !isBot && m.user_id && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              aria-label="Message options"
+                              className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-muted-foreground"
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onSelect={() => void reportMsg(m.id)}>
+                                Report message
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onSelect={() => void blockUser(m.user_id!)}
+                              >
+                                Block user
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </div>
                   );
@@ -669,7 +814,7 @@ export function CommunityRoom() {
               submit(e as unknown as React.FormEvent);
             }
           }}
-          placeholder="Drop your bars — OG Bot will fire back…"
+          placeholder="Give me ur best shot — say or ask anything…"
           rows={2}
           maxLength={1000}
           enterKeyHint="send"
@@ -690,6 +835,15 @@ export function CommunityRoom() {
           )}
         </Button>
       </form>
+      {nativeApp && (
+        <p className="px-3 pb-1 text-center text-[11px] text-muted-foreground">
+          Zero tolerance for abusive content. By chatting you agree to our{" "}
+          <a href="/terms" className="underline">
+            Terms of Use
+          </a>
+          .
+        </p>
+      )}
     </div>
   );
 }

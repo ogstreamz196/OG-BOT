@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.protect_og_vip_id() FROM PUBLIC, anon, authenticated;

@@ -1,17 +1,9 @@
+import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
 import { Capacitor } from "@capacitor/core";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
-import {
-  Music2,
-  Sparkles,
-  Loader2,
-  Headphones,
-  Heart,
-  Star,
-  Wand2,
-  Mic2,
-  Pencil,
-} from "lucide-react";
+import { Music2, Sparkles, Loader2, Headphones, Wand2, Mic2, Pencil } from "lucide-react";
 import { EditableContent } from "@/components/admin/EditableContent";
 import {
   AdminEditModeProvider,
@@ -30,12 +22,18 @@ import { checkDeviceAccountAllowed } from "@/lib/device-limit.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
-import partyCoverAsset from "@/assets/album-party-anthem.jpg.asset.json";
-import heartbreakCoverAsset from "@/assets/album-heartbreak.jpg.asset.json";
-import drillCoverAsset from "@/assets/album-drill.jpg.asset.json";
-import afrobeatsCoverAsset from "@/assets/album-afrobeats.jpg.asset.json";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
+import { GuestBattle } from "@/components/welcome/GuestBattle";
+import { DodgyLogo } from "@/components/welcome/DodgyLogo";
+import {
+  CreateNowWizard,
+  GUEST_PENDING_SONG_KEY,
+  type WizardDraft,
+  type WizardResult,
+} from "@/components/library/CreateNowWizard";
 
 function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -92,32 +90,6 @@ function useIsNativeApp() {
   return native;
 }
 
-const albumCovers = [
-  {
-    title: "Party anthem",
-    prompt: "Make it loud, funny and ready for the group chat.",
-    style: "Pop · Dance",
-    image: partyCoverAsset.url,
-  },
-  {
-    title: "Heartbreak hook",
-    prompt: "Turn the messy message into a chorus people feel.",
-    style: "R&B · Ballad",
-    image: heartbreakCoverAsset.url,
-  },
-  {
-    title: "Street energy",
-    prompt: "Give it a cold intro, sharp bars and heavy bass.",
-    style: "Rap · Drill",
-    image: drillCoverAsset.url,
-  },
-  {
-    title: "Summer bounce",
-    prompt: "Sunny, catchy and made for the speakers.",
-    style: "Afrobeats · Vibes",
-    image: afrobeatsCoverAsset.url,
-  },
-];
 
 const PENDING_REF_KEY = "og_pending_ref";
 
@@ -127,6 +99,20 @@ function safeRelativeNext(): string | null {
   if (!raw) return null;
   // Same-origin relative path only.
   if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  // Legacy or auth-only paths would 404 or loop after sign-in — send home.
+  const path = raw.split(/[?#]/)[0].replace(/\/+$/, "").toLowerCase();
+  const legacy = [
+    "",
+    "/dashboard",
+    "/home",
+    "/welcome",
+    "/login",
+    "/signin",
+    "/signup",
+    "/auth",
+    "/auth/callback",
+  ];
+  if (legacy.includes(path)) return null;
   return raw;
 }
 
@@ -138,13 +124,9 @@ function useRedirectIfSignedIn() {
       const ref = new URLSearchParams(window.location.search).get("ref");
       const normalizedRef = ref?.trim().toUpperCase();
       const validUuid = !!ref && /^[0-9a-f-]{36}$/i.test(ref);
-      const validCode = !!normalizedRef && /^(?:OG-)?[A-Z0-9]{6}$/.test(normalizedRef);
+      const validCode = !!normalizedRef && /^(?:OG-)?[A-Z0-9]{3,32}$/.test(normalizedRef);
       if ((validUuid || validCode) && ref && normalizedRef) {
-        const stored = validUuid
-          ? ref.toLowerCase()
-          : normalizedRef.startsWith("OG-")
-            ? normalizedRef
-            : `OG-${normalizedRef}`;
+        const stored = validUuid ? ref.toLowerCase() : normalizedRef;
         try {
           localStorage.setItem(PENDING_REF_KEY, stored);
         } catch {
@@ -318,7 +300,10 @@ function AuthButtons({ size = "lg" }: { size?: "lg" | "xl" }) {
           aria-hidden
         />
         <div className="text-center">
-          <OgBotLogo className="mx-auto h-24 w-24 rounded-2xl sm:h-28 sm:w-28" />
+          <p className="font-display text-sm font-black uppercase tracking-[0.3em] text-foreground sm:text-base">
+            OG Streamz Presentz
+          </p>
+          <OgBotLogo className="mx-auto mt-3 h-44 w-44 rounded-3xl shadow-glow sm:h-56 sm:w-56" />
           <h2 className="mt-3 text-lg font-semibold text-foreground sm:text-xl">
             {native ? "Create your account" : "Sign in to your account"}
           </h2>
@@ -329,22 +314,22 @@ function AuthButtons({ size = "lg" }: { size?: "lg" | "xl" }) {
           </p>
         </div>
 
-        <div className="mt-6">
-          <EmailAuthPanel disabled={pending !== null} />
-        </div>
-
         {!native && (
           <>
-            <div className="my-5 flex items-center gap-4" aria-hidden>
+            <div className="mt-6 grid grid-cols-2 gap-3">{PRIMARY_DEVICES.map(renderTile)}</div>
+            <div className="my-5 flex items-center gap-3" aria-hidden>
               <span className="h-px flex-1 bg-border" />
-              <span className="font-auth-display text-3xl font-black uppercase leading-none text-foreground sm:text-4xl">
-                or
+              <span className="font-auth-display text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+                or with username
               </span>
               <span className="h-px flex-1 bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-3">{PRIMARY_DEVICES.map(renderTile)}</div>
           </>
         )}
+
+        <div>
+          <EmailAuthPanel disabled={pending !== null} />
+        </div>
       </div>
     </div>
   );
@@ -369,6 +354,7 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
 
   const [busy, setBusy] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const [createProgress, setCreateProgress] = useState(0);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -615,15 +601,13 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
       {mode !== "reset" && (
         <button
           type="button"
-          onClick={() => {
-            setResetSent(false);
-            setMode("reset");
-          }}
-          className="mt-5 w-full text-center text-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+          onClick={() => setForgotOpen(true)}
+          className="mt-4 h-12 w-full rounded-lg border-2 border-border bg-secondary/60 text-center text-base font-semibold text-foreground transition-colors hover:border-primary/60"
         >
           Forgot password?
         </button>
       )}
+      <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
 
       {mode === "reset" && (
         <button
@@ -641,8 +625,103 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
   );
 }
 
+const OPEN_AUTH = "og:open-auth";
+const OPEN_WIZARD = "og:open-guest-wizard";
+const openAuth = () => window.dispatchEvent(new Event(OPEN_AUTH));
+const openSongAuth = (title: string) =>
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
+const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
+const OPEN_BATTLE = "og:open-guest-battle";
+const openBattle = () => window.dispatchEvent(new Event(OPEN_BATTLE));
+
+/** Signed-out song wizard: nothing generates until the visitor signs in. */
+function GuestWizard() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener(OPEN_WIZARD, on);
+    return () => window.removeEventListener(OPEN_WIZARD, on);
+  }, []);
+  const done = (result: WizardResult, draft: WizardDraft) => {
+    try {
+      localStorage.setItem(GUEST_PENDING_SONG_KEY, JSON.stringify({ result, draft }));
+    } catch {
+      /* storage blocked */
+    }
+    // Send them to the studio after sign-in (survives Google/Apple round-trip).
+    const url = new URL(window.location.href);
+    url.searchParams.set("next", "/library");
+    window.history.replaceState(null, "", url.toString());
+    setTimeout(() => openSongAuth(result.title), 200);
+  };
+  return (
+    <CreateNowWizard
+      open={open}
+      onOpenChange={setOpen}
+      onComplete={done}
+      guestMode
+      submitLabel="Create my song"
+    />
+  );
+}
+
+function AuthModal() {
+  const [open, setOpen] = useState(false);
+  const [songTitle, setSongTitle] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      setSongTitle((e as CustomEvent<{ songTitle?: string }>).detail?.songTitle ?? null);
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_AUTH, on);
+    // Old #sign-in links still open the form.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href="#sign-in"]');
+      if (a) {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener(OPEN_AUTH, on);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto">
+        <DialogTitle className="sr-only">Sign in or join OG Streamz</DialogTitle>
+        <div id="sign-in">
+          {songTitle && (
+            <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
+              <p className="font-display text-xl font-black">Your track is ready to cook 🎧</p>
+              <p className="mt-1 text-sm">
+                <span className="font-bold">"{songTitle}"</span> is saved. Join free and it starts
+                cooking straight away.
+              </p>
+              <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
+                <li>🪙 Free welcome coins to make it</li>
+                <li>👑 15 days of VIP — every style unlocked</li>
+                <li>💸 Earn commission when friends join</li>
+              </ul>
+              <p className="mt-3 text-xs font-medium text-card-foreground/80">
+                🔒 100% free. Email only for password resets — no spam, ever.
+              </p>
+            </div>
+          )}
+          <AuthButtons size="xl" />
+          <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
+            Free to start — new or returning, one form does both. Your Battle Zone chat comes with you.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function WelcomePage() {
-  // Single session check for the whole page (AuthButtons is mounted twice).
+  // Single session check for the whole page.
   useRedirectIfSignedIn();
   return (
     <AdminEditModeProvider>
@@ -652,13 +731,20 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
+        <div className="flex justify-center px-4 pt-6 sm:pt-10">
+          <DodgyLogo size={220} imageClassName="rounded-3xl" />
+        </div>
         <Hero />
-        <FoulMouthHype />
-        <AlbumCoverShowcase />
-        <Pillars />
+        <Superpowers />
+        <HowItWorks />
+        <EarnCoins />
 
         <ClosingCta />
+        <CommunityShowcase />
         <Footer />
+        <AuthModal />
+        <GuestWizard />
+        <BattleModal />
 
         <div className="fixed bottom-4 right-4 z-50">
           <AdminEditModeToggle />
@@ -694,81 +780,161 @@ function TopNav() {
           aria-label="OG Streamz — home"
           className="group flex min-w-0 items-center gap-3"
         >
-          <span
+          <img
+            src={ogStreamzLogo.url}
+            alt=""
             aria-hidden
-            className="wc-wiggle grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-brand text-primary-foreground shadow-glow sm:h-11 sm:w-11"
-          >
-            <Sparkles className="h-5 w-5" />
-          </span>
+            className="h-12 w-12 shrink-0 rounded-2xl object-cover shadow-glow ring-1 ring-white/15 sm:h-14 sm:w-14"
+          />
           <div className="min-w-0 leading-none">
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-[11px]">
               <span>Powered by</span>
-              <OgBotLogo className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+              <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
               <span>OG Bot</span>
             </p>
           </div>
         </Link>
-        <BackgroundMusicHeaderControl />
+        <div className="flex items-center gap-2">
+          <BackgroundMusicHeaderControl />
+          <Button size="sm" className="h-10 rounded-xl font-black uppercase" onClick={openAuth}>
+            Sign in / Join
+          </Button>
+        </div>
       </nav>
     </header>
   );
 }
 
+/** Giant red hazard-striped "create a track now" button. */
+function HazardCta({ className = "" }: { className?: string }) {
+  const stripes =
+    "repeating-linear-gradient(45deg, #FACC15 0 16px, #0B0B12 16px 32px)";
+  return (
+    <button
+      type="button"
+      onClick={openWizard}
+      aria-label="Create a track now"
+      className={`group relative w-full max-w-md overflow-hidden rounded-2xl bg-red-600 px-6 py-5 text-center text-2xl font-black uppercase tracking-wide text-red-50 shadow-[0_0_45px_-8px_rgba(220,38,38,0.9)] ring-4 ring-red-500/60 transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-red-300 active:scale-[0.98] sm:px-10 sm:py-7 sm:text-3xl ${className}`}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-2.5 transition-transform group-hover:animate-none"
+        style={{ background: stripes }}
+      />
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-2.5"
+        style={{ background: stripes }}
+      />
+      <span className="relative inline-flex items-center justify-center gap-3 [text-wrap:balance]">
+        <span className="text-3xl sm:text-4xl" aria-hidden>
+          ⚠️
+        </span>
+        Create a Track Now
+      </span>
+    </button>
+  );
+}
+
+/** Black/yellow danger-zone button that opens the Battle Zone popup. */
+function DangerZoneCta({ className = "" }: { className?: string }) {
+  const stripes =
+    "repeating-linear-gradient(-45deg, #FACC15 0 14px, #0B0B12 14px 28px)";
+  return (
+    <button
+      type="button"
+      onClick={openBattle}
+      aria-label="Enter Battle Zone"
+      className={`group relative w-full max-w-md overflow-hidden rounded-2xl p-2.5 shadow-[0_0_45px_-8px_rgba(250,204,21,0.8)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow-300 active:scale-[0.98] ${className}`}
+      style={{ background: stripes }}
+    >
+      <span className="relative flex flex-col items-center justify-center rounded-xl bg-zinc-950 px-6 py-4 sm:px-10 sm:py-5">
+        <span className="inline-flex items-center gap-3 text-2xl font-black uppercase tracking-wide text-yellow-300 sm:text-3xl">
+          <span className="text-3xl group-hover:animate-bounce sm:text-4xl" aria-hidden>
+            🤬
+          </span>
+          Enter Battle Zone
+        </span>
+        <span className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-yellow-100/80">
+          ☠️ Danger zone · roast the bot
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Battle Zone opens as its own popup so the page stays clean. */
+function BattleModal() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setOpen(true);
+    window.addEventListener(OPEN_BATTLE, on);
+    return () => window.removeEventListener(OPEN_BATTLE, on);
+  }, []);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl overflow-y-auto p-2 sm:p-4">
+        <DialogTitle className="sr-only">Battle Zone — roast OG Bot</DialogTitle>
+        <GuestBattle
+          onNeedAccount={() => {
+            setOpen(false);
+            setTimeout(openAuth, 150);
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Hero() {
   return (
-    <section className="relative mx-auto flex min-h-[calc(100dvh-4rem)] max-w-5xl flex-col justify-center px-3 pt-6 pb-10 sm:min-h-0 sm:px-8 sm:py-14">
-      {/* Floating stickers */}
-      <Sticker className="left-[4%] top-10 wc-float" rotate="-12">
-        <Heart className="h-6 w-6 text-pink-400" />
-      </Sticker>
-      <Sticker className="right-[6%] top-16 wc-float-slow" rotate="14">
-        <Star className="h-6 w-6 text-amber-300" />
-      </Sticker>
-      <Sticker className="left-[8%] bottom-[18%] wc-float-slow" rotate="8">
-        <Headphones className="h-6 w-6 text-primary" />
-      </Sticker>
-      <Sticker className="right-[6%] bottom-[22%] wc-float" rotate="-10">
-        <Mic2 className="h-6 w-6 text-violet-300" />
-      </Sticker>
-
+    <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
       <div className="relative mx-auto w-full max-w-3xl text-center">
-        <div className="mx-auto mb-3 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border-2 border-primary/40 bg-primary/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-primary shadow-[0_0_28px_-8px_oklch(0.7_0.2_300_/_0.7)] sm:text-sm">
-          <span>🎵 MusicHUB</span>
-          <span aria-hidden className="text-primary/50">
-            ·
-          </span>
-          <span className="inline-flex items-center gap-1.5 normal-case tracking-normal text-foreground">
-            Powered by
-            <OgBotLogo className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="font-black uppercase tracking-tight">OG Bot</span>
-          </span>
+        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+          <span>👑 15 days free VIP</span>
+          <span aria-hidden className="text-primary/50">·</span>
+          <span>No card</span>
         </div>
 
-        <h1 className="font-display mt-5 text-[clamp(2rem,9.5vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance] hyphens-none drop-shadow-[0_8px_30px_rgba(80,60,255,0.35)] sm:mt-8 sm:leading-[0.9] sm:tracking-[-0.05em]">
-          <span className="wc-pop block">PROMPT IT.</span>
+        <h1 className="font-display mt-5 text-[clamp(2.2rem,10vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance]">
+          <span className="wc-pop block">TURN ANY IDEA</span>
           <span className="wc-pop block" style={{ animationDelay: "0.15s" }}>
-            MAKE A{" "}
-            <span
-              className="italic text-gradient-brand wc-bounce-soft inline-block"
-              style={{ animationDelay: "0.3s" }}
-            >
-              PERSONAL
-            </span>
+            INTO A{" "}
+            <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
           </span>
           <span className="wc-pop block" style={{ animationDelay: "0.3s" }}>
-            MUSIC TRACK.
+            IN SECONDS.
           </span>
         </h1>
 
-        <div id="sign-in" className="mx-auto mt-6 max-w-md scroll-mt-24 sm:mt-10">
-          <AuthButtons size="xl" />
-          <p className="mt-3 text-center text-sm font-semibold tracking-wide text-muted-foreground sm:mt-6 sm:text-lg sm:font-bold sm:text-foreground">
-            Free to start — no card required
-          </p>
+        <p className="mx-auto mt-4 max-w-xl text-base font-medium text-foreground/85 sm:text-xl">
+          Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
+        </p>
+
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-4 sm:items-center">
+          <HazardCta className="sm:w-auto sm:min-w-[26rem]" />
+          <DangerZoneCta className="sm:w-auto sm:min-w-[26rem]" />
         </div>
+
+        <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
+          {[
+            { i: <Mic2 className="h-3.5 w-3.5" />, t: "Real vocals" },
+            { i: <Sparkles className="h-3.5 w-3.5" />, t: "Album cover" },
+            { i: <span>🤬</span>, t: "Foul Mouth mode" },
+          ].map((c) => (
+            <li
+              key={c.t}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1"
+            >
+              {c.i}
+              {c.t}
+            </li>
+          ))}
+        </ul>
+
       </div>
     </section>
   );
@@ -776,184 +942,55 @@ function Hero() {
 
 const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 
-function AlbumCoverShowcase() {
-  const [hidden, setHidden] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (typeof window !== "undefined" && localStorage.getItem(PERSONAL_BANNER_KEY) === "1") {
-          return;
-        }
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          const { count } = await supabase
-            .from("songs")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id);
-          if ((count ?? 0) > 0) {
-            try {
-              localStorage.setItem(PERSONAL_BANNER_KEY, "1");
-            } catch {}
-            return;
-          }
-        }
-        if (!cancelled) setHidden(false);
-      } catch {
-        if (!cancelled) setHidden(false);
-      }
-    })();
-    const onGenerate = () => {
-      try {
-        localStorage.setItem(PERSONAL_BANNER_KEY, "1");
-      } catch {}
-      setHidden(true);
-    };
-    window.addEventListener("og:generate-start", onGenerate);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("og:generate-start", onGenerate);
-    };
-  }, []);
-
-  const dismiss = useCallback(() => {
-    try {
-      localStorage.setItem(PERSONAL_BANNER_KEY, "1");
-    } catch {}
-    setHidden(true);
-  }, []);
-
-  if (hidden) return null;
-
-  return (
-    <div className="mx-auto mt-10 max-w-3xl px-1 sm:mt-16 sm:px-0">
-      <div className="relative overflow-hidden rounded-[1.75rem] border-2 border-primary/40 bg-gradient-to-br from-card/80 via-card/60 to-card/80 p-5 text-center shadow-[0_18px_60px_-20px_rgba(255,60,60,0.45)] backdrop-blur-xl sm:rounded-[2rem] sm:p-8">
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label="Dismiss personalization reminder"
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-background/60 text-muted-foreground transition hover:text-foreground"
-        >
-          ✕
-        </button>
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-primary sm:text-xs">
-          ✨ Reminder
-        </span>
-        <h3 className="font-display mt-3 text-balance text-[clamp(1.5rem,6vw,2.25rem)] font-semibold leading-[1.05] tracking-[-0.025em] sm:mt-4 sm:text-4xl">
-          Make it as personal as you like —{" "}
-          <em className="italic text-gradient-brand">the more you share, the better the song</em>
-        </h3>
-        <p className="mt-3 text-sm font-medium text-muted-foreground sm:mt-4 sm:text-base">
-          Names, inside jokes, occasions, favourite things — drop it all in. OG Bot turns your
-          details into a track that feels like <em className="italic text-foreground">them</em>. 🎧
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function Sticker({
-  children,
-  className,
-  rotate,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  rotate: string;
-}) {
-  return (
-    <div
-      className={`absolute hidden sm:grid place-items-center h-12 w-12 rounded-2xl border-2 border-white/20 bg-card/80 shadow-card backdrop-blur-xl ${className ?? ""}`}
-      style={{ transform: `rotate(${rotate}deg)` }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Pillars() {
-  const items: Array<{
-    icon: React.ReactNode;
-    emoji: string;
-    title: React.ReactNode;
-    body: string;
-    tilt: string;
-    key: string;
-    floatClass: string;
-  }> = [
+function Superpowers() {
+  const items = [
     {
-      key: "hub",
-      icon: <Music2 className="h-7 w-7" />,
-      emoji: "🎵",
-      title: "Prompt anything",
-      body: "Any idea — roast, love note, inside joke.",
-      tilt: "-2",
-      floatClass: "wc-float",
+      key: "foul",
+      emoji: "🤬",
+      title: "Foul Mouth Mode",
+      body: "Savage roasts, raw bars, no filter. Turn the heat from Mild to Demon.",
     },
     {
-      key: "bot",
-      icon: <Wand2 className="h-7 w-7" />,
-      emoji: "🪄",
-      title: "Pick the vibe",
-      body: "Drill, rap, afrobeats, pop or ballad.",
-      tilt: "1.5",
-      floatClass: "wc-float-slow",
+      key: "takes",
+      emoji: "🎧",
+      title: "2 tracks for the price of 1",
+      body: "Unlock your first take and the second one is yours free.",
     },
     {
-      key: "msg",
-      icon: <Sparkles className="h-7 w-7" />,
-      emoji: "💿",
-      title: "Cover included",
-      body: "Cover art plus a track ready to play.",
-      tilt: "-1",
-      floatClass: "wc-wiggle",
+      key: "vip",
+      emoji: "👑",
+      title: "15 days of free VIP",
+      body: "Every style unlocked from signup — drill, bhangra, afrobeats and more.",
     },
   ];
-
   return (
-    <section id="studio" className="relative scroll-mt-24">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-3 lg:gap-5">
-          {items.map((it, idx) => (
-            <div
+    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
+        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
+          ⚡ Your superpowers
+        </p>
+        <div className="mt-6 grid gap-3 sm:gap-5 md:grid-cols-3">
+          {items.map((it) => (
+            <article
               key={it.key}
-              style={{ transform: `rotate(${it.tilt}deg)` }}
-              className="md:transition-transform md:duration-300 md:hover:rotate-0"
+              className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6"
             >
-              <article
-                style={{ animationDelay: `${idx * 0.14}s`, contain: "paint" }}
-                className="group wc-pop relative h-full overflow-hidden rounded-[2rem] border-2 border-white/15 bg-card/80 p-4 shadow-[0_18px_50px_-20px_rgba(80,60,255,0.35)] transition-all duration-300 max-sm:rounded-[1.5rem] sm:p-6 md:backdrop-blur-xl md:hover:-translate-y-2 md:hover:border-primary/40 md:hover:shadow-glow"
-              >
-                {/* hover aurora */}
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100 bg-[radial-gradient(circle_at_top_right,oklch(0.55_0.22_268/0.22),transparent_60%)]"
-                />
-                <CardEditBadge />
-                <div className="flex items-center gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-brand text-primary-foreground shadow-glow transition-transform duration-300 sm:h-13 sm:w-13 md:group-hover:scale-110 md:group-hover:rotate-6">
-                    {it.icon}
-                  </span>
-                  <span className={`text-2xl sm:text-3xl ${it.floatClass}`}>{it.emoji}</span>
-                </div>
-                <EditableContent
-                  as="h3"
-                  contentKey={`welcome.pillar.${it.key}.title`}
-                  defaultValue={String(it.title)}
-                  className="font-display mt-3 block text-2xl font-black tracking-tight sm:mt-4 sm:text-3xl"
-                />
-                <EditableContent
-                  as="p"
-                  multiline
-                  contentKey={`welcome.pillar.${it.key}.body`}
-                  defaultValue={it.body}
-                  className="mt-2 block text-sm leading-snug text-balance text-muted-foreground sm:text-base"
-                />
-              </article>
-            </div>
+              <CardEditBadge />
+              <span className="text-4xl">{it.emoji}</span>
+              <EditableContent
+                as="h3"
+                contentKey={`welcome.power.${it.key}.title`}
+                defaultValue={it.title}
+                className="font-display mt-3 block text-2xl font-black tracking-tight"
+              />
+              <EditableContent
+                as="p"
+                multiline
+                contentKey={`welcome.power.${it.key}.body`}
+                defaultValue={it.body}
+                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
+              />
+            </article>
           ))}
         </div>
       </div>
@@ -961,63 +998,96 @@ function Pillars() {
   );
 }
 
-function FoulMouthHype() {
+function EarnCoins() {
+  const ways = [
+    {
+      key: "battle",
+      emoji: "⚔️",
+      title: "Battle the bot",
+      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
+    },
+    {
+      key: "referral",
+      emoji: "🤝",
+      title: "Lifetime referral commission",
+      body: "Share your link — earn coins every time your friends spend, for life.",
+    },
+    {
+      key: "drop",
+      emoji: "🎁",
+      title: "Daily drop",
+      body: "Pop in each day and claim your free coin drop.",
+    },
+  ];
   return (
-    <section className="relative border-t border-white/10">
-      <div className="relative mx-auto max-w-4xl px-4 py-10 sm:px-8 sm:py-16">
-        <div className="relative overflow-hidden rounded-[2.5rem] border-2 border-destructive/40 bg-gradient-to-br from-destructive/25 via-destructive/10 to-transparent p-6 shadow-[0_30px_80px_-30px_oklch(0.62_0.22_25_/_0.7)] sm:p-12">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-12 -top-12 h-56 w-56 rounded-full bg-destructive/30 blur-3xl"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-primary/30 blur-3xl"
-          />
-
-          <div className="relative grid items-center gap-8 md:grid-cols-[auto_minmax(0,1fr)]">
-            <div className="flex items-center justify-center">
-              <div className="relative">
-                <span
-                  aria-hidden
-                  className="absolute -inset-3 animate-pulse rounded-full bg-destructive/30 blur-2xl"
-                />
-                <div className="relative grid h-28 w-28 place-items-center rounded-[2rem] border-2 border-destructive/60 bg-background/60 text-6xl shadow-[0_0_40px_-6px_oklch(0.62_0.22_25_/_0.8)] sm:h-36 sm:w-36 sm:text-8xl">
-                  🤬
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 text-center md:text-left">
-              <p className="inline-flex items-center gap-2 rounded-full border border-destructive/60 bg-destructive/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-destructive sm:text-xs">
-                ⚠ Before you walk away
-              </p>
-              <h2 className="font-display mt-4 text-balance text-3xl font-black leading-[0.95] tracking-[-0.03em] sm:text-5xl md:text-6xl">
-                Don't forget to flip <span className="italic text-destructive">Foul Mouth</span> ON.
-              </h2>
-              <p className="mt-4 text-lg leading-relaxed text-foreground/85 sm:text-2xl">
-                The clean version is cute.{" "}
-                <span className="font-black text-foreground">Foul Mouth</span> is where{" "}
-                <span className="inline-flex items-center gap-1.5 align-middle">
-                  <OgBotLogo className="h-6 w-6" />
-                  <span className="font-black">OG Bot</span>
-                </span>{" "}
-                actually goes off — savage roasts, real bars, no filter.
-              </p>
-              <p className="mt-4 text-base font-semibold text-muted-foreground sm:text-lg">
-                Free to try. No card. One tap inside MusicHUB.
-              </p>
-              <div className="mt-7">
-                <a
-                  href="#sign-in"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-brand px-7 py-4 text-lg font-black uppercase tracking-wide text-primary-foreground shadow-glow ring-1 ring-primary/40 transition-transform hover:scale-[1.03] sm:text-xl"
-                >
-                  🔥 Try OG Bot free
-                </a>
-              </div>
-            </div>
-          </div>
+    <section id="earn" className="relative scroll-mt-24 border-t border-border/40">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
+        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
+          🪙 Earn OG Coins free
+        </p>
+        <h2 className="font-display mt-2 text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
+          Make tracks without spending a penny
+        </h2>
+        <div className="mt-8 grid gap-3 sm:gap-5 md:grid-cols-3">
+          {ways.map((w) => (
+            <article
+              key={w.key}
+              className="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-5 shadow-card sm:p-6"
+            >
+              <CardEditBadge />
+              <span className="text-4xl">{w.emoji}</span>
+              <EditableContent
+                as="h3"
+                contentKey={`welcome.earn.${w.key}.title`}
+                defaultValue={w.title}
+                className="font-display mt-3 block text-2xl font-black tracking-tight"
+              />
+              <EditableContent
+                as="p"
+                multiline
+                contentKey={`welcome.earn.${w.key}.body`}
+                defaultValue={w.body}
+                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
+              />
+            </article>
+          ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  const steps = [
+    { icon: <Pencil className="h-5 w-5" />, title: "Type your idea", body: "A name, a roast, a memory." },
+    { icon: <Wand2 className="h-5 w-5" />, title: "Pick the vibe", body: "Choose a style and mood." },
+    { icon: <Headphones className="h-5 w-5" />, title: "OG Bot cooks it", body: "Your song + cover, ready to play." },
+  ];
+  return (
+    <section className="relative border-t border-border/40">
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8 sm:py-16">
+        <h2 className="font-display text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
+          3 taps to your first track
+        </h2>
+        <ol className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-5">
+          {steps.map((s, i) => (
+            <li
+              key={s.title}
+              className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5"
+            >
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-glow">
+                {s.icon}
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+                  Step {i + 1}
+                </p>
+                <h3 className="font-display text-lg font-black">{s.title}</h3>
+                <p className="text-sm text-foreground/85">{s.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );
@@ -1025,62 +1095,52 @@ function FoulMouthHype() {
 
 function ClosingCta() {
   return (
-    <section id="how" className="relative border-t border-white/10">
+    <section id="how" className="relative border-t border-border/40">
       <div className="relative mx-auto max-w-3xl px-4 py-14 text-center sm:px-8 sm:py-20">
         <CardEditBadge />
         <EditableContent
           as="p"
           contentKey="welcome.closing.eyebrow"
           defaultValue="Ready?"
-          className="block text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground sm:text-sm"
+          className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
         />
         <EditableContent
           as="h2"
           contentKey="welcome.closing.title"
           defaultValue="Your next prompt could be a hit."
           multiline
-          className="font-display mt-4 block text-balance text-4xl font-semibold leading-[0.95] tracking-[-0.045em] sm:mt-5 sm:text-6xl md:text-7xl"
+          className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
         />
-        <EditableContent
-          as="p"
-          multiline
-          contentKey="welcome.closing.body"
-          defaultValue="Sign in. Type the idea. Pick the vibe. Get the cover and the song. 🎉"
-          className="mx-auto mt-6 block max-w-2xl text-lg text-muted-foreground sm:mt-8 sm:text-2xl md:text-3xl"
-        />
-
-        <div className="mx-auto mt-10 max-w-2xl sm:mt-12">
-          <AuthButtons size="xl" />
-        </div>
+        <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
+          Free account in seconds · 15 days of VIP on us · No card needed.
+        </p>
+        <HazardCta className="mx-auto mt-8" />
       </div>
     </section>
   );
 }
 
 function Footer() {
-  const native = useIsNativeApp();
-  const { signIn, pending } = useOAuthSignIn();
   return (
     <footer className="border-t border-white/10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-muted-foreground sm:flex-row sm:px-8">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-foreground/85 sm:flex-row sm:px-8">
         <span className="inline-flex items-center gap-2">
           © {new Date().getFullYear()} OG Studio · Prompt songs powered by{" "}
           <OgBotLogo className="h-5 w-5" />
         </span>
         <div className="flex items-center gap-6">
-          {native && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={pending !== null}
-              onClick={() => signIn("google")}
-              className="text-muted-foreground"
-              title="D.EV Google sign-in"
-            >
-              D.EV
-            </Button>
-          )}
+          <Link
+            to="/policy"
+            className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Privacy
+          </Link>
+          <Link
+            to="/terms"
+            className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Terms
+          </Link>
           <Link
             to="/auth"
             className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

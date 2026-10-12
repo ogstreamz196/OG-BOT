@@ -85,10 +85,8 @@ export const Bars: React.FC<{ count?: number; height?: number; opacity?: number 
 
 export const useFade = (durationInFrames: number, inLen = 12, outLen = 12) => {
   const frame = useCurrentFrame();
-  return interpolate(
-    frame,
-    [0, inLen, durationInFrames - outLen, durationInFrames],
-    [0, 1, 1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-  );
+  return interpolate(frame, [0, inLen, durationInFrames - outLen, durationInFrames], [0, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 };

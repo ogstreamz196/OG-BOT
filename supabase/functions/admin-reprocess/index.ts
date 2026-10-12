@@ -9,9 +9,17 @@ const SUNO_API_URL = "https://apibox.erweima.ai/api/v1/generate";
 
 async function callbackToken(songId: string): Promise<string> {
   const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(SERVICE_ROLE), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(SERVICE_ROLE),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const buf = await crypto.subtle.sign("HMAC", key, enc.encode(songId));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 Deno.serve(async (req) => {
@@ -29,9 +37,18 @@ Deno.serve(async (req) => {
     if (error || !song) return jsonResponse({ error: "Song not found" }, 404);
     const s = song as Record<string, unknown>;
 
-    await admin.from("songs").update({
-      status: "processing", generation_started_at: new Date().toISOString(), error_message: null, audio_path: null, sample_path: null, stream_audio_url: null, completed_at: null,
-    }).eq("id", song_id);
+    await admin
+      .from("songs")
+      .update({
+        status: "processing",
+        generation_started_at: new Date().toISOString(),
+        error_message: null,
+        audio_path: null,
+        sample_path: null,
+        stream_audio_url: null,
+        completed_at: null,
+      })
+      .eq("id", song_id);
 
     const callbackUrl = `${SUPABASE_URL}/functions/v1/suno-callback?song_id=${s.id}&token=${await callbackToken(String(s.id))}`;
     const sunoRes = await fetch(SUNO_API_URL, {
@@ -49,11 +66,21 @@ Deno.serve(async (req) => {
     });
     const text = await sunoRes.text();
     if (!sunoRes.ok) {
-      await admin.from("songs").update({ status: "failed", error_message: `Suno ${sunoRes.status}: ${text.slice(0, 200)}` }).eq("id", song_id);
+      await admin
+        .from("songs")
+        .update({
+          status: "failed",
+          error_message: `Suno ${sunoRes.status}: ${text.slice(0, 200)}`,
+        })
+        .eq("id", song_id);
       return jsonResponse({ error: "Suno rejected", details: text.slice(0, 300) }, 502);
     }
     let body: { data?: { taskId?: string }; taskId?: string } = {};
-    try { body = JSON.parse(text); } catch { /* ignore */ }
+    try {
+      body = JSON.parse(text);
+    } catch {
+      /* ignore */
+    }
     const taskId = body?.data?.taskId ?? body?.taskId ?? null;
     await admin.from("songs").update({ suno_task_id: taskId }).eq("id", song_id);
     return jsonResponse({ ok: true, task_id: taskId });

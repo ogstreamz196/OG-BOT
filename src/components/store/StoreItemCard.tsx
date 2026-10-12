@@ -50,6 +50,12 @@ const RARITY: Record<
   },
 };
 
+function trialDaysLeft(endsAt?: string | null) {
+  if (!endsAt) return "Trial active";
+  const days = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000));
+  return days === 1 ? "1 day left" : `${days} days left`;
+}
+
 function formatPrice(cents: number, currency: string) {
   try {
     return new Intl.NumberFormat(undefined, {
@@ -64,6 +70,7 @@ function formatPrice(cents: number, currency: string) {
 export function StoreItemCard({
   item,
   onBuy,
+  onBuyCash,
   buying,
   sportsGuideState,
   sportsGuideInviteUrl,
@@ -71,10 +78,19 @@ export function StoreItemCard({
 }: {
   item: StoreItem;
   onBuy: (id: string) => void;
+  onBuyCash?: (id: string) => void;
   buying?: boolean;
   sportsGuideState?: "unowned" | "owned" | "invite_sent" | "joined" | "revoked";
   sportsGuideInviteUrl?: string;
-  vipPass?: { owned: boolean; username: string | null; password: string | null; available: number };
+  vipPass?: {
+    owned: boolean;
+    vipFree?: boolean;
+    trial?: boolean;
+    trialEndsAt?: string | null;
+    username: string | null;
+    password: string | null;
+    available: number;
+  };
 }) {
   const r = RARITY[item.rarity];
   const stockRemaining = item.stock === null ? null : Math.max(0, item.stock - item.stock_sold);
@@ -82,17 +98,22 @@ export function StoreItemCard({
   const isSportsGuide = item.slug === "og-sports-guide-access";
   const ownsSportsGuide =
     isSportsGuide && sportsGuideState && !["unowned", "revoked"].includes(sportsGuideState);
-  const imageUrl = isSportsGuide ? sportsGuideLogo.url : item.image_url;
+  // Phone apps block insecure (http) images, so always load them over https.
+  const imageUrl = isSportsGuide
+    ? sportsGuideLogo.url
+    : item.image_url?.replace(/^http:\/\//i, "https://");
   const isVipPass = item.slug === "og-vip-pass";
   const ownsVipPass = isVipPass && !!vipPass?.owned;
+  const vaultKept = ownsVipPass && !vipPass?.trial;
   const vipSoldOut = isVipPass && !ownsVipPass && (vipPass?.available ?? 0) === 0;
 
   const soldOut = stockSoldOut || vipSoldOut;
 
   return (
     <div
+      id={`item-${item.slug}`}
       className={cn(
-        "group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border bg-store-card p-4 shadow-card transition-colors",
+        "group relative flex h-full min-w-0 scroll-mt-24 flex-col overflow-hidden rounded-lg border bg-store-card p-4 shadow-card transition-colors",
         r.ring,
         r.glow,
       )}
@@ -159,47 +180,70 @@ export function StoreItemCard({
       {/* footer */}
       <div className="mt-auto flex flex-col gap-3 pt-4 min-[400px]:grid min-[400px]:grid-cols-[minmax(0,1fr)_auto] min-[400px]:items-end">
         <div className="min-w-0 font-mono text-lg font-bold leading-tight text-foreground sm:text-xl">
-          {item.coin_price !== null
-            ? `${item.coin_price} OG Coins`
-            : formatPrice(item.price_cents, item.currency)}
+          {isVipPass && vipPass?.trial ? (
+            <>
+              <span className="block text-coin">FREE trial 👑</span>
+              <span className="block text-xs font-semibold text-muted-foreground">
+                {trialDaysLeft(vipPass.trialEndsAt)} · then £10 or 50 OG Coins
+              </span>
+            </>
+          ) : isVipPass && !ownsVipPass ? (
+            <>
+              {item.coin_price ?? 50} OG Coins
+              <span className="block text-xs font-semibold text-muted-foreground">
+                or {formatPrice(item.price_cents, item.currency)} by card
+              </span>
+            </>
+          ) : item.coin_price !== null ? (
+            `${item.coin_price} OG Coins`
+          ) : (
+            formatPrice(item.price_cents, item.currency)
+          )}
         </div>
         <Button
           size="sm"
           onClick={() => {
-            if (ownsSportsGuide && sportsGuideInviteUrl) {
-              const opened = window.open(sportsGuideInviteUrl, "_blank", "noopener,noreferrer");
-              if (!opened) window.location.assign(sportsGuideInviteUrl);
+            if (ownsSportsGuide) {
+              window.location.assign("/sports");
               return;
             }
             onBuy(item.id);
           }}
-          disabled={
-            (soldOut && !ownsVipPass) ||
-            buying ||
-            ownsVipPass ||
-            (Boolean(ownsSportsGuide) && !sportsGuideInviteUrl)
-          }
+          disabled={(soldOut && !ownsVipPass) || buying || vaultKept}
           className="w-full bg-gradient-brand font-bold uppercase tracking-wider min-[400px]:w-auto"
         >
           {buying ? (
             <Loader2 className="mr-1 h-4 w-4 animate-spin" />
           ) : ownsSportsGuide ? (
             <ExternalLink className="mr-1 h-4 w-4" />
-          ) : ownsVipPass ? (
+          ) : vaultKept ? (
             <Check className="mr-1 h-4 w-4" />
           ) : (
             <Coins className="mr-1 h-4 w-4" />
           )}
-          {ownsVipPass
+          {vaultKept
             ? "Unlocked"
             : soldOut
               ? "Sold out"
               : buying
                 ? "…"
                 : ownsSportsGuide
-                  ? "Open group"
-                  : "Buy"}
+                  ? "Open Sports Guide"
+                  : isVipPass
+                    ? "50 coins"
+                    : "Buy"}
         </Button>
+        {onBuyCash && !vaultKept && !soldOut && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onBuyCash(item.id)}
+            disabled={buying}
+            className="w-full font-bold uppercase tracking-wider min-[400px]:col-span-2"
+          >
+            Pay {formatPrice(item.price_cents, item.currency)} by card
+          </Button>
+        )}
       </div>
       {ownsVipPass && vipPass?.username ? (
         <div className="mt-3 space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-3">

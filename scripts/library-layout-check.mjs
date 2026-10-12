@@ -28,21 +28,24 @@ const UPDATE = !!process.env.UPDATE;
 const THRESHOLD = Number(process.env.THRESHOLD ?? 0.02);
 
 const BREAKPOINTS = [
-  { name: "mobile",  width: 390,  height: 844 },
-  { name: "tablet",  width: 820,  height: 1180 },
+  { name: "mobile", width: 390, height: 844 },
+  { name: "tablet", width: 820, height: 1180 },
   { name: "desktop", width: 1440, height: 900 },
 ];
 
 // Expected computed spacing in CSS pixels. These mirror the Tailwind
 // tokens locked by src/lib/library-layout-tokens.test.ts.
 const EXPECTED = {
-  "library-root":        { rowGap: 16, paddingBottom: 80 },
-  "library-hero":        { columnGap: 16, paddingBottom: 16 },
+  "library-root": { rowGap: 16, paddingBottom: 80 },
+  "library-hero": { columnGap: 16, paddingBottom: 16 },
   "library-your-header": { columnGap: 12, marginBottom: 12 },
-  "library-cards":       { rowGap: 12 },
+  "library-cards": { rowGap: 12 },
 };
 
-const exists = (p) => access(p).then(() => true).catch(() => false);
+const exists = (p) =>
+  access(p)
+    .then(() => true)
+    .catch(() => false);
 
 async function measure(page, testid) {
   return page.$eval(`[data-testid="${testid}"]`, (el) => {
@@ -97,10 +100,16 @@ async function run() {
       await writeFile(base, await readFile(cur));
       console.log(`${UPDATE ? "updated" : "baseline"} library__${bp.name}`);
     } else {
-      const { mismatched, total } = await diffPng(base, cur, `tests/visual/diff/library__${bp.name}.png`);
+      const { mismatched, total } = await diffPng(
+        base,
+        cur,
+        `tests/visual/diff/library__${bp.name}.png`,
+      );
       const ratio = mismatched / (total || 1);
       if (ratio > THRESHOLD) {
-        failures.push(`${bp.name} visual diff ${(ratio * 100).toFixed(2)}% > ${(THRESHOLD * 100).toFixed(2)}%`);
+        failures.push(
+          `${bp.name} visual diff ${(ratio * 100).toFixed(2)}% > ${(THRESHOLD * 100).toFixed(2)}%`,
+        );
       }
     }
 
@@ -115,4 +124,7 @@ async function run() {
   console.log("Library layout check passed at mobile / tablet / desktop.");
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -24,7 +24,9 @@ Deno.serve(async (req) => {
     const admin = adminClient();
     const { data: song } = await admin
       .from("songs")
-      .select("id, user_id, status, unlocked, audio_path, revealed, title")
+      .select(
+        "id, user_id, status, unlocked, audio_path, revealed, title, suno_task_id, is_variation",
+      )
       .eq("id", song_id)
       .maybeSingle();
     if (!song) return jsonResponse({ error: "Not found" }, 404);
@@ -37,28 +39,26 @@ Deno.serve(async (req) => {
       if (song.revealed === false) {
         return jsonResponse({ error: "Song not available", code: "not_revealed" }, 404);
       }
-      const { data: existing } = await admin
-        .from("unlocked_songs").select("id")
-        .eq("user_id", user.id).eq("song_id", song_id).maybeSingle();
-      if (existing) return jsonResponse({ ok: true, already: true, cost: COMMUNITY_COST });
-
-      const reference = `community_unlock:${song_id}`;
-      const { data: balance, error: dErr } = await admin.rpc("deduct_coins", {
-        p_user: user.id, p_amount: COMMUNITY_COST, p_reference: reference,
+      // One atomic purchase: claim, charge and royalty succeed or fail together,
+      // so a double tap cannot charge twice and royalties are never lost.
+      const { data: purchase, error: pErr } = await admin.rpc("unlock_community_track", {
+        _buyer: user.id,
+        _song_id: song_id,
+        _cost: COMMUNITY_COST,
+        _royalty: COMMUNITY_ROYALTY,
       });
-      if (dErr) return jsonResponse({ error: "Insufficient coins", code: "insufficient_coins" }, 402);
-
-      // Royalty: credit `COMMUNITY_ROYALTY` to the creator. The remainder is burnt.
-      const { data: ownerProfile } = await admin
-        .from("profiles").select("coin_balance").eq("id", song.user_id).maybeSingle();
-      const newOwnerBal = (ownerProfile?.coin_balance ?? 0) + COMMUNITY_ROYALTY;
-      await admin.from("profiles").update({ coin_balance: newOwnerBal }).eq("id", song.user_id);
-      await admin.from("coin_transactions").insert({
-        user_id: song.user_id,
-        amount: COMMUNITY_ROYALTY,
-        type: "royalty",
-        reference: `${reference}:from:${user.id}`,
-      });
+      if (pErr) {
+        if (/insufficient_coins/i.test(pErr.message)) {
+          return jsonResponse({ error: "Insufficient coins", code: "insufficient_coins" }, 402);
+        }
+        if (/not_revealed/i.test(pErr.message)) {
+          return jsonResponse({ error: "Song not available", code: "not_revealed" }, 404);
+        }
+        return jsonResponse({ error: "Could not unlock track", code: "unlock_failed" }, 409);
+      }
+      const result = (purchase ?? {}) as { already?: boolean; coin_balance?: number };
+      if (result.already) return jsonResponse({ ok: true, already: true, cost: COMMUNITY_COST });
+      const balance = result.coin_balance;
 
       // Celebrate with the creator: someone downloaded their track.
       await admin.from("user_notifications").insert({
@@ -73,17 +73,6 @@ Deno.serve(async (req) => {
         },
       });
 
-      const { error: lErr } = await admin.from("unlocked_songs").insert({
-        user_id: user.id,
-        song_id,
-        source: "community_purchase",
-        cost_coins: COMMUNITY_COST,
-        reference,
-      });
-      if (lErr && !String(lErr.message).includes("duplicate")) {
-        return jsonResponse({ error: lErr.message }, 500);
-      }
-
       return jsonResponse({
         ok: true,
         coin_balance: balance,
@@ -94,32 +83,19 @@ Deno.serve(async (req) => {
     }
 
     // ─── Owner unlock path (HQ download of own song) ────────────────────
-    if (song.unlocked) return jsonResponse({ ok: true, already: true });
-
-    const { data: row } = await admin
-      .from("app_settings").select("value").eq("key", "coins_per_full_unlock").maybeSingle();
-    const cost = typeof row?.value === "number" ? row.value : 5;
-
-    const { data: balance, error: dErr } = await admin.rpc("deduct_coins", {
-      p_user: user.id, p_amount: cost, p_reference: `unlock:${song_id}`,
+    // Compatibility for older clients: one atomic charge includes Take 2 free.
+    const { data, error } = await admin.rpc("purchase_owner_track", {
+      p_user: user.id,
+      p_song: song_id,
     });
-    if (dErr) return jsonResponse({ error: "Insufficient coins", code: "insufficient_coins" }, 402);
-
-    const { error: uErr } = await admin.from("songs").update({ unlocked: true }).eq("id", song_id);
-    if (uErr) return jsonResponse({ error: uErr.message }, 500);
-
-    const { error: lErr } = await admin.from("unlocked_songs").insert({
-      user_id: user.id,
-      song_id,
-      source: "coins",
-      cost_coins: cost,
-      reference: `unlock:${song_id}`,
-    });
-    if (lErr && !String(lErr.message).includes("duplicate")) {
-      return jsonResponse({ error: lErr.message }, 500);
+    if (error) {
+      const insufficient = /insufficient_coins/i.test(error.message);
+      return jsonResponse({
+        error: insufficient ? "Insufficient coins" : "Could not unlock track",
+        code: insufficient ? "insufficient_coins" : "unlock_failed",
+      }, insufficient ? 402 : 409);
     }
-
-    return jsonResponse({ ok: true, coin_balance: balance, cost });
+    return jsonResponse(data);
   } catch (e) {
     return jsonResponse({ error: (e as Error).message }, 500);
   }

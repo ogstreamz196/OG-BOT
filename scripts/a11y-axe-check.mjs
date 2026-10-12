@@ -28,10 +28,7 @@ const page = await ctx.newPage();
 
 await page.goto(BASE, { waitUntil: "domcontentloaded" });
 if (storageKey && sessionJson) {
-  await page.evaluate(
-    ([k, v]) => window.localStorage.setItem(k, v),
-    [storageKey, sessionJson],
-  );
+  await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
 }
 
 let hadFailure = false;

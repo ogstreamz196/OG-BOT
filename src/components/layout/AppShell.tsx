@@ -26,6 +26,7 @@ import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "./AppSidebar";
+import { VipTrialWelcome } from "./VipTrialWelcome";
 import { HighContrastToggle } from "./HighContrastToggle";
 import { WelcomeBackdrop } from "./WelcomeBackdrop";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -64,6 +65,7 @@ const routeTitles: Record<string, string> = {
   "/messenger": "OG Bot",
   "/buy-coins": "Buy Coins",
   "/settings": "Settings",
+  "/profile": "Profile",
   "/admin": "Admin Controls",
 };
 
@@ -110,6 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SwipeToOpenSidebar />
         <div className="relative flex min-h-dvh w-full bg-background/80 text-foreground">
           <AppSidebar />
+          <VipTrialWelcome />
 
           <div className="flex min-w-0 flex-1 flex-col">
             <header
@@ -120,7 +123,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 paddingRight: "max(0.75rem, env(safe-area-inset-right))",
               }}
             >
-              <SidebarTrigger className="shrink-0" />
+              <SidebarTrigger
+                aria-label="Open menu"
+                className="h-11 w-auto shrink-0 gap-1.5 rounded-xl border-2 border-primary/50 bg-primary/10 px-3 text-sm font-black uppercase tracking-wider text-foreground hover:bg-primary/20 [&_svg]:!h-5 [&_svg]:!w-5"
+              >
+                Menu
+              </SidebarTrigger>
 
               <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 {!pathname.startsWith("/messenger") && (
@@ -257,15 +265,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </header>
 
-            {!roleLoading && isAdmin && (
-              <div className="flex items-center justify-center gap-2 border-b border-primary/40 bg-gradient-brand px-4 py-1.5 text-xs font-semibold uppercase text-primary-foreground shadow-glow">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Boss mode active
+            {!roleLoading && isAdmin && !pathname.startsWith("/messenger") && (
+              <div className="flex items-center justify-center gap-1.5 border-b border-primary/30 bg-primary/10 px-4 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary md:hidden">
+                <ShieldCheck className="h-3 w-3" />
+                Boss mode
               </div>
             )}
             <AdminEditHint />
 
-            <main className="safe-x min-w-0 flex-1 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+90px)] md:pb-0">
+            <main className="safe-x min-w-0 flex-1 overflow-x-hidden pb-[calc(env(safe-area-inset-bottom)+72px)] md:pb-0">
               <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
                 {children}
               </div>

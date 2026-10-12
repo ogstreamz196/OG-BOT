@@ -79,24 +79,33 @@ for (const f of adminFiles) {
   //  b) useRole + a denial path triggered by !isAdmin (Navigate, Access denied, redirect)
   const beforeLoadGate = /beforeLoad[^]*?redirect\s*\(\s*\{\s*to:\s*["'`]\//.test(src);
   const hasUseRole = /useRole\s*\(/.test(src);
-  const denialMatch = /!\s*[\w.]*isAdmin[^]{0,400}?(?:<Navigate\b|Access denied|throw\s+redirect)/.test(src);
+  const denialMatch =
+    /!\s*[\w.]*isAdmin[^]{0,400}?(?:<Navigate\b|Access denied|throw\s+redirect)/.test(src);
   const hasGate = beforeLoadGate || (hasUseRole && denialMatch);
   if (!hasGate) {
-    failures.push(`ADMIN UNGUARDED  ${relative(root, p)} (no beforeLoad redirect and no useRole + !isAdmin denial)`);
+    failures.push(
+      `ADMIN UNGUARDED  ${relative(root, p)} (no beforeLoad redirect and no useRole + !isAdmin denial)`,
+    );
   }
 }
 
 // ---- 4. Authenticated layout must enforce session --------------------------
 const layout = readFileSync(join(adminDir, "route.tsx"), "utf8");
 if (!/beforeLoad[^]*redirect\s*\(\s*\{\s*to:\s*["'`]\/(welcome|auth)["'`]/.test(layout)) {
-  failures.push("AUTH LAYOUT  src/routes/_authenticated/route.tsx missing beforeLoad redirect to /welcome|/auth");
+  failures.push(
+    "AUTH LAYOUT  src/routes/_authenticated/route.tsx missing beforeLoad redirect to /welcome|/auth",
+  );
 }
 
 // ---- Report ---------------------------------------------------------------
 if (failures.length) {
-  console.error(`\n✗ Route audit failed (${failures.length} issue${failures.length === 1 ? "" : "s"}):\n`);
+  console.error(
+    `\n✗ Route audit failed (${failures.length} issue${failures.length === 1 ? "" : "s"}):\n`,
+  );
   for (const f of failures) console.error("  " + f);
   console.error("");
   process.exit(1);
 }
-console.log(`✓ Route audit passed — ${knownPaths.size} routes, ${adminFiles.length} admin pages guarded.`);
+console.log(
+  `✓ Route audit passed — ${knownPaths.size} routes, ${adminFiles.length} admin pages guarded.`,
+);

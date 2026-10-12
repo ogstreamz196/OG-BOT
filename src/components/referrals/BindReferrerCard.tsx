@@ -30,12 +30,12 @@ function classify(raw: string): { kind: LookupKind; value: string } {
   if (UUID_RE.test(t)) return { kind: "uuid", value: t.toLowerCase() };
   const linkUuid = t.match(/\/r\/([0-9a-f-]{36})/i)?.[1];
   if (linkUuid) return { kind: "link", value: linkUuid.toLowerCase() };
-  const linkCode = t.match(/\/r\/(OG-[A-Z0-9]{6})/i)?.[1];
+  const linkCode = t.match(/\/r\/((?:OG-)?[A-Z0-9]{3,32})/i)?.[1];
   if (linkCode) return { kind: "code", value: linkCode.toUpperCase() };
-  // bare short code, with or without dash
+  // bare code: legacy OG-XXXXXX, OG VIP ID (OGNAME123) or username
   const cleaned = t.toUpperCase().replace(/\s+/g, "");
   if (CODE_RE.test(cleaned)) return { kind: "code", value: cleaned };
-  if (/^[A-Z0-9]{6}$/.test(cleaned)) return { kind: "code", value: `OG-${cleaned}` };
+  if (/^(?:OG-)?[A-Z0-9]{3,32}$/.test(cleaned)) return { kind: "code", value: cleaned };
   return { kind: null, value: t };
 }
 
@@ -109,7 +109,7 @@ export function BindReferrerCard() {
             </div>
             <div className="mt-1 text-sm text-muted-foreground">
               <span className="font-semibold text-foreground">{mineQ.data.referrer_name}</span> now
-              owns your life in their hands. They earn 10% of every OG Coin you burn — forever.
+              owns your life in their hands. They earn up to 13% of every OG Coin you burn — forever.
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {code && (
@@ -232,8 +232,8 @@ export function BindReferrerCard() {
         return;
       }
       setLookup({ id: r.referrer_id!, name: r.referrer_name!, code: r.referrer_code });
-    } catch (e: any) {
-      const msg = String(e?.message ?? "");
+    } catch (e) {
+      const msg = String((e as Error)?.message ?? "");
       if (msg.toLowerCase().includes("network") || msg.includes("Failed to fetch")) {
         setLookupErr("Network error. Check your connection and try again.");
       } else {
@@ -256,8 +256,8 @@ export function BindReferrerCard() {
       if (error) throw error;
       toast.success(`Bound to ${lookup.name} — forever.`);
       qc.invalidateQueries({ queryKey: ["my-referrer", user?.id] });
-    } catch (e: any) {
-      const raw = String(e?.message ?? "");
+    } catch (e) {
+      const raw = String((e as Error)?.message ?? "");
       let friendly = "Could not bind referrer. Please try again.";
       if (raw.includes("already_has_referrer")) {
         friendly = "You already have a referrer locked. This is permanent and can't be changed.";
@@ -288,7 +288,7 @@ export function BindReferrerCard() {
       <p className="text-sm text-muted-foreground">
         Paste the <span className="font-semibold text-foreground">OG Leader code</span> (
         <span className="font-mono">OG-XXXXXX</span>), ID, or referral link of the person who
-        brought you in. Once locked, 10% of every OG Coin you ever burn goes to their OG Vault —
+        brought you in. Once locked, up to 13% of every OG Coin you ever burn goes to their OG Vault —
         automatically, for life. You can only do this once.
       </p>
 
@@ -359,7 +359,7 @@ export function BindReferrerCard() {
                   </>
                 ) : null}{" "}
                 the keys. They now own your life in their hands — they can rinse you completely.{" "}
-                <span className="font-semibold text-foreground">10% of every OG Coin</span> you burn
+                <span className="font-semibold text-foreground">up to 13% of every OG Coin</span> you burn
                 from this moment on flows into{" "}
                 <span className="font-semibold">{lookup.name}'s</span> OG Vault. This decision is
                 permanent. It cannot be undone, swapped, or reset by anyone, ever.
@@ -374,7 +374,7 @@ export function BindReferrerCard() {
               className="mt-0.5"
             />
             <span>
-              I understand. {lookup.name} now owns my life in their hands and earns 10% of every OG
+              I understand. {lookup.name} now owns my life in their hands and earns up to 13% of every OG
               Coin I burn — forever.
             </span>
           </label>

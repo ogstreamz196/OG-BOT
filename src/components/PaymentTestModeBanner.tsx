@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
-const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
+const clientToken = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN) as string | undefined;
 
 export function PaymentTestModeBanner() {
   // Card checkout is website-only; the app uses Google Play billing.

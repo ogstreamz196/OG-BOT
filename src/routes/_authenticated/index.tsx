@@ -15,7 +15,6 @@ import {
   Mic2,
   Radio,
   Bot,
-  AudioLines,
   Gift,
   Infinity as InfinityIcon,
   Share2,
@@ -23,8 +22,9 @@ import {
   Smartphone,
   Globe,
   ShieldCheck,
+  Crown,
 } from "lucide-react";
-import { useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import musicHubHero from "@/assets/musichub-hero.jpg";
+import sportsGuideLogo from "@/assets/og-bot-sports-guide.png.asset.json";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
@@ -43,14 +44,18 @@ import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
 import { useRecentSongs, type RecentSong } from "@/hooks/use-recent-songs";
 import { useAdaptiveOverlay } from "@/hooks/use-adaptive-overlay";
-import ogLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
+import welcomeLogo from "@/assets/og-streamz-presentz-ogbot.png.asset.json";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import { DodgyText } from "@/components/welcome/DodgyText";
-import { DashboardGenerationHistory } from "@/components/dashboard/DashboardGenerationHistory";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
+import { getMyTelegramStatus } from "@/lib/telegram-admin.functions";
+import { isValidUsername } from "@/components/auth/UsernamePrompt";
 import { DailyDrop } from "@/components/dashboard/DailyDrop";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -68,9 +73,11 @@ export const Route = createFileRoute("/_authenticated/")({
         property: "og:description",
         content: "Generate AI songs, chat with OG Bot, and run your creator economy.",
       },
-      { property: "og:url", content: "https://ogwidget.lovable.app/" },
+      { property: "og:url", content: "https://ogbot.co.uk/" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://ogwidget.lovable.app/" }],
+    links: [{ rel: "canonical", href: "https://ogbot.co.uk/" }],
   }),
 });
 
@@ -113,7 +120,7 @@ function DashboardHome() {
   const { user } = useAuth();
   const dev = useDevMode();
   const { data: profile } = useProfile();
-  const { isVip } = useRole();
+  const { isVip, hasVipRole } = useRole();
   const { data: recentSongs = [] } = useRecentSongs(user?.id);
 
   const displayName =
@@ -122,6 +129,38 @@ function DashboardHome() {
     (dev.isDev ? "Developer" : "there");
   const balance = profile?.coin_balance ?? 0;
   const hasSongs = recentSongs.length > 0;
+  const statusFn = useServerFn(getMyTelegramStatus);
+  const tg = useQuery({ queryKey: ["my-telegram-status"], queryFn: () => statusFn(), enabled: !!user, staleTime: 30_000 });
+  const tgDone = tg.data?.state === "verified" || !!(tg.data as { linked?: boolean } | undefined)?.linked;
+  const emailDone = !!user?.email && !user.email.toLowerCase().endsWith("@ogstreamz.app");
+  const nameDone = isValidUsername(profile?.display_name ?? "");
+  const profileDone = nameDone && emailDone && tgDone;
+  // "Say hi" = any message from this user in web chat (stored on this device) or via Telegram.
+  const [webHi, setWebHi] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    const check = () => {
+      try {
+        const raw = localStorage.getItem(`og-messenger-thread-v3:${user.id}`);
+        const arr = raw ? (JSON.parse(raw) as { role?: string }[]) : [];
+        setWebHi(Array.isArray(arr) && arr.some((m) => m?.role === "user"));
+      } catch { /* ignore */ }
+    };
+    check();
+    window.addEventListener("og-messenger:sync", check);
+    window.addEventListener("storage", check);
+    return () => { window.removeEventListener("og-messenger:sync", check); window.removeEventListener("storage", check); };
+  }, [user]);
+  const tgHi = useQuery({
+    queryKey: ["said-hi", user?.id],
+    enabled: !!user && !webHi,
+    queryFn: async () => {
+      const { count } = await supabase.from("og_messages").select("id", { count: "exact", head: true }).eq("user_id", user!.id).eq("role", "user");
+      return (count ?? 0) > 0;
+    },
+  });
+  const saidHi = webHi || !!tgHi.data;
+  const allStepsDone = profileDone && hasSongs && saidHi && isVip;
   const welcomeRef = useRef<HTMLElement | null>(null);
   const scrimOpacity = useAdaptiveOverlay(welcomeRef, { min: 0.55, max: 0.92 });
 
@@ -174,43 +213,32 @@ function DashboardHome() {
           ))}
         </div>
 
-        {/* Top marquee status strip */}
-        <div className="relative -mx-4 -mt-4 mb-2 overflow-hidden border-b border-white/10 bg-white/[0.03] py-2 sm:-mx-12 sm:-mt-12 sm:mb-4">
-          <div className="flex animate-[wc-shimmer_22s_linear_infinite] whitespace-nowrap text-xs font-bold uppercase tracking-[0.3em] text-foreground/70 [background:linear-gradient(90deg,transparent,oklch(1_0_0/0.15),transparent)] [background-size:200%_100%] sm:text-sm">
-            {Array.from({ length: 2 }).map((_, k) => (
-              <div key={k} className="flex shrink-0 items-center gap-6 px-6">
-                <span className="inline-flex items-center gap-2">
-                  <Disc3 className="h-4 w-4 animate-[spin_4s_linear_infinite] text-primary" /> Live
-                  studio
-                </span>
-                <span className="opacity-40">✦</span>
-                <span className="inline-flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-accent" /> OG Bot online
-                </span>
-                <span className="opacity-40">✦</span>
-                <span className="inline-flex items-center gap-2">
-                  <AudioLines className="h-4 w-4 text-primary" /> Beats ready
-                </span>
-                <span className="opacity-40">✦</span>
-                <span className="inline-flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-accent" /> Mint a hit
-                </span>
-                <span className="opacity-40">✦</span>
-              </div>
-            ))}
-          </div>
+        {/* Top studio status strip */}
+        <div className="relative -mx-4 -mt-4 mb-2 flex justify-center border-b border-white/10 bg-white/[0.03] py-2 sm:-mx-12 sm:-mt-12 sm:mb-4">
+          <span className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-black uppercase tracking-[0.22em] text-foreground/80 sm:text-sm">
+            <Disc3 className="h-4 w-4 animate-[spin_4s_linear_infinite] text-primary" />
+            OG Live Studio
+          </span>
         </div>
 
         <div className="relative flex flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
-          <div className="order-2 flex w-full flex-row items-center gap-2 sm:order-none sm:w-auto sm:flex-row sm:items-center sm:text-lg">
-            {isVip && (
-              <Badge
-                variant="secondary"
-                className="justify-center gap-1 rounded-full border-2 border-white/20 px-3 py-1.5 text-xs shadow-glow wc-bounce-soft sm:gap-1.5 sm:px-5 sm:py-2.5 sm:text-lg"
+          <div className="order-2 flex w-full flex-row flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:flex-row sm:items-center sm:text-lg">
+            {hasVipRole ? (
+              <Link
+                to="/settings"
+                aria-label="You are an OG VIP member"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-amber-300/80 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 px-4 py-1.5 text-sm font-black uppercase tracking-wider text-black shadow-[0_0_24px_rgba(251,191,36,0.6)] wc-bounce-soft sm:px-6 sm:py-2.5 sm:text-lg"
               >
-                <Sparkles className="h-4 w-4 animate-[wiggle_2s_ease-in-out_infinite] sm:h-6 sm:w-6" />{" "}
-                VIP
-              </Badge>
+                <Crown className="h-6 w-6 fill-current sm:h-7 sm:w-7" />
+                {profile?.og_vip_id ?? "OG VIP"}
+              </Link>
+            ) : (
+              <Link
+                to="/store"
+                className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-foreground/80 hover:bg-white/10 sm:px-5 sm:py-2.5 sm:text-lg"
+              >
+                <Crown className="h-4 w-4 text-amber-300" /> Get VIP
+              </Link>
             )}
             <Badge
               variant="outline"
@@ -258,35 +286,20 @@ function DashboardHome() {
             </p>
             <div className="mt-4 flex flex-col items-center gap-4 sm:mt-5 sm:gap-7">
               <DodgyLogo
-                src={ogLogo.url}
-                alt="OG Streamz"
-                size={200}
+                src={welcomeLogo.url}
+                alt="OG Streamz Presentz OG Bot"
+                size={420}
                 maxDrift={80}
                 dodgeRadius={160}
-                imageClassName="rounded-3xl ring-1 ring-white/10 shadow-[0_24px_70px_-20px_rgba(0,0,0,0.8)] w-[min(60vw,200px)] sm:w-[320px] h-auto"
+                imageClassName="rounded-3xl ring-1 ring-white/10 shadow-glow w-full max-w-[420px] sm:max-w-[520px] h-auto"
                 className="mx-auto"
               />
 
               <DodgyText dodgeRadius={160} maxDrift={28} className="w-full">
                 <h1 className="font-display flex min-w-0 flex-col items-center gap-1 text-[clamp(1.5rem,3.2vw+0.75rem,3.75rem)] font-black leading-[1.05] tracking-[-0.02em] text-foreground [text-shadow:0_4px_28px_rgba(0,0,0,0.75)] [overflow-wrap:anywhere] [text-wrap:balance] [font-variant-ligatures:none] sm:gap-2">
                   <span className="block wc-pop">Hello,</span>
-                  <span className="paint-drip font-display block max-w-full not-italic font-black uppercase tracking-tight text-gradient-red [overflow-wrap:anywhere] text-[clamp(1.5rem,2.6vw+0.75rem,3rem)]">
-                    {displayName.split("").map((ch, i) => (
-                      <span
-                        key={`${ch}-${i}`}
-                        className="inline-block wc-pop hover:animate-[wiggle_0.6s_ease-in-out]"
-                        style={{
-                          animationDelay: `${0.25 + i * 0.05}s`,
-                          whiteSpace: ch === " " ? "pre" : undefined,
-                          background: "inherit",
-                          WebkitBackgroundClip: "text",
-                          backgroundClip: "text",
-                          color: "transparent",
-                        }}
-                      >
-                        {ch}
-                      </span>
-                    ))}
+                  <span className="paint-drip font-display block max-w-full pb-2 not-italic font-black uppercase tracking-tight text-gradient-red [overflow-wrap:anywhere] text-[clamp(1.5rem,2.6vw+0.75rem,3rem)]">
+                    {displayName}
                   </span>
                 </h1>
               </DodgyText>
@@ -315,13 +328,25 @@ function DashboardHome() {
         </div>
       </section>
 
-      {/* Daily free coin drop — one claim per day */}
-      <DailyDrop />
+      {/* Daily free coin drop — one claim per day, with Refer to earn right below */}
+      <div className="space-y-3">
+        <DailyDrop />
+        <Link
+          to="/referrals"
+          preload="intent"
+          className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-primary-foreground shadow-glow transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <Share2 className="h-5 w-5" /> Refer to earn coins
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </Link>
+      </div>
 
       {/* Primary CTAs — MusicHub + OG Bot at the top */}
 
-      <section className="-mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex snap-x snap-mandatory overflow-x-auto gap-4 pb-4 no-scrollbar sm:grid sm:grid-cols-2 sm:gap-5 sm:pb-0">
+      <section className="space-y-3">
+        {/* Phones: one full-width row per card so text never squeezes into
+            a 100px column. sm and up: the three-column card grid. */}
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 sm:gap-5">
           <PrimaryCard
             to="/library"
             image={musicHubHero}
@@ -330,7 +355,7 @@ function DashboardHome() {
             title="Create a song"
             body="Generate · Remix · Release"
             cta="Open MusicHub"
-            className="w-[85vw] shrink-0 snap-center sm:w-auto"
+            hazard
           />
           <PrimaryCard
             to="/messenger"
@@ -341,21 +366,18 @@ function DashboardHome() {
             body="Your AI co-producer"
             cta="Open Messenger"
             variant="accent"
-            className="w-[85vw] shrink-0 snap-center sm:w-auto"
+          />
+          <PrimaryCard
+            to="/sports"
+            image={sportsGuideLogo.url}
+            imageAlt="OG Sports Guide"
+            eyebrow="Live fixtures"
+            title="Sports Guide"
+            body="Matches, fights & TV listings"
+            cta="Open Sports Guide"
+            variant="cinema"
           />
         </div>
-      </section>
-
-      {/* Refer to earn — compact CTA to the referrals/earnings page */}
-      <section>
-        <Link
-          to="/referrals"
-          preload="intent"
-          className="group inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-primary shadow-glow transition hover:scale-105 hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <Share2 className="h-4 w-4" /> Refer to earn
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-        </Link>
       </section>
 
       {/* Ask OG Bot CTA removed per request */}
@@ -365,10 +387,10 @@ function DashboardHome() {
 
       {/* Quick actions */}
       <section>
-        <h2 className="mb-4 text-sm uppercase tracking-[0.28em] text-muted-foreground sm:text-base">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-foreground [text-shadow:0_1px_10px_rgba(0,0,0,0.9)] sm:mb-4 sm:text-base sm:tracking-[0.24em]">
           ⚡ Quick actions
         </h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 sm:gap-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-4">
           <QuickAction
             to="/library"
             icon={<Plus className="h-7 w-7" />}
@@ -396,14 +418,13 @@ function DashboardHome() {
         </div>
       </section>
 
-      <DashboardGenerationHistory songs={recentSongs} />
-
+      {!allStepsDone && (
       <div className="grid grid-cols-1 gap-6">
         {/* Next steps */}
         <Card className="rounded-[2rem] border-2 border-white/15 shadow-[0_18px_50px_-20px_rgba(80,60,255,0.35)]">
           <CardHeader>
             <CardTitle className="font-display text-2xl font-black leading-[1.1] tracking-tight break-words sm:text-4xl md:text-5xl">
-              ✅ Next steps
+              Next steps
             </CardTitle>
             <CardDescription className="text-base sm:text-lg">
               Get the most out of OG Studio.
@@ -411,16 +432,17 @@ function DashboardHome() {
           </CardHeader>
           <CardContent className="space-y-3">
             <ChecklistItem
-              done={!!profile?.display_name}
-              label="Complete your profile"
+              done={profileDone}
+              label="Complete your profile (username, email & Telegram)"
               to="/settings"
             />
             <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
-            <ChecklistItem done={false} label="Say hi in OG Bot" to="/messenger" />
+            <ChecklistItem done={saidHi} label="Say hi in OG Bot" to="/messenger" />
             <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
           </CardContent>
         </Card>
       </div>
+      )}
 
       <footer className="flex justify-center border-t border-white/10 pt-6">
         <Link
@@ -449,7 +471,9 @@ function AskOgCta() {
           "og:pending-prompt",
           JSON.stringify({ service, text, at: Date.now() }),
         );
-      } catch {}
+      } catch {
+        // storage may be blocked (private mode)
+      }
     }
     setOpen(false);
     navigate({ to: service === "musichub" ? "/library" : "/messenger" });
@@ -648,9 +672,9 @@ function PrimaryCard({
   cta,
   variant = "primary",
   wide = false,
-  className,
+  hazard = false,
 }: {
-  to: "/library" | "/messenger";
+  to: "/library" | "/messenger" | "/sports";
   image: string;
   imageAlt: string;
   eyebrow: string;
@@ -659,18 +683,18 @@ function PrimaryCard({
   cta: string;
   variant?: "primary" | "accent" | "cinema";
   wide?: boolean;
-  className?: string;
+  hazard?: boolean;
 }) {
   const isAccent = variant === "accent";
   const isCinema = variant === "cinema";
   return (
     <Link
       to={to}
+      hash={hazard ? "create" : undefined}
       preload="intent"
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-3xl border-2 border-white/15 bg-card/70 shadow-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group relative flex flex-row overflow-hidden rounded-3xl border-2 border-white/15 bg-card/85 shadow-card sm:flex-col backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         wide && "sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]",
-        className
       )}
     >
       {/* Ambient gradient */}
@@ -689,24 +713,60 @@ function PrimaryCard({
       {/* HERO IMAGE — large, meaningful, fills the top */}
       <div
         className={cn(
-          "relative w-full overflow-hidden",
-          wide ? "aspect-[16/7] sm:aspect-auto sm:min-h-72" : "aspect-[4/5] sm:aspect-square",
+          "relative overflow-hidden",
+          wide
+            ? "aspect-video w-full sm:aspect-auto sm:min-h-72"
+            : "m-3 aspect-square w-[6.5rem] shrink-0 self-center rounded-2xl sm:m-0 sm:w-full sm:rounded-none",
         )}
       >
-        <img
-          src={image}
-          alt={imageAlt}
-          loading="lazy"
-          width={768}
-          height={768}
-          className={
-            "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 " +
-            (isAccent ? "p-4 sm:p-6" : "")
-          }
-        />
+        {hazard ? (
+          <div className="grid h-full w-full place-items-center p-1.5 sm:p-3">
+            <span
+              aria-hidden="true"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 28%, oklch(0.74 0.24 28), oklch(0.47 0.21 26) 66%, oklch(0.24 0.12 25))",
+              }}
+              className="hazard-create relative grid aspect-square w-[85%] place-items-center rounded-full border-[5px] border-destructive text-white"
+            >
+              <span
+                className="hazard-ring absolute inset-1.5 rounded-full"
+                style={{
+                  background:
+                    "repeating-conic-gradient(from 0deg, oklch(0.85 0.19 85 / 0.55) 0deg 18deg, transparent 18deg 36deg)",
+                  WebkitMask:
+                    "radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px))",
+                  mask: "radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px))",
+                }}
+              />
+              <span className="hazard-core absolute inset-6 rounded-full bg-white/20 blur-md" />
+              <span className="relative z-10 flex flex-col items-center gap-0.5">
+                <Sparkles className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:h-6 sm:w-6 lg:h-9 lg:w-9" />
+                <span className="font-display text-[0.8rem] font-black uppercase leading-none [overflow-wrap:normal] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-xl md:text-2xl lg:text-4xl">
+                  Create
+                </span>
+                <span className="font-display text-[0.6rem] font-black uppercase leading-none tracking-[0.18em] [overflow-wrap:normal] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-sm lg:text-2xl">
+                  Now
+                </span>
+              </span>
+            </span>
+          </div>
+        ) : (
+          <img
+            src={image}
+            alt={imageAlt}
+            loading="lazy"
+            width={768}
+            height={768}
+            className={
+              "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 " +
+              (isAccent ? "p-1 sm:p-4 lg:p-6" : "")
+            }
+          />
+        )}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent"
+          className="pointer-events-none absolute inset-0 hidden bg-gradient-to-t from-card via-card/30 to-transparent sm:block"
         />
         {/* Equalizer overlay only for music card */}
         {!isAccent && !isCinema && (
@@ -726,23 +786,29 @@ function PrimaryCard({
       </div>
 
       {/* Text + CTA */}
-      <div className="relative z-10 flex flex-1 flex-col gap-2 p-4 sm:p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary sm:text-xs">
+      {/* break-word (not the global "anywhere") keeps whole words together. */}
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col justify-center gap-1 py-3 pr-1 [overflow-wrap:break-word] sm:justify-start sm:gap-2 sm:p-5">
+        <p className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-primary sm:text-xs sm:tracking-[0.22em]">
           {eyebrow}
         </p>
-        <h3 className="font-display text-2xl sm:text-2xl md:text-3xl font-black uppercase leading-[1.08] tracking-tight text-foreground [overflow-wrap:anywhere]">
+        <h3 className="font-display text-lg font-black uppercase leading-[1.08] tracking-tight text-foreground sm:text-2xl lg:text-3xl">
           {title}
         </h3>
-        <p className="text-[11px] sm:text-sm font-semibold uppercase leading-relaxed tracking-[0.12em] text-muted-foreground sm:tracking-[0.18em]">
+        <p className="text-xs font-semibold uppercase leading-snug tracking-[0.08em] text-muted-foreground sm:text-sm sm:leading-relaxed sm:tracking-[0.12em]">
           {body}
         </p>
-        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-3 text-sm font-bold text-primary sm:text-base">
-          <span className="min-w-0 rounded-full border-2 border-primary/40 bg-primary/15 px-3 py-2 sm:px-4 sm:py-2.5 leading-tight backdrop-blur-sm transition-colors group-hover:bg-primary/25">
+        <div className="mt-auto hidden grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-2 font-bold text-primary sm:grid sm:text-sm lg:text-base">
+          <span className="min-w-0 rounded-full border-2 border-primary/40 bg-primary/15 px-2.5 py-1.5 leading-tight backdrop-blur-sm transition-colors group-hover:bg-primary/25 sm:px-4 sm:py-2">
             {cta}
           </span>
-          <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1 sm:h-6 sm:w-6" />
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
         </div>
       </div>
+      {/* Phones: the whole row is the link, so a single arrow replaces the pill. */}
+      <ArrowRight
+        aria-hidden
+        className="relative z-10 mr-4 h-5 w-5 shrink-0 self-center text-foreground transition-transform group-hover:translate-x-1 sm:hidden"
+      />
     </Link>
   );
 }
@@ -769,14 +835,16 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-2 py-4 text-center backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-white/[0.08] hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-5"
+      className="group flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-card/85 px-1 py-3 text-center backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-white/[0.08] hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-5"
     >
       <span
-        className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${QUICK_TONES[tone]} shadow-glow ring-1 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6 sm:h-14 sm:w-14`}
+        className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${QUICK_TONES[tone]} shadow-glow ring-1 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6 sm:h-14 sm:w-14`}
       >
         {icon}
       </span>
-      <span className="text-sm font-bold leading-tight sm:text-base">{label}</span>
+      <span className="text-xs font-bold leading-tight [overflow-wrap:normal] sm:text-base">
+        {label}
+      </span>
     </Link>
   );
 }

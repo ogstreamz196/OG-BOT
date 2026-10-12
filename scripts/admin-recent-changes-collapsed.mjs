@@ -61,17 +61,17 @@ async function run() {
       const id = `${route}#${i}`;
 
       // Collapsed by default
-      const openDefault = await el.evaluate((n) => (n).open);
+      const openDefault = await el.evaluate((n) => n.open);
       if (openDefault) failures.push(`${id}: open by default, expected collapsed`);
 
       // Toggle → expands
       await el.locator("summary").click();
-      const openAfter = await el.evaluate((n) => (n).open);
+      const openAfter = await el.evaluate((n) => n.open);
       if (!openAfter) failures.push(`${id}: did not expand after summary click`);
 
       // Toggle again → collapses
       await el.locator("summary").click();
-      const openAgain = await el.evaluate((n) => (n).open);
+      const openAgain = await el.evaluate((n) => n.open);
       if (openAgain) failures.push(`${id}: did not collapse on second toggle`);
     }
   }
@@ -85,4 +85,7 @@ async function run() {
   console.log(`ok — ${checked} Recent admin changes section(s) collapsed-by-default + toggleable`);
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

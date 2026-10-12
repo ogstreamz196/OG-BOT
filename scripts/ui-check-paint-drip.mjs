@@ -30,10 +30,7 @@ const sessionJson = process.env.LOVABLE_BROWSER_SUPABASE_SESSION_JSON;
 
 await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
 if (storageKey && sessionJson) {
-  await page.evaluate(
-    ([k, v]) => window.localStorage.setItem(k, v),
-    [storageKey, sessionJson],
-  );
+  await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
 }
 await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle" });
 

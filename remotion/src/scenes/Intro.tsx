@@ -1,5 +1,13 @@
 import React from "react";
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import {
+  AbsoluteFill,
+  Img,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+  spring,
+  interpolate,
+} from "remotion";
 import { C, DOMAIN } from "../theme";
 import { display, body } from "../components/Type";
 import { Bars } from "../components/Backdrop";

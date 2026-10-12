@@ -29,7 +29,10 @@ const cookiesJson = process.env.LOVABLE_BROWSER_SUPABASE_COOKIES_JSON;
 
 const failures = [];
 const pass = (m) => console.log(`  ✓ ${m}`);
-const fail = (m) => { failures.push(m); console.log(`  ✗ ${m}`); };
+const fail = (m) => {
+  failures.push(m);
+  console.log(`  ✗ ${m}`);
+};
 
 async function restoreAuth(context, page) {
   if (cookiesJson) {
@@ -38,10 +41,7 @@ async function restoreAuth(context, page) {
   }
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   if (storageKey && sessionJson) {
-    await page.evaluate(
-      ([k, v]) => window.localStorage.setItem(k, v),
-      [storageKey, sessionJson],
-    );
+    await page.evaluate(([k, v]) => window.localStorage.setItem(k, v), [storageKey, sessionJson]);
   }
 }
 
@@ -84,7 +84,9 @@ async function run() {
       // Try main-shell scroll first, then window as fallback.
       const scrolled = await page.evaluate(() => {
         const targets = [
-          ...document.querySelectorAll('main, [data-scroll-container], .overflow-y-auto, .overflow-auto'),
+          ...document.querySelectorAll(
+            "main, [data-scroll-container], .overflow-y-auto, .overflow-auto",
+          ),
         ];
         for (const t of targets) {
           const before = t.scrollTop;
@@ -122,9 +124,7 @@ async function run() {
       return {
         touchAction: s.touchAction,
         overscrollBehaviorY: s.overscrollBehaviorY,
-        hasLabel:
-          !!el.getAttribute("aria-labelledby") ||
-          !!el.getAttribute("aria-label"),
+        hasLabel: !!el.getAttribute("aria-labelledby") || !!el.getAttribute("aria-label"),
         role: el.getAttribute("role"),
       };
     });
@@ -150,7 +150,9 @@ async function run() {
     await trigger.waitFor({ timeout: 10000 });
     await trigger.click();
 
-    const sheet = page.locator('[data-sidebar="sidebar"][data-mobile="true"], [role="dialog"]').first();
+    const sheet = page
+      .locator('[data-sidebar="sidebar"][data-mobile="true"], [role="dialog"]')
+      .first();
     await sheet.waitFor({ timeout: 5000 });
 
     const info = await sheet.evaluate((el) => {
@@ -190,7 +192,18 @@ async function run() {
       window.matchMedia = (q) => {
         for (const p of prefsList) {
           if (q.includes(p.name) && q.includes(p.value)) {
-            return { matches: true, media: q, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; }, onchange: null };
+            return {
+              matches: true,
+              media: q,
+              addListener() {},
+              removeListener() {},
+              addEventListener() {},
+              removeEventListener() {},
+              dispatchEvent() {
+                return false;
+              },
+              onchange: null,
+            };
           }
         }
         return orig(q);
@@ -208,7 +221,9 @@ async function run() {
           for (const rule of Array.from(sheet.cssRules || [])) {
             if (rule.cssText && wanted.every((w) => rule.cssText.includes(w))) return true;
           }
-        } catch {/* cross-origin */ }
+        } catch {
+          /* cross-origin */
+        }
       }
       return false;
     });
@@ -228,4 +243,7 @@ async function run() {
   console.log("\nAll mobile scroll + a11y checks passed.");
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

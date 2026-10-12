@@ -46,17 +46,22 @@ Deno.serve(async (req) => {
   }
 
   const admin = adminClient();
-  const { data: song, error: songErr } = await admin.from("songs")
+  const { data: song, error: songErr } = await admin
+    .from("songs")
     .select("user_id, audio_path, sample_path, status, unlocked, revealed")
-    .eq("id", song_id).maybeSingle();
+    .eq("id", song_id)
+    .maybeSingle();
 
   if (songErr || !song) {
     log("song_not_found", { user_id: user.id, song_id, mode, db_error: songErr?.message });
-    return jsonResponse({
-      error: "Song not found",
-      code: "song_not_found",
-      reason: "No song row exists for this id (it may have been deleted).",
-    }, 404);
+    return jsonResponse(
+      {
+        error: "Song not found",
+        code: "song_not_found",
+        reason: "No song row exists for this id (it may have been deleted).",
+      },
+      404,
+    );
   }
 
   const isOwner = !(song.user_id !== user.id);
@@ -70,19 +75,25 @@ Deno.serve(async (req) => {
     }
     if (song.status !== "completed") {
       log("not_completed", { user_id: user.id, song_id, status: song.status });
-      return jsonResponse({
-        error: "Song not ready",
-        code: "not_completed",
-        reason: "This community song hasn't finished rendering yet.",
-      }, 404);
+      return jsonResponse(
+        {
+          error: "Song not ready",
+          code: "not_completed",
+          reason: "This community song hasn't finished rendering yet.",
+        },
+        404,
+      );
     }
     if (song.revealed === false) {
       log("not_revealed", { user_id: user.id, song_id });
-      return jsonResponse({
-        error: "Song not available",
-        code: "not_revealed",
-        reason: "The owner hasn't revealed this song to the community yet.",
-      }, 404);
+      return jsonResponse(
+        {
+          error: "Song not available",
+          code: "not_revealed",
+          reason: "The owner hasn't revealed this song to the community yet.",
+        },
+        404,
+      );
     }
   }
 
@@ -107,33 +118,46 @@ Deno.serve(async (req) => {
         .eq("song_id", song_id)
         .maybeSingle();
       if (!unlockRow) {
-        log("locked_no_unlock_row", { user_id: user.id, song_id, mirror_unlocked: !!song.unlocked });
-        return jsonResponse({
-          error: "Full track is locked",
-          code: "locked",
-          reason: "No unlock ledger entry — unlock the HQ track first.",
-        }, 403);
+        log("locked_no_unlock_row", {
+          user_id: user.id,
+          song_id,
+          mirror_unlocked: !!song.unlocked,
+        });
+        return jsonResponse(
+          {
+            error: "Full track is locked",
+            code: "locked",
+            reason: "No unlock ledger entry — unlock the HQ track first.",
+          },
+          403,
+        );
       }
     }
     if (!song.audio_path) {
       log("full_pending", { user_id: user.id, song_id });
-      return jsonResponse({
-        error: "Full track still downloading",
-        code: "full_pending",
-        reason: "Unlock recorded but the HQ audio file hasn't been mirrored to storage yet.",
-      }, 409);
+      return jsonResponse(
+        {
+          error: "Full track still downloading",
+          code: "full_pending",
+          reason: "Unlock recorded but the HQ audio file hasn't been mirrored to storage yet.",
+        },
+        409,
+      );
     }
   }
 
-  const path = mode === "full" ? song.audio_path! : song.sample_path;
+  const path = mode === "full" ? song.audio_path : song.sample_path;
   if (!path) {
     const code = mode === "full" ? "full_pending" : "sample_pending";
     log(code, { user_id: user.id, song_id, mode });
-    return jsonResponse({
-      error: mode === "full" ? "Full track not ready" : "Sample not ready",
-      code,
-      reason: "Storage path missing — generation may still be in progress.",
-    }, 409);
+    return jsonResponse(
+      {
+        error: mode === "full" ? "Full track not ready" : "Sample not ready",
+        code,
+        reason: "Storage path missing — generation may still be in progress.",
+      },
+      409,
+    );
   }
 
   const ttl = mode === "full" ? 60 * 5 : 60 * 15;
@@ -142,11 +166,25 @@ Deno.serve(async (req) => {
   const rawName = typeof body?.filename === "string" ? body.filename : "";
   const safeName = rawName.replace(/[^\w.\- ]+/g, "").slice(0, 120) || "track.mp3";
   const filename = safeName.toLowerCase().endsWith(".mp3") ? safeName : `${safeName}.mp3`;
-  const { data, error } = await admin.storage.from("song-files")
+  let { data, error } = await admin.storage
+    .from("song-files")
     .createSignedUrl(path, ttl, forceAttachment ? { download: filename } : undefined);
+  if (error?.message.toLowerCase().includes("too many connections")) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    ({ data, error } = await admin.storage
+      .from("song-files")
+      .createSignedUrl(path, ttl, forceAttachment ? { download: filename } : undefined));
+  }
   if (error) {
     log("sign_failed", { user_id: user.id, song_id, mode, error: error.message });
-    return jsonResponse({ error: error.message, code: "sign_failed" }, 500);
+    const overloaded = error.message.toLowerCase().includes("too many connections");
+    return jsonResponse(
+      {
+        error: overloaded ? "Track audio is temporarily busy. Please try again." : error.message,
+        code: overloaded ? "sign_busy" : "sign_failed",
+      },
+      overloaded ? 503 : 500,
+    );
   }
 
   log("ok", { user_id: user.id, song_id, mode, owner: isOwner });

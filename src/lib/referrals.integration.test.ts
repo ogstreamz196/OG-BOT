@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
  * Integration test for the referrals SQL surface:
  *   - claim_referral is one-shot per referee
  *   - claim_referral rejects self-referrals
- *   - deduct_coins credits 10% cashback to the referrer
+ *   - deduct_coins credits 6%/13% cashback to the referrer
  *
  * Runs against the live Supabase DB via psql using the standard PG* env
  * vars. Skipped automatically when those vars are not present (e.g. on a
@@ -84,19 +84,19 @@ describe.skipIf(!HAS_DB)("referrals SQL contract", () => {
     expect(row).toBe(referrer);
   });
 
-  it("credits 10% cashback to the referrer on burn", () => {
+  it("credits 6% cashback to a free referrer on burn", () => {
     const before = Number(
       psql(`SELECT coin_balance FROM public.profiles WHERE id = '${referrer}'`),
     );
     asUser(referee, `SELECT public.deduct_coins('${referee}', 50, 'test_burn')`);
     const after = Number(psql(`SELECT coin_balance FROM public.profiles WHERE id = '${referrer}'`));
-    expect(after - before).toBe(5); // floor(50 * 0.10)
+    expect(after - before).toBe(3); // floor(50 * 0.06)
 
     const tx = psql(
       `SELECT amount FROM public.coin_transactions
        WHERE user_id = '${referrer}' AND type = 'referral_cashback'
        ORDER BY created_at DESC LIMIT 1`,
     );
-    expect(Number(tx)).toBe(5);
+    expect(Number(tx)).toBe(3);
   });
 });

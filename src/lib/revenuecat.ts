@@ -136,19 +136,39 @@ export async function purchasePackage(
 }
 
 /**
+ * Friendly name of the store that handles purchases on this platform.
+ * Apple rejects any iOS build that mentions Google Play, and vice versa.
+ */
+export function purchaseStoreName(): string {
+  if (typeof window === "undefined") return "the store";
+  if (!Capacitor.isNativePlatform()) return "Stripe";
+  return Capacitor.getPlatform() === "ios" ? "the App Store" : "Google Play";
+}
+
+/**
+ * Restore previously bought subscriptions / non-consumables.
+ * Apple guideline 3.1.1 requires this control on every paywall.
+ */
+export async function restorePurchases(): Promise<CustomerInfoWeb | CustomerInfoCap | null> {
+  if (Capacitor.isNativePlatform() && isNativeConfigured) {
+    const result = await (await loadNative()).restorePurchases();
+    return result.customerInfo;
+  }
+  // Web billing restores by re-reading the signed-in customer's entitlements.
+  return await getCustomerInfo();
+}
+
+/**
  * Open Customer Center
  */
 export async function showCustomerCenter() {
   try {
     if (Capacitor.isNativePlatform()) {
-      // For native, RevenueCat Customer Center requires the experimental UI plugin,
-      // or you simply direct the user to their respective app store subscription management page.
-      if (Capacitor.getPlatform() === "ios") {
-        // window.location.href = "https://apps.apple.com/account/subscriptions";
-        alert("Please manage your subscription in your Apple ID settings.");
-      } else {
-        window.location.href = "https://play.google.com/store/account/subscriptions";
-      }
+      // Send the user to the platform's own subscription management screen.
+      window.location.href =
+        Capacitor.getPlatform() === "ios"
+          ? "itms-apps://apps.apple.com/account/subscriptions"
+          : "https://play.google.com/store/account/subscriptions";
     } else {
       const customerInfo = (await getCustomerInfo()) as CustomerInfoWeb;
       if (customerInfo?.managementURL) {

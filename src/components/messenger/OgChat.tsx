@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
+import { ogErrorMessage } from "@/lib/og-error-message";
 import { transcribeOgAudio } from "@/lib/og-transcribe.functions";
 import { postCommunityMessage } from "@/lib/community.functions";
 import { QUICK_STARTS } from "@/lib/og-persona-public";
@@ -27,7 +28,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
-import { useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
+import {
+  useFoulMouth,
+  useSetFoulMouth,
+} from "@/hooks/use-foul-mouth";
 // useShareLive intentionally removed — Loner/Community is page-level now.
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -162,17 +166,32 @@ export function OgChat({
   // shareLive removed: Loner Mode is enforced by the page mounting OgChat.
   const postCommunity = useServerFn(postCommunityMessage);
   const transcribe = useServerFn(transcribeOgAudio);
-  const [language, setLanguage] = useState<string>(() => {
-    if (typeof window === "undefined") return "English";
-    return window.localStorage.getItem(LANG_KEY) || "English";
-  });
+  // Private/incognito browsers can block or throw on storage — the chosen
+  // language must still work for the session, so storage is best-effort only.
+  const [language, setLanguage] = useState<string>("English");
+  const langLoaded = useRef(false);
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(LANG_KEY, language);
+    try {
+      const saved = window.localStorage.getItem(LANG_KEY);
+      if (saved && OG_LANGUAGES.includes(saved as (typeof OG_LANGUAGES)[number]))
+        setLanguage(saved);
+    } catch {
+      /* storage blocked in private mode */
+    }
+    langLoaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!langLoaded.current) return;
+    try {
+      window.localStorage.setItem(LANG_KEY, language);
+    } catch {
+      /* storage blocked in private mode — keep in-memory choice */
+    }
   }, [language]);
 
   // Attachment + mic state
   const [attachment, setAttachment] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [vipPromoOpen, setVipPromoOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -183,7 +202,7 @@ export function OgChat({
     const composer = inputRef.current;
     if (!composer) return;
     composer.style.height = "0px";
-    composer.style.height = `${Math.min(Math.max(composer.scrollHeight, 56), 144)}px`;
+    composer.style.height = `${Math.min(Math.max(composer.scrollHeight, 40), 128)}px`;
   }, [input]);
 
   // Anti-flicker skeleton: stays visible at least 600ms once shown so quick
@@ -266,7 +285,7 @@ export function OgChat({
     const el = scrollRef.current;
     if (!el) return;
     const reduce =
-typeof window !== "undefined" &&
+      typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     // Never animate while the user is typing — instant snap keeps taps responsive.
     const typing = document.activeElement === inputRef.current;
@@ -334,7 +353,7 @@ typeof window !== "undefined" &&
           messages: args.history,
           mode,
           attachmentDataUrl: args.attachmentDataUrl,
-          language: isVip ? language : "English",
+          language,
         },
       }),
     onSuccess: (res) => {
@@ -348,7 +367,7 @@ typeof window !== "undefined" &&
       setTimeout(() => inputRef.current?.focus(), 0);
     },
     onError: (err: Error) => {
-      setMessages((cur) => [...cur, { role: "assistant", content: `⚠️ ${err.message}` }]);
+      setMessages((cur) => [...cur, { role: "assistant", content: ogErrorMessage(err) }]);
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
   });
@@ -364,6 +383,7 @@ typeof window !== "undefined" &&
     const t = setTimeout(() => setShowSkeleton(false), 600);
     return () => clearTimeout(t);
   }, [m.isPending, showSkeleton]);
+
 
   function sendText(text: string, opts?: { forcePrivate?: boolean }) {
     const t = text.trim();
@@ -403,10 +423,7 @@ typeof window !== "undefined" &&
       return;
     }
 
-    // private
-    if ((profile?.coin_balance ?? 0) <= 0) {
-      return toast.error("Out of OG coins — resets to 5 tomorrow, or top up to keep going.");
-    }
+    // private — free, no coin check. Images are read and discussed, never edited.
     const visibleText = t || (att ? `📎 ${att.name}` : "");
     const next = [...messages, { role: "user" as const, content: visibleText }];
     setMessages(next);
@@ -426,14 +443,7 @@ typeof window !== "undefined" &&
 
   async function toggleFoul() {
     if (!isVip) {
-      toast.message("Foul-mouth is a VIP perk — grab OG VIP for £5/month.", {
-        action: {
-          label: "Get VIP",
-          onClick: () => {
-            window.location.href = "/buy-coins?flow=vip";
-          },
-        },
-      });
+      setVipPromoOpen(true);
       return;
     }
     try {
@@ -522,7 +532,7 @@ typeof window !== "undefined" &&
   }
 
   const balance = profile?.coin_balance ?? 0;
-  const isOut = balance <= 0;
+  const isOut = false;
   const foulActive = foulMouth;
   const mode = foulMouth ? "og" : "safe";
 
@@ -534,6 +544,7 @@ typeof window !== "undefined" &&
         compact ? "" : "rounded-xl border border-border bg-card",
       )}
     >
+      <VipFoulPromo open={vipPromoOpen} onOpenChange={setVipPromoOpen} />
       {showHeader && (
         <div
           data-testid="ogchat-header"
@@ -606,30 +617,34 @@ typeof window !== "undefined" &&
               </span>
             </span>
             {/* OG/Safe mode toggle removed — Foul Mouth is the single tone control. */}
-            {isVip ? (
+            <label className="relative inline-flex h-8 items-center rounded-lg border border-amber-400/50 bg-amber-400/10 px-2 text-[10px] font-bold text-amber-600 dark:text-amber-300 sm:hidden">
+              🌐 {language.slice(0, 2).toUpperCase()}
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="h-8 max-w-[88px] rounded-lg border border-amber-400/50 bg-amber-400/10 px-1.5 text-[10px] font-bold text-amber-600 transition hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 dark:text-amber-300 sm:h-auto sm:max-w-none sm:border-2 sm:px-3 sm:py-1.5 sm:text-[12px]"
-                title="Reply language (VIP)"
+                className="absolute inset-0 opacity-0"
                 aria-label="Reply language"
               >
                 {OG_LANGUAGES.map((l) => (
                   <option key={l} value={l}>
-                    🌐 {l}
+                    {l}
                   </option>
                 ))}
               </select>
-            ) : (
-              <Link
-                to="/buy-coins"
-                search={{ flow: "vip" } as never}
-                className="hidden items-center gap-1.5 rounded-lg border-2 border-border bg-muted px-3 py-1.5 text-[12px] font-bold text-muted-foreground transition hover:bg-muted/80 sm:inline-flex"
-                title="VIP unlocks any language"
-              >
-                🌐 English <Crown className="h-3.5 w-3.5 text-amber-500" />
-              </Link>
-            )}
+            </label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="hidden h-8 max-w-[88px] rounded-lg border border-amber-400/50 bg-amber-400/10 px-1.5 text-[10px] font-bold text-amber-600 transition hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 dark:text-amber-300 sm:block sm:h-auto sm:max-w-none sm:border-2 sm:px-3 sm:py-1.5 sm:text-[12px]"
+              title="Reply language"
+              aria-label="Reply language"
+            >
+              {OG_LANGUAGES.map((l) => (
+                <option key={l} value={l}>
+                  🌐 {l}
+                </option>
+              ))}
+            </select>
             {messages.length > 0 && (
               <button
                 type="button"
@@ -676,7 +691,7 @@ typeof window !== "undefined" &&
                     Message <span className="text-gradient-brand">OG Bot</span>
                   </h2>
                   <p className="text-xs text-muted-foreground sm:text-base">
-                    Ask anything. Replies cost 1 coin.
+                    Ask anything. Private chat is free.
                   </p>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/80">
                     {balance} coins left
@@ -857,17 +872,21 @@ typeof window !== "undefined" &&
         className="sticky bottom-0 z-40 border-t border-border/80 bg-card/95 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/75 sm:px-3 sm:py-2"
       >
         {attachment && (
-          <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-2">
-            <img src={attachment.dataUrl} alt="" className="h-10 w-10 rounded-md object-cover" />
-            <span className="flex-1 truncate text-xs text-muted-foreground">{attachment.name}</span>
-            <button
-              type="button"
-              onClick={() => setAttachment(null)}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Remove attachment"
-            >
-              <X className="h-4 w-4" />
-            </button>
+          <div className="mb-2 rounded-xl border border-border bg-muted/40 p-2">
+            <div className="flex items-center gap-2">
+              <img src={attachment.dataUrl} alt="" className="h-10 w-10 rounded-md object-cover" />
+              <span className="flex-1 truncate text-xs text-muted-foreground">
+                {attachment.name} · ask OG Bot anything about it
+              </span>
+              <button
+                type="button"
+                onClick={() => setAttachment(null)}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Remove attachment"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
         <input
@@ -938,7 +957,9 @@ typeof window !== "undefined" &&
                   ? "Listening… tap mic to stop"
                   : isOut
                     ? "Out of coins — top up to chat"
-                    : "Message OG Bot…"
+                    : attachment
+                      ? "Ask about this image…"
+                      : "Message OG Bot…"
             }
             disabled={m.isPending || isOut || !user || transcribing}
             maxLength={2000}
@@ -947,7 +968,7 @@ typeof window !== "undefined" &&
             aria-label="Message OG Bot in Loner Mode"
             data-testid="og-loner-composer"
             style={{ touchAction: "manipulation" }}
-            className="min-h-14 max-h-36 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-base leading-5 placeholder:text-muted-foreground/70 focus:outline-none disabled:cursor-not-allowed sm:px-2.5 sm:text-[15px]"
+            className="min-h-10 max-h-32 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-base leading-5 placeholder:text-muted-foreground/70 focus:outline-none disabled:cursor-not-allowed sm:px-2.5 sm:text-[15px]"
           />
           <button
             type="submit"
@@ -957,11 +978,7 @@ typeof window !== "undefined" &&
             data-testid="og-loner-send"
             className="mb-1 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-brand text-primary-foreground shadow-[0_8px_22px_-6px_hsl(var(--primary)/0.6)] ring-1 ring-primary/40 transition hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:ring-0"
           >
-            {m.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
+            {m.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </button>
         </div>
         <p
@@ -984,6 +1001,58 @@ typeof window !== "undefined" &&
           </span>
         </p>
       </form>
+    </div>
+  );
+}
+
+function VipFoulPromo({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Unlock Foul Mouth with OG VIP"
+      className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
+      onClick={() => onOpenChange(false)}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border-2 border-destructive/50 bg-card p-5 text-center shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-4xl" aria-hidden>
+          🤬
+        </div>
+        <h3 className="mt-2 font-display text-lg font-black">Unlock Foul Mouth</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          OG Bot goes unfiltered — savage roasts, UK street slang, no holding back.
+        </p>
+        <ul className="mt-3 space-y-1 text-left text-xs text-foreground/90">
+          <li>🔥 Unfiltered OG Bot persona</li>
+          <li>👑 Your own OG VIP ID and gold badge</li>
+          <li>⚡ Priority replies + daily 10-coin safety net</li>
+        </ul>
+        <div className="mt-4 grid gap-2">
+          <a
+            href="/buy-coins?flow=vip"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-brand font-bold text-primary-foreground"
+          >
+            Get OG VIP · from £4.99
+          </a>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="h-9 text-xs font-semibold text-muted-foreground"
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

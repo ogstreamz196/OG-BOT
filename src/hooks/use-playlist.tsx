@@ -25,6 +25,8 @@ interface PlaylistApi {
   currentId: string | null;
   loop: LoopMode;
   setLoop: (m: LoopMode) => void;
+  shuffle: boolean;
+  setShuffle: (v: boolean) => void;
   setOrder: (ids: string[]) => void;
   register: (id: string, controls: TrackControls) => () => void;
   markCurrent: (id: string) => void;
@@ -50,6 +52,9 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
   currentRef.current = currentId;
   const loopRef = useRef<LoopMode>("all");
   loopRef.current = loop;
+  const [shuffle, setShuffle] = useState(false);
+  const shuffleRef = useRef(false);
+  shuffleRef.current = shuffle;
 
   const setOrder = useCallback((ids: string[]) => {
     setOrderState((prev) =>
@@ -71,6 +76,9 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
   const playId = useCallback((id: string) => {
     const c = registry.current.get(id);
     if (!c) return;
+    const previousId = currentRef.current;
+    if (previousId && previousId !== id) registry.current.get(previousId)?.pause();
+    currentRef.current = id;
     setCurrentId(id);
     void Promise.resolve(c.play()).catch(() => {});
   }, []);
@@ -79,6 +87,11 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
     (dir: 1 | -1) => {
       const ids = orderRef.current.filter((id) => registry.current.has(id));
       if (ids.length === 0) return;
+      if (shuffleRef.current && dir === 1 && ids.length > 1) {
+        const pool = ids.filter((id) => id !== currentRef.current);
+        playId(pool[Math.floor(Math.random() * pool.length)]!);
+        return;
+      }
       const idx = currentRef.current ? ids.indexOf(currentRef.current) : -1;
       let nextIdx = idx + dir;
       if (nextIdx >= ids.length) nextIdx = loopRef.current === "off" ? -1 : 0;
@@ -115,6 +128,8 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
       currentId,
       loop,
       setLoop,
+      shuffle,
+      setShuffle,
       setOrder,
       register,
       markCurrent,
@@ -128,6 +143,7 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
       order,
       currentId,
       loop,
+      shuffle,
       setOrder,
       register,
       markCurrent,
