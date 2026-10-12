@@ -60,7 +60,8 @@ type Summary = {
   recent: {
     id: string;
     amount: number;
-    type?: "referral_cashback" | "referral_payment" | "referral_payment_reversal";
+    type?:
+      "referral_cashback" | "referral_payment" | "referral_payment_reversal" | "referral_backpay";
     reference: string | null;
     created_at: string;
     referee_id: string | null;
@@ -96,7 +97,10 @@ async function copyTextWithFallback(text: string): Promise<boolean> {
 
 function ReferralsPage() {
   const { user } = useAuth();
-  const { isVip } = useRole();
+  // Cashback rate follows actual VIP status only (matches referral_rate_pct):
+  // the 15-day introductory offer and free-access mode still earn 6%.
+  const { hasVipRole, isAdmin, roles } = useRole();
+  const isVip = hasVipRole || isAdmin || roles.includes("boss");
   const ratePct = isVip ? 13 : 6;
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
@@ -182,16 +186,19 @@ function ReferralsPage() {
           if (
             row?.type === "referral_cashback" ||
             row?.type === "referral_payment" ||
-            row?.type === "referral_payment_reversal"
+            row?.type === "referral_payment_reversal" ||
+            row?.type === "referral_backpay"
           ) {
             qc.invalidateQueries({ queryKey: ["referral-summary", user.id] });
             qc.invalidateQueries({ queryKey: ["profile", user.id] });
             if (typeof row.amount === "number" && row.amount > 0) {
               toast.success(`+${row.amount} OG Coins referral reward`, {
                 description:
-                  row.type === "referral_payment"
-                    ? "A referred member paid — your reward is in."
-                    : "A referred member used coins — your share is in.",
+                  row.type === "referral_backpay"
+                    ? "Cashback you were owed has been paid back."
+                    : row.type === "referral_payment"
+                      ? "A referred member paid — your reward is in."
+                      : "A referred member used coins — your share is in.",
               });
             }
           }
@@ -550,6 +557,7 @@ function ReferralsPage() {
               const burned = Number(tx.reference?.match(/burn:(\d+)/)?.[1] ?? 0);
               const isPayment = tx.type === "referral_payment";
               const isReversal = tx.type === "referral_payment_reversal";
+              const isBackpay = tx.type === "referral_backpay";
               const when = new Date(tx.created_at);
               return (
                 <div key={tx.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -559,7 +567,7 @@ function ReferralsPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 truncate text-sm font-bold">
-                        {tx.referee_name ?? "Referred user"}
+                        {isBackpay ? "OG Bot" : (tx.referee_name ?? "Referred user")}
                         {isReversal ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
                             Refunded
@@ -571,7 +579,9 @@ function ReferralsPage() {
                         )}
                       </div>
                       <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-                        {isReversal ? (
+                        {isBackpay ? (
+                          <>Cashback you were owed, paid back = </>
+                        ) : isReversal ? (
                           <>Payment refunded, reward reversed = </>
                         ) : isPayment ? (
                           <>Successful payment reward = </>
