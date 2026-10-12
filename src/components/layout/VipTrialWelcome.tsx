@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { getVipPassStatus } from "@/lib/vip-pass.functions";
+import { useQueryClient } from "@tanstack/react-query";
 import { Crown } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -35,12 +33,6 @@ export function VipTrialWelcome() {
   const started = useRef(false);
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const getVault = useServerFn(getVipPassStatus);
-  const vault = useQuery({
-    queryKey: ["vip-pass-status"],
-    queryFn: () => getVault(),
-    enabled: open,
-  });
 
   useEffect(() => {
     if (!user || started.current) return;
@@ -106,28 +98,6 @@ export function VipTrialWelcome() {
             </li>
           ))}
         </ul>
-        <div className="mt-2 rounded-xl border border-coin/50 bg-coin/10 p-3 text-center">
-          <div className="text-[10px] font-black uppercase tracking-widest text-coin">
-            🔐 Bonus · OG Vault Access Pass
-          </div>
-          <div className="mt-1 text-sm">
-            <span className="mr-2 text-muted-foreground line-through">Paid item</span>
-            <span className="font-black text-coin">FREE for a limited time</span>
-          </div>
-          {vault.data?.username ? (
-            <div className="mt-2 space-y-1 font-mono text-xs">
-              <div>
-                Pass code: <b>{vault.data.username}</b>
-              </div>
-              <div>
-                PIN: <b>{vault.data.password}</b>
-              </div>
-            </div>
-          ) : null}
-          <Button asChild size="sm" variant="outline" className="mt-2 w-full" onClick={() => setOpen(false)}>
-            <a href="/buy-coins#item-og-vip-pass">Open my Vault pass</a>
-          </Button>
-        </div>
         <div className="mt-2 flex flex-col gap-2">
           <Button onClick={() => setOpen(false)} className="w-full">
             Let's cook 🔥

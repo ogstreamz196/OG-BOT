@@ -628,6 +628,8 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
 const OPEN_AUTH = "og:open-auth";
 const OPEN_WIZARD = "og:open-guest-wizard";
 const openAuth = () => window.dispatchEvent(new Event(OPEN_AUTH));
+const openAuthFromBattle = () =>
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { fromBattle: true } }));
 const openSongAuth = (title: string) =>
   window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
@@ -862,7 +864,7 @@ function BattleModal() {
         <GuestBattle
           onNeedAccount={() => {
             setOpen(false);
-            setTimeout(openAuth, 150);
+            setTimeout(openAuthFromBattle, 150);
           }}
         />
       </DialogContent>

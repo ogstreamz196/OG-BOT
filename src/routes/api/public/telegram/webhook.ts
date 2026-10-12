@@ -991,13 +991,14 @@ async function handleTelegramUpdate(
           .order("created_at", { ascending: true }),
       ]);
       const trialEnds = (prof as { vip_trial_ends_at?: string | null } | null)?.vip_trial_ends_at;
-      // Vault is independent of VIP: bought, 15-day signup trial, or Boss.
-      const vipFree = isBoss || (!!trialEnds && new Date(trialEnds).getTime() > Date.now());
+      void trialEnds;
+      // Vault is independent of VIP and the intro offer: bought or Boss only.
+      const vipFree = isBoss;
       const owned = !!purchase || vipFree;
       let body: string;
       if (!owned) {
         body =
-          `🔐 <b>OG Vault Access Pass</b>\n\nYour free 15-day Vault trial has ended. Unlock it for good in the Store for £10 or 50 OG Coins.`;
+          `🔐 <b>OG Vault Access Pass</b>\n\nVault access isn't part of VIP or the intro offer. Unlock it for good in the Store for £10 or 50 OG Coins.`;
       } else if (!creds?.length) {
         body = `🔐 <b>OG Vault Access Pass</b>\n\nYou own it ✅ — no access IDs are available right now, check back soon.`;
       } else {
