@@ -113,6 +113,20 @@
       "when": 1791843081497,
       "tag": "0015_referral_cashback_accrual",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791843135183,
+      "tag": "0016_referral_rules_backpay",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791843151486,
+      "tag": "0017_song_creation_rules",
+      "breakpoints": true
     }
   ]
 }

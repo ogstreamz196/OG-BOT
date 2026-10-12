@@ -1261,6 +1261,7 @@ export type Database = {
           target_duration_sec: number | null
           title: string | null
           unlocked: boolean
+          unlocked_at: string | null
           updated_at: string
           user_id: string
           vocals_only: boolean
@@ -1317,6 +1318,7 @@ export type Database = {
           target_duration_sec?: number | null
           title?: string | null
           unlocked?: boolean
+          unlocked_at?: string | null
           updated_at?: string
           user_id: string
           vocals_only?: boolean
@@ -1373,6 +1375,7 @@ export type Database = {
           target_duration_sec?: number | null
           title?: string | null
           unlocked?: boolean
+          unlocked_at?: string | null
           updated_at?: string
           user_id?: string
           vocals_only?: boolean
@@ -2341,6 +2344,7 @@ export type Database = {
         Returns: string
       }
       assign_og_vip_id: { Args: { p_user: string }; Returns: string }
+      backpay_referral_cashback: { Args: { p_batch: string }; Returns: Json }
       boss_burn_coins: {
         Args: { amount: number; boss_notes?: string; target_user_id: string }
         Returns: number
@@ -2421,6 +2425,7 @@ export type Database = {
           target_duration_sec: number | null
           title: string | null
           unlocked: boolean
+          unlocked_at: string | null
           updated_at: string
           user_id: string
           vocals_only: boolean
@@ -2486,6 +2491,7 @@ export type Database = {
           target_duration_sec: number | null
           title: string | null
           unlocked: boolean
+          unlocked_at: string | null
           updated_at: string
           user_id: string
           vocals_only: boolean
@@ -2643,6 +2649,7 @@ export type Database = {
         Args: { admin_notes: string; amount: number; target_user_id: string }
         Returns: number
       }
+      my_generation_terms: { Args: never; Returns: Json }
       og_learn_insult: {
         Args: { p_phrase: string; p_user_id: string }
         Returns: undefined
@@ -2680,6 +2687,15 @@ export type Database = {
       purchase_vip_pass_for_user: { Args: { p_user: string }; Returns: Json }
       purge_expired_vip_roles: { Args: never; Returns: number }
       redeem_og_bot_invite: { Args: { p_code: string }; Returns: string }
+      referral_owed_hundredths: {
+        Args: never
+        Returns: {
+          net_burned: number
+          owed_hundredths: number
+          rate_pct: number
+          referrer_id: string
+        }[]
+      }
       referral_rate_pct: { Args: { p_user: string }; Returns: number }
       refund_chat_image_edit: {
         Args: {
@@ -2775,6 +2791,10 @@ export type Database = {
         }
         Returns: string
       }
+      start_generation_charge: {
+        Args: { p_reference: string; p_song: string; p_user: string }
+        Returns: Json
+      }
       start_vip_trial_once: { Args: never; Returns: Json }
       sync_owner_track_bonus: { Args: { p_song: string }; Returns: undefined }
       unlock_community_track: {
@@ -2785,6 +2805,10 @@ export type Database = {
           _song_id: string
         }
         Returns: Json
+      }
+      unpaid_track_count: {
+        Args: { p_exclude?: string; p_user: string }
+        Returns: number
       }
       unrevoke_og_bot_token: {
         Args: { admin_notes?: string; target_user_id: string }
