@@ -56,3 +56,7 @@
 - Lyrics: free Google AI Studio keys (GEMINI_FREE_API_KEY, GEMINI_FREE_BACKUP_API_KEY, GEMINI_FREE_3_API_KEY) run after Groq/Pollinations/OpenRouter and before paid Gemini keys, because the owner wants to save paid credits.
 - Creation stages a draft row with an `orchestration` payload first; the suno-retry worker resumes orphaned drafts server-side, surviving dropped phones.
 - generate-lyrics uses the offline songwriter when all AI keys fail; key failures (name/status only) go to ai_key_failures for Boss alerts.
+
+## Search and AI search
+
+- /welcome runs only in the browser, so its pendingComponent (src/components/seo/WelcomeSeoFallback.tsx) is the server-rendered copy crawlers read; keep its wording copied from the landing page. Canonical addresses live in src/lib/seo.ts ("/" points at /welcome), and /sitemap-tracks.xml lists only completed, public, revealed tracks.

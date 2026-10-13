@@ -27,6 +27,7 @@ import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundM
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { GuestBattle } from "@/components/welcome/GuestBattle";
+import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import {
   CreateNowWizard,
@@ -50,6 +51,8 @@ function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
 
 export const Route = createFileRoute("/welcome")({
   ssr: false,
+  // Crawlers get the landing copy as HTML; people get the real page on load.
+  pendingComponent: WelcomeSeoFallback,
   component: WelcomePage,
   head: () => ({
     meta: [

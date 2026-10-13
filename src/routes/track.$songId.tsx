@@ -32,6 +32,23 @@ export const Route = createFileRoute("/track/$songId")({
         { name: "twitter:image", content: SHARE_IMAGE },
       ],
       links: [{ rel: "canonical", href: url }],
+      scripts: loaderData
+        ? [
+            {
+              type: "application/ld+json",
+              children: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "MusicRecording",
+                name: title,
+                url,
+                image: SHARE_IMAGE,
+                description,
+                isPartOf: { "@id": `${SITE_URL}/#website` },
+                publisher: { "@id": `${SITE_URL}/#organization` },
+              }),
+            },
+          ]
+        : [],
     };
   },
   component: SharedTrackPage,

@@ -25,6 +25,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInReturnRouteImport } from './routes/sign-in-return'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SitemapTracksDotxmlRouteImport } from './routes/sitemap-tracks[.]xml'
 import { Route as SportsGuideRouteImport } from './routes/sports-guide'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrustRouteImport } from './routes/trust'
@@ -154,6 +155,11 @@ const SigninRoute = SigninRouteImport.update({
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapTracksDotxmlRoute = SitemapTracksDotxmlRouteImport.update({
+  id: '/sitemap-tracks.xml',
+  path: '/sitemap-tracks.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SportsGuideRoute = SportsGuideRouteImport.update({
@@ -490,6 +496,7 @@ export interface FileRoutesByFullPath {
   '/sign-in-return': typeof SignInReturnRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
@@ -562,6 +569,7 @@ export interface FileRoutesByTo {
   '/sign-in-return': typeof SignInReturnRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
@@ -637,6 +645,7 @@ export interface FileRoutesById {
   '/sign-in-return': typeof SignInReturnRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
@@ -713,6 +722,7 @@ export interface FileRouteTypes {
     | '/sign-in-return'
     | '/signin'
     | '/signup'
+    | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
     | '/trust'
@@ -785,6 +795,7 @@ export interface FileRouteTypes {
     | '/sign-in-return'
     | '/signin'
     | '/signup'
+    | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
     | '/trust'
@@ -859,6 +870,7 @@ export interface FileRouteTypes {
     | '/sign-in-return'
     | '/signin'
     | '/signup'
+    | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
     | '/trust'
@@ -934,6 +946,7 @@ export interface RootRouteChildren {
   SignInReturnRoute: typeof SignInReturnRoute
   SigninRoute: typeof SigninRoute
   SignupRoute: typeof SignupRoute
+  SitemapTracksDotxmlRoute: typeof SitemapTracksDotxmlRoute
   SportsGuideRoute: typeof SportsGuideRoute
   TermsRoute: typeof TermsRoute
   TrustRoute: typeof TrustRoute
@@ -1056,6 +1069,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap-tracks.xml': {
+      id: '/sitemap-tracks.xml'
+      path: '/sitemap-tracks.xml'
+      fullPath: '/sitemap-tracks.xml'
+      preLoaderRoute: typeof SitemapTracksDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sports-guide': {
@@ -1575,6 +1595,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInReturnRoute: SignInReturnRoute,
   SigninRoute: SigninRoute,
   SignupRoute: SignupRoute,
+  SitemapTracksDotxmlRoute: SitemapTracksDotxmlRoute,
   SportsGuideRoute: SportsGuideRoute,
   TermsRoute: TermsRoute,
   TrustRoute: TrustRoute,

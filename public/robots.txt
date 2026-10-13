@@ -1,7 +1,55 @@
+# Search engines and AI search tools are welcome on the public pages.
 User-agent: *
 Allow: /
+Allow: /welcome
+Allow: /track/
 Disallow: /auth
 Disallow: /library
 Disallow: /buy-coins
+Disallow: /admin
+Disallow: /api/
+Disallow: /app-return
+Disallow: /sign-in-return
+Disallow: /reset-password
+Disallow: /change-password
+Disallow: /m-preview
+Disallow: /lovable/
+Disallow: /.mcp/
+Disallow: /mcp
 
-Sitemap: https://og-bot.lovable.app/sitemap.xml
+# AI search and assistant crawlers (named so the welcome is explicit).
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: GPTBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: Google-Extended
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: Bingbot
+User-agent: DuckAssistBot
+User-agent: meta-externalagent
+User-agent: MistralAI-User
+Allow: /
+Allow: /welcome
+Allow: /track/
+Allow: /llms.txt
+Disallow: /auth
+Disallow: /library
+Disallow: /buy-coins
+Disallow: /admin
+Disallow: /api/
+Disallow: /app-return
+Disallow: /sign-in-return
+Disallow: /reset-password
+Disallow: /change-password
+Disallow: /m-preview
+Disallow: /lovable/
+Disallow: /.mcp/
+Disallow: /mcp
+
+Sitemap: https://ogbot.co.uk/sitemap.xml
+Sitemap: https://ogbot.co.uk/sitemap-tracks.xml

@@ -1,0 +1,28 @@
+# OG Streamz (OG BOT)
+
+> OG Streamz turns a prompt into a full song with AI, with a built-in OG Bot assistant and a coin-powered creator economy.
+
+Also known as OG BOT, OG Bot, OGBot and OG Studio. Website: https://ogbot.co.uk. Also available as an Android and iPhone app. Based in the UK.
+
+Turn any idea into a hit in seconds. Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
+
+## What you can do
+
+- Make a song: type your idea (a name, a roast, a memory), pick the vibe (choose a style and mood), and OG Bot cooks it — your song + cover, ready to play.
+- Foul Mouth Mode: beast bot roasts, raw bars, full foul-mouth diss tracks cooked from your words. Turn the heat from Mild to Demon.
+- 2 tracks for the price of 1: unlock your first take and the second one is yours free.
+- 15 days of free VIP: every style unlocked from signup — drill, bhangra, afrobeats and more.
+- Battle the bot: land your best roasts in Battle Zone and earn OG Coins every round.
+- Lifetime referral commission: share your link — earn coins every time your friends spend, for life.
+- Daily drop: pop in each day and claim your free coin drop.
+
+Free account in seconds · 15 days of VIP on us · No card needed.
+
+## Pages
+
+- [Home and sign up](https://ogbot.co.uk/welcome): OG Studio — Prompt Songs & Album Covers.
+- [Trust & Privacy](https://ogbot.co.uk/trust)
+- [Privacy Policy](https://ogbot.co.uk/policy)
+- [Terms of Use](https://ogbot.co.uk/terms)
+- [Delete your account](https://ogbot.co.uk/delete-account)
+- [Shared tracks sitemap](https://ogbot.co.uk/sitemap-tracks.xml): public tracks people have shared, each at https://ogbot.co.uk/track/<id>.
