@@ -73,7 +73,7 @@ export const Route = createFileRoute("/_authenticated/")({
       {
         name: "description",
         content:
-          "Your OG Streamz studio: generate AI songs, chat with OG Bot, and manage your coin-powered creator economy.",
+          "Your OG BOT studio: cook AI songs, roast the bot in Battle Zone, and keep track of your coins and VIP.",
       },
       { property: "og:title", content: "AI Music Studio | OG BOT — AI Songs & Diss Tracks" },
       {
