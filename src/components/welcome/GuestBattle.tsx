@@ -103,7 +103,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <Users className="h-8 w-8 opacity-50" />
-            <p className="text-sm">Be the first to throw a bar at OG Bot.</p>
+            <p className="text-sm">Got the balls? Throw the first bar at OG Bot — he bites back.</p>
           </div>
         ) : (
           messages.map((m) => {

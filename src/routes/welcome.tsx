@@ -878,8 +878,8 @@ function DangerZoneCta({ className = "" }: { className?: string }) {
     <TileCta
       emoji="🤬"
       title="Enter Battle Zone"
-      body="Everyone vs OG Bot. Throw your best roast and see who wins."
-      cta="Roast the bot"
+      body="Beast OG Bot is live — cusses back raw, no filter, and turns your bars into foul-mouth diss tracks. Got the balls? Bring it on."
+      cta="Bring it on"
       onClick={openBattle}
       className={className}
     />
@@ -968,7 +968,7 @@ function Superpowers() {
       key: "foul",
       emoji: "🤬",
       title: "Foul Mouth Mode",
-      body: "Savage roasts, raw bars, no filter. Turn the heat from Mild to Demon.",
+      body: "Beast bot roasts, raw bars, full foul-mouth diss tracks cooked from your words. Turn the heat from Mild to Demon.",
     },
     {
       key: "takes",
