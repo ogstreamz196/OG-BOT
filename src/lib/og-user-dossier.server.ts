@@ -171,7 +171,7 @@ export async function loadUserDossier(admin: AnyClient, userId: string): Promise
   );
   const isVipNow = hasVipRole || (sub && ["active", "trialing", "past_due"].includes(sub.status));
   lines.push(
-    `- OG Vault Access Pass: ${vault?.data?.length ? "owned — code & PIN shown on the Vault card in the Store" : "not owned (free during the 15-day signup trial, otherwise £10 or 50 OG Coins in the Store; not included with VIP)"}`,
+    `- OG Vault Access Pass: ${vault?.data?.length ? "owned — code & PIN shown on the Vault card in the Store" : "not owned — they need to buy the Vault Access Pass: £10 or 50 OG Coins in the Store (link them to https://ogbot.co.uk/buy-coins)"}`,
   );
   const earned = (refEarn?.data ?? []).reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
   lines.push(
