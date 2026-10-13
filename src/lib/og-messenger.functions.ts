@@ -11,6 +11,8 @@ interface ChatReply {
   reply: string;
   coin_balance: number;
   learned_insults?: string[];
+  /** True when OG Bot is pitching a diss track; the client shows the ambush card. */
+  ambush?: boolean;
 }
 
 /**
@@ -300,6 +302,7 @@ export const chatOgBot = createServerFn({ method: "POST" })
         reply,
         coin_balance: newBalance ?? userCtx.coin_balance,
         learned_insults: newlyLearned,
+        ambush,
       };
     }
   });
