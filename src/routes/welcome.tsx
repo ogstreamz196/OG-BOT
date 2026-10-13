@@ -758,8 +758,6 @@ function WelcomePage() {
         </div>
         <Hero />
         <Superpowers />
-        <HowItWorks />
-        <EarnCoins />
 
         <ClosingCta />
         <CommunityShowcase />
@@ -957,6 +955,42 @@ function Superpowers() {
       emoji: "👑",
       title: "15 days of free VIP",
       body: "Every style unlocked from signup — drill, bhangra, afrobeats and more.",
+    },
+    {
+      key: "battle",
+      emoji: "⚔️",
+      title: "Battle the bot",
+      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
+    },
+    {
+      key: "referral",
+      emoji: "🤝",
+      title: "Lifetime referral commission",
+      body: "Share your link — earn coins every time your friends spend, for life.",
+    },
+    {
+      key: "drop",
+      emoji: "🎁",
+      title: "Daily drop",
+      body: "Pop in each day and claim your free coin drop.",
+    },
+    {
+      key: "diss",
+      emoji: "🎯",
+      title: "Diss tracks on demand",
+      body: "Chat with OG Bot and it'll offer to cook a personal diss track about you — if you can handle it.",
+    },
+    {
+      key: "cover",
+      emoji: "🖼️",
+      title: "Cover art included",
+      body: "Every track lands with its own album cover — no extra apps, no extra cost.",
+    },
+    {
+      key: "telegram",
+      emoji: "📲",
+      title: "Telegram connected",
+      body: "Link Telegram to check coins, grab tracks and get VIP reminders without opening the app.",
     },
   ];
   return (
