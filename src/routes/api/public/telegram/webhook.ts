@@ -190,29 +190,29 @@ async function clearRecentChat(chat_id: number, upToMessageId: number) {
   if (ids.length) await tg("deleteMessages", { chat_id, message_ids: ids });
 }
 
-// Persistent reply keyboards — one row of quick actions.
-const USER_KEYBOARD = {
-  keyboard: [
-    [{ text: "💰 Balance" }, { text: "🎧 Library" }],
-    [{ text: "👑 VIP Status" }, { text: "⚽ Sports Guide" }],
-    [{ text: "🛒 Buy Coins" }, { text: "🔐 Vault ID" }],
-    [{ text: "❓ Help" }],
-    [{ text: "🧹 Clear chat" }, { text: "🌐 OGBOT.CO.UK" }],
-  ],
+// Collapsed bottom bar keeps focus on the chat; the full menu is opened
+// through categories with a Back button.
+const kb = (rows: string[][]) => ({
+  keyboard: rows.map((r) => r.map((text) => ({ text }))),
   resize_keyboard: true,
   is_persistent: true,
-};
-
-const BOSS_KEYBOARD = {
-  keyboard: [
-    [{ text: "📊 Stats" }, { text: "👥 Users" }],
-    [{ text: "💰 Balance" }, { text: "👑 VIP Status" }],
-    [{ text: "⚽ Sports Guide" }, { text: "🔐 Vault ID" }],
-    [{ text: "❓ Help" }],
-    [{ text: "🧹 Clear chat" }, { text: "🌐 OGBOT.CO.UK" }],
-  ],
-  resize_keyboard: true,
-  is_persistent: true,
+});
+const BACK = "⬅️ Back";
+const MENU = "📂 Menu";
+const USER_KEYBOARD = kb([[MENU, "🧹 Clear chat"]]);
+const BOSS_KEYBOARD = USER_KEYBOARD;
+const CATEGORY_KEYBOARD = (isBoss: boolean) =>
+  kb([
+    ["💷 Coins & Store", "🎧 Music & VIP"],
+    ["🔐 Access", "❓ Help"],
+    ...(isBoss ? [["🛠 Boss tools"]] : []),
+    [BACK],
+  ]);
+const SUBMENUS: Record<string, string[][]> = {
+  "💷 Coins & Store": [["💰 Balance", "🛒 Buy Coins"], ["🌐 OGBOT.CO.UK"]],
+  "🎧 Music & VIP": [["🎧 Library", "👑 VIP Status"]],
+  "🔐 Access": [["🔐 Vault ID", "⚽ Sports Guide"]],
+  "🛠 Boss tools": [["📊 Stats", "👥 Users"]],
 };
 
 // Bottom-bar buttons for users who haven't linked their account yet.
@@ -864,6 +864,22 @@ async function handleTelegramUpdate(
     };
     if (buttonMap[trimmed]) trimmed = buttonMap[trimmed];
 
+    // Categorised menu navigation
+    if (trimmed === MENU || trimmed === "🔙 Categories") {
+      await reply(chat_id, "📂 <b>Pick a category</b>", { reply_markup: CATEGORY_KEYBOARD(isBoss) });
+      return Response.json({ ok: true, menu: true });
+    }
+    if (trimmed === BACK) {
+      await reply(chat_id, "💬 Back to chatting. Tap 📂 Menu any time.", { reply_markup: keyboard });
+      return Response.json({ ok: true, menu: "closed" });
+    }
+    if (SUBMENUS[trimmed] && (trimmed !== "🛠 Boss tools" || isBoss)) {
+      await reply(chat_id, `<b>${trimmed}</b>`, {
+        reply_markup: kb([...SUBMENUS[trimmed], ["🔙 Categories", BACK]]),
+      });
+      return Response.json({ ok: true, menu: trimmed });
+    }
+
     if (trimmed === "🌐 OGBOT.CO.UK") {
       await reply(chat_id, "🌐 <b>OG BOT on the web</b>", {
         reply_markup: {
@@ -1008,6 +1024,7 @@ async function handleTelegramUpdate(
           `🔐 <b>Your OG Vault Access</b>\n\n` +
           `🆔 ID: <code>${esc(cred.username)}</code>\n` +
           `🔑 PIN: <code>${esc(cred.password)}</code>\n\n` +
+          `⚠️ <b>Important:</b> sign out of the Vault first, then sign in with these details.\n\n` +
           `Tap to copy. Keep it private.\n\n⏳ <i>For your security, this message self-destructs in 1 hour.</i>`;
       }
       await reply(
