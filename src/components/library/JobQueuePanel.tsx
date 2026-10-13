@@ -254,7 +254,7 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
             <p className="text-xs text-muted-foreground">Live status — updates instantly</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5 text-xs font-bold uppercase tracking-wider">
+        <div className="flex flex-wrap gap-1.5 text-[11px] font-bold uppercase tracking-wider">
           {(["queued", "generating", "completed", "failed"] as JobStatus[]).map((k) => (
             <span
               key={k}
@@ -311,7 +311,7 @@ export function JobQueuePanel({ songs, onRemoved }: { songs: Song[]; onRemoved?:
 
                 <p
                   className={cn(
-                    "truncate text-xs uppercase tracking-wider",
+                    "truncate text-[11px] uppercase tracking-wider",
                     kind === "failed" || stuck
                       ? "text-rose-200"
                       : slow
@@ -633,7 +633,7 @@ function JobDetailsDrawer({
                 )}
                 {balance < unlockCost ? "Not enough coins" : `Unlock for ${unlockCost} coins`}
               </Button>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">
                 Balance: {balance} coins
               </p>
             </div>

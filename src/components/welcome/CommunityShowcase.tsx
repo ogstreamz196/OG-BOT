@@ -68,10 +68,6 @@ export function CommunityShowcase() {
 
   const isOn = (id: string) => current?.id === id && playing;
 
-  // An empty playlist makes the app look quiet: hide the section until
-  // there is at least one public track, then it appears automatically.
-  if (!isLoading && !current) return null;
-
   return (
     <section id="studio" className="relative mx-auto max-w-6xl scroll-mt-24 px-3 py-10 sm:px-8">
       <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
@@ -88,7 +84,9 @@ export function CommunityShowcase() {
         <div className="mt-8 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-foreground" />
         </div>
-      ) : !current ? null : (
+      ) : !current ? (
+        <p className="mt-8 text-center text-sm text-foreground/85">New tracks dropping soon.</p>
+      ) : (
         <div className="mt-6 grid w-full min-w-0 max-w-full gap-4 overflow-hidden rounded-3xl border-2 border-border bg-card p-3 shadow-card md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           {/* Player */}
           <div className="min-w-0 max-w-full overflow-hidden md:sticky md:top-24 md:self-start">
@@ -99,7 +97,9 @@ export function CommunityShowcase() {
                     src={current.coverUrl}
                     alt=""
                     className="h-full w-full object-cover"
-                    onError={() => setBrokenCovers((m) => ({ ...m, [current.id]: true }))}
+                    onError={() =>
+                      setBrokenCovers((m) => ({ ...m, [current.id]: true }))
+                    }
                   />
                 ) : (
                   <div className="grid h-full place-items-center">
@@ -108,7 +108,7 @@ export function CommunityShowcase() {
                 )}
               </div>
               <div className="p-4">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
                   {playing ? "Now playing" : "Up next"}
                 </p>
                 <p className="mt-1 truncate font-display text-xl font-black text-card-foreground">
@@ -123,11 +123,7 @@ export function CommunityShowcase() {
                     onClick={() => play(current.id)}
                     className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary font-black uppercase text-primary-foreground shadow-glow"
                   >
-                    {isOn(current.id) ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
+                    {isOn(current.id) ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                     {isOn(current.id) ? "Pause" : "Play"}
                   </button>
                   <button
@@ -161,7 +157,9 @@ export function CommunityShowcase() {
                         alt=""
                         loading="lazy"
                         className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                        onError={() => setBrokenCovers((m) => ({ ...m, [t.id]: true }))}
+                        onError={() =>
+                          setBrokenCovers((m) => ({ ...m, [t.id]: true }))
+                        }
                       />
                     ) : (
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/20">

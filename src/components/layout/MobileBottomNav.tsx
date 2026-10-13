@@ -74,7 +74,7 @@ export function MobileBottomNav() {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
-                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[0.7rem] font-semibold uppercase transition-colors min-[380px]:px-2 min-[380px]:text-[0.7rem] ${
+                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[9px] font-semibold uppercase transition-colors min-[380px]:px-2 min-[380px]:text-[10px] ${
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >

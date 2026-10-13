@@ -76,7 +76,7 @@ export function OgCoinsPanel() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold">OG Coins — Boss free mint</h3>
-            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-primary">
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
               <ShieldCheck className="h-3 w-3" /> Boss eyes only
             </span>
           </div>

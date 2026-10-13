@@ -51,7 +51,6 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSettings } from "@/hooks/use-settings";
 import { readInvokeError } from "@/lib/invoke-error";
 import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
-import { CreationAllowance } from "@/components/library/CreationAllowance";
 import { cn } from "@/lib/utils";
 import { SongCard, type Song } from "@/components/SongCard";
 import { SongCardSkeleton } from "@/components/library/SongCardSkeleton";
@@ -1424,7 +1423,7 @@ function LibraryPage() {
         <div aria-hidden className="studio-rail -mx-4 mb-3 h-[3px] opacity-60 sm:-mx-5" />
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="min-w-0">
-            <p className="text-[0.7rem] font-black uppercase tracking-[0.34em] text-primary/80">
+            <p className="text-[9px] font-black uppercase tracking-[0.34em] text-primary/80">
               OG Studio · Live desk
             </p>
             <h1 className="truncate font-display text-2xl font-black leading-[1.1] tracking-[-0.02em] sm:text-4xl">
@@ -1440,7 +1439,7 @@ function LibraryPage() {
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/25 bg-background/50 px-3.5 py-2 backdrop-blur">
               <Coins className="h-4 w-4 text-primary" aria-hidden="true" />
               <span className="text-base font-black tabular-nums sm:text-lg">{balance}</span>
-              <span className="hidden text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:inline">
+              <span className="hidden text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:inline">
                 coins
               </span>
             </div>
@@ -1489,14 +1488,16 @@ function LibraryPage() {
       {!pipelineActive && (
         <section aria-label="Create a track" className="studio-panel px-4 pb-6 pt-4 sm:px-6">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-xs font-black uppercase tracking-[0.28em] text-primary">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.28em] text-primary">
               Control room
             </h2>
             <StudioMeter active={false} bars={5} className="h-4" />
           </div>
 
           {/* Track length now lives in step 1 of the wizard — keep this clean. */}
-          <CreationAllowance targetMinutes={targetMinutes} refreshKey={library.data?.length} />
+          <p className="text-center text-[11px] font-semibold text-muted-foreground">
+            Free to create · {targetMinutes} min
+          </p>
 
           {/* Hazard robotic CREATE button — a big 3D push-button on a base plate */}
           <div className="mt-4 flex flex-col items-center gap-4">
@@ -1566,7 +1567,7 @@ function LibraryPage() {
               onClick={() =>
                 libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
-              className="h-8 gap-1.5 px-3 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+              className="h-8 gap-1.5 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
             >
               <Disc3 className="h-4 w-4" />
               Library
@@ -1628,7 +1629,7 @@ function LibraryPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                   {pipeline.stage === "error"
                     ? "Stopped"
                     : `Step ${Math.max(1, currentIdx + 1)} of ${PIPELINE_ORDER.length}`}
@@ -1664,7 +1665,7 @@ function LibraryPage() {
 
           {/* Collapsed past/future — a tight strip of dots + one label per side */}
           {pipeline.stage !== "error" && (
-            <div className="flex items-center justify-between gap-3 text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Check className="h-3 w-3 text-primary" />
                 {currentIdx === 0 ? "Just started" : `${currentIdx} done`}
@@ -1848,7 +1849,7 @@ function LibraryPage() {
             >
               <Crown className="h-4 w-4 shrink-0 text-primary group-data-[state=active]:text-primary-foreground" />
               <span>My Songs</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.7rem] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-primary-foreground">
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-primary-foreground">
                 {completedTracks.length}
               </span>
             </TabsTrigger>
@@ -1858,7 +1859,7 @@ function LibraryPage() {
             >
               <Users className="h-4 w-4 shrink-0 text-fuchsia-300 group-data-[state=active]:text-white" />
               <span>Community</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.7rem] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-white">
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-white">
                 {communityTracks.length}
               </span>
             </TabsTrigger>
@@ -2006,7 +2007,7 @@ function LibraryPage() {
                 />
               </div>
             )}
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               <span>Made by other creators</span>
               <span aria-hidden className="text-primary/60">
                 •

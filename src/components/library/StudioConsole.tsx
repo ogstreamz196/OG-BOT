@@ -54,7 +54,7 @@ export function StudioLed({
   pulse?: boolean;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[0.7rem] font-black uppercase tracking-[0.2em] text-muted-foreground">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
       <span
         className={cn(
           "h-1.5 w-1.5 rounded-full",

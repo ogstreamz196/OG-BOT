@@ -294,14 +294,14 @@ function ReferralsPage() {
 
         {/* Status strip — live + binding state, one row */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/70 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-destructive backdrop-blur">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-card/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-destructive backdrop-blur">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" /> Live
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-orange-900/30">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-orange-900/30">
             <Sparkles className="h-3 w-3" /> {ratePct}% Lifetime{isVip ? " · VIP" : ""}
           </span>
           {myRefQ.data?.has_referrer ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
               <Lock className="h-3 w-3" /> Bound · {myRefQ.data.referrer_name}
             </span>
           ) : (
@@ -321,7 +321,7 @@ function ReferralsPage() {
           data-testid="earn-scheme"
           className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card/70 p-5 backdrop-blur-2xl sm:p-8"
         >
-          <p className="text-[0.7rem] font-black uppercase tracking-[0.25em] text-amber-300">
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-300">
             OG Partner Scheme
           </p>
           <h2 className="mt-2 font-bungee text-2xl leading-tight sm:text-4xl">
@@ -379,7 +379,7 @@ function ReferralsPage() {
           data-testid="share-hub"
           className="rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6"
         >
-          <div className="text-[0.7rem] font-black uppercase tracking-[0.22em] text-primary">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
             Your invite
           </div>
           <div className="mt-3 grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
@@ -408,7 +408,7 @@ function ReferralsPage() {
               {user && (
                 <div className="flex items-center justify-between gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-3 py-2">
                   <div className="min-w-0">
-                    <div className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                       Or they can enter your code
                     </div>
                     <div className="font-mono text-lg font-black tracking-widest">
@@ -450,7 +450,7 @@ function ReferralsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => downloadQR("og-referral-qr", "og-referral-qr.svg")}
-                  className="h-7 gap-1.5 px-2 text-xs"
+                  className="h-7 gap-1.5 px-2 text-[11px]"
                 >
                   <Download className="h-3 w-3" /> Save QR
                 </Button>
@@ -460,7 +460,7 @@ function ReferralsPage() {
 
           {myCode && (
             <div className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-500/5 p-3">
-              <p className="text-xs font-black uppercase tracking-wider text-amber-300">
+              <p className="text-[11px] font-black uppercase tracking-wider text-amber-300">
                 How friends bind you as their OG Leader
               </p>
               <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-xs text-muted-foreground">
@@ -534,7 +534,7 @@ function ReferralsPage() {
         >
           <div className="flex items-center justify-between">
             <h2 className="font-bungee text-xl tracking-tight">Cashback feed</h2>
-            <span className="text-[0.7rem] font-black uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">
               Last 20
             </span>
           </div>
@@ -569,16 +569,16 @@ function ReferralsPage() {
                       <div className="flex items-center gap-2 truncate text-sm font-bold">
                         {isBackpay ? "OG Bot" : (tx.referee_name ?? "Referred user")}
                         {isReversal ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[0.7rem] font-black uppercase tracking-[0.16em] text-amber-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
                             Refunded
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[0.7rem] font-black uppercase tracking-[0.16em] text-emerald-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
                             <CheckCircle2 className="h-2.5 w-2.5" /> Paid
                           </span>
                         )}
                       </div>
-                      <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                      <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
                         {isBackpay ? (
                           <>Cashback you were owed, paid back = </>
                         ) : isReversal ? (
@@ -596,7 +596,7 @@ function ReferralsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="shrink-0 text-right text-[0.7rem] text-muted-foreground">
+                  <div className="shrink-0 text-right text-[10px] text-muted-foreground">
                     <div>{when.toLocaleDateString()}</div>
                     <div>{when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
@@ -611,7 +611,7 @@ function ReferralsPage() {
           id="bind-referrer"
           className="scroll-mt-24 rounded-3xl border border-white/10 bg-card/60 p-5 backdrop-blur-xl sm:p-6"
         >
-          <div className="mb-3 flex items-center gap-2 text-[0.7rem] font-black uppercase tracking-[0.22em] text-rose-300">
+          <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">
             <KeyRound className="h-3.5 w-3.5" /> Were you invited? Connect your OG Leader
           </div>
           <BindReferrerCard />
@@ -657,11 +657,11 @@ function StatTile({
       />
       <div className="relative flex items-start justify-between">
         <span
-          className={`inline-flex items-center gap-1.5 text-[0.7rem] font-black uppercase tracking-[0.22em] ${tones.text}`}
+          className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.22em] ${tones.text}`}
         >
           {icon} {label}
         </span>
-        <span className="text-[0.7rem] font-black uppercase tracking-widest text-muted-foreground">
+        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
           {unit}
         </span>
       </div>
@@ -693,13 +693,13 @@ function DashboardMetric({
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-card/70 p-3.5 backdrop-blur-xl sm:p-4">
       <div className={`grid h-9 w-9 place-items-center rounded-lg ${tones}`}>{icon}</div>
-      <p className="mt-3 break-words text-[0.7rem] font-black uppercase tracking-[0.16em] text-muted-foreground">
+      <p className="mt-3 break-words text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1 break-words font-bungee text-2xl tabular-nums leading-tight sm:text-3xl">
         {value}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">{note}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>
     </div>
   );
 }

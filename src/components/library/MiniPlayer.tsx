@@ -102,11 +102,11 @@ export function MiniPlayer() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[0.7rem] font-bold uppercase tracking-[0.25em] text-primary/80">
+          <p className="truncate text-[10px] font-bold uppercase tracking-[0.25em] text-primary/80">
             {playing ? "● Now playing" : hasTrack ? "Paused" : "Your playlist"}
           </p>
           <p className="truncate text-sm font-semibold leading-tight">{title}</p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-[11px] text-muted-foreground">
             {playlist.order.length} track{playlist.order.length === 1 ? "" : "s"} in queue
           </p>
         </div>
@@ -141,7 +141,9 @@ export function MiniPlayer() {
       </div>
 
       <div className="mt-2.5 flex items-center gap-2">
-        <span className="w-9 shrink-0 text-xs tabular-nums text-muted-foreground">{fmt(time)}</span>
+        <span className="w-9 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+          {fmt(time)}
+        </span>
         <input
           type="range"
           min={0}
@@ -159,7 +161,7 @@ export function MiniPlayer() {
             background: `linear-gradient(to right, var(--primary) ${pct}%, var(--muted) ${pct}%)`,
           }}
         />
-        <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
           {fmt(duration)}
         </span>
       </div>

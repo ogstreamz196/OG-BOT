@@ -159,7 +159,7 @@ export function DashboardGenerationHistory({ songs }: { songs: RecentSong[] }) {
                   >
                     {s.title || "Untitled track"}
                   </Link>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       {s.vocals_only ? (
                         <Mic2 className="h-3 w-3" />
@@ -178,7 +178,7 @@ export function DashboardGenerationHistory({ songs }: { songs: RecentSong[] }) {
                 </div>
                 <span
                   className={cn(
-                    "shrink-0 rounded-full border px-2 py-0.5 text-[0.7rem] font-black uppercase tracking-[0.14em]",
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em]",
                     meta.className,
                   )}
                 >

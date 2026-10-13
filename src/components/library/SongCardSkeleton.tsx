@@ -16,7 +16,7 @@ export function SongCardSkeleton({ label }: { label?: string }) {
         <Skeleton className="hidden h-8 w-20 rounded-lg sm:block" />
       </div>
       {label && (
-        <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary">
+        <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
           <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
           {label}
         </div>

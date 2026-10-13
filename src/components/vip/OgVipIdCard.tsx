@@ -13,7 +13,7 @@ export function OgVipIdCard({ id }: { id: string }) {
   };
   return (
     <div className="rounded-2xl border-2 border-coin/60 bg-coin/10 p-4 text-left shadow-glow">
-      <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-coin">
+      <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-coin">
         <Crown className="h-4 w-4" /> OG VIP ID
       </p>
       <div className="mt-2 flex items-center justify-between gap-3">

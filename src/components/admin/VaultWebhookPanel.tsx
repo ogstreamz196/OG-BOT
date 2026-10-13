@@ -156,7 +156,7 @@ export function VaultWebhookPanel() {
               <p className="text-xs text-muted-foreground">
                 1. Copy prompt and paste it into your other project. 2. Copy the API key above and paste it into its new OG Vault card (Boss Controls → VIP users). 3. Press Test Connection there — this card turns Connected.
               </p>
-              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-background/60 p-2 text-xs leading-relaxed">{prompt}</pre>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-background/60 p-2 text-[11px] leading-relaxed">{prompt}</pre>
             </div>
           </div>
         )}

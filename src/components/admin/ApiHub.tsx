@@ -52,7 +52,7 @@ function KeyCard({ check, onPinged }: { check: HealthCheck; onPinged: (c: Health
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-bold">{check.label}</p>
-          {check.secret && <p className="truncate font-mono text-xs text-muted-foreground">{check.secret}</p>}
+          {check.secret && <p className="truncate font-mono text-[11px] text-muted-foreground">{check.secret}</p>}
         </div>
         <StatusBadge status={check.status} />
       </div>

@@ -10,7 +10,7 @@ function CountBadge({ count, active }: { count: number; active: boolean }) {
   return (
     <span
       className={cn(
-        "ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[0.7rem] font-black tabular-nums",
+        "ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums",
         active ? "bg-black/25 text-primary-foreground" : "bg-primary/15 text-primary",
       )}
     >
@@ -58,7 +58,7 @@ export function LibraryFilters({
       aria-label="Filter tracks"
       className="flex scroll-mt-24 items-center gap-2 overflow-x-auto pb-0.5"
     >
-      <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+      <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         Show
       </span>
       {!hideAll && (

@@ -120,12 +120,12 @@ export function StoreItemCard({
     >
       {/* rarity badge */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1 text-[0.7rem] font-bold uppercase text-muted-foreground">
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-muted-foreground">
           {r.icon}
           {r.label}
         </span>
         {item.recurring_interval && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[0.7rem] font-bold uppercase text-amber-300">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
             <Repeat className="h-3 w-3" /> /{item.recurring_interval}
           </span>
         )}
@@ -157,14 +157,14 @@ export function StoreItemCard({
       <div className="mt-3 flex flex-wrap gap-1.5">
         {item.coin_reward ? <CoinPill size="sm">+{item.coin_reward} coins</CoinPill> : null}
         {item.perk_slug && !isSportsGuide && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[0.7rem] font-bold uppercase text-primary">
+          <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
             <Sparkles className="h-3 w-3" /> {item.perk_slug.replace("role:", "")}
           </span>
         )}
         {stockRemaining !== null && (
           <span
             className={cn(
-              "inline-flex items-center rounded-full px-1.5 py-0.5 text-[0.7rem] font-bold uppercase",
+              "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase",
               soldOut
                 ? "bg-destructive/20 text-destructive"
                 : stockRemaining <= 5
@@ -247,7 +247,7 @@ export function StoreItemCard({
       </div>
       {ownsVipPass && vipPass?.username ? (
         <div className="mt-3 space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-3">
-          <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-primary">
+          <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-primary">
             <KeyRound className="h-3.5 w-3.5" /> Your VIP login
           </p>
           {(
@@ -257,7 +257,9 @@ export function StoreItemCard({
             ] as const
           ).map(([label, value]) => (
             <div key={label} className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-xs uppercase text-muted-foreground">{label}</span>
+              <span className="w-20 shrink-0 text-[11px] uppercase text-muted-foreground">
+                {label}
+              </span>
               <code className="min-w-0 flex-1 truncate rounded bg-background/70 px-2 py-1 font-mono text-xs">
                 {value}
               </code>
@@ -280,7 +282,7 @@ export function StoreItemCard({
         </div>
       ) : null}
       {isVipPass && !ownsVipPass ? (
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-3 text-[11px] text-muted-foreground">
           {vipSoldOut
             ? "All passes are currently claimed — check back soon."
             : `${vipPass?.available ?? 0} passes left`}

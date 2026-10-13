@@ -69,7 +69,7 @@ export function OwnershipCertificate({ row, onClose }: { row: PurchaseRow; onClo
             />
 
             <header className="relative text-center">
-              <p className="text-[0.7rem] font-black uppercase tracking-[0.4em] text-coin">
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-coin">
                 OGSTREAMZ · OG BOT
               </p>
               <h2 className="font-display mt-3 text-2xl font-black uppercase leading-tight tracking-[0.04em] text-foreground sm:text-3xl">
@@ -114,7 +114,7 @@ export function OwnershipCertificate({ row, onClose }: { row: PurchaseRow; onClo
                   key={k}
                   className="min-w-0 rounded-xl border border-border bg-background/60 p-3"
                 >
-                  <dt className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                  <dt className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                     {k}
                   </dt>
                   <dd className="mt-1 break-words font-semibold text-foreground">{v}</dd>
@@ -123,7 +123,7 @@ export function OwnershipCertificate({ row, onClose }: { row: PurchaseRow; onClo
             </dl>
 
             <footer className="relative mt-7 flex items-end justify-between gap-4">
-              <div className="min-w-0 text-[0.7rem] leading-relaxed text-muted-foreground">
+              <div className="min-w-0 text-[10px] leading-relaxed text-muted-foreground">
                 <p>
                   OG Coins are a non-transferable licence for use inside OG BOT. Coins already used
                   cannot be refunded.
@@ -138,7 +138,7 @@ export function OwnershipCertificate({ row, onClose }: { row: PurchaseRow; onClo
               <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border-2 border-coin bg-coin/10 text-center text-coin">
                 <div>
                   <ShieldCheck className="mx-auto h-6 w-6" />
-                  <p className="text-[0.7rem] font-black uppercase tracking-widest">OG Verified</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest">OG Verified</p>
                 </div>
               </div>
             </footer>

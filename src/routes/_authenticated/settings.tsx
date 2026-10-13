@@ -232,7 +232,7 @@ function SettingsPage() {
                   Your name and bio appear a couple of times per song. Leave blank to opt out.
                 </span>
               </Label>
-              <span className="shrink-0 whitespace-nowrap text-[0.7rem] text-muted-foreground">
+              <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
                 {bio.length}/400
               </span>
             </div>
@@ -372,7 +372,7 @@ function SettingsPage() {
             </header>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Your roles
               </p>
               <RoleRow
@@ -559,7 +559,7 @@ function TelegramConnectSection({ userId }: { userId: string }) {
       {!isLinked ? (
         <>
           <div className="rounded-xl border border-dashed border-border bg-background/40 p-3">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Your personal connect link
             </Label>
             <div className="mt-1 flex items-center gap-2">
@@ -575,7 +575,7 @@ function TelegramConnectSection({ userId }: { userId: string }) {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-[11px] text-muted-foreground">
               Always use this button/link — typing plain /start in Telegram cannot connect your
               profile.
             </p>

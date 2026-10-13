@@ -547,7 +547,7 @@ function TelegramMessageButton({ user }: { user: ProfileRow }) {
         <p className="text-sm font-semibold">
           Message {user.display_name ?? user.email ?? "user"}
         </p>
-        <p className="text-xs text-muted-foreground">Delivered by OG Bot on Telegram.</p>
+        <p className="text-[11px] text-muted-foreground">Delivered by OG Bot on Telegram.</p>
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -556,7 +556,7 @@ function TelegramMessageButton({ user }: { user: ProfileRow }) {
           placeholder="Type your message…"
         />
         <div className="flex items-center justify-between">
-          <span className="text-[0.7rem] text-muted-foreground">{text.length}/4000</span>
+          <span className="text-[10px] text-muted-foreground">{text.length}/4000</span>
           <Button size="sm" onClick={() => send.mutate()} disabled={!text.trim() || send.isPending}>
             {send.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
             Send
@@ -600,7 +600,7 @@ function UserRow({
                   type="button"
                   onClick={() => setSpendOpen((v) => !v)}
                   aria-expanded={spendOpen}
-                  className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-amber-300 hover:bg-amber-500/20"
+                  className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300 hover:bg-amber-500/20"
                   title="Toggle total spend"
                 >
                   <Coins className="h-3 w-3" />
@@ -608,7 +608,7 @@ function UserRow({
                 </button>
               )}
               {spendOpen && spend && (
-                <div className="mt-1 rounded-md border border-border/40 bg-background/40 px-2 py-1 text-xs text-muted-foreground">
+                <div className="mt-1 rounded-md border border-border/40 bg-background/40 px-2 py-1 text-[11px] text-muted-foreground">
                   Lifetime:{" "}
                   <span className="font-mono tabular-nums text-coin">
                     {spend.totalCoins.toLocaleString()} coins
@@ -680,7 +680,7 @@ function UserRow({
       {hasPro && (
         <TableRow className="border-t-0 hover:bg-transparent">
           <TableCell colSpan={5} className="pt-0 pb-3">
-            <div className="ml-12 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="ml-12 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
               {pro!.last_sign_in_at && (
                 <span className="rounded-full border border-border/40 bg-background/40 px-2 py-0.5">
                   Last sign-in {new Date(pro!.last_sign_in_at).toLocaleString()}
@@ -739,25 +739,25 @@ function MobileUserCard({
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
-          <p className="text-[0.7rem] uppercase text-muted-foreground">Balance</p>
+          <p className="text-[10px] uppercase text-muted-foreground">Balance</p>
           <p className="font-mono text-sm font-bold tabular-nums text-coin">
             {(user.coin_balance ?? 0).toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
-          <p className="text-[0.7rem] uppercase text-muted-foreground">Spent</p>
+          <p className="text-[10px] uppercase text-muted-foreground">Spent</p>
           <p className="font-mono text-sm font-bold tabular-nums text-amber-300">
             {(spend?.totalCoins ?? 0).toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
-          <p className="text-[0.7rem] uppercase text-muted-foreground">Joined</p>
+          <p className="text-[10px] uppercase text-muted-foreground">Joined</p>
           <p className="text-xs font-semibold">{new Date(user.created_at).toLocaleDateString()}</p>
         </div>
       </div>
 
       {pro && (pro.last_sign_in_at || pro.telegram_chat_id) && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-[11px] text-muted-foreground">
           {pro.last_sign_in_at
             ? `Last sign-in ${new Date(pro.last_sign_in_at).toLocaleDateString()}${pro.sign_in_count ? ` · ${pro.sign_in_count} total` : ""}`
             : ""}
@@ -1014,7 +1014,7 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
             <Minus className="mr-1 h-4 w-4" /> Take {valid ? n : ""}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">Every change is logged.</p>
+        <p className="text-[11px] text-muted-foreground">Every change is logged.</p>
       </PopoverContent>
     </Popover>
   );
@@ -1163,7 +1163,7 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
             <Bot className="h-4 w-4 text-primary" />
             <div>
               <p className="text-sm font-medium">OG Bot</p>
-              <p className="text-xs text-muted-foreground">Bot privileges</p>
+              <p className="text-[11px] text-muted-foreground">Bot privileges</p>
             </div>
           </div>
           <Switch
@@ -1260,7 +1260,7 @@ function RoleChip({
   };
   return (
     <span
-      className={`rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide ${styles[tone]}`}
+      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${styles[tone]}`}
     >
       {label}
     </span>

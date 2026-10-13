@@ -580,7 +580,7 @@ export function OgChat({
               <span className="flex min-w-0 flex-col leading-tight">
                 <span
                   className={cn(
-                    "truncate text-[0.7rem] font-bold uppercase sm:text-xs",
+                    "truncate text-[10px] font-bold uppercase sm:text-xs",
                     foulActive ? "text-destructive" : "text-foreground",
                   )}
                 >
@@ -617,7 +617,7 @@ export function OgChat({
               </span>
             </span>
             {/* OG/Safe mode toggle removed — Foul Mouth is the single tone control. */}
-            <label className="relative inline-flex h-8 items-center rounded-lg border border-amber-400/50 bg-amber-400/10 px-2 text-[0.7rem] font-bold text-amber-600 dark:text-amber-300 sm:hidden">
+            <label className="relative inline-flex h-8 items-center rounded-lg border border-amber-400/50 bg-amber-400/10 px-2 text-[10px] font-bold text-amber-600 dark:text-amber-300 sm:hidden">
               🌐 {language.slice(0, 2).toUpperCase()}
               <select
                 value={language}
@@ -635,7 +635,7 @@ export function OgChat({
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="hidden h-8 max-w-[88px] rounded-lg border border-amber-400/50 bg-amber-400/10 px-1.5 text-[0.7rem] font-bold text-amber-600 transition hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 dark:text-amber-300 sm:block sm:h-auto sm:max-w-none sm:border-2 sm:px-3 sm:py-1.5 sm:text-[12px]"
+              className="hidden h-8 max-w-[88px] rounded-lg border border-amber-400/50 bg-amber-400/10 px-1.5 text-[10px] font-bold text-amber-600 transition hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 dark:text-amber-300 sm:block sm:h-auto sm:max-w-none sm:border-2 sm:px-3 sm:py-1.5 sm:text-[12px]"
               title="Reply language"
               aria-label="Reply language"
             >
@@ -700,7 +700,7 @@ export function OgChat({
                 {showQuickStarts && (
                   <div className="flex flex-col items-center gap-2 pt-2">
                     <div
-                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary"
                       title="Private chat — only you and OG Bot can see this"
                     >
                       <ShieldCheck className="h-3 w-3" />
@@ -742,7 +742,7 @@ export function OgChat({
                 {isUser ? (
                   <div
                     className={cn(
-                      "relative grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-brand text-[0.7rem] font-black text-primary-foreground shadow-glow sm:h-8 sm:w-8",
+                      "relative grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-brand text-[10px] font-black text-primary-foreground shadow-glow sm:h-8 sm:w-8",
                       isVip &&
                         "ring-2 ring-amber-300 ring-offset-2 ring-offset-background shadow-[0_0_18px_rgba(251,191,36,0.55)]",
                     )}
@@ -767,7 +767,7 @@ export function OgChat({
                 >
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 px-1.5 text-[0.7rem] font-bold uppercase",
+                      "inline-flex items-center gap-1 px-1.5 text-[8px] font-bold uppercase",
                       isUser ? (isVip ? "text-amber-400" : "text-primary") : "text-foreground/70",
                     )}
                   >
@@ -810,7 +810,7 @@ export function OgChat({
             >
               <OgAvatar size={40} className="shrink-0 animate-pulse" />
               <div className="flex flex-col gap-1.5 min-w-[60%] max-w-[78%]">
-                <span className="px-2 text-[0.7rem] font-black uppercase tracking-[0.18em] text-foreground/70 inline-flex items-center gap-1.5">
+                <span className="px-2 text-[10px] font-black uppercase tracking-[0.18em] text-foreground/70 inline-flex items-center gap-1.5">
                   OG Bot
                   <span className="font-bold normal-case tracking-normal text-muted-foreground/80">
                     is typing<span className="inline-block animate-pulse">…</span>
@@ -982,7 +982,7 @@ export function OgChat({
           </button>
         </div>
         <p
-          className="mt-1 flex items-center justify-between gap-2 px-1 text-[0.7rem] font-medium text-muted-foreground/80 sm:mt-2.5 sm:flex-wrap sm:justify-start sm:px-2 sm:text-xs"
+          className="mt-1 flex items-center justify-between gap-2 px-1 text-[10px] font-medium text-muted-foreground/80 sm:mt-2.5 sm:flex-wrap sm:justify-start sm:px-2 sm:text-xs"
           aria-live="polite"
         >
           {m.isPending ? (

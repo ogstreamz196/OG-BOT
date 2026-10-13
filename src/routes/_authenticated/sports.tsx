@@ -165,7 +165,7 @@ function SportsGuidePage() {
                 Unlock Sports Guide
               </Button>
             )}
-            <p className="text-center text-xs text-muted-foreground">One-time unlock · yours to keep</p>
+            <p className="text-center text-[11px] text-muted-foreground">One-time unlock · yours to keep</p>
             <Link
               to="/buy-coins"
               className="block rounded-xl border border-coin/40 bg-coin/10 px-4 py-3 text-center text-xs font-bold text-coin"
@@ -194,7 +194,7 @@ function SportsGuidePage() {
         <div className="relative flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
           <img src={sportsGuideLogo.url} alt="" className="h-16 w-16 shrink-0 rounded-2xl border-2 border-coin object-cover shadow-lg sm:h-20 sm:w-20" />
           <div className="min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-0.5 text-[0.7rem] font-black uppercase tracking-widest text-destructive-foreground shadow">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-destructive-foreground shadow">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive-foreground" /> Live
             </span>
             <h1 className="mt-1 truncate font-display text-3xl font-black uppercase italic leading-none tracking-tight drop-shadow sm:text-4xl">
@@ -264,7 +264,7 @@ function SportsGuidePage() {
                       className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-card px-3 py-2 text-left text-sm font-bold hover:bg-coin hover:text-coin-foreground"
                     >
                       <span className="truncate">{t}</span>
-                      <span className="shrink-0 text-[0.7rem] font-black text-muted-foreground">{n}</span>
+                      <span className="shrink-0 text-[10px] font-black text-muted-foreground">{n}</span>
                     </button>
                   ))}
                 </div>
@@ -307,7 +307,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border-r border-border/60 py-2">
       <div className="font-display text-lg font-black text-foreground">{value}</div>
-      <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -354,25 +354,25 @@ function FixtureRow({ f, terms }: { f: Fixture; terms: string[] }) {
         {f.at ? (
           <>
             <span className="font-mono text-sm font-black text-coin">{fmtTime(f.at)}</span>
-            <span className={live ? "text-[0.7rem] font-black uppercase text-destructive" : "text-[0.7rem] font-bold uppercase text-muted-foreground"}>
+            <span className={live ? "text-[9px] font-black uppercase text-destructive" : "text-[9px] font-bold uppercase text-muted-foreground"}>
               {live ? "● Live" : fmtDay(f.at)}
             </span>
           </>
         ) : (
-          <span className="text-[0.7rem] text-muted-foreground">TBC</span>
+          <span className="text-[10px] text-muted-foreground">TBC</span>
         )}
       </div>
       <div className="min-w-0 flex-1">
         {teams ? (
           <>
             {teams.tag && (
-              <div className="truncate text-[0.7rem] font-bold uppercase tracking-wider text-primary">
+              <div className="truncate text-[10px] font-bold uppercase tracking-wider text-primary">
                 <Highlight text={teams.tag} terms={terms} />
               </div>
             )}
             <div className="text-sm font-bold leading-snug">
               <Highlight text={teams.home} terms={terms} />
-              <span className="mx-1.5 text-[0.7rem] font-black text-muted-foreground">{teams.sep}</span>
+              <span className="mx-1.5 text-[10px] font-black text-muted-foreground">{teams.sep}</span>
               <Highlight text={teams.away} terms={terms} />
             </div>
           </>
@@ -381,7 +381,7 @@ function FixtureRow({ f, terms }: { f: Fixture; terms: string[] }) {
             <Highlight text={f.event} terms={terms} />
           </div>
         )}
-        <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-coin/15 px-1.5 py-0.5 text-[0.7rem] font-black uppercase tracking-wide text-coin">
+        <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-coin/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-coin">
           <Tv className="h-3 w-3" /> <Highlight text={f.channel} terms={terms} />
         </div>
       </div>
@@ -403,7 +403,7 @@ function ListingCard({ listing: l, terms }: { listing: Listing; terms: string[] 
         <h2 className="min-w-0 flex-1 truncate font-display text-base font-black uppercase tracking-wide">
           {l.title ? <Highlight text={l.title} terms={terms} /> : "OG Sports Guide"}
         </h2>
-        <span className="shrink-0 text-[0.7rem] font-bold uppercase text-muted-foreground">
+        <span className="shrink-0 text-[10px] font-bold uppercase text-muted-foreground">
           {l.fixtures.length ? `${l.fixtures.length} ${l.fixtures.length === 1 ? "fixture" : "fixtures"}` : fmtDay(new Date(l.postedAt))}
         </span>
       </div>

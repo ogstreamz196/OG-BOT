@@ -113,16 +113,14 @@ export function BossAuditLog() {
                 </summary>
                 <div className="grid gap-2 border-t border-border/40 p-3 text-xs sm:grid-cols-[1fr_auto_1fr] sm:items-start">
                   <div className="rounded-lg bg-destructive/10 p-2 text-destructive-foreground/80">
-                    <div className="mb-1 text-[0.7rem] uppercase tracking-wide opacity-70">
+                    <div className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
                       Before
                     </div>
                     {preview(row.old_value)}
                   </div>
                   <ArrowRight className="hidden h-4 w-4 self-center text-muted-foreground sm:block" />
                   <div className="rounded-lg bg-primary/10 p-2">
-                    <div className="mb-1 text-[0.7rem] uppercase tracking-wide opacity-70">
-                      After
-                    </div>
+                    <div className="mb-1 text-[10px] uppercase tracking-wide opacity-70">After</div>
                     {preview(row.new_value)}
                   </div>
                 </div>

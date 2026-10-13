@@ -195,7 +195,7 @@ export function FreshTrackCard({
     >
       {/* Status strip */}
       <div className="flex items-center justify-between gap-3 border-b border-emerald-400/20 bg-emerald-500/10 px-4 py-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">
           <span className="grid h-2 w-2 place-items-center rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
           Track completed
         </span>
@@ -204,7 +204,7 @@ export function FreshTrackCard({
           size="sm"
           variant="ghost"
           onClick={onDismiss}
-          className="-mr-2 h-7 px-2 text-xs font-bold uppercase tracking-wider"
+          className="-mr-2 h-7 px-2 text-[11px] font-bold uppercase tracking-wider"
         >
           Hide
         </Button>
@@ -241,7 +241,7 @@ export function FreshTrackCard({
             <h3 className="truncate font-display text-xl font-black leading-tight sm:text-2xl">
               {title}
             </h3>
-            <p className="mt-0.5 truncate text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300/90">
+            <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300/90">
               {unlocked ? "Full version unlocked" : `${sampleSeconds}s free preview`}
             </p>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
@@ -250,7 +250,7 @@ export function FreshTrackCard({
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+            <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
               {fmt(progress)} / {fmt(cap)}
             </p>
           </div>

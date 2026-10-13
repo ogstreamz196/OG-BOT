@@ -112,7 +112,7 @@ export function MessengerWelcomeDialog({
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-black uppercase sm:text-base">Private chat</span>
-              <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
+              <span className="block text-pretty text-[11px] leading-snug text-muted-foreground sm:text-sm">
                 Just you &amp; OG Bot. Nobody else sees a word.
               </span>
             </span>
@@ -138,14 +138,14 @@ export function MessengerWelcomeDialog({
               <span className="block text-xs font-black uppercase sm:text-base">
                 OG Battle Zone
               </span>
-              <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
+              <span className="block text-pretty text-[11px] leading-snug text-muted-foreground sm:text-sm">
                 Everyone vs OG Bot — see if you can win a roast battle.
               </span>
             </span>
           </button>
         </div>
 
-        <p className="text-center text-[0.7rem] leading-tight text-muted-foreground/80 sm:text-xs">
+        <p className="text-center text-[10px] leading-tight text-muted-foreground/80 sm:text-[11px]">
           You&apos;re currently set to{" "}
           <span className="font-semibold text-foreground">
             {currentMode === "community" ? "OG Battle Zone" : "Private chat"}

@@ -448,7 +448,7 @@ function UserSettingsPage() {
               roles.map((r) => (
                 <span
                   key={r}
-                  className="rounded-full border border-border bg-muted px-2 py-0.5 text-[0.7rem] font-medium uppercase tracking-wide"
+                  className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
                 >
                   {r}
                 </span>
@@ -470,7 +470,7 @@ function UserSettingsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="set-balance">Replace total balance with</Label>
-              <p className="text-xs text-muted-foreground">Overwrites the balance — does not add.</p>
+              <p className="text-[11px] text-muted-foreground">Overwrites the balance — does not add.</p>
               <div className="flex gap-2">
                 <Input
                   id="set-balance"
@@ -495,7 +495,7 @@ function UserSettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="adjust-balance">Add or take away coins</Label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 + adds this many to the balance, − takes this many away.
               </p>
               <div className="flex gap-2">
@@ -639,7 +639,7 @@ function TelegramDmCard({
           </p>
         </div>
         <span
-          className={`rounded-full px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wider ${
+          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
             linked ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground"
           }`}
         >
@@ -661,7 +661,7 @@ function TelegramDmCard({
             maxLength={4000}
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">{text.length}/4000</span>
+            <span className="text-[11px] text-muted-foreground">{text.length}/4000</span>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -693,7 +693,7 @@ function TelegramDmCard({
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-background/40 p-3">
           <div className="flex items-center justify-between gap-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Personal registration link
             </Label>
             <Button
@@ -729,7 +729,7 @@ function TelegramDmCard({
               <Copy className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             {activeToken.startsWith("t_")
               ? "Fresh single-use token minted. Share this link — it replaces any previous one."
               : "Send this to the user — once they tap Start in Telegram, OG Bot can DM them."}
@@ -739,7 +739,7 @@ function TelegramDmCard({
 
       <div className="space-y-2 border-t border-border pt-4">
         <div className="flex items-center justify-between">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Recent DM attempts
           </Label>
           {queueQ.isFetching ? (
@@ -769,7 +769,7 @@ function TelegramDmCard({
                   <div className="flex items-start gap-2">
                     <StatusIcon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${tone}`} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-[0.7rem] uppercase tracking-wider text-muted-foreground">
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
                         <span className={`font-semibold ${tone}`}>{row.status}</span>
                         <span>· attempt {row.attempts}</span>
                         <span>· {new Date(row.created_at).toLocaleString()}</span>
@@ -778,14 +778,14 @@ function TelegramDmCard({
                         {row.body.length > 240 ? `${row.body.slice(0, 240)}…` : row.body}
                       </p>
                       {row.status === "failed" && row.last_error ? (
-                        <p className="mt-1 text-xs text-red-400">⚠ {row.last_error}</p>
+                        <p className="mt-1 text-[11px] text-red-400">⚠ {row.last_error}</p>
                       ) : null}
                     </div>
                     {row.status === "failed" ? (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 shrink-0 gap-1 text-xs"
+                        className="h-7 shrink-0 gap-1 text-[11px]"
                         disabled={retry.isPending && retry.variables === row.id}
                         onClick={() => retry.mutate(row.id)}
                       >
@@ -803,7 +803,7 @@ function TelegramDmCard({
             })}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">No DM attempts yet.</p>
+          <p className="text-[11px] text-muted-foreground">No DM attempts yet.</p>
         )}
       </div>
     </section>

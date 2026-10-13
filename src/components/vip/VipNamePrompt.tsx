@@ -82,7 +82,7 @@ export function VipNamePrompt() {
         {!choosing ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-coin/50 bg-coin/10 p-3 text-center">
-              <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">Proposed VIP ID</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-coin">Proposed VIP ID</div>
               <div className="font-mono text-2xl font-black tracking-widest">{proposed}</div>
             </div>
             <Button className="h-12 w-full" disabled={busy} onClick={() => void save(proposed)}>
