@@ -896,23 +896,32 @@ function Hero() {
         </div>
 
         <h1 className="font-display mt-5 text-[clamp(2.2rem,10vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance]">
-          <span className="wc-pop block">TURN ANY IDEA</span>
+          <span className="wc-pop block">ROAST THE BOT.</span>
           <span className="wc-pop block" style={{ animationDelay: "0.15s" }}>
-            INTO A <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
+            DROP THE <span className="wc-bounce-soft inline-block italic text-accent">DISS</span>
           </span>
           <span className="wc-pop block" style={{ animationDelay: "0.3s" }}>
-            IN SECONDS.
+            OR COOK A HIT.
           </span>
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-base font-medium text-foreground/85 sm:text-xl">
-          Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
+          Step in the ring with OG Bot, turn the beef into a real diss track — or make any song from
+          your idea. Real vocals, cover art included.
         </p>
 
         <div className="mx-auto mt-6 grid max-w-3xl gap-3 sm:grid-cols-2 sm:gap-5">
-          <CreateTile />
           <BattleTile />
+          <CreateTile />
         </div>
+
+        <button
+          type="button"
+          onClick={openBattle}
+          className="mx-auto mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm font-bold text-foreground transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+        >
+          🎤 Try it: “Your beats sound like a microwave”
+        </button>
 
         <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
           {[
@@ -939,58 +948,22 @@ const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 function Superpowers() {
   const items = [
     {
-      key: "foul",
+      key: "roast",
       emoji: "🤬",
-      title: "Foul Mouth Mode",
-      body: "Beast bot roasts, raw bars, full foul-mouth diss tracks cooked from your words. Turn the heat from Mild to Demon.",
+      title: "The Roast & Diss Engine",
+      body: "Battle Zone, Foul Mouth from Mild to Demon, and personal diss tracks cooked from your own chat — if you can handle it.",
     },
     {
-      key: "takes",
+      key: "studio",
       emoji: "🎧",
-      title: "2 tracks for the price of 1",
-      body: "Unlock your first take and the second one is yours free.",
+      title: "The Hit-Making Studio",
+      body: "Real vocals and cover art on every track. 2 tracks for the price of 1, and 15 days of free VIP unlocks every style.",
     },
     {
-      key: "vip",
-      emoji: "👑",
-      title: "15 days of free VIP",
-      body: "Every style unlocked from signup — drill, bhangra, afrobeats and more.",
-    },
-    {
-      key: "battle",
-      emoji: "⚔️",
-      title: "Battle the bot",
-      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
-    },
-    {
-      key: "referral",
-      emoji: "🤝",
-      title: "Lifetime referral commission",
-      body: "Share your link — earn coins every time your friends spend, for life.",
-    },
-    {
-      key: "drop",
-      emoji: "🎁",
-      title: "Daily drop",
-      body: "Pop in each day and claim your free coin drop.",
-    },
-    {
-      key: "diss",
-      emoji: "🎯",
-      title: "Diss tracks on demand",
-      body: "Chat with OG Bot and it'll offer to cook a personal diss track about you — if you can handle it.",
-    },
-    {
-      key: "cover",
-      emoji: "🖼️",
-      title: "Cover art included",
-      body: "Every track lands with its own album cover — no extra apps, no extra cost.",
-    },
-    {
-      key: "telegram",
-      emoji: "📲",
-      title: "Telegram connected",
-      body: "Link Telegram to check coins, grab tracks and get VIP reminders without opening the app.",
+      key: "economy",
+      emoji: "🪙",
+      title: "The Creator Economy",
+      body: "Earn OG Coins for roasting the bot, claim a daily drop, and get lifetime commission when friends spend. Telegram keeps you posted.",
     },
   ];
   return (

@@ -310,7 +310,7 @@ function DashboardHome() {
               <DodgyLogo
                 src={welcomeLogo.url}
                 alt="OG Streamz Presentz OG Bot"
-                size={420}
+                size={300}
                 maxDrift={80}
                 dodgeRadius={160}
                 imageClassName="rounded-3xl ring-1 ring-white/10 shadow-glow w-full max-w-[420px] sm:max-w-[520px] h-auto"
@@ -350,25 +350,20 @@ function DashboardHome() {
         </div>
       </section>
 
-      {/* Daily free coin drop — one claim per day, with Refer to earn right below */}
-      <div className="space-y-3">
-        <DailyDrop />
-        <Link
-          to="/referrals"
-          preload="intent"
-          className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-primary-foreground shadow-glow transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <Share2 className="h-5 w-5" /> Refer to earn coins
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </Link>
-      </div>
-
-      {/* Primary CTAs — MusicHub + OG Bot at the top */}
-
+      {/* Primary pillars — Battle Zone & diss tracks first, then the studio */}
       <section className="space-y-3">
-        {/* Phones: one full-width row per card so text never squeezes into
-            a 100px column. sm and up: the three-column card grid. */}
-        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 sm:gap-5">
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-5">
+          <PrimaryCard
+            to="/messenger"
+            search={{ live: true }}
+            image={ogBotAsset.url}
+            imageAlt="OG Bot avatar"
+            eyebrow="OG Bot · Diss maker"
+            title="Enter Battle Zone"
+            body="Everyone vs OG Bot. Throw your best roast — then turn the beef into a diss track."
+            cta="Enter Battle Zone"
+            variant="accent"
+          />
           <PrimaryCard
             to="/library"
             image={musicHubHero}
@@ -379,31 +374,30 @@ function DashboardHome() {
             cta="Open MusicHub"
             hazard
           />
-          <PrimaryCard
-            to="/messenger"
-            search={{ live: true }}
-            image={ogBotAsset.url}
-            imageAlt="OG Bot avatar"
-            eyebrow="OG Bot"
-            title="Enter Battle Zone"
-            body="Everyone vs OG Bot. Throw your best roast."
-            cta="Enter Battle Zone"
-            variant="accent"
-          />
-          <PrimaryCard
-            to="/sports"
-            image={sportsGuideLogo.url}
-            imageAlt="OG Sports Guide"
-            eyebrow="Live fixtures"
-            title="Sports Guide"
-            body="Matches, fights & TV listings"
-            cta="Open Sports Guide"
-            variant="cinema"
-          />
         </div>
       </section>
 
-      {/* Ask OG Bot CTA removed per request */}
+      {/* Utility row — daily drop, referrals, sports */}
+      <div className="space-y-3">
+        <DailyDrop />
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            to="/referrals"
+            preload="intent"
+            className="group flex items-center justify-center gap-2 rounded-2xl bg-primary px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground shadow-glow transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-sm"
+          >
+            <Share2 className="h-4 w-4" /> Refer to earn
+          </Link>
+          <Link
+            to="/sports"
+            preload="intent"
+            className="group flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-foreground transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-sm"
+          >
+            <img src={sportsGuideLogo.url} alt="" aria-hidden className="h-5 w-5 rounded" />
+            Sports Guide
+          </Link>
+        </div>
+      </div>
 
       {/* Continuity demo */}
       {/* <ContinuityDemo /> hidden per request */}
