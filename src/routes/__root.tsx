@@ -115,6 +115,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Generate full songs from a prompt, chat with OG Bot, and run your creator economy in one place.",
       },
       { name: "google-site-verification", content: "R34IxND5szTYrevWfX0gTnIvDi64kPx6wI0XCNM08YE" },
+      { name: "google-site-verification", content: "jcOUtu2HmnDrm342xpOH0HCa_BG9l1Cw6Dcb6CprIsI" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

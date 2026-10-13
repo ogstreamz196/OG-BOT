@@ -3,3 +3,5 @@ Allow: /
 Disallow: /auth
 Disallow: /library
 Disallow: /buy-coins
+
+Sitemap: https://og-bot.lovable.app/sitemap.xml
