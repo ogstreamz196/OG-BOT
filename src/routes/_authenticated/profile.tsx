@@ -238,17 +238,17 @@ function ProfilePage() {
               </h1>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {hasVipRole && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-bold uppercase text-amber-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold uppercase text-amber-300">
                     <Crown className="h-3 w-3" /> OG VIP
                   </span>
                 )}
                 {hasBossRole && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold uppercase text-primary">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold uppercase text-primary">
                     <ShieldCheck className="h-3 w-3" /> Boss
                   </span>
                 )}
                 {extras.data?.created_at && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <CalendarDays className="h-3 w-3" /> Since{" "}
                     {new Date(extras.data.created_at).toLocaleDateString(undefined, {
                       month: "short",
@@ -409,11 +409,11 @@ function ProfilePage() {
             >
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-border bg-background/40 p-3">
-                  <p className="text-[11px] uppercase text-muted-foreground">Earned & bought</p>
+                  <p className="text-xs uppercase text-muted-foreground">Earned & bought</p>
                   <p className="text-lg font-bold text-emerald-400">+{totals.earned}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-background/40 p-3">
-                  <p className="text-[11px] uppercase text-muted-foreground">Spent</p>
+                  <p className="text-xs uppercase text-muted-foreground">Spent</p>
                   <p className="text-lg font-bold text-destructive">-{totals.spent}</p>
                 </div>
               </div>
@@ -461,7 +461,7 @@ function ProfilePage() {
                         <p className="truncate text-sm font-medium">
                           {txLabel(t.type, t.reference)}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {new Date(t.created_at).toLocaleString(undefined, {
                             day: "numeric",
                             month: "short",
@@ -526,7 +526,7 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
     <div className="rounded-xl border border-border bg-background/50 p-2.5 text-center">
       <div className="flex justify-center">{icon}</div>
       <p className="mt-1 text-lg font-bold leading-none">{value}</p>
-      <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 text-[0.7rem] uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
 }

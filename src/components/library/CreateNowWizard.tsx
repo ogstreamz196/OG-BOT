@@ -418,7 +418,7 @@ export function CreateNowWizard({
         </button>
         <div className="min-w-0 flex-1 text-center">
           <p className="text-xl font-bold tabular-nums leading-none">{targetMinutes} min</p>
-          <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+          <p className="mt-1 text-xs font-medium text-muted-foreground">
             {targetMinutes > MIN_LENGTH
               ? `+${targetMinutes - MIN_LENGTH} coin${targetMinutes - MIN_LENGTH === 1 ? "" : "s"}`
               : "Included"}
@@ -434,7 +434,7 @@ export function CreateNowWizard({
           +
         </button>
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Every length is free to create. Pay only when you download the full track.
       </p>
     </div>
@@ -452,7 +452,7 @@ export function CreateNowWizard({
       >
         <DialogHeader className="shrink-0 space-y-2 pb-3 text-left sm:pb-0">
           <div className="flex items-center justify-between gap-3 pr-8">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-primary">
               <Sparkles className="h-3 w-3" />
               Create now
             </span>
@@ -530,7 +530,7 @@ export function CreateNowWizard({
                     placeholder="Vibes, memories, inside jokes, the moment you want in the lyrics…"
                     className="min-h-[110px] resize-y rounded-lg border border-border bg-background text-sm leading-relaxed"
                   />
-                  <p className="text-[11px] tabular-nums text-muted-foreground">
+                  <p className="text-xs tabular-nums text-muted-foreground">
                     {description.trim().length}/2000
                   </p>
                 </div>
@@ -588,8 +588,8 @@ export function CreateNowWizard({
                         )}
                       >
                         {locked && (
-                          <span aria-label="VIP only" className="mr-1 inline-flex items-end text-[11px]">
-                            <span className="relative">🔒<span className="absolute -top-2 left-0.5 text-[9px]">👑</span></span>
+                          <span aria-label="VIP only" className="mr-1 inline-flex items-end text-xs">
+                            <span className="relative">🔒<span className="absolute -top-2 left-0.5 text-[0.7rem]">👑</span></span>
                           </span>
                         )}
                         {s}
@@ -612,7 +612,7 @@ export function CreateNowWizard({
                     <>
                       <Music4 className="h-4 w-4" />
                       More styles
-                      <span className="rounded-full bg-primary/25 px-2 py-0.5 text-[11px] font-black tabular-nums">
+                      <span className="rounded-full bg-primary/25 px-2 py-0.5 text-xs font-black tabular-nums">
                         +{STYLES.length - 12}
                       </span>
                       <ChevronDown className="h-4 w-4" />
@@ -621,7 +621,7 @@ export function CreateNowWizard({
                 </button>
 
                 <div>
-                  <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Artist voice
                   </p>
                   <div
@@ -657,7 +657,7 @@ export function CreateNowWizard({
               <div className="space-y-5">
                 {/* Content rating — replaces the old foul mouth toggle. */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Lyrics rating
                   </p>
                   <div role="group" aria-label="Lyrics rating" className="grid grid-cols-2 gap-2">
@@ -685,7 +685,7 @@ export function CreateNowWizard({
                         )}
                       />
                       <span className="text-sm font-bold">PG rated</span>
-                      <span className="text-[11px] text-muted-foreground">Clean, family safe</span>
+                      <span className="text-xs text-muted-foreground">Clean, family safe</span>
                     </button>
                     <button
                       type="button"
@@ -711,7 +711,7 @@ export function CreateNowWizard({
                         )}
                       />
                       <span className="text-sm font-bold">18+ rated</span>
-                      <span className="text-[11px] text-muted-foreground">Explicit, no filter</span>
+                      <span className="text-xs text-muted-foreground">Explicit, no filter</span>
                     </button>
                   </div>
 
@@ -720,11 +720,11 @@ export function CreateNowWizard({
                       <div className="flex items-baseline justify-between gap-2">
                         <label
                           htmlFor="foul-intensity"
-                          className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground"
+                          className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground"
                         >
                           Swearing intensity
                         </label>
-                        <span className="text-[11px] font-bold text-destructive">
+                        <span className="text-xs font-bold text-destructive">
                           {INTENSITY_LABELS[intensity]}
                         </span>
                       </div>
@@ -738,7 +738,7 @@ export function CreateNowWizard({
                         onValueChange={(v) => changeIntensity(v[0] ?? 3)}
                         onValueCommit={(v) => saveIntensity(v[0] ?? 3)}
                       />
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <div className="flex justify-between text-[0.7rem] text-muted-foreground">
                         <span>Clean</span>
                         <span>Mild</span>
                         <span>Strong</span>
@@ -750,10 +750,10 @@ export function CreateNowWizard({
 
                 <div className="space-y-2">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                       Language
                     </p>
-                    <p className="text-[11px] font-semibold text-muted-foreground">
+                    <p className="text-xs font-semibold text-muted-foreground">
                       {languages.length ? `${languages.length} selected` : "English by default"}
                     </p>
                   </div>
@@ -802,7 +802,7 @@ export function CreateNowWizard({
                         <>
                           <Globe2 className="h-4 w-4" />
                           More languages
-                          <span className="rounded-full bg-primary/25 px-2 py-0.5 text-[11px] font-black tabular-nums">
+                          <span className="rounded-full bg-primary/25 px-2 py-0.5 text-xs font-black tabular-nums">
                             +{POOLS.language.length - 8}
                           </span>
                           <ChevronDown className="h-4 w-4" />
@@ -816,7 +816,7 @@ export function CreateNowWizard({
 
                 {/* Voice setup: vocals-only and, when on, the beat it rides. */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Voice setup
                   </p>
                   <button
@@ -846,7 +846,7 @@ export function CreateNowWizard({
                     </span>
                     <span
                       className={cn(
-                        "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider",
+                        "shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-black uppercase tracking-wider",
                         vocalsOnly
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted text-muted-foreground",
@@ -919,7 +919,7 @@ export function CreateNowWizard({
                       {title.trim() ||
                         `For ${subjectName.trim().slice(0, 24) || "you"} · OG Bot names it`}
                     </p>
-                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
                       {isPublic ? (
                         <Globe2 className="h-3.5 w-3.5 text-primary" />
                       ) : (
@@ -949,7 +949,7 @@ export function CreateNowWizard({
                     ].map((chip) => (
                       <span
                         key={chip}
-                        className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
+                        className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground"
                       >
                         {chip}
                       </span>
@@ -1033,7 +1033,7 @@ export function CreateNowWizard({
                   {isPublic ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                   {isPublic ? "Global" : "Private"}
                 </span>
-                <span className="text-[9px] font-semibold normal-case text-muted-foreground">
+                <span className="text-[0.7rem] font-semibold normal-case text-muted-foreground">
                   Tap to change
                 </span>
               </Button>

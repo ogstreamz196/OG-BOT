@@ -91,7 +91,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
           <Swords className="h-4 w-4 shrink-0 text-primary" aria-hidden />
           <span className="truncate text-xs font-black uppercase sm:text-sm">OG Battle Zone</span>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] font-black uppercase text-destructive">
+        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[0.7rem] font-black uppercase text-destructive">
           🤬 Foul mouth · Live
         </span>
       </div>
@@ -112,7 +112,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
             return (
               <div key={m.id} className={`flex items-end gap-1.5 py-1 ${mine ? "flex-row-reverse" : "flex-row"}`}>
                 <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full text-[8px] font-bold uppercase ${
+                  className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full text-[0.7rem] font-bold uppercase ${
                     isBot ? "bg-primary/20 ring-1 ring-primary/40" : mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                   }`}
                 >
@@ -127,7 +127,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
                     isBot ? "border border-primary/30 bg-primary/10 text-foreground" : mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                   }`}
                 >
-                  <p className={`mb-0.5 text-[8px] font-bold uppercase ${mine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  <p className={`mb-0.5 text-[0.7rem] font-bold uppercase ${mine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                     {isBot ? "OG Bot" : mine ? "You" : m.display_name || "OG member"}
                     {m.created_at ? ` · ${time(m.created_at)}` : ""}
                   </p>

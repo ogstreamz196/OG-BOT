@@ -108,7 +108,7 @@ export function CommunityShowcase() {
                 )}
               </div>
               <div className="p-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
                   {playing ? "Now playing" : "Up next"}
                 </p>
                 <p className="mt-1 truncate font-display text-xl font-black text-card-foreground">

@@ -677,6 +677,16 @@
     0 10px 40px -12px oklch(0 0 0 / 0.6),
     inset 0 1px 0 0 oklch(1 0 0 / 0.06);
 }
+/* Soft dark backing so a heading stays readable over the wallpaper art
+   (the big chrome "OG BOT" lettering) without hiding the artwork. */
+@utility heading-plate {
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 1rem;
+  padding: 0.4rem 0.9rem;
+  background-color: color-mix(in oklab, black 60%, transparent);
+  backdrop-filter: blur(10px);
+}
 @utility glass-panel-strong {
   background-color: color-mix(in oklab, black 80%, transparent);
   backdrop-filter: blur(24px) saturate(150%);

@@ -22,6 +22,8 @@ import { checkDeviceAccountAllowed } from "@/lib/device-limit.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import musicHubHero from "@/assets/musichub-hero.jpg";
+import { PrimaryCard } from "@/components/home/PrimaryCard";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -92,7 +94,6 @@ function useIsNativeApp() {
   }, []);
   return native;
 }
-
 
 const PENDING_REF_KEY = "og_pending_ref";
 
@@ -732,7 +733,8 @@ function AuthModal() {
           )}
           <AuthButtons size="xl" />
           <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
-            Free to start — new or returning, one form does both. Your Battle Zone chat comes with you.
+            Free to start — new or returning, one form does both. Your Battle Zone chat comes with
+            you.
           </p>
         </div>
       </DialogContent>
@@ -810,7 +812,7 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-xs">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
               <span>OG Bot</span>
@@ -829,62 +831,33 @@ function TopNav() {
 }
 
 /** Tile card matching the welcome superpower cards. */
-function TileCta({
-  emoji,
-  title,
-  body,
-  cta,
-  onClick,
-  className = "",
-}: {
-  emoji: string;
-  title: string;
-  body: string;
-  cta: string;
-  onClick: () => void;
-  className?: string;
-}) {
+/** Same tiles as the signed-in home page; here they open the wizard / guest Battle Zone. */
+function CreateTile() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={title}
-      className={`group relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card p-5 text-left shadow-card transition-transform hover:scale-[1.02] hover:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/50 active:scale-[0.98] sm:p-6 ${className}`}
-    >
-      <span className="text-4xl" aria-hidden>
-        {emoji}
-      </span>
-      <span className="font-display mt-3 block text-2xl font-black tracking-tight">{title}</span>
-      <span className="mt-2 block text-sm text-muted-foreground sm:text-base">{body}</span>
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-black uppercase tracking-wide text-primary">
-        {cta} →
-      </span>
-    </button>
-  );
-}
-
-function HazardCta({ className = "" }: { className?: string }) {
-  return (
-    <TileCta
-      emoji="🎤"
-      title="Create a Track Now"
-      body="Your words, real vocals and cover art — cooked in minutes."
-      cta="Start creating"
+    <PrimaryCard
       onClick={openWizard}
-      className={className}
+      image={musicHubHero}
+      imageAlt="Neon vinyl with equalizer bars"
+      eyebrow="MusicHub"
+      title="Create a song"
+      body="Generate · Remix · Release"
+      cta="Open MusicHub"
+      hazard
     />
   );
 }
 
-function DangerZoneCta({ className = "" }: { className?: string }) {
+function BattleTile() {
   return (
-    <TileCta
-      emoji="🤬"
+    <PrimaryCard
+      onClick={openBattle}
+      image={ogBotAsset.url}
+      imageAlt="OG Bot avatar"
+      eyebrow="OG Bot"
       title="Enter Battle Zone"
       body="Beast OG Bot is live — cusses back raw, no filter, and turns your bars into foul-mouth diss tracks. Got the balls? Bring it on."
       cta="Bring it on"
-      onClick={openBattle}
-      className={className}
+      variant="accent"
     />
   );
 }
@@ -916,17 +889,18 @@ function Hero() {
   return (
     <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
       <div className="relative mx-auto w-full max-w-3xl text-center">
-        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
           <span>👑 15 days free VIP</span>
-          <span aria-hidden className="text-primary/50">·</span>
+          <span aria-hidden className="text-primary/50">
+            ·
+          </span>
           <span>No card</span>
         </div>
 
         <h1 className="font-display mt-5 text-[clamp(2.2rem,10vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance]">
           <span className="wc-pop block">TURN ANY IDEA</span>
           <span className="wc-pop block" style={{ animationDelay: "0.15s" }}>
-            INTO A{" "}
-            <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
+            INTO A <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
           </span>
           <span className="wc-pop block" style={{ animationDelay: "0.3s" }}>
             IN SECONDS.
@@ -938,8 +912,8 @@ function Hero() {
         </p>
 
         <div className="mx-auto mt-6 grid max-w-3xl gap-3 sm:grid-cols-2 sm:gap-5">
-          <HazardCta className="max-w-none" />
-          <DangerZoneCta className="max-w-none" />
+          <CreateTile />
+          <BattleTile />
         </div>
 
         <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
@@ -957,7 +931,6 @@ function Hero() {
             </li>
           ))}
         </ul>
-
       </div>
     </section>
   );
@@ -989,9 +962,11 @@ function Superpowers() {
   return (
     <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-          ⚡ Your superpowers
-        </p>
+        <div className="text-center">
+          <p className="heading-plate text-xs font-black uppercase tracking-[0.25em] text-primary">
+            ⚡ Your superpowers
+          </p>
+        </div>
         <div className="mt-6 grid gap-3 sm:gap-5 md:grid-cols-3">
           {items.map((it) => (
             <article
@@ -1045,12 +1020,16 @@ function EarnCoins() {
   return (
     <section id="earn" className="relative scroll-mt-24 border-t border-border/40">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-          🪙 Earn OG Coins free
-        </p>
-        <h2 className="font-display mt-2 text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-          Make tracks without spending a penny
-        </h2>
+        <div className="text-center">
+          <div className="heading-plate">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">
+              🪙 Earn OG Coins free
+            </p>
+            <h2 className="font-display mt-2 text-3xl font-black tracking-[-0.03em] sm:text-5xl">
+              Make tracks without spending a penny
+            </h2>
+          </div>
+        </div>
         <div className="mt-8 grid gap-3 sm:gap-5 md:grid-cols-3">
           {ways.map((w) => (
             <article
@@ -1082,16 +1061,30 @@ function EarnCoins() {
 
 function HowItWorks() {
   const steps = [
-    { icon: <Pencil className="h-5 w-5" />, title: "Type your idea", body: "A name, a roast, a memory." },
-    { icon: <Wand2 className="h-5 w-5" />, title: "Pick the vibe", body: "Choose a style and mood." },
-    { icon: <Headphones className="h-5 w-5" />, title: "OG Bot cooks it", body: "Your song + cover, ready to play." },
+    {
+      icon: <Pencil className="h-5 w-5" />,
+      title: "Type your idea",
+      body: "A name, a roast, a memory.",
+    },
+    {
+      icon: <Wand2 className="h-5 w-5" />,
+      title: "Pick the vibe",
+      body: "Choose a style and mood.",
+    },
+    {
+      icon: <Headphones className="h-5 w-5" />,
+      title: "OG Bot cooks it",
+      body: "Your song + cover, ready to play.",
+    },
   ];
   return (
     <section className="relative border-t border-border/40">
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8 sm:py-16">
-        <h2 className="font-display text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-          3 taps to your first track
-        </h2>
+        <div className="text-center">
+          <h2 className="heading-plate font-display text-3xl font-black tracking-[-0.03em] sm:text-5xl">
+            3 taps to your first track
+          </h2>
+        </div>
         <ol className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-5">
           {steps.map((s, i) => (
             <li
@@ -1102,7 +1095,7 @@ function HowItWorks() {
                 {s.icon}
               </span>
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
                   Step {i + 1}
                 </p>
                 <h3 className="font-display text-lg font-black">{s.title}</h3>
@@ -1121,23 +1114,27 @@ function ClosingCta() {
     <section id="how" className="relative border-t border-border/40">
       <div className="relative mx-auto max-w-3xl px-4 py-14 text-center sm:px-8 sm:py-20">
         <CardEditBadge />
-        <EditableContent
-          as="p"
-          contentKey="welcome.closing.eyebrow"
-          defaultValue="Ready?"
-          className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
-        />
-        <EditableContent
-          as="h2"
-          contentKey="welcome.closing.title"
-          defaultValue="Your next prompt could be a hit."
-          multiline
-          className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
-        />
-        <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
-          Free account in seconds · 15 days of VIP on us · No card needed.
-        </p>
-        <HazardCta className="mx-auto mt-8" />
+        <div className="heading-plate px-4 py-4 sm:px-8 sm:py-6">
+          <EditableContent
+            as="p"
+            contentKey="welcome.closing.eyebrow"
+            defaultValue="Ready?"
+            className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
+          />
+          <EditableContent
+            as="h2"
+            contentKey="welcome.closing.title"
+            defaultValue="Your next prompt could be a hit."
+            multiline
+            className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
+          />
+          <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
+            Free account in seconds · 15 days of VIP on us · No card needed.
+          </p>
+        </div>
+        <div className="mx-auto mt-8 max-w-sm text-left">
+          <CreateTile />
+        </div>
       </div>
     </section>
   );

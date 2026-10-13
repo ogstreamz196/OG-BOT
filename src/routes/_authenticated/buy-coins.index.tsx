@@ -220,7 +220,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   {isVipFlow ? <Crown className="h-5 w-5" /> : <Coins className="h-5 w-5" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                     Order summary
                   </p>
                   <p className="truncate text-base font-bold">{labelForOrder}</p>
@@ -231,12 +231,12 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   {CURRENCY_SYMBOL}
                   {(totalCents / 100).toFixed(2)}
                 </div>
-                <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mt-1 text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                   {isVipFlow ? (vipYearly ? "billed yearly" : "billed monthly") : "one-time"}
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-border/60 bg-background/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:px-5 sm:py-2.5">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-border/60 bg-background/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-5 sm:py-2.5">
               <span className="inline-flex items-center gap-1.5">
                 <Lock className="h-3 w-3" /> Secure checkout
               </span>
@@ -276,7 +276,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                       {isCustomFlow ? <Flame className="h-5 w-5" /> : <Check className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">
+                      <p className="text-[0.7rem] font-black uppercase tracking-[0.25em] text-white/70">
                         {isCustomFlow
                           ? "Custom stack locked in"
                           : isVipFlow
@@ -291,7 +291,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                             : `${(selected as { pack: CoinPack }).pack.coins} OG Coins · ${(selected as { pack: CoinPack }).pack.label}`}
                       </p>
                       {!isVipFlow && (
-                        <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-white/60 tabular-nums">
+                        <p className="mt-0.5 text-xs font-bold uppercase tracking-wider text-white/60 tabular-nums">
                           {CURRENCY_SYMBOL}
                           {(totalCents / 100).toFixed(2)} · {CURRENCY_SYMBOL}
                           {perCoin.toFixed(3)} per coin
@@ -302,7 +302,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   </div>
                 </div>
 
-                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="mt-5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Order summary
                 </p>
                 <div className="mt-2 grid gap-2 rounded-2xl border border-border bg-background/40 p-4 text-sm">
@@ -364,8 +364,8 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                           className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-coin,currentColor)]"
                         />
                         <span>
-                          <span className="font-semibold text-foreground">Don't auto-renew</span>{" "}
-                          — pay once for the year. VIP stays on until it ends, with no renewal charge.
+                          <span className="font-semibold text-foreground">Don't auto-renew</span> —
+                          pay once for the year. VIP stays on until it ends, with no renewal charge.
                         </span>
                       </label>
                     )}
@@ -373,7 +373,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                 )}
 
                 {/* Next steps — clear what happens next */}
-                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="mt-5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   What happens next
                 </p>
                 <ol className="mt-2 space-y-2">
@@ -663,7 +663,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
             <div className="relative bg-gradient-to-br from-coin/25 via-coin/5 to-transparent p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-coin">
+                  <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-coin">
                     OG VIP membership
                   </p>
                   <h2
@@ -684,7 +684,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
               </div>
               {hasVipRole && profile?.og_vip_id ? (
                 <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-coin/50 bg-background/60 px-3 py-1.5">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  <span className="text-[0.7rem] font-bold uppercase text-muted-foreground">
                     Your ID
                   </span>
                   <span className="font-mono text-sm font-black tracking-widest text-coin">
@@ -704,21 +704,21 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                       onClick={() => pickSelection({ type: "vip", plan: "yearly" })}
                       className="relative flex flex-col items-center rounded-xl border-2 border-coin bg-coin/10 p-3 pt-4 text-center transition hover:bg-coin/15"
                     >
-                      <span className="absolute -top-2.5 rounded-full bg-coin px-2 py-0.5 text-[9px] font-black uppercase text-background">
+                      <span className="absolute -top-2.5 rounded-full bg-coin px-2 py-0.5 text-[0.7rem] font-black uppercase text-background">
                         Save{" "}
                         {Math.round(
                           (1 - VIP_PLAN_YEARLY.priceCents / (VIP_PLAN.priceCents * 12)) * 100,
                         )}
                         %
                       </span>
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                      <span className="text-[0.7rem] font-bold uppercase text-muted-foreground">
                         Yearly
                       </span>
                       <span className="mt-1 text-2xl font-black tabular-nums">
                         {CURRENCY_SYMBOL}
                         {(VIP_PLAN_YEARLY.priceCents / 100).toFixed(0)}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[0.7rem] text-muted-foreground">
                         ≈ {CURRENCY_SYMBOL}
                         {(VIP_PLAN_YEARLY.priceCents / 1200).toFixed(2)}/mo
                       </span>
@@ -732,14 +732,14 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                     onClick={() => pickSelection({ type: "vip", plan: "monthly" })}
                     className="flex flex-col items-center rounded-xl border border-border bg-background/40 p-3 pt-4 text-center transition hover:border-primary/60"
                   >
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                    <span className="text-[0.7rem] font-bold uppercase text-muted-foreground">
                       Monthly
                     </span>
                     <span className="mt-1 text-2xl font-black tabular-nums">
                       {CURRENCY_SYMBOL}
                       {(VIP_PLAN.priceCents / 100).toFixed(2)}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">cancel anytime</span>
+                    <span className="text-[0.7rem] text-muted-foreground">cancel anytime</span>
                     <span className="mt-2 inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
                       Go monthly
                     </span>
@@ -749,7 +749,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
 
               {/* Free vs VIP */}
               <div className="overflow-hidden rounded-xl border border-border">
-                <div className="grid grid-cols-[minmax(0,1fr)_56px_64px] bg-muted/40 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <div className="grid grid-cols-[minmax(0,1fr)_56px_64px] bg-muted/40 px-3 py-2 text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
                   <span>Feature</span>
                   <span className="text-center">Free</span>
                   <span className="inline-flex items-center justify-center gap-1 text-coin">
@@ -813,7 +813,7 @@ function SectionIcon({ children }: { children: ReactNode }) {
 
 function SectionEyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+    <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
       {children}
     </p>
   );
@@ -1016,17 +1016,17 @@ function PackCard({
       )}
     >
       {badge && (
-        <div className="absolute inset-x-0 top-0 bg-coin py-0.5 text-center text-[9px] font-black uppercase tracking-widest text-background">
+        <div className="absolute inset-x-0 top-0 bg-coin py-0.5 text-center text-[0.7rem] font-black uppercase tracking-widest text-background">
           {badge}
         </div>
       )}
 
       <div className="mt-3 flex items-center justify-between gap-1">
-        <span className="inline-flex min-w-0 items-center gap-1 truncate text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-1 truncate text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
           <TierIcon className="h-3 w-3 shrink-0" /> {tier.name}
         </span>
         {savingsPct > 0 && !canEdit && (
-          <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-black text-primary">
+          <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[0.7rem] font-black text-primary">
             −{savingsPct}%
           </span>
         )}
@@ -1059,7 +1059,7 @@ function PackCard({
           setDraft={setDraft}
           inputProps={{ maxLength: 40 }}
           view={
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               {effective.label}
             </div>
           }
@@ -1087,7 +1087,7 @@ function PackCard({
                 </span>
               )}
               <span className="text-3xl font-black tabular-nums">{effective.coins}</span>
-              <span className="text-[10px] font-bold text-coin">coins</span>
+              <span className="text-[0.7rem] font-bold text-coin">coins</span>
             </div>
           }
         />
@@ -1097,7 +1097,7 @@ function PackCard({
               type="button"
               onClick={toggleBonus}
               className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase",
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-black uppercase",
                 showBonus ? "bg-coin/15 text-coin" : "bg-muted text-muted-foreground",
               )}
             >
@@ -1105,7 +1105,7 @@ function PackCard({
               {showBonus ? "2× on" : "2× off"}
             </button>
           ) : showBonus ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-coin/15 px-2 py-0.5 text-[9px] font-black uppercase text-coin">
+            <span className="inline-flex items-center gap-1 rounded-full bg-coin/15 px-2 py-0.5 text-[0.7rem] font-black uppercase text-coin">
               <Sparkles className="h-2.5 w-2.5" /> 2× bonus
             </span>
           ) : null}
@@ -1126,7 +1126,7 @@ function PackCard({
             setDraft={setDraft}
             multiline
             inputProps={{ maxLength: 240 }}
-            view={<p className="text-[11px] text-muted-foreground">{effective.description}</p>}
+            view={<p className="text-xs text-muted-foreground">{effective.description}</p>}
           />
         </div>
       )}
@@ -1154,7 +1154,9 @@ function PackCard({
             </span>
           }
         />
-        <p className="text-[10px] text-muted-foreground">{(perCoin * 100).toFixed(1)}p per coin</p>
+        <p className="text-[0.7rem] text-muted-foreground">
+          {(perCoin * 100).toFixed(1)}p per coin
+        </p>
       </div>
 
       <button
@@ -1295,7 +1297,7 @@ function EditableField({
         </button>
       </div>
       {overridden && (
-        <span className="ml-1 inline-block align-middle text-[9px] font-bold uppercase tracking-wider text-primary">
+        <span className="ml-1 inline-block align-middle text-[0.7rem] font-bold uppercase tracking-wider text-primary">
           ●
         </span>
       )}
@@ -1324,7 +1326,7 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
       <span className="text-right">
         <span className="text-sm font-bold tabular-nums">{value}</span>
         {hint && (
-          <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+          <span className="ml-2 text-[0.7rem] font-bold uppercase tracking-wider text-emerald-400">
             {hint}
           </span>
         )}
@@ -1336,12 +1338,12 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
 function NextStep({ n, title, body }: { n: number; title: string; body: string }) {
   return (
     <li className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 p-3">
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-coin/50 bg-coin/15 text-[11px] font-black text-coin tabular-nums">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-coin/50 bg-coin/15 text-xs font-black text-coin tabular-nums">
         {n}
       </span>
       <div className="min-w-0">
         <p className="text-sm font-bold leading-tight text-foreground">{title}</p>
-        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{body}</p>
+        <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{body}</p>
       </div>
     </li>
   );
@@ -1484,11 +1486,11 @@ function CustomPackCard({ onBuy }: { onBuy: (units: number) => void }) {
       </div>
 
       {bumpError ? (
-        <p role="alert" className="relative mt-2 text-[11px] font-bold text-red-300">
+        <p role="alert" className="relative mt-2 text-xs font-bold text-red-300">
           {bumpError}
         </p>
       ) : atMin || atMax ? (
-        <p className="relative mt-2 text-[11px] text-white/60">
+        <p className="relative mt-2 text-xs text-white/60">
           {atMin
             ? `You're at the minimum (${minCoins} coins).`
             : `You're at the maximum (${maxCoins} coins).`}

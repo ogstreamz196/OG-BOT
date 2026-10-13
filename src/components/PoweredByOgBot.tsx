@@ -15,7 +15,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/80 backdrop-blur-md",
+          "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-foreground/80 backdrop-blur-md",
           className,
         )}
         aria-label="Powered by OG Bot"

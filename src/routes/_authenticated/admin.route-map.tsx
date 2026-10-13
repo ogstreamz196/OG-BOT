@@ -202,7 +202,7 @@ export function RouteMapPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <code className="truncate text-sm font-medium">{r.path}</code>
-                        <Badge variant="outline" className={cn("text-[10px]", meta.tone)}>
+                        <Badge variant="outline" className={cn("text-[0.7rem]", meta.tone)}>
                           {meta.label}
                         </Badge>
                       </div>

@@ -219,7 +219,7 @@ function CommunityTrackRowImpl({
           onClick={() => setOwnerUnlockOpen(true)}
           disabled={busy}
           aria-label={`Unlock the full version of ${title}`}
-          className="inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-amber-400/40 bg-amber-500/15 px-2 text-[11px] font-black tabular-nums leading-none text-amber-300 transition-colors hover:bg-amber-500/25 disabled:opacity-40"
+          className="inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-amber-400/40 bg-amber-500/15 px-2 text-xs font-black tabular-nums leading-none text-amber-300 transition-colors hover:bg-amber-500/25 disabled:opacity-40"
         >
           {busy ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -270,7 +270,7 @@ function CommunityTrackRowImpl({
           disabled={!isReady || busy}
           aria-label={`Download ${title} for ${COMMUNITY_DOWNLOAD_COST} OG coins or 99p`}
           className={cn(
-            "inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-primary/40 bg-primary/15 px-2 text-[11px] font-black tabular-nums leading-none text-primary transition-colors",
+            "inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-primary/40 bg-primary/15 px-2 text-xs font-black tabular-nums leading-none text-primary transition-colors",
             isReady && !busy ? "hover:bg-primary/25" : "opacity-40",
           )}
         >
@@ -388,7 +388,7 @@ function CommunityTrackRowImpl({
               </p>
             )}
             {song.is_variation && (
-              <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-400/25 bg-amber-500/10 px-1.5 py-px text-[10px] font-semibold leading-tight text-amber-300">
+              <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-400/25 bg-amber-500/10 px-1.5 py-px text-[0.7rem] font-semibold leading-tight text-amber-300">
                 Take 2
               </span>
             )}
@@ -396,7 +396,7 @@ function CommunityTrackRowImpl({
 
           {/* Row 2: quiet info on the left, actions on the right. */}
           <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[11px] leading-none text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs leading-none text-muted-foreground">
               {!owned && <CreatorTag userId={song.user_id} className="max-w-[72px] shrink-0" />}
               {styles.length > 0 && <span className="min-w-0 truncate">{styles[0]}</span>}
               {duration > 0 && (

@@ -128,12 +128,12 @@ export function AccountantLogPanel() {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {[["Gross", gross], ["Refunds", refunds], ["Stripe fees", fees], ["Net", net]].map(([l, v]) => (
           <div key={l as string} className="rounded-lg border border-border bg-card p-3">
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">{l}</p>
+            <p className="text-[0.7rem] font-bold uppercase text-muted-foreground">{l}</p>
             <p className="font-mono text-lg font-bold tabular-nums">{gbp(v as number)}</p>
           </div>
         ))}
         <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-[10px] font-bold uppercase text-muted-foreground">Transactions</p>
+          <p className="text-[0.7rem] font-bold uppercase text-muted-foreground">Transactions</p>
           <p className="font-mono text-lg font-bold">{rows.length}</p>
         </div>
       </div>
@@ -159,10 +159,10 @@ export function AccountantLogPanel() {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-mono font-bold">{gbp(r.gross)}</p>
-                  <p className="text-[11px] text-muted-foreground">{r.status}</p>
+                  <p className="text-xs text-muted-foreground">{r.status}</p>
                 </div>
               </div>
-              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] sm:grid-cols-4">
+              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs sm:grid-cols-4">
                 <dt className="text-muted-foreground">Customer</dt>
                 <dd className="truncate">{r.customerName ?? "—"} {r.customerEmail ? `· ${r.customerEmail}` : ""}</dd>
                 <dt className="text-muted-foreground">Fee / Net</dt>

@@ -67,7 +67,7 @@ export function UserAuditTrail({ userId, email }: { userId: string; email?: stri
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
                       {t.type}
                     </span>
                     <span

@@ -24,7 +24,13 @@ import {
   ShieldCheck,
   Crown,
 } from "lucide-react";
-import { useEffect, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +55,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { PrimaryCard } from "@/components/home/PrimaryCard";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import { DodgyText } from "@/components/welcome/DodgyText";
 import { useQuery } from "@tanstack/react-query";
@@ -130,8 +137,14 @@ function DashboardHome() {
   const balance = profile?.coin_balance ?? 0;
   const hasSongs = recentSongs.length > 0;
   const statusFn = useServerFn(getMyTelegramStatus);
-  const tg = useQuery({ queryKey: ["my-telegram-status"], queryFn: () => statusFn(), enabled: !!user, staleTime: 30_000 });
-  const tgDone = tg.data?.state === "verified" || !!(tg.data as { linked?: boolean } | undefined)?.linked;
+  const tg = useQuery({
+    queryKey: ["my-telegram-status"],
+    queryFn: () => statusFn(),
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+  const tgDone =
+    tg.data?.state === "verified" || !!(tg.data as { linked?: boolean } | undefined)?.linked;
   const emailDone = !!user?.email && !user.email.toLowerCase().endsWith("@ogstreamz.app");
   const nameDone = isValidUsername(profile?.display_name ?? "");
   const profileDone = nameDone && emailDone && tgDone;
@@ -144,18 +157,27 @@ function DashboardHome() {
         const raw = localStorage.getItem(`og-messenger-thread-v3:${user.id}`);
         const arr = raw ? (JSON.parse(raw) as { role?: string }[]) : [];
         setWebHi(Array.isArray(arr) && arr.some((m) => m?.role === "user"));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
     check();
     window.addEventListener("og-messenger:sync", check);
     window.addEventListener("storage", check);
-    return () => { window.removeEventListener("og-messenger:sync", check); window.removeEventListener("storage", check); };
+    return () => {
+      window.removeEventListener("og-messenger:sync", check);
+      window.removeEventListener("storage", check);
+    };
   }, [user]);
   const tgHi = useQuery({
     queryKey: ["said-hi", user?.id],
     enabled: !!user && !webHi,
     queryFn: async () => {
-      const { count } = await supabase.from("og_messages").select("id", { count: "exact", head: true }).eq("user_id", user!.id).eq("role", "user");
+      const { count } = await supabase
+        .from("og_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user!.id)
+        .eq("role", "user");
       return (count ?? 0) > 0;
     },
   });
@@ -359,12 +381,13 @@ function DashboardHome() {
           />
           <PrimaryCard
             to="/messenger"
+            search={{ live: true }}
             image={ogBotAsset.url}
             imageAlt="OG Bot avatar"
             eyebrow="OG Bot"
-            title="Chat to OG Bot"
-            body="Your AI co-producer"
-            cta="Open Messenger"
+            title="Enter Battle Zone"
+            body="Everyone vs OG Bot. Throw your best roast."
+            cta="Enter Battle Zone"
             variant="accent"
           />
           <PrimaryCard
@@ -387,7 +410,7 @@ function DashboardHome() {
 
       {/* Quick actions */}
       <section>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-foreground [text-shadow:0_1px_10px_rgba(0,0,0,0.9)] sm:mb-4 sm:text-base sm:tracking-[0.24em]">
+        <h2 className="heading-plate mb-3 text-sm font-bold uppercase tracking-[0.18em] text-foreground sm:mb-4 sm:text-base sm:tracking-[0.24em]">
           ⚡ Quick actions
         </h2>
         <div className="grid grid-cols-4 gap-2 sm:gap-4">
@@ -419,29 +442,29 @@ function DashboardHome() {
       </section>
 
       {!allStepsDone && (
-      <div className="grid grid-cols-1 gap-6">
-        {/* Next steps */}
-        <Card className="rounded-[2rem] border-2 border-white/15 shadow-[0_18px_50px_-20px_rgba(80,60,255,0.35)]">
-          <CardHeader>
-            <CardTitle className="font-display text-2xl font-black leading-[1.1] tracking-tight break-words sm:text-4xl md:text-5xl">
-              Next steps
-            </CardTitle>
-            <CardDescription className="text-base sm:text-lg">
-              Get the most out of OG Studio.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ChecklistItem
-              done={profileDone}
-              label="Complete your profile (username, email & Telegram)"
-              to="/settings"
-            />
-            <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
-            <ChecklistItem done={saidHi} label="Say hi in OG Bot" to="/messenger" />
-            <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 gap-6">
+          {/* Next steps */}
+          <Card className="rounded-[2rem] border-2 border-white/15 shadow-[0_18px_50px_-20px_rgba(80,60,255,0.35)]">
+            <CardHeader>
+              <CardTitle className="font-display text-2xl font-black leading-[1.1] tracking-tight break-words sm:text-4xl md:text-5xl">
+                Next steps
+              </CardTitle>
+              <CardDescription className="text-base sm:text-lg">
+                Get the most out of OG Studio.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ChecklistItem
+                done={profileDone}
+                label="Complete your profile (username, email & Telegram)"
+                to="/settings"
+              />
+              <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
+              <ChecklistItem done={saidHi} label="Say hi in OG Bot" to="/messenger" />
+              <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <footer className="flex justify-center border-t border-white/10 pt-6">
@@ -496,7 +519,7 @@ function AskOgCta() {
                 <Sparkles className="h-7 w-7 text-primary sm:h-8 sm:w-8" />
               </span>
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+                <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
                   Ask OG Bot
                 </div>
                 <h2 className="font-display mt-1 text-2xl font-black leading-tight sm:text-4xl">
@@ -584,7 +607,7 @@ function ContinuityDemo() {
           <InfinityIcon className="h-5 w-5 text-primary" />
         </span>
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+          <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
             Continue the conversation
           </div>
           <h2 className="font-display text-xl font-black sm:text-2xl">
@@ -602,7 +625,7 @@ function ContinuityDemo() {
         <div className="flex items-center justify-center text-primary sm:flex-col">
           <ArrowRight className="h-6 w-6 sm:hidden" />
           <ArrowRight className="hidden h-6 w-6 sm:block" />
-          <span className="ml-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground sm:ml-0 sm:mt-1">
+          <span className="ml-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-muted-foreground sm:ml-0 sm:mt-1">
             synced
           </span>
         </div>
@@ -644,7 +667,7 @@ function ChatBubbleCard({
           : "border-white/10",
       )}
     >
-      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-muted-foreground">
         {icon} {channel}
       </div>
       <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-primary/85 px-3 py-2 text-sm text-primary-foreground">
@@ -659,157 +682,6 @@ function ChatBubbleCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function PrimaryCard({
-  to,
-  image,
-  imageAlt,
-  eyebrow,
-  title,
-  body,
-  cta,
-  variant = "primary",
-  wide = false,
-  hazard = false,
-}: {
-  to: "/library" | "/messenger" | "/sports";
-  image: string;
-  imageAlt: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  cta: string;
-  variant?: "primary" | "accent" | "cinema";
-  wide?: boolean;
-  hazard?: boolean;
-}) {
-  const isAccent = variant === "accent";
-  const isCinema = variant === "cinema";
-  return (
-    <Link
-      to={to}
-      hash={hazard ? "create" : undefined}
-      preload="intent"
-      className={cn(
-        "group relative flex flex-row overflow-hidden rounded-3xl border-2 border-white/15 bg-card/85 shadow-card sm:flex-col backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        wide && "sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]",
-      )}
-    >
-      {/* Ambient gradient */}
-      <div
-        aria-hidden
-        className={
-          "pointer-events-none absolute inset-0 opacity-80 " +
-          (isAccent
-            ? "bg-[radial-gradient(circle_at_top,oklch(0.65_0.18_310/0.32),transparent_65%)]"
-            : isCinema
-              ? "bg-[radial-gradient(circle_at_top,oklch(0.62_0.22_25/0.28),transparent_65%)]"
-              : "bg-[radial-gradient(circle_at_top,oklch(0.55_0.22_268/0.32),transparent_65%)]")
-        }
-      />
-
-      {/* HERO IMAGE — large, meaningful, fills the top */}
-      <div
-        className={cn(
-          "relative overflow-hidden",
-          wide
-            ? "aspect-video w-full sm:aspect-auto sm:min-h-72"
-            : "m-3 aspect-square w-[6.5rem] shrink-0 self-center rounded-2xl sm:m-0 sm:w-full sm:rounded-none",
-        )}
-      >
-        {hazard ? (
-          <div className="grid h-full w-full place-items-center p-1.5 sm:p-3">
-            <span
-              aria-hidden="true"
-              style={{
-                background:
-                  "radial-gradient(circle at 50% 28%, oklch(0.74 0.24 28), oklch(0.47 0.21 26) 66%, oklch(0.24 0.12 25))",
-              }}
-              className="hazard-create relative grid aspect-square w-[85%] place-items-center rounded-full border-[5px] border-destructive text-white"
-            >
-              <span
-                className="hazard-ring absolute inset-1.5 rounded-full"
-                style={{
-                  background:
-                    "repeating-conic-gradient(from 0deg, oklch(0.85 0.19 85 / 0.55) 0deg 18deg, transparent 18deg 36deg)",
-                  WebkitMask:
-                    "radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px))",
-                  mask: "radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px))",
-                }}
-              />
-              <span className="hazard-core absolute inset-6 rounded-full bg-white/20 blur-md" />
-              <span className="relative z-10 flex flex-col items-center gap-0.5">
-                <Sparkles className="h-4 w-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] sm:h-6 sm:w-6 lg:h-9 lg:w-9" />
-                <span className="font-display text-[0.8rem] font-black uppercase leading-none [overflow-wrap:normal] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-xl md:text-2xl lg:text-4xl">
-                  Create
-                </span>
-                <span className="font-display text-[0.6rem] font-black uppercase leading-none tracking-[0.18em] [overflow-wrap:normal] drop-shadow-[0_3px_5px_rgba(0,0,0,0.9)] sm:text-sm lg:text-2xl">
-                  Now
-                </span>
-              </span>
-            </span>
-          </div>
-        ) : (
-          <img
-            src={image}
-            alt={imageAlt}
-            loading="lazy"
-            width={768}
-            height={768}
-            className={
-              "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 " +
-              (isAccent ? "p-1 sm:p-4 lg:p-6" : "")
-            }
-          />
-        )}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 hidden bg-gradient-to-t from-card via-card/30 to-transparent sm:block"
-        />
-        {/* Equalizer overlay only for music card */}
-        {!isAccent && !isCinema && (
-          <div className="pointer-events-none absolute bottom-2 left-1/2 flex -translate-x-1/2 items-end gap-1 opacity-90">
-            {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.45, 0.85, 0.55, 0.7].map((h, i) => (
-              <span
-                key={i}
-                className="w-1 rounded-full bg-gradient-to-t from-primary/70 to-primary"
-                style={{
-                  height: `${h * 22}px`,
-                  animation: `eqPulse 1.${(i % 6) + 2}s ease-in-out ${i * 0.08}s infinite alternate`,
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Text + CTA */}
-      {/* break-word (not the global "anywhere") keeps whole words together. */}
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col justify-center gap-1 py-3 pr-1 [overflow-wrap:break-word] sm:justify-start sm:gap-2 sm:p-5">
-        <p className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-primary sm:text-xs sm:tracking-[0.22em]">
-          {eyebrow}
-        </p>
-        <h3 className="font-display text-lg font-black uppercase leading-[1.08] tracking-tight text-foreground sm:text-2xl lg:text-3xl">
-          {title}
-        </h3>
-        <p className="text-xs font-semibold uppercase leading-snug tracking-[0.08em] text-muted-foreground sm:text-sm sm:leading-relaxed sm:tracking-[0.12em]">
-          {body}
-        </p>
-        <div className="mt-auto hidden grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-2 font-bold text-primary sm:grid sm:text-sm lg:text-base">
-          <span className="min-w-0 rounded-full border-2 border-primary/40 bg-primary/15 px-2.5 py-1.5 leading-tight backdrop-blur-sm transition-colors group-hover:bg-primary/25 sm:px-4 sm:py-2">
-            {cta}
-          </span>
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
-        </div>
-      </div>
-      {/* Phones: the whole row is the link, so a single arrow replaces the pill. */}
-      <ArrowRight
-        aria-hidden
-        className="relative z-10 mr-4 h-5 w-5 shrink-0 self-center text-foreground transition-transform group-hover:translate-x-1 sm:hidden"
-      />
-    </Link>
   );
 }
 
