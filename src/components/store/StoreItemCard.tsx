@@ -250,6 +250,9 @@ export function StoreItemCard({
           <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-primary">
             <KeyRound className="h-3.5 w-3.5" /> Your VIP login
           </p>
+          <p className="text-xs font-semibold text-foreground">
+            Important: sign out of the Vault first, then sign in with these details.
+          </p>
           {(
             [
               ["Username", vipPass.username],
