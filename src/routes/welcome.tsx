@@ -758,8 +758,6 @@ function WelcomePage() {
         </div>
         <Hero />
         <Superpowers />
-        <HowItWorks />
-        <EarnCoins />
 
         <ClosingCta />
         <CommunityShowcase />
@@ -958,6 +956,42 @@ function Superpowers() {
       title: "15 days of free VIP",
       body: "Every style unlocked from signup — drill, bhangra, afrobeats and more.",
     },
+    {
+      key: "battle",
+      emoji: "⚔️",
+      title: "Battle the bot",
+      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
+    },
+    {
+      key: "referral",
+      emoji: "🤝",
+      title: "Lifetime referral commission",
+      body: "Share your link — earn coins every time your friends spend, for life.",
+    },
+    {
+      key: "drop",
+      emoji: "🎁",
+      title: "Daily drop",
+      body: "Pop in each day and claim your free coin drop.",
+    },
+    {
+      key: "diss",
+      emoji: "🎯",
+      title: "Diss tracks on demand",
+      body: "Chat with OG Bot and it'll offer to cook a personal diss track about you — if you can handle it.",
+    },
+    {
+      key: "cover",
+      emoji: "🖼️",
+      title: "Cover art included",
+      body: "Every track lands with its own album cover — no extra apps, no extra cost.",
+    },
+    {
+      key: "telegram",
+      emoji: "📲",
+      title: "Telegram connected",
+      body: "Link Telegram to check coins, grab tracks and get VIP reminders without opening the app.",
+    },
   ];
   return (
     <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
@@ -996,118 +1030,6 @@ function Superpowers() {
   );
 }
 
-function EarnCoins() {
-  const ways = [
-    {
-      key: "battle",
-      emoji: "⚔️",
-      title: "Battle the bot",
-      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
-    },
-    {
-      key: "referral",
-      emoji: "🤝",
-      title: "Lifetime referral commission",
-      body: "Share your link — earn coins every time your friends spend, for life.",
-    },
-    {
-      key: "drop",
-      emoji: "🎁",
-      title: "Daily drop",
-      body: "Pop in each day and claim your free coin drop.",
-    },
-  ];
-  return (
-    <section id="earn" className="relative scroll-mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <div className="text-center">
-          <div className="heading-plate">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">
-              🪙 Earn OG Coins free
-            </p>
-            <h2 className="font-display mt-2 text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-              Make tracks without spending a penny
-            </h2>
-          </div>
-        </div>
-        <div className="mt-8 grid gap-3 sm:gap-5 md:grid-cols-3">
-          {ways.map((w) => (
-            <article
-              key={w.key}
-              className="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-5 shadow-card sm:p-6"
-            >
-              <CardEditBadge />
-              <span className="text-4xl">{w.emoji}</span>
-              <EditableContent
-                as="h3"
-                contentKey={`welcome.earn.${w.key}.title`}
-                defaultValue={w.title}
-                className="font-display mt-3 block text-2xl font-black tracking-tight"
-              />
-              <EditableContent
-                as="p"
-                multiline
-                contentKey={`welcome.earn.${w.key}.body`}
-                defaultValue={w.body}
-                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
-              />
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HowItWorks() {
-  const steps = [
-    {
-      icon: <Pencil className="h-5 w-5" />,
-      title: "Type your idea",
-      body: "A name, a roast, a memory.",
-    },
-    {
-      icon: <Wand2 className="h-5 w-5" />,
-      title: "Pick the vibe",
-      body: "Choose a style and mood.",
-    },
-    {
-      icon: <Headphones className="h-5 w-5" />,
-      title: "OG Bot cooks it",
-      body: "Your song + cover, ready to play.",
-    },
-  ];
-  return (
-    <section className="relative border-t border-border/40">
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8 sm:py-16">
-        <div className="text-center">
-          <h2 className="heading-plate font-display text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-            3 taps to your first track
-          </h2>
-        </div>
-        <ol className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-5">
-          {steps.map((s, i) => (
-            <li
-              key={s.title}
-              className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5"
-            >
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-glow">
-                {s.icon}
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
-                  Step {i + 1}
-                </p>
-                <h3 className="font-display text-lg font-black">{s.title}</h3>
-                <p className="text-sm text-foreground/85">{s.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
 
 function ClosingCta() {
   return (
