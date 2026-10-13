@@ -185,12 +185,10 @@ export const chatOgBot = createServerFn({ method: "POST" })
     const cp = await import("@/lib/og-catchphrases.server");
     const phrases = await cp.pickCatchphrases(supabaseAdmin as never, context.userId, cp.toneFor(data.mode, foulMouth));
     const da = await import("@/lib/diss-ambush");
+    // Decide on the raw history (markers show past ambushes), then strip markers before the AI sees it.
+    const ambush = da.shouldAmbush(data.messages, Math.random());
     const cleanHistory = data.messages.map((m) => ({ ...m, content: da.stripMarker(m.content) || "…" }));
     data.messages.splice(0, data.messages.length, ...cleanHistory);
-    const ambush = da.shouldAmbush(
-      [...data.messages.slice(0, -1).map((m, i) => ({ ...m, content: (rawHistory[i]?.content ?? m.content) }))],
-      Math.random(),
-    );
     const bal = profile.coin_balance ?? 0;
     const dissNote =
       `\n\nDISS TRACK HUSTLE: You are a roast battle bot first. Take the piss out of the user, and casually fish for personal ammo one question at a time (name or nickname, where they're from, job, mates, ex, football team, bad habits, what they're proud of). Remember what they tell you and throw it back at them. The user's current OG coin balance is ${bal}; say it out loud if they ask about coins or balance. A personalised diss track about them costs ${da.DISS_TRACK_COST} OG coins, or ${da.DISS_TRACK_PRICE_GBP} to buy those coins. Never invent prices.` +
