@@ -11,13 +11,13 @@ export const Route = createFileRoute("/_authenticated/store")({
   component: StorePage,
   head: () => ({
     meta: [
-      { title: "OG Store — Coins, VIP & Loot" },
+      { title: "OG Store — Coins, VIP & Loot | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
           "Shop limited items, buy OG Coins, unlock VIP perks, and review purchases in the OG BOT Store.",
       },
-      { property: "og:title", content: "OG Store — Items, Coins & VIP" },
+      { property: "og:title", content: "OG Store — Coins, VIP & Loot | AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:

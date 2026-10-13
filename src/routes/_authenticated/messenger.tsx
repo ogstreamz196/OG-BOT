@@ -40,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/messenger")({
   }),
   head: () => ({
     meta: [
-      { title: "OG Bot · Loner Mode & OG Battle Zone" },
+      { title: "OG Bot · Loner Mode & OG Battle Zone | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

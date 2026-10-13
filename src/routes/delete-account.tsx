@@ -4,13 +4,13 @@ export const Route = createFileRoute("/delete-account")({
   component: DeleteAccountPage,
   head: () => ({
     meta: [
-      { title: "Delete your OG BOT account" },
+      { title: "Delete your OG BOT account | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
           "How to delete your OG BOT account and associated data, what is removed and what is kept.",
       },
-      { property: "og:title", content: "Delete your OG BOT account" },
+      { property: "og:title", content: "Delete your OG BOT account | AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Steps to permanently delete your OG BOT account and data.",

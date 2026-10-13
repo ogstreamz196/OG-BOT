@@ -27,7 +27,7 @@ const ROUTES = [
 
 export const Route = createFileRoute("/m-preview")({
   component: MobilePreview,
-  head: () => ({ meta: [{ title: "Mobile preview · PORTAL" }] }),
+  head: () => ({ meta: [{ title: "Mobile preview | OG BOT — AI Songs & Diss Tracks" }] }),
 });
 
 function MobilePreview() {

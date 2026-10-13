@@ -5,13 +5,13 @@ export const Route = createFileRoute("/policy")({
   component: PolicyPage,
   head: () => ({
     meta: [
-      { title: "Privacy Policy — OG BOT" },
+      { title: "Privacy Policy | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
           "Privacy policy for the OG BOT app and ogbot.co.uk — what data we collect, why, who we share it with, and how to request deletion. Operated by OG Studio.",
       },
-      { property: "og:title", content: "Privacy Policy — OG BOT" },
+      { property: "og:title", content: "Privacy Policy | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:

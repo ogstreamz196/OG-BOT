@@ -6,9 +6,9 @@ export const Route = createFileRoute("/auth_/callback")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Signing you in — OG BOT" },
+      { title: "Signing you in | OG BOT — AI Songs & Diss Tracks" },
       { name: "description", content: "Finishing sign-in to OG BOT." },
-      { property: "og:title", content: "Signing you in — OG BOT" },
+      { property: "og:title", content: "Signing you in | OG BOT — AI Songs & Diss Tracks" },
       { property: "og:description", content: "Finishing sign-in to OG BOT." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

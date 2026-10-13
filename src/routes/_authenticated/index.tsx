@@ -69,13 +69,13 @@ export const Route = createFileRoute("/_authenticated/")({
   component: DashboardHome,
   head: () => ({
     meta: [
-      { title: "AI Music Studio — OG Streamz" },
+      { title: "AI Music Studio | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
-          "Your OG Streamz studio: generate AI songs, chat with OG Bot, and manage your coin-powered creator economy.",
+          "Your OG BOT studio: cook AI songs, roast the bot in Battle Zone, and keep track of your coins and VIP.",
       },
-      { property: "og:title", content: "AI Music Studio — OG Streamz" },
+      { property: "og:title", content: "AI Music Studio | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Generate AI songs, chat with OG Bot, and run your creator economy.",

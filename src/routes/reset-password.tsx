@@ -257,13 +257,13 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
   head: () => ({
     meta: [
-      { title: "Reset your password | OG Streamz" },
+      { title: "Reset your password | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
           "Set a new password for your OG Streamz account using the secure reset link we emailed you.",
       },
-      { property: "og:title", content: "Reset your password | OG Streamz" },
+      { property: "og:title", content: "Reset your password | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:

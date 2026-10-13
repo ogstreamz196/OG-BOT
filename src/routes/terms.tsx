@@ -4,13 +4,13 @@ export const Route = createFileRoute("/terms")({
   component: TermsPage,
   head: () => ({
     meta: [
-      { title: "Terms of Use — OG BOT" },
+      { title: "Terms of Use | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
           "Terms of Use for the OG BOT app and ogbot.co.uk — subscriptions, OG Coins, generated content, acceptable use and cancellation.",
       },
-      { property: "og:title", content: "Terms of Use — OG BOT" },
+      { property: "og:title", content: "Terms of Use | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:
