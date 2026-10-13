@@ -887,6 +887,29 @@ export function OgChat({
           </Link>
         </div>
       )}
+      {user && messages.length >= 2 && !messages.some((mm) => mm.content.includes(DISS_MARKER)) && (
+        <button
+          type="button"
+          data-testid="diss-trigger"
+          onClick={() =>
+            setMessages((cur) => {
+              const next = [
+                ...cur,
+                {
+                  role: "assistant" as const,
+                  content: `Oh, you want smoke? I've been taking notes. 😈\n\n${DISS_MARKER}`,
+                },
+              ];
+              selfSyncRef.current = true;
+              window.dispatchEvent(new Event(SYNC_EVENT));
+              return next;
+            })
+          }
+          className="mx-3 mb-1 flex items-center justify-center gap-1.5 rounded-full border border-destructive/50 bg-destructive/10 px-3 py-1.5 text-xs font-bold text-foreground transition hover:bg-destructive/20"
+        >
+          ⚡ OG Bot is taking notes — turn this chat into a diss track (5 coins)
+        </button>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
