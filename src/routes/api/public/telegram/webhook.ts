@@ -1014,7 +1014,7 @@ async function handleTelegramUpdate(
       let body: string;
       if (!owned) {
         body =
-          `🔐 <b>OG Vault Access Pass</b>\n\nVault access isn't part of VIP or the intro offer. Unlock it for good in the Store for £10 or 50 OG Coins.`;
+          `🔐 <b>OG Vault Access Pass</b>\n\nYou need to buy the Vault Access Pass — grab it in the Store for £10 or 50 OG Coins.`;
       } else if (!creds?.length) {
         body = `🔐 <b>OG Vault Access Pass</b>\n\nYou own it ✅ — no access IDs are available right now, check back soon.`;
       } else {
