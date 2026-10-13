@@ -64,7 +64,10 @@ export function InstallAppPrompt() {
     let timer: number | undefined;
     if (ios) {
       setIsIos(true);
-      timer = window.setTimeout(() => setOpen(true), 1500);
+      // iPhones never fire beforeinstallprompt, so cap the nag — twice max.
+      if (iosShowCount() < IOS_MAX_SHOWS) {
+        timer = window.setTimeout(() => { countIosShow(); setOpen(true); }, 1500);
+      }
     }
     const handler = (e: Event) => {
       e.preventDefault();
