@@ -18,16 +18,16 @@ export const Route = createFileRoute("/track/$songId")({
     const url = `${SITE_URL}/track/${params.songId}`;
     return {
       meta: [
-        { title: `${title} — OG BOT` },
+        { title: `${title} | OG BOT — AI Songs & Diss Tracks` },
         { name: "description", content: description },
-        { property: "og:title", content: `${title} — OG BOT` },
+        { property: "og:title", content: `${title} | OG BOT — AI Songs & Diss Tracks` },
         { property: "og:description", content: description },
         { property: "og:type", content: "music.song" },
         { property: "og:url", content: url },
         { property: "og:image", content: SHARE_IMAGE },
         { property: "og:image:alt", content: "OG BOT" },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: `${title} — OG BOT` },
+        { name: "twitter:title", content: `${title} | OG BOT — AI Songs & Diss Tracks` },
         { name: "twitter:description", content: description },
         { name: "twitter:image", content: SHARE_IMAGE },
       ],
