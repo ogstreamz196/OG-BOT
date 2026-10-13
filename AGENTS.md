@@ -17,7 +17,7 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 
 - Browser OAuth return stays separate from Android App Links, via a package-targeted intent anchor on /app-return (Chrome needs a direct tap).
 - Native welcome screen shows only the manual account form; web OAuth unchanged.
-- Install banner mounts before the route outlet, gated on Capacitor/standalone detection, in page flow.
+- Install popup ("Add shortcut") mounts before the route outlet, gated on Capacitor/standalone detection; reappears each visit until install is detected (appinstalled/standalone flag).
 
 ## AI
 
