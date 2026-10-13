@@ -1,7 +1,7 @@
 {
   "name": "OG BOT",
   "short_name": "OG BOT",
-  "description": "Generate full songs from a prompt, chat with OG Bot, and run your creator economy in one place.",
+  "description": "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

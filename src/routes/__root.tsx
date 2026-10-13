@@ -95,19 +95,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
         { name: "theme-color", content: "#0a0a0a" },
         { name: "format-detection", content: "telephone=no" },
-        { title: "OG Streamz — AI Song Generator & OG Bot Hub" },
+        { title: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
         {
           name: "description",
           content:
-            "OG Streamz turns a prompt into a full song with AI, with a built-in OG Bot assistant and a coin-powered creator economy.",
+            "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         },
         { name: "author", content: "OG Streamz" },
         { property: "og:site_name", content: "OG Streamz" },
-        { property: "og:title", content: "OG Streamz — AI Song Generator & OG Bot Hub" },
+        { property: "og:title", content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
         {
           property: "og:description",
           content:
-            "Generate full songs from a prompt, chat with OG Bot, and run your creator economy in one place.",
+            "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         },
         { property: "og:type", content: "website" },
         { property: "og:url", content: canonical ?? `${SITE_URL}${pathname}` },
@@ -122,11 +122,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
         },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: "OG Streamz — AI Song Generator & OG Bot Hub" },
+        { name: "twitter:title", content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
         {
           name: "twitter:description",
           content:
-            "Generate full songs from a prompt, chat with OG Bot, and run your creator economy in one place.",
+            "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         },
         {
           name: "google-site-verification",
@@ -200,7 +200,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
       ],
       scripts: siteJsonLd(
-        "AI song generation, OG Bot assistant, and a coin-powered creator economy.",
+        "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
       ).map((data) => ({ type: "application/ld+json", children: JSON.stringify(data) })),
     };
   },
