@@ -79,7 +79,7 @@ export function VipTrialWelcome() {
             Your upgraded membership is live. Here's everything unlocked:
           </DialogDescription>
           <div className="mt-3 rounded-xl border border-coin/40 bg-coin/10 px-4 py-2">
-            <div className="text-[10px] font-black uppercase tracking-widest text-coin">
+            <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">
               VIP time left
             </div>
             <div className="font-mono text-2xl font-black tabular-nums">{fmt(ms)}</div>

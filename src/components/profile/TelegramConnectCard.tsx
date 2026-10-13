@@ -126,7 +126,7 @@ export function TelegramConnectCard() {
                 Connect Telegram
               </a>
             </Button>
-            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            <p className="mt-2 text-center text-xs text-muted-foreground">
               Opens Telegram on your device — just tap <b>START</b>.
             </p>
           </>

@@ -6,10 +6,7 @@ import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  listGuestBattleMessages,
-  postGuestBattleMessage,
-} from "@/lib/community.functions";
+import { listGuestBattleMessages, postGuestBattleMessage } from "@/lib/community.functions";
 
 const GUEST_KEY = "og-guest-id";
 
@@ -30,7 +27,7 @@ function useGuestId() {
   return id;
 }
 
-/** Guest Battle Zone: 5 roasts before sign-up, history only from their first line. */
+/** Guest Battle Zone: the live room (everyone's latest roasts), 5 roasts before sign-up. */
 export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
   const guestId = useGuestId();
   const qc = useQueryClient();
@@ -85,13 +82,16 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
   }
 
   return (
-    <section id="battle" className="flex h-[min(80dvh,44rem)] min-h-0 flex-col gap-1.5 font-sans">
+    <section
+      id="battle"
+      className="flex h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] min-h-0 flex-col gap-1.5 font-sans sm:h-[min(80dvh,44rem)]"
+    >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5 pr-9">
         <div className="flex min-w-0 items-center gap-1.5">
           <Swords className="h-4 w-4 shrink-0 text-primary" aria-hidden />
           <span className="truncate text-xs font-black uppercase sm:text-sm">OG Battle Zone</span>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] font-black uppercase text-destructive">
+        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[0.7rem] font-black uppercase text-destructive">
           🤬 Foul mouth · Live
         </span>
       </div>
@@ -103,17 +103,24 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <Users className="h-8 w-8 opacity-50" />
-            <p className="text-sm">Be the first to throw a bar at OG Bot.</p>
+            <p className="text-sm">The room is quiet. Throw the first bar at OG Bot.</p>
           </div>
         ) : (
           messages.map((m) => {
             const isBot = m.role === "bot";
             const mine = m.mine;
             return (
-              <div key={m.id} className={`flex items-end gap-1.5 py-1 ${mine ? "flex-row-reverse" : "flex-row"}`}>
+              <div
+                key={m.id}
+                className={`flex items-end gap-1.5 py-1 ${mine ? "flex-row-reverse" : "flex-row"}`}
+              >
                 <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full text-[8px] font-bold uppercase ${
-                    isBot ? "bg-primary/20 ring-1 ring-primary/40" : mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                  className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full text-[0.7rem] font-bold uppercase ${
+                    isBot
+                      ? "bg-primary/20 ring-1 ring-primary/40"
+                      : mine
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
                   }`}
                 >
                   {isBot ? (
@@ -124,10 +131,16 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
                 </span>
                 <div
                   className={`min-w-0 max-w-[82%] rounded-xl px-2.5 py-1.5 text-[13px] leading-[1.35] shadow-sm ${
-                    isBot ? "border border-primary/30 bg-primary/10 text-foreground" : mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    isBot
+                      ? "border border-primary/30 bg-primary/10 text-foreground"
+                      : mine
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
                   }`}
                 >
-                  <p className={`mb-0.5 text-[8px] font-bold uppercase ${mine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  <p
+                    className={`mb-0.5 text-[0.7rem] font-bold uppercase ${mine ? "text-primary-foreground/80" : "text-muted-foreground"}`}
+                  >
                     {isBot ? "OG Bot" : mine ? "You" : m.display_name || "OG member"}
                     {m.created_at ? ` · ${time(m.created_at)}` : ""}
                   </p>
@@ -165,14 +178,20 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
             disabled={sending || !guestId}
             className="min-h-14 max-h-36 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-5 shadow-none focus-visible:ring-0"
           />
-          <Button type="submit" disabled={sending || !text.trim()} className="mb-1 h-11 w-11 shrink-0 rounded-xl p-0">
+          <Button
+            type="submit"
+            disabled={sending || !text.trim()}
+            className="mb-1 h-11 w-11 shrink-0 rounded-xl p-0"
+          >
             <Send className="h-5 w-5" />
             <span className="sr-only">Send</span>
           </Button>
         </form>
       ) : (
         <div className="rounded-xl border border-border/60 bg-card p-3 text-center">
-          <p className="text-sm font-semibold">Join free to keep battling — your chat comes with you.</p>
+          <p className="text-sm font-semibold">
+            Join free to keep battling — your chat comes with you.
+          </p>
           <Button className="mt-2 h-11 w-full" onClick={onNeedAccount}>
             🔥 Join to continue
           </Button>

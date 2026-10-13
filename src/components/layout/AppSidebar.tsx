@@ -165,7 +165,7 @@ export function AppSidebar() {
               <span className="relative z-10 min-w-0 flex-1 break-words">{item.title}</span>
               {item.badge && !collapsed && (
                 <span
-                  className={`relative z-10 font-display ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-[0_2px_0_0_hsl(var(--primary)/0.4)] ${
+                  className={`relative z-10 font-display ml-auto rounded-full px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider shadow-[0_2px_0_0_hsl(var(--primary)/0.4)] ${
                     active ? "bg-white/25 text-primary-foreground" : "bg-primary/20 text-primary"
                   }`}
                 >
@@ -197,7 +197,7 @@ export function AppSidebar() {
               <span className="font-display text-sm font-bold uppercase tracking-[0.2em] text-foreground">
                 OG STREAMZ
               </span>
-              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-[0.7rem] uppercase tracking-[0.16em] text-muted-foreground">
                 Powered by
                 <img
                   src={ogBotAsset.url}
@@ -290,7 +290,7 @@ export function AppSidebar() {
           style={{ paddingBottom: "max(1rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
         >
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold uppercase">
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-[0.7rem] font-bold uppercase">
               {dev.isDev ? "D" : (user?.email?.[0] ?? "U")}
             </div>
             <span className="truncate">
@@ -344,7 +344,7 @@ function VipTrialCountdown({
         onClick={onNavigate}
         className="mx-2 mt-2 block rounded-xl border border-coin/40 bg-coin/10 px-3 py-2 text-left transition hover:bg-coin/15"
       >
-        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-coin">
+        <span className="flex items-center gap-1.5 text-[0.7rem] font-black uppercase tracking-wider text-coin">
           <Crown className="h-3.5 w-3.5" /> OG VIP {paidRenews ? "renews in" : paidEndsAt ? "ends in" : "active"}
         </span>
         <span className="mt-0.5 block font-mono text-sm font-black tabular-nums text-foreground">
@@ -364,7 +364,7 @@ function VipTrialCountdown({
       onClick={onNavigate}
       className="mx-2 mt-2 block rounded-xl border border-coin/40 bg-coin/10 px-3 py-2 text-left transition hover:bg-coin/15"
     >
-      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-coin">
+      <span className="flex items-center gap-1.5 text-[0.7rem] font-black uppercase tracking-wider text-coin">
         <Crown className="h-3.5 w-3.5" />{" "}
         {active ? "Free VIP trial" : endsAt ? "VIP trial ended" : "Unlock OG VIP"}
       </span>

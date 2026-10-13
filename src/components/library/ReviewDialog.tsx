@@ -60,7 +60,7 @@ export function ReviewDialog({
             <section aria-labelledby="rv-track">
               <h3
                 id="rv-track"
-                className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"
               >
                 Track
               </h3>
@@ -72,7 +72,7 @@ export function ReviewDialog({
                   </p>
                 )}
                 {foulMouth && (
-                  <span className="mt-1 inline-block rounded-full border border-destructive/40 bg-destructive/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive">
+                  <span className="mt-1 inline-block rounded-full border border-destructive/40 bg-destructive/15 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-destructive">
                     Explicit
                   </span>
                 )}
@@ -82,14 +82,14 @@ export function ReviewDialog({
             <section aria-labelledby="rv-cats">
               <h3
                 id="rv-cats"
-                className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"
               >
                 Style
               </h3>
               <div className="mt-2 space-y-2">
                 {selections.language && (
                   <div className="rounded-xl border border-white/10 bg-card/60 p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
                       {META.language.emoji} {META.language.label}
                     </div>
                     <div className="mt-0.5 text-sm font-semibold">{selections.language}</div>
@@ -97,7 +97,7 @@ export function ReviewDialog({
                 )}
                 {styleText.trim() && (
                   <div className="rounded-xl border border-white/10 bg-card/60 p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
                       ✨ Style description
                     </div>
                     <p className="mt-0.5 text-sm font-semibold leading-relaxed">
@@ -112,7 +112,7 @@ export function ReviewDialog({
               <section aria-labelledby="rv-personal">
                 <h3
                   id="rv-personal"
-                  className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                  className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"
                 >
                   Personal details
                 </h3>
@@ -126,7 +126,7 @@ export function ReviewDialog({
               <section aria-labelledby="rv-extra">
                 <h3
                   id="rv-extra"
-                  className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                  className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"
                 >
                   Extra context
                 </h3>
@@ -140,7 +140,7 @@ export function ReviewDialog({
               <section aria-labelledby="rv-lyrics">
                 <h3
                   id="rv-lyrics"
-                  className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                  className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground"
                 >
                   Lyrics
                 </h3>

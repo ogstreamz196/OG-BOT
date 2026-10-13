@@ -639,28 +639,19 @@ function guestIdSchema(v: unknown): string {
   return s;
 }
 
-async function guestSince(admin: any, guestId: string): Promise<string> {
-  const { data } = await admin
-    .from("community_messages")
-    .select("created_at")
-    .eq("guest_id", guestId)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return data?.created_at ?? new Date(Date.now() + 60_000).toISOString();
-}
-
-/** Public: guest view of the Battle Zone from their first message onward. */
+/**
+ * Public: guest view of the live Battle Zone — the latest roasts and OG Bot
+ * comebacks from everyone, so a visitor walks into the real room rather than
+ * an empty one. Guests' own lines are flagged `mine`.
+ */
 export const listGuestBattleMessages = createServerFn({ method: "POST" })
   .inputValidator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const since = await guestSince(supabaseAdmin, data.guestId);
     const [{ data: rows }, { count }] = await Promise.all([
       supabaseAdmin
         .from("community_messages")
         .select("id, role, content, display_name, created_at, guest_id")
-        .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(60),
       supabaseAdmin
@@ -709,7 +700,11 @@ export const postGuestBattleMessage = createServerFn({ method: "POST" })
       .not("guest_id", "is", null)
       .gte("created_at", minuteAgo);
     if ((recentGuests ?? 0) > 40) {
-      return { ok: false as const, reason: "busy" as const, remaining: GUEST_MESSAGE_LIMIT - (count ?? 0) };
+      return {
+        ok: false as const,
+        reason: "busy" as const,
+        remaining: GUEST_MESSAGE_LIMIT - (count ?? 0),
+      };
     }
     const displayName = `Guest-${data.guestId.slice(0, 4).toUpperCase()}`;
     const { error } = await supabaseAdmin.from("community_messages").insert({
@@ -720,7 +715,12 @@ export const postGuestBattleMessage = createServerFn({ method: "POST" })
       display_name: displayName,
     });
     if (error) throw new Error(error.message);
-    await replyAsBot(supabaseAdmin, { userId: null, displayName, content: data.content, useFoul: true });
+    await replyAsBot(supabaseAdmin, {
+      userId: null,
+      displayName,
+      content: data.content,
+      useFoul: true,
+    });
     return { ok: true as const, remaining: Math.max(0, GUEST_MESSAGE_LIMIT - (count ?? 0) - 1) };
   });
 
@@ -772,7 +772,9 @@ async function replyAsBot(
     .select("role, content, display_name")
     .order("created_at", { ascending: false })
     .limit(20);
-  const history = ((recent ?? []) as { role: string; content: string; display_name: string | null }[]).reverse();
+  const history = (
+    (recent ?? []) as { role: string; content: string; display_name: string | null }[]
+  ).reverse();
   const { fetchAiChat } = await import("@/lib/ai-endpoint.server");
   const lex = await import("@/lib/battle-lexicon.server");
   void lex.learnBattleWords(admin as never, opts.content);
@@ -787,10 +789,14 @@ async function replyAsBot(
       {
         temperature: opts.useFoul ? 1.05 : 0.85,
         messages: [
-          { role: "system", content: (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) + extra },
+          {
+            role: "system",
+            content: (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) + extra,
+          },
           ...history.map((m) => ({
             role: m.role === "bot" ? ("assistant" as const) : ("user" as const),
-            content: m.role === "user" && m.display_name ? `${m.display_name}: ${m.content}` : m.content,
+            content:
+              m.role === "user" && m.display_name ? `${m.display_name}: ${m.content}` : m.content,
           })),
         ],
       },

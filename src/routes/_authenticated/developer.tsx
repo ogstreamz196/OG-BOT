@@ -117,7 +117,7 @@ function DeveloperPage() {
                       <Circle className="h-2.5 w-2.5 fill-emerald-400 text-emerald-400" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{label}</div>
-                        <div className="truncate text-[11px] text-muted-foreground">{u.email}</div>
+                        <div className="truncate text-xs text-muted-foreground">{u.email}</div>
                       </div>
                     </button>
                   </li>
@@ -159,7 +159,7 @@ function DeveloperPage() {
                         className="ml-auto max-w-[80%] rounded-2xl rounded-tr-md bg-primary/15 px-3 py-2 text-sm"
                       >
                         <div className="whitespace-pre-wrap">{l.content}</div>
-                        <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <div className="mt-1 text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                           {new Date(l.at).toLocaleTimeString()}
                         </div>
                       </div>

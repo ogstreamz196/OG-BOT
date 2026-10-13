@@ -496,7 +496,7 @@ function AskOgCta() {
                 <Sparkles className="h-7 w-7 text-primary sm:h-8 sm:w-8" />
               </span>
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+                <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
                   Ask OG Bot
                 </div>
                 <h2 className="font-display mt-1 text-2xl font-black leading-tight sm:text-4xl">
@@ -584,7 +584,7 @@ function ContinuityDemo() {
           <InfinityIcon className="h-5 w-5 text-primary" />
         </span>
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-primary">
+          <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
             Continue the conversation
           </div>
           <h2 className="font-display text-xl font-black sm:text-2xl">
@@ -602,7 +602,7 @@ function ContinuityDemo() {
         <div className="flex items-center justify-center text-primary sm:flex-col">
           <ArrowRight className="h-6 w-6 sm:hidden" />
           <ArrowRight className="hidden h-6 w-6 sm:block" />
-          <span className="ml-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground sm:ml-0 sm:mt-1">
+          <span className="ml-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-muted-foreground sm:ml-0 sm:mt-1">
             synced
           </span>
         </div>
@@ -644,7 +644,7 @@ function ChatBubbleCard({
           : "border-white/10",
       )}
     >
-      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-muted-foreground">
         {icon} {channel}
       </div>
       <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-primary/85 px-3 py-2 text-sm text-primary-foreground">

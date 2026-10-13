@@ -655,7 +655,7 @@ function GeneratingStatus({ song }: { song: FullSong }) {
             <span
               aria-hidden
               className={
-                "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold " +
+                "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[0.7rem] font-bold " +
                 (s.state === "done"
                   ? "bg-primary text-primary-foreground"
                   : s.state === "active"

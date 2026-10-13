@@ -44,7 +44,7 @@ export function HardwiredCapabilities() {
             <div className="flex items-center gap-2">
               <Cpu className="h-4 w-4 text-primary" />
               <span className="font-semibold">System Engine Log (Hard-Wired Capabilities)</span>
-              <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-400 ring-1 ring-emerald-500/30">
+              <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-widest text-emerald-400 ring-1 ring-emerald-500/30">
                 {CAPABILITIES.length} ON
               </span>
             </div>
@@ -67,7 +67,7 @@ export function HardwiredCapabilities() {
                     <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />
                   </span>
                   <span className="flex-1 truncate">{cap}</span>
-                  <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                  <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-emerald-400">
                     ON
                   </span>
                 </li>

@@ -163,7 +163,7 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
             <button
               type="button"
               onClick={() => q.refetch()}
-              className="ml-auto inline-flex items-center gap-1 rounded-full border border-border/50 px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-muted/40"
+              className="ml-auto inline-flex items-center gap-1 rounded-full border border-border/50 px-2 py-1 text-[0.7rem] uppercase tracking-wider text-muted-foreground hover:bg-muted/40"
               aria-label="Refresh webhook status"
             >
               <RefreshCw className={cn("h-3 w-3", q.isFetching && "animate-spin")} />
@@ -184,7 +184,7 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
               <button
                 type="button"
                 disabled={registering}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20 disabled:opacity-60"
+                className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-wider text-primary hover:bg-primary/20 disabled:opacity-60"
                 aria-label="Re-register webhook on the active bot"
               >
                 {registering ? (
@@ -211,23 +211,23 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
           {data ? (
             <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
               <div className="rounded-lg bg-muted/30 p-2">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <dt className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   Pending
                 </dt>
                 <dd className="font-mono text-sm">{data.pendingUpdateCount}</dd>
               </div>
               <div className="rounded-lg bg-muted/30 p-2">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <dt className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   Max conns
                 </dt>
                 <dd className="font-mono text-sm">{data.maxConnections ?? "—"}</dd>
               </div>
               <div className="rounded-lg bg-muted/30 p-2">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">IP</dt>
+                <dt className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">IP</dt>
                 <dd className="truncate font-mono text-xs">{data.ipAddress ?? "—"}</dd>
               </div>
               <div className="rounded-lg bg-muted/30 p-2">
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <dt className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   Allowed
                 </dt>
                 <dd className="truncate text-xs">
@@ -251,9 +251,9 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
           ) : null}
 
           {data ? (
-            <div className="mt-3 grid gap-2 rounded-xl border border-border/40 bg-muted/20 p-2 text-[11px] sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 rounded-xl border border-border/40 bg-muted/20 p-2 text-xs sm:grid-cols-3">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   Last setWebhook
                 </p>
                 <p className="font-mono">
@@ -261,7 +261,7 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   Receiving updates
                 </p>
                 <p
@@ -275,7 +275,7 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   Checked
                 </p>
                 <p className="font-mono">{new Date(data.checkedAt).toLocaleTimeString()}</p>

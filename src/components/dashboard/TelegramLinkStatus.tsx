@@ -233,7 +233,7 @@ export function TelegramLinkStatus() {
           </a>
         ) : null}
         <span
-          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${tone.pill}`}
+          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wider ${tone.pill}`}
         >
           {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
           {label}

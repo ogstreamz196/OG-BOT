@@ -383,7 +383,7 @@ function AdminStorePage() {
                           <TableCell className="text-xs">{it.perk_slug ?? "—"}</TableCell>
                           <TableCell>
                             <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                              className={`inline-flex rounded-full px-2 py-0.5 text-[0.7rem] font-bold uppercase ${
                                 it.active
                                   ? "bg-emerald-500/20 text-emerald-300"
                                   : "bg-slate-500/20 text-slate-300"

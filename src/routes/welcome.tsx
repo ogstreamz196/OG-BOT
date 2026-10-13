@@ -2,8 +2,29 @@ import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
 import { Capacitor } from "@capacitor/core";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
-import { Music2, Sparkles, Loader2, Headphones, Wand2, Mic2, Pencil } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import {
+  Music2,
+  Sparkles,
+  Loader2,
+  Headphones,
+  Wand2,
+  Mic2,
+  Pencil,
+  Swords,
+  Flame,
+  Gift,
+  Handshake,
+  Layers,
+} from "lucide-react";
 import { EditableContent } from "@/components/admin/EditableContent";
 import {
   AdminEditModeProvider,
@@ -89,7 +110,6 @@ function useIsNativeApp() {
   }, []);
   return native;
 }
-
 
 const PENDING_REF_KEY = "og_pending_ref";
 
@@ -729,7 +749,8 @@ function AuthModal() {
           )}
           <AuthButtons size="xl" />
           <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
-            Free to start — new or returning, one form does both. Your Battle Zone chat comes with you.
+            Free to start — new or returning, one form does both. Your Battle Zone chat comes with
+            you.
           </p>
         </div>
       </DialogContent>
@@ -752,10 +773,8 @@ function WelcomePage() {
           <DodgyLogo size={220} imageClassName="rounded-3xl" />
         </div>
         <Hero />
-        <Superpowers />
+        <WhatYouGet />
         <HowItWorks />
-        <EarnCoins />
-
         <ClosingCta />
         <CommunityShowcase />
         <Footer />
@@ -807,7 +826,7 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-xs">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
               <span>OG Bot</span>
@@ -827,14 +846,14 @@ function TopNav() {
 
 /** Tile card matching the welcome superpower cards. */
 function TileCta({
-  emoji,
+  icon,
   title,
   body,
   cta,
   onClick,
   className = "",
 }: {
-  emoji: string;
+  icon: ReactNode;
   title: string;
   body: string;
   cta: string;
@@ -848,8 +867,11 @@ function TileCta({
       aria-label={title}
       className={`group relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card p-5 text-left shadow-card transition-transform hover:scale-[1.02] hover:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/50 active:scale-[0.98] sm:p-6 ${className}`}
     >
-      <span className="text-4xl" aria-hidden>
-        {emoji}
+      <span
+        aria-hidden
+        className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-glow"
+      >
+        {icon}
       </span>
       <span className="font-display mt-3 block text-2xl font-black tracking-tight">{title}</span>
       <span className="mt-2 block text-sm text-muted-foreground sm:text-base">{body}</span>
@@ -863,7 +885,7 @@ function TileCta({
 function HazardCta({ className = "" }: { className?: string }) {
   return (
     <TileCta
-      emoji="🎤"
+      icon={<Mic2 className="h-6 w-6" />}
       title="Create a Track Now"
       body="Your words, real vocals and cover art — cooked in minutes."
       cta="Start creating"
@@ -876,7 +898,7 @@ function HazardCta({ className = "" }: { className?: string }) {
 function DangerZoneCta({ className = "" }: { className?: string }) {
   return (
     <TileCta
-      emoji="🤬"
+      icon={<Swords className="h-6 w-6" />}
       title="Enter Battle Zone"
       body="Everyone vs OG Bot. Throw your best roast and see who wins."
       cta="Roast the bot"
@@ -886,7 +908,7 @@ function DangerZoneCta({ className = "" }: { className?: string }) {
   );
 }
 
-/** Battle Zone opens as its own popup so the page stays clean. */
+/** Battle Zone opens as its own popup (full screen on phones) showing the live room. */
 function BattleModal() {
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -896,7 +918,9 @@ function BattleModal() {
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl overflow-y-auto p-2 sm:p-4">
+      {/* Full screen on phones (clear of the notch and home bar), a large
+          panel from tablet width up, so the whole live room fits. */}
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-surface px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] [&>button]:top-[max(0.5rem,env(safe-area-inset-top))] sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-2xl sm:rounded-lg sm:border sm:p-4">
         <DialogTitle className="sr-only">Battle Zone — roast OG Bot</DialogTitle>
         <GuestBattle
           onNeedAccount={() => {
@@ -913,17 +937,18 @@ function Hero() {
   return (
     <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
       <div className="relative mx-auto w-full max-w-3xl text-center">
-        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
           <span>👑 15 days free VIP</span>
-          <span aria-hidden className="text-primary/50">·</span>
+          <span aria-hidden className="text-primary/50">
+            ·
+          </span>
           <span>No card</span>
         </div>
 
         <h1 className="font-display mt-5 text-[clamp(2.2rem,10vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance]">
           <span className="wc-pop block">TURN ANY IDEA</span>
           <span className="wc-pop block" style={{ animationDelay: "0.15s" }}>
-            INTO A{" "}
-            <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
+            INTO A <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
           </span>
           <span className="wc-pop block" style={{ animationDelay: "0.3s" }}>
             IN SECONDS.
@@ -943,7 +968,7 @@ function Hero() {
           {[
             { i: <Mic2 className="h-3.5 w-3.5" />, t: "Real vocals" },
             { i: <Sparkles className="h-3.5 w-3.5" />, t: "Album cover" },
-            { i: <span>🤬</span>, t: "Foul Mouth mode" },
+            { i: <Flame className="h-3.5 w-3.5" />, t: "Foul Mouth mode" },
           ].map((c) => (
             <li
               key={c.t}
@@ -954,7 +979,6 @@ function Hero() {
             </li>
           ))}
         </ul>
-
       </div>
     </section>
   );
@@ -962,113 +986,103 @@ function Hero() {
 
 const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 
-function Superpowers() {
+/** Section heading on a soft dark plate so it stays readable over the wallpaper art. */
+function SectionHeading({ eyebrow, title }: { eyebrow?: string; title: string }) {
+  return (
+    <div className="text-center">
+      <div className="inline-block max-w-full rounded-2xl bg-background/70 px-4 py-2 backdrop-blur-md">
+        {eyebrow && (
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">{eyebrow}</p>
+        )}
+        <h2 className="font-display mt-1 text-balance text-3xl font-black tracking-[-0.03em] sm:text-5xl">
+          {title}
+        </h2>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One "What you get" section (was two lists: superpowers + earn coins).
+ * Content keys are unchanged, so any Boss-edited wording carries over. The
+ * free-VIP card was dropped here because the hero badge and closing box
+ * already say it.
+ */
+function WhatYouGet() {
   const items = [
     {
-      key: "foul",
-      emoji: "🤬",
+      key: "welcome.power.foul",
+      icon: <Flame className="h-5 w-5" />,
       title: "Foul Mouth Mode",
       body: "Savage roasts, raw bars, no filter. Turn the heat from Mild to Demon.",
     },
     {
-      key: "takes",
-      emoji: "🎧",
+      key: "welcome.power.takes",
+      icon: <Layers className="h-5 w-5" />,
       title: "2 tracks for the price of 1",
       body: "Unlock your first take and the second one is yours free.",
     },
     {
-      key: "vip",
-      emoji: "👑",
-      title: "15 days of free VIP",
-      body: "Every style unlocked from signup — drill, bhangra, afrobeats and more.",
-    },
-  ];
-  return (
-    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-          ⚡ Your superpowers
-        </p>
-        <div className="mt-6 grid gap-3 sm:gap-5 md:grid-cols-3">
-          {items.map((it) => (
-            <article
-              key={it.key}
-              className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6"
-            >
-              <CardEditBadge />
-              <span className="text-4xl">{it.emoji}</span>
-              <EditableContent
-                as="h3"
-                contentKey={`welcome.power.${it.key}.title`}
-                defaultValue={it.title}
-                className="font-display mt-3 block text-2xl font-black tracking-tight"
-              />
-              <EditableContent
-                as="p"
-                multiline
-                contentKey={`welcome.power.${it.key}.body`}
-                defaultValue={it.body}
-                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
-              />
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function EarnCoins() {
-  const ways = [
-    {
-      key: "battle",
-      emoji: "⚔️",
+      key: "welcome.earn.battle",
+      icon: <Swords className="h-5 w-5" />,
       title: "Battle the bot",
       body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
+      onClick: openBattle,
     },
     {
-      key: "referral",
-      emoji: "🤝",
+      key: "welcome.earn.referral",
+      icon: <Handshake className="h-5 w-5" />,
       title: "Lifetime referral commission",
       body: "Share your link — earn coins every time your friends spend, for life.",
     },
     {
-      key: "drop",
-      emoji: "🎁",
+      key: "welcome.earn.drop",
+      icon: <Gift className="h-5 w-5" />,
       title: "Daily drop",
       body: "Pop in each day and claim your free coin drop.",
     },
   ];
   return (
-    <section id="earn" className="relative scroll-mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-          🪙 Earn OG Coins free
-        </p>
-        <h2 className="font-display mt-2 text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-          Make tracks without spending a penny
-        </h2>
-        <div className="mt-8 grid gap-3 sm:gap-5 md:grid-cols-3">
-          {ways.map((w) => (
+    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8 sm:py-14">
+        <SectionHeading eyebrow="What you get" title="Make tracks without spending a penny" />
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          {items.map((it, i) => (
             <article
-              key={w.key}
-              className="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-5 shadow-card sm:p-6"
+              key={it.key}
+              className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card ${
+                i === items.length - 1 ? "col-span-2 lg:col-span-1" : ""
+              }`}
             >
               <CardEditBadge />
-              <span className="text-4xl">{w.emoji}</span>
+              <span
+                aria-hidden
+                className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary"
+              >
+                {it.icon}
+              </span>
               <EditableContent
                 as="h3"
-                contentKey={`welcome.earn.${w.key}.title`}
-                defaultValue={w.title}
-                className="font-display mt-3 block text-2xl font-black tracking-tight"
+                contentKey={`${it.key}.title`}
+                defaultValue={it.title}
+                className="font-display mt-3 block text-lg font-black leading-tight tracking-tight"
               />
               <EditableContent
                 as="p"
                 multiline
-                contentKey={`welcome.earn.${w.key}.body`}
-                defaultValue={w.body}
-                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
+                contentKey={`${it.key}.body`}
+                defaultValue={it.body}
+                className="mt-1.5 block text-sm leading-snug text-foreground/85"
               />
+              {it.onClick && (
+                <button
+                  type="button"
+                  onClick={it.onClick}
+                  className="mt-auto pt-3 text-left text-sm font-black uppercase tracking-wide text-primary"
+                >
+                  Enter Battle Zone →
+                </button>
+              )}
             </article>
           ))}
         </div>
@@ -1079,27 +1093,37 @@ function EarnCoins() {
 
 function HowItWorks() {
   const steps = [
-    { icon: <Pencil className="h-5 w-5" />, title: "Type your idea", body: "A name, a roast, a memory." },
-    { icon: <Wand2 className="h-5 w-5" />, title: "Pick the vibe", body: "Choose a style and mood." },
-    { icon: <Headphones className="h-5 w-5" />, title: "OG Bot cooks it", body: "Your song + cover, ready to play." },
+    {
+      icon: <Pencil className="h-5 w-5" />,
+      title: "Type your idea",
+      body: "A name, a roast, a memory.",
+    },
+    {
+      icon: <Wand2 className="h-5 w-5" />,
+      title: "Pick the vibe",
+      body: "Choose a style and mood.",
+    },
+    {
+      icon: <Headphones className="h-5 w-5" />,
+      title: "OG Bot cooks it",
+      body: "Your song + cover, ready to play.",
+    },
   ];
   return (
     <section className="relative border-t border-border/40">
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8 sm:py-16">
-        <h2 className="font-display text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-          3 taps to your first track
-        </h2>
-        <ol className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-5">
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8 sm:py-14">
+        <SectionHeading title="3 taps to your first track" />
+        <ol className="mt-6 grid gap-3 sm:grid-cols-3 sm:gap-5">
           {steps.map((s, i) => (
             <li
               key={s.title}
-              className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5"
+              className="flex items-start gap-4 rounded-2xl border border-border bg-card p-4"
             >
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-glow">
                 {s.icon}
               </span>
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
                   Step {i + 1}
                 </p>
                 <h3 className="font-display text-lg font-black">{s.title}</h3>
@@ -1116,25 +1140,33 @@ function HowItWorks() {
 function ClosingCta() {
   return (
     <section id="how" className="relative border-t border-border/40">
-      <div className="relative mx-auto max-w-3xl px-4 py-14 text-center sm:px-8 sm:py-20">
-        <CardEditBadge />
-        <EditableContent
-          as="p"
-          contentKey="welcome.closing.eyebrow"
-          defaultValue="Ready?"
-          className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
-        />
-        <EditableContent
-          as="h2"
-          contentKey="welcome.closing.title"
-          defaultValue="Your next prompt could be a hit."
-          multiline
-          className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
-        />
-        <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
-          Free account in seconds · 15 days of VIP on us · No card needed.
-        </p>
-        <HazardCta className="mx-auto mt-8" />
+      <div className="relative mx-auto max-w-3xl px-4 py-10 text-center sm:px-8 sm:py-16">
+        <div className="rounded-3xl bg-background/70 px-4 py-6 backdrop-blur-md sm:px-8 sm:py-10">
+          <CardEditBadge />
+          <EditableContent
+            as="p"
+            contentKey="welcome.closing.eyebrow"
+            defaultValue="Ready?"
+            className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
+          />
+          <EditableContent
+            as="h2"
+            contentKey="welcome.closing.title"
+            defaultValue="Your next prompt could be a hit."
+            multiline
+            className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
+          />
+          <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
+            Free account in seconds · 15 days of VIP on us · No card needed.
+          </p>
+          <button
+            type="button"
+            onClick={openWizard}
+            className="mx-auto mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-base font-black uppercase tracking-wide text-primary-foreground shadow-glow transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/50"
+          >
+            <Mic2 className="h-5 w-5" /> Create my first track
+          </button>
+        </div>
       </div>
     </section>
   );

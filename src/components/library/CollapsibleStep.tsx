@@ -79,7 +79,7 @@ export function CollapsibleStep({
 
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors sm:text-xs",
+            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wider transition-colors sm:text-xs",
             done
               ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
               : "border-white/10 bg-white/[0.04] text-muted-foreground",

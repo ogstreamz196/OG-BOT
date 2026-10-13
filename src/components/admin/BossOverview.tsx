@@ -110,7 +110,7 @@ export function ProviderPulse() {
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2.5">
-      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
         Providers
       </span>
       {report.isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}

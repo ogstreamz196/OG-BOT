@@ -356,11 +356,11 @@ function StripeWebhookViewer() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs">{e.eventType}</span>
-                  <Badge variant="outline" className="text-[10px] uppercase">
+                  <Badge variant="outline" className="text-[0.7rem] uppercase">
                     {e.environment}
                   </Badge>
                   {e.status && (
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="text-[0.7rem]">
                       {e.status}
                     </Badge>
                   )}
