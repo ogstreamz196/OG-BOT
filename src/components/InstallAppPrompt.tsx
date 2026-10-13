@@ -17,8 +17,11 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 // Set only once the browser confirms the shortcut was added. The popup
-// returns on every visit until then ("Not now" hides it for this visit only).
+// returns on every visit until then ("Not now" hides it for this visit only) —
+// except iPhone users, who only see it twice before it leaves them alone.
 const INSTALLED_KEY = "og:shortcut-installed";
+const IOS_SHOWS_KEY = "og:shortcut-ios-shows";
+const IOS_MAX_SHOWS = 2;
 
 function isStandalone(): boolean {
   return window.matchMedia?.("(display-mode: standalone)").matches ||
@@ -31,6 +34,14 @@ function markedInstalled(): boolean {
 
 function markInstalled() {
   try { localStorage.setItem(INSTALLED_KEY, "1"); } catch { /* storage unavailable */ }
+}
+
+function iosShowCount(): number {
+  try { return parseInt(localStorage.getItem(IOS_SHOWS_KEY) ?? "0", 10) || 0; } catch { return 0; }
+}
+
+function countIosShow() {
+  try { localStorage.setItem(IOS_SHOWS_KEY, String(iosShowCount() + 1)); } catch { /* storage unavailable */ }
 }
 
 export function InstallAppPrompt() {
