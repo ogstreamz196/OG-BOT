@@ -257,7 +257,7 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
   head: () => ({
     meta: [
-      { title: "Reset your password | OG Streamz" },
+      { title: "Reset your password | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

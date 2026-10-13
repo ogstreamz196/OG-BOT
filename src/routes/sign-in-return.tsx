@@ -5,7 +5,7 @@ export const Route = createFileRoute("/sign-in-return")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Return to OG BOT" },
+      { title: "Return to OG BOT | AI Songs & Diss Tracks" },
       { name: "description", content: "Finish signing in and open the OG BOT app." },
       { property: "og:title", content: "Return to OG BOT" },
       { property: "og:description", content: "Finish signing in and open the OG BOT app." },

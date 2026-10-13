@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/referrals")({
   component: ReferralsPage,
   head: () => ({
     meta: [
-      { title: "Earn Dashboard | OG BOT" },
+      { title: "Earn Dashboard | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content: "Track referral earnings, Community releases, and listening activity in OG BOT.",

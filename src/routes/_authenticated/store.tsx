@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/store")({
   component: StorePage,
   head: () => ({
     meta: [
-      { title: "OG Store — Coins, VIP & Loot" },
+      { title: "OG Store — Coins, VIP & Loot | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

@@ -81,7 +81,7 @@ export const Route = createFileRoute("/_authenticated/buy-coins/")({
   },
   head: () => ({
     meta: [
-      { title: "OG Coins & VIP — OG BOT Store" },
+      { title: "OG Coins & VIP — OG BOT Store | AI Songs & Diss Tracks" },
       {
         name: "description",
         content: "Buy OG Coins, unlock VIP perks, and review purchases in the OG BOT Store.",

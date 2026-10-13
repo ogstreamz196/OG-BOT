@@ -58,7 +58,7 @@ export const Route = createFileRoute("/welcome")({
   component: WelcomePage,
   head: () => ({
     meta: [
-      { title: "OG Studio — Prompt Songs & Album Covers" },
+      { title: "OG Studio — Prompt Songs & Album Covers | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

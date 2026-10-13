@@ -4,7 +4,7 @@ export const Route = createFileRoute("/terms")({
   component: TermsPage,
   head: () => ({
     meta: [
-      { title: "Terms of Use — OG BOT" },
+      { title: "Terms of Use | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

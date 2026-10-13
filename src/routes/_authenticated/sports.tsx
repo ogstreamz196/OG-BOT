@@ -15,7 +15,7 @@ import { purchaseSportsGuideAccess } from "@/lib/store.functions";
 export const Route = createFileRoute("/_authenticated/sports")({
   head: () => ({
     meta: [
-      { title: "Sports Guide · OG BOT" },
+      { title: "Sports Guide | OG BOT — AI Songs & Diss Tracks" },
       { name: "description", content: "Live daily fixtures, fight cards and TV listings — search any team instantly." },
       { property: "og:title", content: "Sports Guide · OG BOT" },
       { property: "og:description", content: "Live daily fixtures, fight cards and TV listings from OG Sports Guide." },

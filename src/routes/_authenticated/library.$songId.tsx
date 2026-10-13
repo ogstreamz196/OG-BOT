@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/library/$songId")({
   component: SongDetailPage,
   head: () => ({
     meta: [
-      { title: "Track Studio · OG BOT" },
+      { title: "Track Studio | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content: "Listen, edit and unlock your OG BOT track with a free second take.",

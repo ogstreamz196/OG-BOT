@@ -5,7 +5,7 @@ export const Route = createFileRoute("/policy")({
   component: PolicyPage,
   head: () => ({
     meta: [
-      { title: "Privacy Policy — OG BOT" },
+      { title: "Privacy Policy | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

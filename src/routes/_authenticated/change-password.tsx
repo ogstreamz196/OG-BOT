@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_authenticated/change-password")({
   head: () => ({
     meta: [
-      { title: "Change Password — OG Streamz" },
+      { title: "Change Password | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/buy-coins/return")({
   component: BuyCoinsReturn,
   head: () => ({
     meta: [
-      { title: "Purchase complete — OG BOT" },
+      { title: "Purchase complete | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content: "Your OG coin purchase is confirmed and your balance updated.",

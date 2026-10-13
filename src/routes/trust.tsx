@@ -5,7 +5,7 @@ export const Route = createFileRoute("/trust")({
   component: TrustPage,
   head: () => ({
     meta: [
-      { title: "Trust & Privacy — OG Studio" },
+      { title: "Trust & Privacy | OG BOT — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:

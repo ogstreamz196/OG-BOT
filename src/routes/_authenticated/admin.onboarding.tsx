@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/admin/onboarding")({
     throw redirect({ to: "/admin/system", search: { tab: "setup" } });
   },
   component: () => null,
-  head: () => ({ meta: [{ title: "Onboarding — OG Streamz Admin" }] }),
+  head: () => ({ meta: [{ title: "Onboarding — Admin | OG BOT — AI Songs & Diss Tracks" }] }),
 });
 
 type Step = {
