@@ -1011,12 +1011,26 @@ async function handleTelegramUpdate(
       // Vault is independent of VIP and the intro offer: bought or Boss only.
       const vipFree = isBoss;
       const owned = !!purchase || vipFree;
+      // Rotate the wording so repeat asks don't get the same canned line.
+      const pick = <T,>(arr: T[]): T =>
+        arr[(Math.floor(Date.now() / (10 * 60 * 1000)) + String(chat_id).length) % arr.length];
+      const notOwnedLines = [
+        `🔐 <b>OG Vault Access Pass</b>\n\nYou need to buy the Vault Access Pass — grab it in the Store for £10 or 50 OG Coins.`,
+        `🔐 <b>OG Vault Access Pass</b>\n\nNo pass, no entry. It's £10 or 50 OG Coins in the Store — sort that and come back.`,
+        `🔐 <b>OG Vault Access Pass</b>\n\nThe Vault's locked for you right now. Pick up a pass in the Store for £10 or 50 OG Coins.`,
+        `🔐 <b>OG Vault Access Pass</b>\n\nYou're not on the list. Vault pass is £10 or 50 OG Coins — Store link's below.`,
+        `🔐 <b>OG Vault Access Pass</b>\n\nGotta buy the pass first — £10 or 50 OG Coins in the Store, then I'll hand over your details.`,
+      ];
+      const noCredsLines = [
+        `🔐 <b>OG Vault Access Pass</b>\n\nYou own it ✅ — no access IDs are available right now, check back soon.`,
+        `🔐 <b>OG Vault Access Pass</b>\n\nYou're covered ✅ — but I'm fresh out of access IDs at the moment. Try again a bit later.`,
+        `🔐 <b>OG Vault Access Pass</b>\n\nPass confirmed ✅ — no spare IDs in the drawer right now, check back soon.`,
+      ];
       let body: string;
       if (!owned) {
-        body =
-          `🔐 <b>OG Vault Access Pass</b>\n\nYou need to buy the Vault Access Pass — grab it in the Store for £10 or 50 OG Coins.`;
+        body = pick(notOwnedLines);
       } else if (!creds?.length) {
-        body = `🔐 <b>OG Vault Access Pass</b>\n\nYou own it ✅ — no access IDs are available right now, check back soon.`;
+        body = pick(noCredsLines);
       } else {
         const cred = creds[Math.floor(Date.now() / (2 * 60 * 60 * 1000)) % creds.length];
         const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
