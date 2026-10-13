@@ -61,3 +61,4 @@
 ## Search and AI search
 
 - /welcome runs only in the browser, so its pendingComponent (src/components/seo/WelcomeSeoFallback.tsx) is the server-rendered copy crawlers read; keep its wording copied from the landing page. Canonical addresses live in src/lib/seo.ts ("/" points at /welcome), and /sitemap-tracks.xml lists only completed, public, revealed tracks.
+- OG Bot diss ambush: the server decides when to pitch (src/lib/diss-ambush.ts, marker stored in the chat thread) and charges/refunds diss tracks via the idempotent service-only RPCs in src/lib/diss-track.functions.ts, so the browser never moves coins itself.
