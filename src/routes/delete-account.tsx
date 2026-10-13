@@ -10,7 +10,7 @@ export const Route = createFileRoute("/delete-account")({
         content:
           "How to delete your OG BOT account and associated data, what is removed and what is kept.",
       },
-      { property: "og:title", content: "Delete your OG BOT account" },
+      { property: "og:title", content: "Delete your OG BOT account | AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Steps to permanently delete your OG BOT account and data.",

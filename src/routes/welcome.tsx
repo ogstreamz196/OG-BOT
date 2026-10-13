@@ -64,7 +64,7 @@ export const Route = createFileRoute("/welcome")({
         content:
           "Turn prompts, moods and memories into different song styles with album covers. Sign in with Google or Apple.",
       },
-      { property: "og:title", content: "OG Studio — Prompt Songs & Album Covers" },
+      { property: "og:title", content: "OG Studio — Prompt Songs & Album Covers | AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Prompt rap, pop, drill, afrobeats, heartbreak and party songs with cover art.",

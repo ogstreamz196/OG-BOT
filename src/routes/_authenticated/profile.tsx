@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
     meta: [
       { title: "My Profile | OG BOT — AI Songs & Diss Tracks" },
       { name: "description", content: "Manage your OG BOT username, email, coins and activity." },
-      { property: "og:title", content: "My Profile — OG BOT" },
+      { property: "og:title", content: "My Profile | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Manage your OG BOT username, email, coins and activity.",

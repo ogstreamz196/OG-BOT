@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/library/$songId")({
         name: "description",
         content: "Listen, edit and unlock your OG BOT track with a free second take.",
       },
-      { property: "og:title", content: "Track Studio · OG BOT" },
+      { property: "og:title", content: "Track Studio | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Your OG BOT music workspace — two tracks for the price of one.",

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/buy-coins/return")({
         name: "description",
         content: "Your OG coin purchase is confirmed and your balance updated.",
       },
-      { property: "og:title", content: "Purchase complete — OG BOT" },
+      { property: "og:title", content: "Purchase complete | OG BOT — AI Songs & Diss Tracks" },
       { property: "og:description", content: "Your OG coin purchase is confirmed." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

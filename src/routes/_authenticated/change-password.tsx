@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/change-password")({
         content:
           "Update your OG Streamz account password securely by confirming your current password first.",
       },
-      { property: "og:title", content: "Change Password — OG Streamz" },
+      { property: "og:title", content: "Change Password | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content: "Securely update the password for your OG Streamz account.",

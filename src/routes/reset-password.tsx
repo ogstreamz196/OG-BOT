@@ -263,7 +263,7 @@ export const Route = createFileRoute("/reset-password")({
         content:
           "Set a new password for your OG Streamz account using the secure reset link we emailed you.",
       },
-      { property: "og:title", content: "Reset your password | OG Streamz" },
+      { property: "og:title", content: "Reset your password | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:

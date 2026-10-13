@@ -11,7 +11,7 @@ export const Route = createFileRoute("/trust")({
         content:
           "How OG Studio handles your account, songs, and personal data. Maintained by the OG Studio team.",
       },
-      { property: "og:title", content: "Trust & Privacy — OG Studio" },
+      { property: "og:title", content: "Trust & Privacy | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:

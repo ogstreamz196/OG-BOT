@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/sports")({
     meta: [
       { title: "Sports Guide | OG BOT — AI Songs & Diss Tracks" },
       { name: "description", content: "Live daily fixtures, fight cards and TV listings — search any team instantly." },
-      { property: "og:title", content: "Sports Guide · OG BOT" },
+      { property: "og:title", content: "Sports Guide | OG BOT — AI Songs & Diss Tracks" },
       { property: "og:description", content: "Live daily fixtures, fight cards and TV listings from OG Sports Guide." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
