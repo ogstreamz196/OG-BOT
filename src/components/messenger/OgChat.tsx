@@ -18,6 +18,8 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
 import { ogErrorMessage } from "@/lib/og-error-message";
+import { DISS_DONE, DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
+import { DissAmbushCard } from "@/components/messenger/DissAmbushCard";
 import { transcribeOgAudio } from "@/lib/og-transcribe.functions";
 import { postCommunityMessage } from "@/lib/community.functions";
 import { QUICK_STARTS } from "@/lib/og-persona-public";
@@ -358,7 +360,8 @@ export function OgChat({
       }),
     onSuccess: (res) => {
       setMessages((cur) => {
-        const next = [...cur, { role: "assistant" as const, content: res.reply || "…" }];
+        const content = (res.reply || "…") + (res.ambush ? `\n\n${DISS_MARKER}` : "");
+        const next = [...cur, { role: "assistant" as const, content }];
         selfSyncRef.current = true;
         window.dispatchEvent(new Event(SYNC_EVENT));
         return next;
@@ -432,6 +435,18 @@ export function OgChat({
     setInput("");
     setAttachment(null);
     m.mutate({ history: next, attachmentDataUrl: att?.dataUrl });
+  }
+
+  function resolveAmbush(index: number, botLine: string) {
+    setMessages((cur) => {
+      const next = cur.map((mm, j) =>
+        j === index ? { ...mm, content: mm.content.split(DISS_MARKER).join(DISS_DONE) } : mm,
+      );
+      next.push({ role: "assistant", content: botLine });
+      selfSyncRef.current = true;
+      window.dispatchEvent(new Event(SYNC_EVENT));
+      return next;
+    });
   }
 
   function clearChat() {
@@ -791,12 +806,21 @@ export function OgChat({
                   >
                     {msg.role === "assistant" ? (
                       <MessageResponse className="prose-sm max-w-none prose-p:my-0.5 prose-p:leading-snug prose-ul:my-0.5 prose-ol:my-0.5 prose-headings:my-0.5 prose-code:text-primary">
-                        {msg.content}
+                        {stripMarker(msg.content)}
                       </MessageResponse>
                     ) : (
                       msg.content
                     )}
                   </MessageContent>
+                  {msg.role === "assistant" && msg.content.includes(DISS_MARKER) && user && (
+                    <DissAmbushCard
+                      balance={balance}
+                      history={messages.slice(0, i)}
+                      userId={user.id}
+                      displayName={profile?.display_name ?? null}
+                      onResolve={(line) => resolveAmbush(i, line)}
+                    />
+                  )}
                 </Message>
               </div>
             );
