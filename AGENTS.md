@@ -13,6 +13,7 @@
 - Boss account deletion runs in an authenticated server function with a server-checked role and protected targets, because client-side role visibility must never authorize destructive actions.
 
 - Referral cashback is 6% of coins a referred member spends, 13% only when the leader is actually VIP (VIP role, admin/boss, or active paid subscription; never the 15-day intro offer); it is accrued in hundredths via pay_referral_cashback so small spends are not rounded away, and no cashback is paid on VIP upgrades or card payments.
+- Guest Battle Zone mirrors the member room without the Go Private toggle: 5 roasts per guest, history from their first line, a fixed banter name from src/lib/guest-names.ts (plain data, no AI changes), and roasts judged like members' with winnings stored on their lines; claim_guest_battle moves them into the purse once per account and guest id.
 - Creating a song is free but needs at least 5 coins; after 3 unpaid tracks (not unlocked, since the member's last own-track unlock) each new sample costs 2 coins, checked and charged atomically by start_generation_charge in suno-generate.
 
 ## AI providers

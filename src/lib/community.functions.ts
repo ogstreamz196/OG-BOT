@@ -1,5 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { guestBattleName } from "@/lib/guest-names";
+
+type AdminClient = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
 export type CommunityMessage = {
   id: string;
@@ -471,27 +474,31 @@ export const getRoastOfTheDay = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data } = await supabaseAdmin
-      .from("community_messages")
-      .select("id, content, display_name, score_tenths, created_at")
-      .eq("role", "user")
-      .gte("created_at", since)
-      .not("score_tenths", "is", null)
-      .order("score_tenths", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!data) return { roast: null };
-    return {
-      roast: {
-        id: data.id as string,
-        content: data.content as string,
-        displayName: (data.display_name as string | null) ?? "OG member",
-        scoreTenths: Number(data.score_tenths ?? 0),
-      },
-    };
+    return loadRoastOfTheDay(supabaseAdmin);
   });
+
+async function loadRoastOfTheDay(supabaseAdmin: AdminClient) {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("community_messages")
+    .select("id, content, display_name, score_tenths, created_at")
+    .eq("role", "user")
+    .gte("created_at", since)
+    .not("score_tenths", "is", null)
+    .order("score_tenths", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return { roast: null };
+  return {
+    roast: {
+      id: data.id as string,
+      content: data.content as string,
+      displayName: (data.display_name as string | null) ?? "OG member",
+      scoreTenths: Number(data.score_tenths ?? 0),
+    },
+  };
+}
 
 /** End the battle: pay out the accumulated reward and reset the tally. */
 export const endBattle = createServerFn({ method: "POST" })
@@ -542,45 +549,49 @@ export const getBattleLeaderboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: tallies } = await supabaseAdmin
-      .from("battle_tallies")
-      .select("user_id, total_awarded_coins, pending_tenths, rounds")
-      .order("total_awarded_coins", { ascending: false })
-      .limit(20);
-    const rows = tallies ?? [];
-    if (!rows.length) return { rows: [] as BattleLeaderboardRow[] };
-
-    const { data: profiles } = await supabaseAdmin
-      .from("profiles")
-      .select("id, display_name, email")
-      .in(
-        "id",
-        rows.map((r) => r.user_id),
-      );
-    const { maskDevIdentity } = await import("@/lib/dev-identity");
-    const nameById = new Map<string, string>();
-    for (const p of profiles ?? []) {
-      const masked = (maskDevIdentity(p) ?? p) as {
-        display_name?: string | null;
-        email?: string | null;
-      };
-      nameById.set(
-        p.id,
-        masked.display_name || (masked.email ? String(masked.email).split("@")[0]! : "OG member"),
-      );
-    }
-
-    return {
-      rows: rows.map((r) => ({
-        userId: r.user_id,
-        name: nameById.get(r.user_id) ?? "OG member",
-        coinsWon: r.total_awarded_coins ?? 0,
-        pendingTenths: r.pending_tenths ?? 0,
-        rounds: r.rounds ?? 0,
-        isMe: r.user_id === context.userId,
-      })) satisfies BattleLeaderboardRow[],
-    };
+    return loadBattleBoard(supabaseAdmin, context.userId);
   });
+
+async function loadBattleBoard(supabaseAdmin: AdminClient, meId: string | null) {
+  const { data: tallies } = await supabaseAdmin
+    .from("battle_tallies")
+    .select("user_id, total_awarded_coins, pending_tenths, rounds")
+    .order("total_awarded_coins", { ascending: false })
+    .limit(20);
+  const rows = tallies ?? [];
+  if (!rows.length) return { rows: [] as BattleLeaderboardRow[] };
+
+  const { data: profiles } = await supabaseAdmin
+    .from("profiles")
+    .select("id, display_name, email")
+    .in(
+      "id",
+      rows.map((r) => r.user_id),
+    );
+  const { maskDevIdentity } = await import("@/lib/dev-identity");
+  const nameById = new Map<string, string>();
+  for (const p of profiles ?? []) {
+    const masked = (maskDevIdentity(p) ?? p) as {
+      display_name?: string | null;
+      email?: string | null;
+    };
+    nameById.set(
+      p.id,
+      masked.display_name || (masked.email ? String(masked.email).split("@")[0]! : "OG member"),
+    );
+  }
+
+  return {
+    rows: rows.map((r) => ({
+      userId: r.user_id,
+      name: nameById.get(r.user_id) ?? "OG member",
+      coinsWon: r.total_awarded_coins ?? 0,
+      pendingTenths: r.pending_tenths ?? 0,
+      rounds: r.rounds ?? 0,
+      isMe: r.user_id === meId,
+    })) satisfies BattleLeaderboardRow[],
+  };
+}
 
 /**
  * New users only see Battle Zone history from their first roast onwards,
@@ -615,12 +626,29 @@ export const clearMyBattleHistory = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** After sign-up: move the guest's Battle Zone lines onto their new account. */
+/**
+ * After sign-up: move the guest's Battle Zone lines onto their new account
+ * and carry their guest purse into the battle tally (once per account,
+ * atomically in claim_guest_battle) so it can be banked like any other win.
+ */
 export const claimGuestBattleMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: res, error } = await supabaseAdmin.rpc(
+      "claim_guest_battle" as never,
+      {
+        _user_id: context.userId,
+        _guest_id: data.guestId,
+      } as never,
+    );
+    if (!error) {
+      const r = (res ?? {}) as { claimed?: number; credited_tenths?: number };
+      return { claimed: Number(r.claimed ?? 0), creditedTenths: Number(r.credited_tenths ?? 0) };
+    }
+    // Database function not installed yet: just move the lines, as before.
+    if (error.code !== "PGRST202" && error.code !== "42883") throw new Error(error.message);
     const { data: rows } = await supabaseAdmin
       .from("community_messages")
       .update({ user_id: context.userId })
@@ -628,7 +656,7 @@ export const claimGuestBattleMessages = createServerFn({ method: "POST" })
       .is("user_id", null)
       .eq("role", "user")
       .select("id");
-    return { claimed: rows?.length ?? 0 };
+    return { claimed: rows?.length ?? 0, creditedTenths: 0 };
   });
 
 export const GUEST_MESSAGE_LIMIT = 5;
@@ -659,7 +687,7 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
     const [{ data: rows }, { count }] = await Promise.all([
       supabaseAdmin
         .from("community_messages")
-        .select("id, role, content, display_name, created_at, guest_id")
+        .select("id, role, content, display_name, created_at, guest_id, user_id")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(60),
@@ -671,6 +699,9 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
     ]);
     const used = count ?? 0;
     return {
+      myName: guestBattleName(data.guestId),
+      pendingTenths: await guestPurse(supabaseAdmin, data.guestId),
+      rounds: used,
       messages: (rows ?? []).reverse().map((r) => ({
         id: r.id,
         role: r.role as "user" | "bot",
@@ -678,12 +709,17 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
         display_name: r.display_name,
         created_at: r.created_at,
         mine: r.guest_id === data.guestId && r.role === "user",
+        member: !!r.user_id,
       })),
       remaining: Math.max(0, GUEST_MESSAGE_LIMIT - used),
     };
   });
 
-/** Public: a guest roast (max 5 per guest) + an OG Bot reply. No coins. */
+/**
+ * Public: a guest roast (max 5 per guest) + an OG Bot reply. The roast is
+ * judged like a member's, but the coins only sit in the guest purse
+ * (score_tenths on their lines) until they join and claim them.
+ */
 export const postGuestBattleMessage = createServerFn({ method: "POST" })
   .inputValidator((d: { guestId: string; content: string }) => {
     const content = String(d?.content ?? "").trim();
@@ -711,18 +747,92 @@ export const postGuestBattleMessage = createServerFn({ method: "POST" })
     if ((recentGuests ?? 0) > 40) {
       return { ok: false as const, reason: "busy" as const, remaining: GUEST_MESSAGE_LIMIT - (count ?? 0) };
     }
-    const displayName = `Guest-${data.guestId.slice(0, 4).toUpperCase()}`;
-    const { error } = await supabaseAdmin.from("community_messages").insert({
-      user_id: null,
-      guest_id: data.guestId,
-      role: "user",
-      content: data.content,
-      display_name: displayName,
-    });
+    const displayName = guestBattleName(data.guestId);
+    const { data: last } = await supabaseAdmin
+      .from("community_messages")
+      .select("content")
+      .eq("guest_id", data.guestId)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const { data: row, error } = await supabaseAdmin
+      .from("community_messages")
+      .insert({
+        user_id: null,
+        guest_id: data.guestId,
+        role: "user",
+        content: data.content,
+        display_name: displayName,
+      })
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
-    await replyAsBot(supabaseAdmin, { userId: null, displayName, content: data.content, useFoul: true });
-    return { ok: true as const, remaining: Math.max(0, GUEST_MESSAGE_LIMIT - (count ?? 0) - 1) };
+    const botReply = await replyAsBot(supabaseAdmin, {
+      userId: null,
+      displayName,
+      content: data.content,
+      useFoul: true,
+    });
+
+    // Judge it exactly like a member's roast (same judge, floor and bands).
+    let earnedTenths = 0;
+    try {
+      const isRepeat =
+        !!last && String(last.content).trim().toLowerCase() === data.content.toLowerCase();
+      const judged = await scoreRoast("configured", data.content, botReply);
+      const raw = Math.max(judged, estimateRoastFloor(data.content));
+      earnedTenths = calibrateAward(raw, data.content, 0, isRepeat);
+      if (earnedTenths > 0) {
+        await supabaseAdmin
+          .from("community_messages")
+          .update({ score_tenths: earnedTenths })
+          .eq("id", (row as { id: string }).id);
+      }
+    } catch (err) {
+      console.warn("guest battle scoring failed:", (err as Error).message);
+      earnedTenths = 0;
+    }
+
+    return {
+      ok: true as const,
+      remaining: Math.max(0, GUEST_MESSAGE_LIMIT - (count ?? 0) - 1),
+      award: {
+        earnedTenths,
+        pendingTenths: await guestPurse(supabaseAdmin, data.guestId),
+      },
+    };
   });
+
+/** A guest's unbanked winnings: the scores on their own lines. */
+async function guestPurse(admin: AdminClient, guestId: string): Promise<number> {
+  const { data } = await admin
+    .from("community_messages")
+    .select("score_tenths")
+    .eq("guest_id", guestId)
+    .eq("role", "user")
+    .is("user_id", null)
+    .not("score_tenths", "is", null)
+    .limit(GUEST_MESSAGE_LIMIT);
+  return ((data ?? []) as { score_tenths: number | null }[]).reduce(
+    (sum, r) => sum + Number(r.score_tenths ?? 0),
+    0,
+  );
+}
+
+/** Public: roast of the day and the top roasters, for the guest Battle Zone. */
+export const getGuestBattleExtras = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [roast, board] = await Promise.all([
+    loadRoastOfTheDay(supabaseAdmin),
+    loadBattleBoard(supabaseAdmin, null),
+  ]);
+  // Guests see names and wins only, never member ids.
+  return {
+    roast: roast.roast,
+    rows: board.rows.map((r, i) => ({ ...r, userId: `rank-${i}` })),
+  };
+});
 
 /**
  * Crew memory: when several players gang up, OG Bot gets each one's recent

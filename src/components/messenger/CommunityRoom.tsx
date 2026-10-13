@@ -456,13 +456,19 @@ export function CommunityRoom() {
     }
     if (!gid) return;
     claimFn({ data: { guestId: gid } })
-      .then(() => {
+      .then((res) => {
         try {
           localStorage.removeItem("og-guest-id");
         } catch {
           /* ignore */
         }
         void qc.invalidateQueries({ queryKey: ["community-messages"] });
+        void qc.invalidateQueries({ queryKey: ["battle-tally"] });
+        if (res.creditedTenths > 0) {
+          toast.success(
+            `Your guest winnings came with you — ${(res.creditedTenths / 10).toFixed(2)} OG in your purse. Tap Bank to cash out.`,
+          );
+        }
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
