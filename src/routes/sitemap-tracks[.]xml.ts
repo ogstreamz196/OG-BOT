@@ -35,7 +35,7 @@ export const Route = createFileRoute("/sitemap-tracks.xml")({
             return `  <url><loc>${esc(`${SITE_URL}/track/${s.id}`)}</loc>${lastmod}</url>`;
           })
           .join("\n");
-        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
         return new Response(xml, {
           headers: {
             "content-type": "application/xml; charset=utf-8",
