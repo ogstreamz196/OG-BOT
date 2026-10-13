@@ -70,3 +70,5 @@
 - [x] Platform-correct store wording, no web checkout links in apps
 - [ ] iOS production RevenueCat key — pending (owner to supply)
 - [ ] Age rating questionnaires 16+/17+ at store submission (owner)
+
+- [ ] Add alt text to DodgyLogo mascot in welcome.tsx (SEO agent_content:content)
