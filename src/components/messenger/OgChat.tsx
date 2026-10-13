@@ -18,7 +18,7 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
 import { ogErrorMessage } from "@/lib/og-error-message";
-import { DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
+import { DISS_DONE, DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
 import { DissAmbushCard } from "@/components/messenger/DissAmbushCard";
 import { transcribeOgAudio } from "@/lib/og-transcribe.functions";
 import { postCommunityMessage } from "@/lib/community.functions";
@@ -440,10 +440,9 @@ export function OgChat({
   function resolveAmbush(index: number, botLine: string) {
     setMessages((cur) => {
       const next = cur.map((mm, j) =>
-        j === index ? { ...mm, content: stripMarker(mm.content) || "…" } : mm,
+        j === index ? { ...mm, content: mm.content.split(DISS_MARKER).join(DISS_DONE) } : mm,
       );
-      // Keep a quiet trace so the server cooldown still sees this ambush.
-      next.push({ role: "assistant", content: `${botLine}\u200b` });
+      next.push({ role: "assistant", content: botLine });
       selfSyncRef.current = true;
       window.dispatchEvent(new Event(SYNC_EVENT));
       return next;
