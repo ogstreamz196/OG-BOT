@@ -27,7 +27,7 @@ export function DodgyLogo({
   dodgeRadius = 160,
   className = "",
   src,
-  alt = "OG Bot",
+  alt = "OG Bot - AI Music Creator Mascot",
   imageClassName = "rounded-2xl",
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
