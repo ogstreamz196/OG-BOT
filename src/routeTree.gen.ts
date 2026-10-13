@@ -47,6 +47,7 @@ import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as PortalSlugRouteImport } from './routes/portal.$slug'
 import { Route as RCodeRouteImport } from './routes/r.$code'
+import { Route as StylesRapRouteImport } from './routes/styles.rap'
 import { Route as TrackSongIdRouteImport } from './routes/track.$songId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -269,6 +270,11 @@ const PortalSlugRoute = PortalSlugRouteImport.update({
 const RCodeRoute = RCodeRouteImport.update({
   id: '/r/$code',
   path: '/r/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StylesRapRoute = StylesRapRouteImport.update({
+  id: '/styles/rap',
+  path: '/styles/rap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackSongIdRoute = TrackSongIdRouteImport.update({
@@ -517,6 +523,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/styles/rap': typeof StylesRapRoute
   '/track/$songId': typeof TrackSongIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -590,6 +597,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/styles/rap': typeof StylesRapRoute
   '/track/$songId': typeof TrackSongIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -666,6 +674,7 @@ export interface FileRoutesById {
   '/auth_/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/styles/rap': typeof StylesRapRoute
   '/track/$songId': typeof TrackSongIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -743,6 +752,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/styles/rap'
     | '/track/$songId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -816,6 +826,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/styles/rap'
     | '/track/$songId'
     | '/'
     | '/.lovable/oauth/consent'
@@ -891,6 +902,7 @@ export interface FileRouteTypes {
     | '/auth_/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/styles/rap'
     | '/track/$songId'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
@@ -956,6 +968,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   PortalSlugRoute: typeof PortalSlugRoute
   RCodeRoute: typeof RCodeRoute
+  StylesRapRoute: typeof StylesRapRoute
   TrackSongIdRoute: typeof TrackSongIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -1223,6 +1236,13 @@ declare module '@tanstack/react-router' {
       path: '/r/$code'
       fullPath: '/r/$code'
       preLoaderRoute: typeof RCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/styles/rap': {
+      id: '/styles/rap'
+      path: '/styles/rap'
+      fullPath: '/styles/rap'
+      preLoaderRoute: typeof StylesRapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track/$songId': {
@@ -1606,6 +1626,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   PortalSlugRoute: PortalSlugRoute,
   RCodeRoute: RCodeRoute,
+  StylesRapRoute: StylesRapRoute,
   TrackSongIdRoute: TrackSongIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
