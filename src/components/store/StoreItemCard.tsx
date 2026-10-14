@@ -20,32 +20,21 @@ import type { StoreItem } from "@/lib/store.functions";
 import { cn } from "@/lib/utils";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 
-const RARITY: Record<
-  StoreItem["rarity"],
-  { label: string; ring: string; glow: string; icon: ReactNode }
-> = {
+const RARITY: Record<StoreItem["rarity"], { label: string; icon: ReactNode }> = {
   common: {
     label: "Common",
-    ring: "border-slate-500/40",
-    glow: "shadow-[0_0_24px_-8px_hsl(220_10%_60%/.4)]",
     icon: <Package className="h-3 w-3" />,
   },
   rare: {
     label: "Rare",
-    ring: "border-cyan-400/50",
-    glow: "shadow-[0_0_28px_-6px_hsl(190_90%_55%/.55)]",
     icon: <Sparkles className="h-3 w-3" />,
   },
   epic: {
     label: "Epic",
-    ring: "border-fuchsia-400/60",
-    glow: "shadow-[0_0_32px_-4px_hsl(290_90%_60%/.6)]",
     icon: <Gem className="h-3 w-3" />,
   },
   legendary: {
     label: "Legendary",
-    ring: "border-amber-400/70",
-    glow: "shadow-[0_0_36px_-2px_hsl(40_100%_55%/.7)]",
     icon: <Crown className="h-3 w-3" />,
   },
 };

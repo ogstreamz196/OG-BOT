@@ -126,6 +126,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
   const { isVip, hasVipRole, isDev, isLoading: roleLoading } = useRole();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<Selection | null>(null);
+  const { get: getSiteContent } = useSiteContent();
   const [stage, setStage] = useState<"confirm" | "pay">("confirm");
 
   // Friendly bounce if a non-dev/admin opens the page in edit mode
@@ -168,6 +169,15 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
   const basePerCoin = COIN_PACKS.reduce((max, p) => Math.max(max, p.priceCents / 100 / p.coins), 0);
 
   if (selected) {
+    // A restored selection holds the canonical pack; apply the admin override
+    // (the same one checkout charges) so the summary shows the real price.
+    const pack =
+      selected.type === "coins"
+        ? applyPackOverride(
+            selected.pack,
+            parsePackOverride(getSiteContent(packOverrideKey(selected.pack.bundleId), "")),
+          )
+        : null;
     const isVipFlow = selected.type === "vip";
     const vipPlan = getVipPlan(selected.type === "vip" ? selected.plan : undefined);
     const vipYearly = vipPlan.cadence === "year";
@@ -176,17 +186,17 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
       ? 0
       : isCustomFlow
         ? selected.units * CUSTOM_COIN_UNIT.coins
-        : selected.pack.coins;
+        : pack!.coins;
     const labelForOrder = isVipFlow
       ? vipPlan.label
       : isCustomFlow
         ? `Custom · ${coinsForOrder} OG Coins`
-        : `${selected.pack.coins} OG Coins · ${selected.pack.label}`;
+        : `${pack!.coins} OG Coins · ${pack!.label}`;
     const totalCents = isVipFlow
       ? vipPlan.priceCents
       : isCustomFlow
         ? selected.units * CUSTOM_COIN_UNIT.priceCents
-        : selected.pack.priceCents;
+        : pack!.priceCents;
     const returnUrlPack = isVipFlow
       ? vipPlan.bundleId
       : isCustomFlow
@@ -210,7 +220,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
           }}
         />
         <PaymentTestModeBanner />
-        <div className="mx-auto max-w-2xl">
+        <div className="og-store mx-auto max-w-2xl">
           <Button variant="ghost" className="mb-4 -ml-2" onClick={clearSelection}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to coin packs
           </Button>
@@ -256,43 +266,36 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                   role="status"
                   aria-live="polite"
                   className={cn(
-                    "relative overflow-hidden rounded-2xl border-2 p-4",
-                    isCustomFlow
-                      ? "border-red-500/50 bg-gradient-to-br from-[#1a0505] via-[#0b0202] to-[#170303] shadow-[0_0_40px_-10px_rgba(239,68,68,0.6)]"
-                      : "border-emerald-500/40 bg-emerald-500/10",
+                    "og-store-panel og-store-panel--featured overflow-hidden p-4",
+                    isVipFlow ? "og-store-panel--purple" : "og-store-panel--gold",
                   )}
                 >
-                  {isCustomFlow && (
-                    <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-red-500/25 blur-3xl animate-pulse" />
-                  )}
                   <div className="relative flex items-start gap-3">
                     <div
                       className={cn(
-                        "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
-                        isCustomFlow
-                          ? "border border-red-500/50 bg-red-500/15 text-red-300"
-                          : "bg-emerald-500/20 text-emerald-300",
+                        "og-store__balance grid h-10 w-10 shrink-0 place-items-center p-0",
+                        isVipFlow ? "og-st-purple" : "og-st-gold",
                       )}
                     >
                       {isCustomFlow ? <Flame className="h-5 w-5" /> : <Check className="h-5 w-5" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[0.7rem] font-black uppercase tracking-[0.25em] text-white/70">
+                      <p className="og-store__eyebrow">
                         {isCustomFlow
                           ? "Custom stack locked in"
                           : isVipFlow
                             ? "VIP plan selected"
                             : "Pack selected"}
                       </p>
-                      <p className="mt-0.5 truncate font-display text-lg font-black text-white sm:text-xl">
+                      <p className="mt-0.5 truncate font-display text-lg font-black sm:text-xl">
                         {isVipFlow
                           ? vipPlan.label
                           : isCustomFlow
                             ? `${coinsForOrder} OG Coins`
-                            : `${(selected as { pack: CoinPack }).pack.coins} OG Coins · ${(selected as { pack: CoinPack }).pack.label}`}
+                            : `${pack!.coins} OG Coins · ${pack!.label}`}
                       </p>
                       {!isVipFlow && (
-                        <p className="mt-0.5 text-xs font-bold uppercase tracking-wider text-white/60 tabular-nums">
+                        <p className="og-st-muted mt-0.5 text-xs font-bold uppercase tracking-wider tabular-nums">
                           {CURRENCY_SYMBOL}
                           {(totalCents / 100).toFixed(2)} · {CURRENCY_SYMBOL}
                           {perCoin.toFixed(3)} per coin
@@ -309,13 +312,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                 <div className="mt-2 grid gap-2 rounded-2xl border border-border bg-background/40 p-4 text-sm">
                   <Row
                     label={isVipFlow ? "Plan" : "Pack"}
-                    value={
-                      isVipFlow
-                        ? vipPlan.label
-                        : isCustomFlow
-                          ? "Custom"
-                          : (selected as { pack: CoinPack }).pack.label
-                    }
+                    value={isVipFlow ? vipPlan.label : isCustomFlow ? "Custom" : pack!.label}
                   />
                   {!isVipFlow && <Row label="Coins" value={`${coinsForOrder} OG Coins`} />}
                   {!isVipFlow && (
@@ -872,37 +869,22 @@ const RARITY_TIERS = [
   {
     name: "Common",
     Icon: Coins,
-    ring: "ring-slate-400/40",
-    glow: "",
-    pill: "bg-slate-500/15 text-slate-300 ring-slate-400/30",
   },
   {
     name: "Rare",
     Icon: Zap,
-    ring: "ring-sky-400/50",
-    glow: "shadow-[0_0_30px_-8px_oklch(0.7_0.18_240)]",
-    pill: "bg-sky-500/15 text-sky-300 ring-sky-400/40",
   },
   {
     name: "Epic",
     Icon: Gem,
-    ring: "ring-purple-400/60",
-    glow: "shadow-[0_0_40px_-10px_oklch(0.7_0.22_300)]",
-    pill: "bg-purple-500/15 text-purple-300 ring-purple-400/40",
   },
   {
     name: "Legendary",
     Icon: Trophy,
-    ring: "ring-coin/70",
-    glow: "shadow-[0_0_60px_-10px_oklch(0.8_0.18_85)]",
-    pill: "bg-coin/20 text-coin ring-coin/50",
   },
   {
     name: "Mythic",
     Icon: Flame,
-    ring: "ring-red-400/60",
-    glow: "shadow-[0_0_60px_-10px_oklch(0.7_0.22_25)]",
-    pill: "bg-red-500/15 text-red-300 ring-red-400/40",
   },
 ] as const;
 
@@ -1332,7 +1314,7 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
       <span className="text-right">
         <span className="text-sm font-bold tabular-nums">{value}</span>
         {hint && (
-          <span className="ml-2 text-[0.7rem] font-bold uppercase tracking-wider text-emerald-400">
+          <span className="og-st-gold ml-2 text-[0.7rem] font-bold uppercase tracking-wider">
             {hint}
           </span>
         )}

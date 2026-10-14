@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { reconcileCoinSession } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { OgVipIdCard } from "@/components/vip/OgVipIdCard";
+import { clearStoredSelection } from "@/lib/buy-coins-selection";
 
 export const Route = createFileRoute("/_authenticated/buy-coins/return")({
   component: BuyCoinsReturn,
@@ -29,6 +30,7 @@ type State =
   | { kind: "loading" }
   | { kind: "done"; coins: number; balance: number }
   | { kind: "vip"; ogVipId: string | null }
+  | { kind: "item" }
   | { kind: "pending" }
   | { kind: "error"; message: string };
 
@@ -54,7 +56,12 @@ function BuyCoinsReturn() {
           setState({ kind: "error", message: res.error });
           return;
         }
+        if (res.status !== "pending") {
+          // Paid: don't bring them back to this order next time they open the Store.
+          clearStoredSelection();
+        }
         if (res.status === "pending") setState({ kind: "pending" });
+        else if (res.status === "store_item") setState({ kind: "item" });
         else if (res.status === "vip_granted")
           setState({ kind: "vip", ogVipId: "ogVipId" in res ? (res.ogVipId ?? null) : null });
         else
@@ -98,7 +105,9 @@ function BuyCoinsReturn() {
                   ? "Payment still processing"
                   : state.kind === "vip"
                     ? "VIP unlocked"
-                    : "Payment complete"}
+                    : state.kind === "item"
+                      ? "Purchase complete"
+                      : "Payment complete"}
           </h1>
 
           <p className="text-sm text-muted-foreground">
@@ -107,6 +116,8 @@ function BuyCoinsReturn() {
             {state.kind === "pending" &&
               "Your coins land as soon as the bank confirms. Check back in a minute."}
             {state.kind === "vip" && "Your VIP perks are active across the whole hub."}
+            {state.kind === "item" &&
+              "Payment received — your item unlocks in a few seconds. Find it on its card in the Store."}
             {state.kind === "done" &&
               `${state.coins} OG coins added. Your balance is now ${state.balance}.`}
           </p>

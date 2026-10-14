@@ -45,6 +45,8 @@ export type StoreCatalog = {
   categories: (StoreCategory & { items: StoreItem[] })[];
 };
 
+const SPORTS_GUIDE_TELEGRAM_INVITES_DISABLED = true;
+
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{1,60}$/;
 const CURRENCY_RE = /^[a-z]{3}$/;
 
@@ -134,9 +136,17 @@ export const purchaseSportsGuideAccess = createServerFn({ method: "POST" })
     return data as { ok: boolean; already_owned: boolean; status: string; coin_balance?: number };
   });
 
+/**
+ * Switched off (owner decision, 2026-10-14): the Sports Guide is an in-app
+ * page now, and this created unlimited one-use invites to the private
+ * Telegram group. Kept so old clients get a clear message instead of a 404.
+ */
 export const claimSportsGuideInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    if (SPORTS_GUIDE_TELEGRAM_INVITES_DISABLED) {
+      throw new Error("The Sports Guide lives in the app now — open it from your dashboard.");
+    }
     const lovableKey = process.env.LOVABLE_API_KEY;
     const telegramKey = process.env.TELEGRAM_API_KEY;
     if (!lovableKey || !telegramKey) throw new Error("Telegram is not configured");

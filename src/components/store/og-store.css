@@ -325,3 +325,16 @@
     transition: none !important;
   }
 }
+
+/* Solid panel for Store dialogs (no position rules, so the dialog stays centred). */
+.og-store-dialog {
+  border: 1px solid color-mix(in oklab, var(--st-gold) 50%, transparent);
+  background:
+    radial-gradient(
+      90% 55% at 50% 0%,
+      color-mix(in oklab, var(--st-gold) 14%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--st-ink-2), var(--st-ink));
+  box-shadow: 0 24px 60px -20px color-mix(in oklab, var(--st-gold) 55%, transparent);
+}
