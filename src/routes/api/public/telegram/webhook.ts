@@ -584,7 +584,10 @@ async function runChatAI(
   }
 
   // Show "typing…" straight away and keep it alive every 4s (Telegram drops
-  // it after ~5s) until the reply is sent.
+  // it after ~5s) until the reply is sent. Replies go out as soon as they're
+  // cooked — with a 2s minimum typing beat so it feels human, and no max wait.
+  const MIN_TYPING_MS = 2_000;
+  const typingStartedAt = Date.now();
   void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
   const typingTimer = setInterval(() => {
     void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
@@ -723,6 +726,14 @@ async function runChatAI(
       role: "assistant",
       content: replyText,
     });
+
+    // Send as soon as it's ready, but keep at least 2s of "typing…" so fast
+    // replies don't feel like canned copy-paste. No upper cap — slow cooks
+    // are fine, the typing heartbeat stays alive.
+    const remainingBeat = MIN_TYPING_MS - (Date.now() - typingStartedAt);
+    if (remainingBeat > 0) {
+      await new Promise((resolve) => setTimeout(resolve, remainingBeat));
+    }
 
     // Telegram caps messages at ~4096 chars
     const chunks = replyText.match(/[\s\S]{1,3800}/g) ?? [replyText];
