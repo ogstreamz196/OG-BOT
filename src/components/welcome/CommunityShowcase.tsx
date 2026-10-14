@@ -68,133 +68,143 @@ export function CommunityShowcase() {
 
   const isOn = (id: string) => current?.id === id && playing;
 
-  return (
-    <section id="studio" className="relative mx-auto max-w-6xl scroll-mt-24 px-3 py-10 sm:px-8">
-      <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-        Community playlist
-      </p>
-      <h2 className="font-display mt-2 text-center text-3xl font-black tracking-tight text-foreground sm:text-5xl">
-        Hear what people made
-      </h2>
-      <p className="mx-auto mt-2 max-w-lg text-center text-sm font-medium text-foreground/85">
-        Real tracks from the OG community. Tap play — no account needed.
-      </p>
+  // Nothing to play yet: leave the section out rather than show an empty shelf.
+  if (!isLoading && !current) return null;
 
-      {isLoading ? (
-        <div className="mt-8 flex justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-foreground" />
-        </div>
-      ) : !current ? (
-        <p className="mt-8 text-center text-sm text-foreground/85">New tracks dropping soon.</p>
-      ) : (
-        <div className="mt-6 grid w-full min-w-0 max-w-full gap-4 overflow-hidden rounded-3xl border-2 border-border bg-card p-3 shadow-card md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          {/* Player */}
-          <div className="min-w-0 max-w-full overflow-hidden md:sticky md:top-24 md:self-start">
-            <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-card">
-              <div className="aspect-video w-full bg-secondary">
-                {current.coverUrl && !brokenCovers[current.id] ? (
-                  <img
-                    src={current.coverUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    onError={() =>
-                      setBrokenCovers((m) => ({ ...m, [current.id]: true }))
-                    }
-                  />
-                ) : (
-                  <div className="grid h-full place-items-center">
-                    <Music2 className="h-14 w-14 text-primary" />
+  return (
+    <section
+      id="studio"
+      aria-labelledby="community-title"
+      className="relative scroll-mt-24 border-t border-border/40"
+    >
+      <div className="mx-auto max-w-6xl px-3 py-12 sm:px-8 sm:py-16">
+        <p className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/75 sm:text-sm">
+          Community playlist
+        </p>
+        <h2
+          id="community-title"
+          className="font-display mt-2 text-center text-3xl font-black leading-[0.95] tracking-tight text-foreground sm:text-5xl"
+        >
+          Hear what people made
+        </h2>
+        <p className="mx-auto mt-3 max-w-lg text-center text-sm font-medium text-foreground/85 sm:text-base">
+          Real tracks from the OG community. Tap play, no account needed.
+        </p>
+
+        {isLoading ? (
+          <div className="mt-8 flex justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-foreground" />
+          </div>
+        ) : !current ? null : (
+          <div className="mt-6 grid w-full min-w-0 max-w-full gap-4 overflow-hidden rounded-3xl border-2 border-border bg-card p-3 shadow-card md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            {/* Player */}
+            <div className="min-w-0 max-w-full overflow-hidden md:sticky md:top-24 md:self-start">
+              <div className="overflow-hidden rounded-3xl border-2 border-border bg-card shadow-card">
+                <div className="aspect-video w-full bg-secondary">
+                  {current.coverUrl && !brokenCovers[current.id] ? (
+                    <img
+                      src={current.coverUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={() => setBrokenCovers((m) => ({ ...m, [current.id]: true }))}
+                    />
+                  ) : (
+                    <div className="grid h-full place-items-center">
+                      <Music2 className="h-14 w-14 text-primary" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
+                    {playing ? "Now playing" : "Up next"}
+                  </p>
+                  <p className="mt-1 truncate font-display text-xl font-black text-card-foreground">
+                    {current.title}
+                  </p>
+                  {current.style && (
+                    <p className="truncate text-sm text-card-foreground/80">{current.style}</p>
+                  )}
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => play(current.id)}
+                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary font-black uppercase text-primary-foreground shadow-glow"
+                    >
+                      {isOn(current.id) ? (
+                        <Pause className="h-5 w-5" />
+                      ) : (
+                        <Play className="h-5 w-5" />
+                      )}
+                      {isOn(current.id) ? "Pause" : "Play"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={skip}
+                      aria-label="Next track"
+                      className="grid h-12 w-12 place-items-center rounded-xl border-2 border-border bg-secondary text-secondary-foreground"
+                    >
+                      <SkipForward className="h-5 w-5" />
+                    </button>
                   </div>
-                )}
-              </div>
-              <div className="p-4">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
-                  {playing ? "Now playing" : "Up next"}
-                </p>
-                <p className="mt-1 truncate font-display text-xl font-black text-card-foreground">
-                  {current.title}
-                </p>
-                {current.style && (
-                  <p className="truncate text-sm text-card-foreground/80">{current.style}</p>
-                )}
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => play(current.id)}
-                    className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary font-black uppercase text-primary-foreground shadow-glow"
-                  >
-                    {isOn(current.id) ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                    {isOn(current.id) ? "Pause" : "Play"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={skip}
-                    aria-label="Next track"
-                    className="grid h-12 w-12 place-items-center rounded-xl border-2 border-border bg-secondary text-secondary-foreground"
-                  >
-                    <SkipForward className="h-5 w-5" />
-                  </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* List */}
-          <div className="min-w-0">
-            <ul className="grid gap-2">
-              {tracks.slice(0, shown).map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => play(t.id)}
-                    className={`flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border-2 bg-card p-2 text-left shadow-card transition hover:border-primary ${
-                      current.id === t.id ? "border-primary" : "border-border"
-                    }`}
-                  >
-                    {t.coverUrl && !brokenCovers[t.id] ? (
-                      <img
-                        src={t.coverUrl}
-                        alt=""
-                        loading="lazy"
-                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                        onError={() =>
-                          setBrokenCovers((m) => ({ ...m, [t.id]: true }))
-                        }
-                      />
-                    ) : (
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/20">
-                        <Music2 className="h-5 w-5 text-primary" />
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold text-card-foreground">
-                        {t.title}
-                      </span>
-                      {t.style && (
-                        <span className="block truncate text-xs text-card-foreground/75">
-                          {t.style}
+            {/* List */}
+            <div className="min-w-0">
+              <ul className="grid gap-2">
+                {tracks.slice(0, shown).map((t) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => play(t.id)}
+                      className={`flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border-2 bg-card p-2 text-left shadow-card transition hover:border-primary ${
+                        current.id === t.id ? "border-primary" : "border-border"
+                      }`}
+                    >
+                      {t.coverUrl && !brokenCovers[t.id] ? (
+                        <img
+                          src={t.coverUrl}
+                          alt=""
+                          loading="lazy"
+                          className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                          onError={() => setBrokenCovers((m) => ({ ...m, [t.id]: true }))}
+                        />
+                      ) : (
+                        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/20">
+                          <Music2 className="h-5 w-5 text-primary" />
                         </span>
                       )}
-                    </span>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-                      {isOn(t.id) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {shown < tracks.length && (
-              <button
-                type="button"
-                onClick={() => setShown((n) => n + PAGE)}
-                className="mt-3 h-12 w-full rounded-xl border-2 border-border bg-secondary font-bold text-secondary-foreground"
-              >
-                Show more tracks ({tracks.length - shown} left)
-              </button>
-            )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-card-foreground">
+                          {t.title}
+                        </span>
+                        {t.style && (
+                          <span className="block truncate text-xs text-card-foreground/75">
+                            {t.style}
+                          </span>
+                        )}
+                      </span>
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+                        {isOn(t.id) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {shown < tracks.length && (
+                <button
+                  type="button"
+                  onClick={() => setShown((n) => n + PAGE)}
+                  className="mt-3 h-12 w-full rounded-xl border-2 border-border bg-secondary font-bold text-secondary-foreground"
+                >
+                  Show more tracks ({tracks.length - shown} left)
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

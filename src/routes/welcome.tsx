@@ -776,9 +776,8 @@ function WelcomePage() {
         <Hero />
         <MoreFromOgBot />
         <Superpowers />
-
-        <ClosingCta />
         <CommunityShowcase />
+        <ClosingCta />
         <Footer />
         <AuthModal />
         <GuestWizard />
@@ -927,7 +926,8 @@ function Hero() {
         <h1 className="font-display text-[clamp(1.8rem,8vw,2.6rem)] font-black leading-[0.95] tracking-[-0.035em] [text-wrap:balance] md:text-[clamp(2.4rem,4.6vw,3.4rem)]">
           <span className="wc-pop block md:inline">ROAST THE BOT. </span>
           <span className="wc-pop block md:inline" style={{ animationDelay: "0.12s" }}>
-            DROP THE <span className="wc-bounce-soft inline-block italic text-accent">DISS.</span>{" "}
+            DROP THE{" "}
+            <span className="wc-bounce-soft inline-block italic text-accent">DISS.</span>{" "}
           </span>
           <span className="wc-pop block md:block" style={{ animationDelay: "0.24s" }}>
             OR COOK A HIT.
@@ -971,27 +971,24 @@ function Hero() {
           />
         </div>
       </div>
-
-      <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-3 text-center sm:mt-8">
-        <button
-          type="button"
-          onClick={openBattle}
-          className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-destructive/45 bg-destructive/10 px-4 py-2 text-[0.82rem] font-bold text-foreground transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:text-sm"
-        >
-          <span aria-hidden>🎤</span>
-          <span>
-            Try: <span className="italic">“Your beats sound like a microwave”</span>
-          </span>
-        </button>
-        <p className="text-[0.72rem] font-black uppercase tracking-[0.16em] text-foreground/90 sm:text-xs">
-          👑 15 days free VIP <span aria-hidden className="text-foreground/40">·</span> No card
-        </p>
-        <p className="text-xs font-medium text-muted-foreground sm:text-sm">
-          Real vocals <span aria-hidden>·</span> Album cover <span aria-hidden>·</span> Foul Mouth
-          mode
-        </p>
-      </div>
     </section>
+  );
+}
+
+/** Small eyebrow + display title used to open each section below the hero. */
+function SectionHeading({ id, eyebrow, title }: { id: string; eyebrow: string; title: string }) {
+  return (
+    <div className="text-center">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-foreground/75 sm:text-sm">
+        {eyebrow}
+      </p>
+      <h2
+        id={id}
+        className="font-display mt-2 text-balance text-3xl font-black leading-[0.95] tracking-tight sm:text-5xl"
+      >
+        {title}
+      </h2>
+    </div>
   );
 }
 
@@ -999,41 +996,45 @@ function Hero() {
 function MoreFromOgBot() {
   return (
     <section aria-labelledby="more-title" className="relative border-t border-border/40">
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-8 sm:py-14">
-        <h2
-          id="more-title"
-          className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/80 sm:text-sm"
-        >
-          More from OG Bot
-        </h2>
-        <article className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-2xl border border-white/12 bg-card/90 p-3 shadow-card backdrop-blur-xl transition focus-within:ring-2 focus-within:ring-accent hover:border-accent/60 sm:gap-6 sm:rounded-3xl sm:p-5">
-          <img
-            src={sportsGuideArt}
-            alt="OG Bot Sports Guide badge"
-            width={480}
-            height={480}
-            loading="lazy"
-            decoding="async"
-            className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-32 sm:w-32"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-[0.7rem] font-black uppercase tracking-[0.18em] text-accent sm:text-xs">
-              Members
-            </p>
-            <h3 className="font-display text-xl font-black uppercase leading-none sm:text-3xl">
-              Sports Guide
-            </h3>
-            <p className="mt-1 text-xs leading-snug text-foreground/85 sm:text-base">
-              Live daily fixtures, fight cards and TV listings — search any team instantly.
-            </p>
-            <button
-              type="button"
-              onClick={openSportsGuide}
-              className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-accent px-4 pt-0.5 text-xs font-black uppercase tracking-wide text-accent-foreground transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:text-sm"
-            >
-              Sign in for Sports Guide
-            </button>
+      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-8 sm:py-16">
+        <SectionHeading id="more-title" eyebrow="More from OG Bot" title="Never miss a game" />
+        <article className="group relative mt-6 overflow-hidden rounded-3xl border border-white/12 bg-card/90 p-4 shadow-card backdrop-blur-xl transition focus-within:ring-2 focus-within:ring-accent hover:border-accent/60 sm:mt-8 sm:p-6">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <img
+              src={sportsGuideArt}
+              alt="OG Bot Sports Guide badge"
+              width={480}
+              height={480}
+              loading="lazy"
+              decoding="async"
+              className="h-24 w-24 shrink-0 rounded-2xl object-cover sm:h-36 sm:w-36"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-black uppercase tracking-[0.18em] text-foreground/85 sm:text-xs">
+                Members only
+              </p>
+              <h3 className="font-display mt-2 text-2xl font-black uppercase leading-none sm:text-4xl">
+                Sports Guide
+              </h3>
+              <p className="mt-2 text-sm leading-snug text-foreground/85 sm:text-base">
+                Daily fixtures, fight cards and TV listings. Search any team in seconds.
+              </p>
+              <button
+                type="button"
+                onClick={openSportsGuide}
+                className="mt-4 hidden min-h-11 items-center gap-2 rounded-xl bg-accent px-5 pt-0.5 text-sm font-black uppercase tracking-wide text-accent-foreground transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:inline-flex"
+              >
+                Open Sports Guide <span aria-hidden>→</span>
+              </button>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={openSportsGuide}
+            className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 pt-0.5 text-sm font-black uppercase tracking-wide text-accent-foreground transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none sm:hidden"
+          >
+            Open Sports Guide <span aria-hidden>→</span>
+          </button>
         </article>
       </div>
     </section>
@@ -1056,27 +1057,27 @@ function Superpowers() {
 function ClosingCta() {
   return (
     <section id="how" className="relative border-t border-border/40">
-      <div className="relative mx-auto max-w-3xl px-4 py-14 text-center sm:px-8 sm:py-20">
-        <CardEditBadge />
-        <div className="heading-plate px-4 py-4 sm:px-8 sm:py-6">
+      <div className="relative mx-auto max-w-3xl px-4 py-12 sm:px-8 sm:py-16">
+        <div className="relative overflow-hidden rounded-3xl border border-white/12 bg-card/90 px-5 py-8 text-center shadow-card backdrop-blur-xl sm:px-10 sm:py-12">
+          <CardEditBadge />
           <EditableContent
             as="p"
             contentKey="welcome.closing.eyebrow"
             defaultValue="Ready?"
-            className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
+            className="block text-xs font-black uppercase tracking-[0.3em] text-foreground/75 sm:text-sm"
           />
           <EditableContent
             as="h2"
             contentKey="welcome.closing.title"
             defaultValue="Your next prompt could be a hit."
             multiline
-            className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
+            className="font-display mt-3 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
           />
-          <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
-            Free account in seconds · 15 days of VIP on us · No card needed.
+          <p className="mx-auto mt-4 max-w-md text-sm text-foreground/85 sm:text-lg">
+            Free account in seconds. 15 days of VIP on us, no card needed.
           </p>
+          <PrimaryActions className="mt-7" />
         </div>
-        <PrimaryActions className="mt-8" />
       </div>
     </section>
   );
@@ -1085,12 +1086,11 @@ function ClosingCta() {
 function Footer() {
   return (
     <footer className="border-t border-white/10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-foreground/85 sm:flex-row sm:px-8">
-        <span className="inline-flex items-center gap-2">
-          © {new Date().getFullYear()} OG Studio · Prompt songs powered by{" "}
-          <OgBotLogo className="h-5 w-5" />
-        </span>
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-2">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-5 py-8 text-center text-sm text-foreground/80 sm:flex-row sm:justify-between sm:px-8 sm:text-left">
+        <nav
+          aria-label="Footer"
+          className="flex flex-wrap items-center justify-center gap-x-1 sm:order-2"
+        >
           <Link
             to="/policy"
             className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -1122,6 +1122,10 @@ function Footer() {
             Sign in
           </Link>
         </nav>
+        <p className="inline-flex items-center gap-2 sm:order-1">
+          <OgBotLogo className="h-5 w-5" />© {new Date().getFullYear()} OG Studio · Powered by OG
+          Bot
+        </p>
       </div>
     </footer>
   );
