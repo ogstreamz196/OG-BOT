@@ -1,0 +1,521 @@
+/* ============================================================
+   OG BOT Battle Chat arena (guest + member Battle Zone).
+   Scoped under .og-arena with arena-only colour variables, so no other page
+   changes. Text is always white, silver, gold or red: electric blue is
+   used only for borders, glows and rings (the no-blue-text check).
+   Motion stops for prefers-reduced-motion.
+   ============================================================ */
+.og-arena,
+.og-arena-vars {
+  --ar-ink: oklch(0.11 0.025 262);
+  --ar-ink-2: oklch(0.16 0.03 260);
+  --ar-steel: oklch(0.24 0.02 258);
+  --ar-cyan: oklch(0.82 0.15 205);
+  --ar-blue: oklch(0.6 0.2 258);
+  --ar-crimson: oklch(0.6 0.23 25);
+  --ar-crimson-ink: oklch(0.14 0.04 25);
+  --ar-gold: oklch(0.84 0.15 85);
+  --ar-green: oklch(0.78 0.18 150);
+  --ar-white: oklch(0.98 0 0);
+  --ar-silver: oklch(0.78 0.01 255);
+  color: var(--ar-white);
+}
+.og-arena {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background:
+    radial-gradient(
+      80% 50% at 50% 0%,
+      color-mix(in oklab, var(--ar-blue) 14%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      60% 40% at 50% 100%,
+      color-mix(in oklab, var(--ar-crimson) 10%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--ar-ink-2), var(--ar-ink));
+}
+:is(.og-arena, .og-arena-vars) .ar-white {
+  color: var(--ar-white);
+}
+:is(.og-arena, .og-arena-vars) .ar-silver {
+  color: var(--ar-silver);
+}
+:is(.og-arena, .og-arena-vars) .ar-gold {
+  color: var(--ar-gold);
+}
+:is(.og-arena, .og-arena-vars) .ar-red {
+  color: var(--ar-crimson);
+}
+:is(.og-arena, .og-arena-vars) .ar-green {
+  color: var(--ar-green);
+}
+
+/* ---------- Header ---------- */
+.ar-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--ar-cyan) 30%, transparent);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--ar-white) 2.5%, transparent) 0 1px,
+      transparent 1px 5px
+    ),
+    linear-gradient(180deg, var(--ar-steel), var(--ar-ink-2));
+  box-shadow: 0 6px 18px -12px color-mix(in oklab, var(--ar-cyan) 80%, transparent);
+}
+@media (min-width: 640px) {
+  .ar-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+}
+.ar-avatar {
+  position: relative;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  padding: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--ar-white),
+    var(--ar-silver) 45%,
+    oklch(0.45 0.01 255) 55%,
+    var(--ar-white)
+  );
+}
+.ar-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+  object-position: 50% 30%;
+  background: var(--ar-ink);
+}
+.ar-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  border: 2px solid var(--ar-cyan);
+  opacity: 0.6;
+  pointer-events: none;
+  animation: ar-ring 2.6s ease-in-out infinite;
+}
+.ar-avatar[data-thinking="true"]::after {
+  border-color: var(--ar-crimson);
+  animation-duration: 0.9s;
+}
+.ar-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--ar-green);
+  box-shadow: 0 0 8px var(--ar-green);
+  animation: ar-blink 1.8s ease-in-out infinite;
+}
+.ar-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ar-white);
+  text-shadow: 0 0 12px color-mix(in oklab, var(--ar-cyan) 45%, transparent);
+}
+.ar-chip {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--ar-gold) 45%, transparent);
+  background: color-mix(in oklab, var(--ar-gold) 10%, transparent);
+  padding: 0 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--ar-white);
+}
+.ar-pop {
+  color: var(--ar-gold);
+  animation: ar-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ar-icon-btn {
+  display: inline-flex;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--ar-cyan) 35%, transparent);
+  background: color-mix(in oklab, var(--ar-ink) 70%, transparent);
+  padding: 0 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--ar-white);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.ar-icon-btn:hover:not(:disabled) {
+  border-color: var(--ar-cyan);
+  box-shadow: 0 0 14px -4px var(--ar-cyan);
+}
+.ar-icon-btn:focus-visible,
+.ar-send:focus-visible,
+.ar-bubble-menu:focus-visible {
+  outline: 2px solid var(--ar-cyan);
+  outline-offset: 2px;
+}
+.ar-icon-btn[aria-expanded="true"] {
+  border-color: var(--ar-cyan);
+}
+.ar-icon-btn--bank {
+  border-color: color-mix(in oklab, var(--ar-crimson) 60%, transparent);
+  background: color-mix(in oklab, var(--ar-crimson) 18%, transparent);
+}
+.ar-icon-btn--bank:hover:not(:disabled) {
+  border-color: var(--ar-crimson);
+  box-shadow: 0 0 14px -4px var(--ar-crimson);
+}
+
+/* Drawers under the header (ranks, roast of the day). */
+.ar-panel {
+  margin: 0.5rem 0.6rem 0;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in oklab, var(--ar-cyan) 25%, transparent);
+  background: color-mix(in oklab, var(--ar-ink) 80%, transparent);
+  padding: 0.55rem 0.7rem;
+}
+.ar-panel--roast {
+  border-color: color-mix(in oklab, var(--ar-gold) 40%, transparent);
+}
+
+/* ---------- Feed ---------- */
+.ar-feed {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.6rem 0.6rem 0.4rem;
+  -webkit-overflow-scrolling: touch;
+}
+.ar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+  padding: 0.3rem 0;
+}
+.ar-row--mine {
+  flex-direction: row-reverse;
+}
+.ar-face {
+  display: grid;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--ar-silver) 40%, transparent);
+  background: var(--ar-steel);
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: var(--ar-white);
+}
+.ar-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+}
+.ar-face--bot {
+  border-color: var(--ar-crimson);
+  box-shadow: 0 0 10px -2px var(--ar-crimson);
+}
+.ar-face--vip {
+  border-color: var(--ar-gold);
+}
+.ar-bubble {
+  position: relative;
+  min-width: 0;
+  max-width: min(88%, 34rem);
+  border-radius: 1rem;
+  padding: 0.45rem 0.75rem 0.5rem;
+  font-size: 0.86rem;
+  line-height: 1.38;
+  color: var(--ar-white);
+  overflow-wrap: anywhere;
+}
+.ar-text {
+  white-space: pre-wrap;
+}
+.ar-bubble--user {
+  border: 1px solid color-mix(in oklab, var(--ar-cyan) 40%, transparent);
+  background: color-mix(in oklab, var(--ar-ink) 85%, transparent);
+  box-shadow: 0 0 14px -6px color-mix(in oklab, var(--ar-cyan) 70%, transparent);
+  border-top-left-radius: 0.25rem;
+}
+.ar-row--mine .ar-bubble--user {
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 0.25rem;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--ar-blue) 22%, transparent), transparent),
+    color-mix(in oklab, var(--ar-ink) 85%, transparent);
+}
+.ar-bubble--vip {
+  border-color: color-mix(in oklab, var(--ar-gold) 45%, transparent);
+  box-shadow: 0 0 14px -6px color-mix(in oklab, var(--ar-gold) 70%, transparent);
+}
+.ar-bubble--bot {
+  border: 1px solid color-mix(in oklab, var(--ar-crimson) 45%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--ar-crimson) 14%, transparent),
+      transparent 60%
+    ),
+    var(--ar-crimson-ink);
+  box-shadow: 0 0 16px -6px color-mix(in oklab, var(--ar-crimson) 60%, transparent);
+  border-top-left-radius: 0.25rem;
+}
+.ar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ar-silver);
+}
+.ar-name-vip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: 0.3rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--ar-gold);
+}
+button.ar-name-vip {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  line-height: inherit;
+}
+.ar-name-vip:focus-visible {
+  outline: 2px solid var(--ar-gold);
+  outline-offset: 2px;
+}
+.ar-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--ar-crimson) 55%, transparent);
+  background: color-mix(in oklab, var(--ar-crimson) 16%, transparent);
+  padding: 0.05rem 0.45rem;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ar-white);
+}
+.ar-bubble-menu {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9999px;
+  color: var(--ar-silver);
+}
+
+/* Empty state with a faint mascot watermark. */
+.ar-empty {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 14rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  text-align: center;
+}
+.ar-empty img {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(70%, 18rem);
+  transform: translate(-50%, -55%);
+  opacity: 0.12;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 72%);
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 72%);
+}
+.ar-empty h3 {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  text-transform: uppercase;
+  color: var(--ar-white);
+}
+.ar-empty p {
+  position: relative;
+  max-width: 20rem;
+  font-size: 0.85rem;
+  color: var(--ar-silver);
+}
+
+/* ---------- Weapon console (composer) ---------- */
+.ar-console {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin: 0 0.5rem 0.5rem;
+  padding: 0.45rem;
+  padding-bottom: max(0.45rem, env(safe-area-inset-bottom));
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--ar-silver) 22%, transparent);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--ar-white) 2.5%, transparent) 0 1px,
+      transparent 1px 5px
+    ),
+    linear-gradient(180deg, var(--ar-steel), var(--ar-ink));
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.ar-console:focus-within {
+  border-color: var(--ar-cyan);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--ar-cyan) 50%, transparent),
+    0 0 18px -6px var(--ar-cyan);
+}
+.ar-console textarea {
+  min-height: 3rem;
+  max-height: 9rem;
+  flex: 1;
+  resize: none;
+  border: 0;
+  background: transparent;
+  padding: 0.55rem 0.6rem;
+  font-size: 1rem;
+  line-height: 1.3;
+  color: var(--ar-white);
+  outline: none;
+}
+.ar-console textarea::placeholder {
+  color: var(--ar-silver);
+  opacity: 0.85;
+}
+.ar-send {
+  display: inline-grid;
+  width: 2.9rem;
+  height: 2.9rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.8rem;
+  color: var(--ar-ink);
+  background: linear-gradient(90deg, var(--ar-cyan), var(--ar-blue));
+  box-shadow: 0 0 14px -2px color-mix(in oklab, var(--ar-cyan) 70%, transparent);
+  transition:
+    filter 160ms ease,
+    box-shadow 160ms ease;
+}
+.ar-send:hover:not(:disabled) {
+  box-shadow: 0 0 20px 0 color-mix(in oklab, var(--ar-cyan) 70%, transparent);
+}
+.ar-send:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+/* VIP upsell */
+.ar-vip-sheet {
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in oklab, var(--ar-gold) 55%, transparent);
+  background:
+    radial-gradient(
+      80% 60% at 50% 0%,
+      color-mix(in oklab, var(--ar-gold) 14%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--ar-ink-2), var(--ar-ink));
+  box-shadow: 0 20px 60px -20px color-mix(in oklab, var(--ar-gold) 60%, transparent);
+}
+.ar-vip-cta {
+  display: inline-flex;
+  min-height: 2.9rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.85rem;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  color: var(--ar-ink);
+  background: linear-gradient(180deg, var(--ar-gold), oklch(0.62 0.12 70));
+}
+
+@keyframes ar-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+@keyframes ar-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes ar-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .og-arena *,
+  .og-arena *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

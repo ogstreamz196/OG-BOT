@@ -11,7 +11,49 @@ export type CommunityMessage = {
   content: string;
   display_name: string | null;
   created_at: string;
+  /** Sender is a paid VIP (vip role; the free trial doesn't count). */
+  vip?: boolean;
+  /** Sender's public OG VIP ID, when they have one. */
+  vip_id?: string | null;
+  /** Roast score in tenths of a coin, when the round won something. */
+  score_tenths?: number | null;
 };
+
+/**
+ * Tag messages from paid VIPs (vip role) with their public OG VIP ID so the
+ * Battle Zone can crown them. Read-only; a failed lookup just shows no crowns.
+ */
+async function withVipBadges<T extends { user_id: string | null }>(
+  admin: AdminClient,
+  rows: T[],
+): Promise<(T & { vip: boolean; vip_id: string | null })[]> {
+  const ids = [...new Set(rows.map((r) => r.user_id).filter((v): v is string => !!v))];
+  const vip = new Map<string, string | null>();
+  if (ids.length) {
+    try {
+      const [{ data: roles }, { data: profiles }] = await Promise.all([
+        admin.from("user_roles").select("user_id").eq("role", "vip").in("user_id", ids),
+        admin.from("profiles").select("id, og_vip_id").in("id", ids),
+      ]);
+      const idById = new Map(
+        ((profiles ?? []) as { id: string; og_vip_id: string | null }[]).map((p) => [
+          p.id,
+          p.og_vip_id,
+        ]),
+      );
+      for (const r of (roles ?? []) as { user_id: string }[]) {
+        vip.set(r.user_id, idById.get(r.user_id) ?? null);
+      }
+    } catch (e) {
+      console.warn("battle VIP badge lookup failed", (e as Error).message);
+    }
+  }
+  return rows.map((r) => ({
+    ...r,
+    vip: !!r.user_id && vip.has(r.user_id),
+    vip_id: r.user_id ? (vip.get(r.user_id) ?? null) : null,
+  }));
+}
 
 const SYSTEM_PROMPT = `
 You are OG Bot in the OG BATTLE ZONE — a roast battle ring where everyone
@@ -692,7 +734,7 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
     const [{ data: rows }, { count }] = await Promise.all([
       supabaseAdmin
         .from("community_messages")
-        .select("id, role, content, display_name, created_at, guest_id, user_id")
+        .select("id, role, content, display_name, created_at, guest_id, user_id, score_tenths")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(60),
@@ -707,7 +749,7 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
       myName: guestBattleName(data.guestId),
       pendingTenths: await guestPurse(supabaseAdmin, data.guestId),
       rounds: used,
-      messages: (rows ?? []).reverse().map((r) => ({
+      messages: (await withVipBadges(supabaseAdmin, (rows ?? []).reverse())).map((r) => ({
         id: r.id,
         role: r.role as "user" | "bot",
         content: r.content,
@@ -715,6 +757,9 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
         created_at: r.created_at,
         mine: r.guest_id === data.guestId && r.role === "user",
         member: !!r.user_id,
+        vip: r.vip,
+        vip_id: r.vip_id,
+        score_tenths: (r.score_tenths as number | null) ?? null,
       })),
       remaining: Math.max(0, GUEST_MESSAGE_LIMIT - used),
     };
@@ -939,13 +984,14 @@ export const listCommunityMessages = createServerFn({ method: "GET" })
     const since = await joinedAt(supabaseAdmin, context.userId);
     let q = supabaseAdmin
       .from("community_messages")
-      .select("id, user_id, role, content, display_name, created_at")
+      .select("id, user_id, role, content, display_name, created_at, score_tenths")
       .order("created_at", { ascending: false })
       .limit(100);
     if (since) q = q.gte("created_at", since);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    return { messages: ((data ?? []) as CommunityMessage[]).reverse() };
+    const messages = ((data ?? []) as CommunityMessage[]).reverse();
+    return { messages: (await withVipBadges(supabaseAdmin, messages)) as CommunityMessage[] };
   });
 
 /** Load a page of older messages strictly before the given (created_at, id) cursor. */
@@ -965,7 +1011,7 @@ export const listOlderCommunityMessages = createServerFn({ method: "POST" })
     // that share the exact same created_at timestamp.
     const query = supabaseAdmin
       .from("community_messages")
-      .select("id, user_id, role, content, display_name, created_at")
+      .select("id, user_id, role, content, display_name, created_at, score_tenths")
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(data.limit);
@@ -976,8 +1022,9 @@ export const listOlderCommunityMessages = createServerFn({ method: "POST" })
         )
       : await query.lt("created_at", data.before);
     if (error) throw new Error(error.message);
+    const messages = ((rows ?? []) as CommunityMessage[]).reverse();
     return {
-      messages: ((rows ?? []) as CommunityMessage[]).reverse(),
+      messages: (await withVipBadges(supabaseAdmin, messages)) as CommunityMessage[],
       hasMore: (rows?.length ?? 0) === data.limit,
     };
   });

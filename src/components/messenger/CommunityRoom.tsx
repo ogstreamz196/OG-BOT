@@ -2,8 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, Send, Users, Loader2, Trash2, Coins, Flag, Trophy, Eraser } from "lucide-react";
-import { TypingDots } from "@/components/ui/typing-dots";
+import { ArrowDown, Loader2, Trash2, Eraser } from "lucide-react";
 import { toast } from "sonner";
 import {
   listCommunityMessages,
@@ -31,22 +30,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useFoulMouth } from "@/hooks/use-foul-mouth";
 import { useRole } from "@/hooks/use-role";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
-
-function initials(name: string | null) {
-  if (!name) return "?";
-  return name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
+import {
+  ArenaComposer,
+  ArenaEmpty,
+  ArenaFrame,
+  ArenaHeader,
+  ArenaMessage,
+  ArenaRanks,
+  ArenaRoastOfDay,
+  ArenaTyping,
+  ArenaVipPromo,
+} from "@/components/battle/Arena";
 
 function formatTime(iso: string) {
   try {
@@ -76,7 +73,7 @@ export function CommunityRoom() {
   const tallyFn = useServerFn(getBattleTally);
   const endFn = useServerFn(endBattle);
   const { foulMouth } = useFoulMouth();
-  const { isDev, isAdmin } = useRole();
+  const { isDev, isAdmin, hasVipRole } = useRole();
   const canClear = isDev || isAdmin;
   // Report / Block are app-store safety tools — always visible so store
   // reviewers (who test in a browser) can see them.
@@ -114,7 +111,9 @@ export function CommunityRoom() {
         }
         return next;
       });
-      toast.success("Message reported and hidden from your view. We review reports within 24 hours.");
+      toast.success(
+        "Message reported and hidden from your view. We review reports within 24 hours.",
+      );
     } catch (e) {
       toast.error((e as Error).message || "Couldn't send report");
     }
@@ -154,6 +153,8 @@ export function CommunityRoom() {
     staleTime: 30_000,
   });
   const [lastEarned, setLastEarned] = useState<number | null>(null);
+  const [showRoast, setShowRoast] = useState(true);
+  const [vipPromoOpen, setVipPromoOpen] = useState(false);
   const pendingCoins = ((tally?.pendingTenths ?? 0) / 10).toFixed(2);
   const messages: CommunityMessage[] = useMemo(
     () =>
@@ -199,7 +200,12 @@ export function CommunityRoom() {
             (prev) => {
               const existing = prev?.messages ?? [];
               if (existing.some((m) => m.id === row.id)) return prev;
-              return { messages: [...existing, row] };
+              // Live rows don't carry VIP badges; reuse the sender's from earlier lines.
+              const known = row.user_id
+                ? existing.find((m) => m.user_id === row.user_id && m.vip !== undefined)
+                : undefined;
+              const withBadge = known ? { ...row, vip: known.vip, vip_id: known.vip_id } : row;
+              return { messages: [...existing, withBadge] };
             },
           );
           if (!stickToBottomRef.current && row.user_id !== myId) {
@@ -394,6 +400,19 @@ export function CommunityRoom() {
         if (award.earnedTenths > 0) {
           setLastEarned(award.earnedTenths);
           window.setTimeout(() => setLastEarned(null), 2500);
+          // Show the round's score on OG Bot's reply straight away.
+          const sentId = (res as { message?: { id?: string } }).message?.id;
+          if (sentId) {
+            qc.setQueryData<{ messages: CommunityMessage[] } | undefined>(
+              ["community-messages"],
+              (prev) =>
+                prev && {
+                  messages: prev.messages.map((m) =>
+                    m.id === sentId ? { ...m, score_tenths: award.earnedTenths } : m,
+                  ),
+                },
+            );
+          }
         }
         if ((award.streakBonusTenths ?? 0) > 0) {
           toast.success(
@@ -483,179 +502,87 @@ export function CommunityRoom() {
 
   const activeTypers = Object.values(typingUsers);
 
+  const myName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "OG member";
+
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-1.5 p-1.5 font-sans sm:p-2">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Coins className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-          <p
-            className="min-w-0 truncate text-xs font-black tabular-nums text-foreground sm:text-sm"
-            aria-live="polite"
-            title="Battle purse"
-          >
-            {pendingCoins} OG
-            {lastEarned ? (
-              <span className="ml-1 animate-[pop_0.3s_ease-out] text-[0.7rem] font-bold text-primary">
-                +{(lastEarned / 10).toFixed(2)}
-              </span>
-            ) : null}
-          </p>
-          {(tally?.streakDays ?? 0) > 1 ? (
-            <span
-              className="inline-flex shrink-0 items-center rounded-full border border-coin/40 bg-coin/10 px-1.5 py-0.5 text-[0.7rem] font-black text-coin"
-              title={`${tally?.streakDays}-day streak`}
-            >
-              🔥{tally?.streakDays}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1 px-2 text-[0.7rem] font-bold uppercase"
-            aria-expanded={showBoard}
-            aria-label="Ranks"
-            onClick={() => setShowBoard((v) => !v)}
-          >
-            <Trophy className="h-3.5 w-3.5" />
-            <span className="hidden min-[400px]:inline">Ranks</span>
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="h-7 gap-1 px-2 text-[0.7rem] font-bold uppercase"
-            disabled={quit.isPending}
-            aria-label="Bank coins"
-            onClick={() => quit.mutate()}
-          >
-            {quit.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Flag className="h-3.5 w-3.5" />
-            )}
-            <span>Bank</span>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            disabled={clearMine.isPending}
-            title="Clear my chat history (only for me)"
-            onClick={() => {
-              if (window.confirm("Clear your Battle Zone history? Only your view is cleared — nobody else is affected.")) {
-                clearMine.mutate();
-              }
-            }}
-          >
-            {clearMine.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Eraser className="h-3 w-3" />
-            )}
-            <span className="sr-only">Clear my history</span>
-          </Button>
-          {canClear && (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              className="h-7 w-7 p-0"
-              disabled={clear.isPending}
-              title="Clear live chat"
-              onClick={() => {
-                if (window.confirm("Wipe ALL Battle Zone messages? This cannot be undone.")) {
-                  clear.mutate();
-                }
-              }}
-            >
-              {clear.isPending ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Trash2 className="h-3 w-3" />
-              )}
-              <span className="sr-only">Clear chat</span>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {roastOfDay?.roast ? (
-        <div className="flex items-start gap-2 rounded-lg border border-coin/40 bg-coin/10 px-2 py-1.5">
-          <span aria-hidden className="text-sm leading-none">
-            👑
-          </span>
-          <div className="min-w-0">
-            <p className="text-[0.7rem] font-black uppercase tracking-wider text-coin">
-              Roast of the day — {roastOfDay.roast.displayName}
-            </p>
-            <p className="line-clamp-2 text-xs text-foreground">{roastOfDay.roast.content}</p>
-          </div>
-        </div>
-      ) : null}
-
-      {showBoard && (
-        <div className="rounded-xl border border-primary/25 bg-background/70 p-2">
-          <p className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
-            Most savage roasters
-          </p>
-          {boardLoading ? (
-            <p className="py-1.5 text-xs text-muted-foreground">Counting the bodies…</p>
-          ) : (board?.rows.length ?? 0) === 0 ? (
-            <p className="py-1.5 text-xs text-muted-foreground">
-              Nobody has banked a win yet. Be the first.
-            </p>
-          ) : (
-            <ol className="space-y-0.5">
-              {board!.rows.slice(0, 10).map((row, i) => (
-                <li
-                  key={row.userId}
-                  className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-xs ${
-                    row.isMe ? "bg-primary/10 font-bold text-foreground" : "text-muted-foreground"
-                  }`}
+    <ArenaFrame className="h-full font-sans">
+      <ArenaHeader
+        compact
+        subtitle={`Live battle · you're ${myName}`}
+        thinking={send.isPending}
+        purse={`${pendingCoins} OG`}
+        earned={lastEarned}
+        streakDays={tally?.streakDays}
+        ranksOpen={showBoard}
+        onToggleRanks={() => setShowBoard((v) => !v)}
+        onBank={() => quit.mutate()}
+        bankPending={quit.isPending}
+        menu={
+          <DropdownMenu>
+            <DropdownMenuTrigger aria-label="Battle options" className="ar-icon-btn">
+              <MoreVertical className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {roastOfDay?.roast ? (
+                <DropdownMenuItem onSelect={() => setShowRoast((v) => !v)}>
+                  {showRoast ? "Hide roast of the day" : "Show roast of the day"}
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                disabled={clearMine.isPending}
+                onSelect={() => {
+                  if (
+                    window.confirm(
+                      "Clear your Battle Zone history? Only your view is cleared — nobody else is affected.",
+                    )
+                  ) {
+                    clearMine.mutate();
+                  }
+                }}
+              >
+                <Eraser className="mr-2 h-4 w-4" /> Clear my history (only for me)
+              </DropdownMenuItem>
+              {canClear ? (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  disabled={clear.isPending}
+                  onSelect={() => {
+                    if (window.confirm("Wipe ALL Battle Zone messages? This cannot be undone.")) {
+                      clear.mutate();
+                    }
+                  }}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="w-4 shrink-0 tabular-nums">{i + 1}</span>
-                    <span className="truncate">
-                      {row.name}
-                      {row.isMe ? " (you)" : ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 tabular-nums text-primary">{row.coinsWon} OG</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
-      <div className="relative flex-1 min-h-0">
+                  <Trash2 className="mr-2 h-4 w-4" /> Clear live chat for everyone
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />
+
+      {roastOfDay?.roast && showRoast ? (
+        <ArenaRoastOfDay name={roastOfDay.roast.displayName} content={roastOfDay.roast.content} />
+      ) : null}
+      {showBoard ? <ArenaRanks loading={boardLoading} rows={board?.rows ?? []} /> : null}
+
+      <div className="relative min-h-0 flex-1">
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="absolute inset-0 overflow-y-auto overscroll-contain rounded-xl border border-border/40 bg-background/75 p-1.5 backdrop-blur-md sm:p-2.5 [-webkit-overflow-scrolling:touch]"
+          className="ar-feed absolute inset-0"
           style={{ touchAction: "pan-y" }}
         >
-          {isLoading ? (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading the Battle Zone…
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
-              <Users className="h-8 w-8 opacity-50" />
-              <p className="text-sm">Be the first to throw a bar at OG Bot.</p>
-            </div>
+          {isLoading || messages.length === 0 ? (
+            <ArenaEmpty loading={isLoading} />
           ) : (
             <>
               {loadingOlder && (
-                <div className="flex items-center justify-center py-2 text-xs text-muted-foreground">
+                <div className="ar-silver flex items-center justify-center py-2 text-xs">
                   <Loader2 className="mr-2 h-3 w-3 animate-spin" /> Loading older messages…
                 </div>
               )}
               {!hasMore && (
-                <div className="py-1 text-center text-[0.7rem] uppercase tracking-wider text-muted-foreground/60">
+                <div className="ar-silver py-1 text-center text-[0.7rem] uppercase tracking-wider">
                   Beginning of chat
                 </div>
               )}
@@ -671,6 +598,7 @@ export function CommunityRoom() {
                   if (!m) return null;
                   const mine = m.role === "user" && m.user_id === myId;
                   const isBot = m.role === "bot";
+                  const prev = messages[vi.index - 1];
                   return (
                     <div
                       key={vi.key}
@@ -684,71 +612,40 @@ export function CommunityRoom() {
                         transform: `translateY(${vi.start}px)`,
                       }}
                     >
-                      <div
-                        className={`flex items-end gap-1.5 py-1 motion-safe:animate-[pop_0.2s_ease-out] ${mine ? "flex-row-reverse" : "flex-row"}`}
-                      >
-                        <span
-                          className={`grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-full text-[0.7rem] font-bold uppercase sm:h-7 sm:w-7 ${
-                            isBot
-                              ? "bg-primary/20 ring-1 ring-primary/40"
-                              : mine
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-foreground"
-                          }`}
-                        >
-                          {isBot ? (
-                            <img
-                              src={ogBotAsset.url}
-                              alt="OG Bot"
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            initials(m.display_name)
-                          )}
-                        </span>
-                        <div
-                          className={`min-w-0 max-w-[88%] rounded-xl px-2.5 py-1.5 text-[12px] leading-[1.35] shadow-sm sm:max-w-[82%] sm:text-[13px] lg:max-w-[74%] ${
-                            isBot
-                              ? "border border-primary/30 bg-primary/10 text-foreground"
-                              : mine
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-foreground"
-                          }`}
-                        >
-                          <p
-                            className={`mb-0.5 text-[0.7rem] font-bold uppercase ${
-                              mine ? "text-primary-foreground/80" : "text-muted-foreground"
-                            }`}
-                          >
-                            {isBot ? "OG Bot" : m.display_name || "OG member"} ·{" "}
-                            {formatTime(m.created_at)}
-                          </p>
-                          <p className="whitespace-pre-wrap break-words leading-snug">
-                            {m.content}
-                          </p>
-                        </div>
-                        {!mine && !isBot && m.user_id && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              aria-label="Message options"
-                              className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-muted-foreground"
-                            >
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start">
-                              <DropdownMenuItem onSelect={() => void reportMsg(m.id)}>
-                                Report message
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onSelect={() => void blockUser(m.user_id!)}
+                      <ArenaMessage
+                        kind={isBot ? "bot" : "user"}
+                        mine={mine}
+                        name={isBot ? "OG Bot" : m.display_name || "OG member"}
+                        time={formatTime(m.created_at)}
+                        content={m.content}
+                        vip={!isBot && !!m.vip}
+                        vipId={m.vip_id}
+                        scoreTenths={isBot && prev?.role === "user" ? prev.score_tenths : null}
+                        onVipClick={hasVipRole ? undefined : () => setVipPromoOpen(true)}
+                        menu={
+                          !mine && !isBot && m.user_id ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                aria-label="Message options"
+                                className="ar-bubble-menu"
                               >
-                                Block user
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </div>
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem onSelect={() => void reportMsg(m.id)}>
+                                  Report message
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onSelect={() => void blockUser(m.user_id!)}
+                                >
+                                  Block user
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : null
+                        }
+                      />
                     </div>
                   );
                 })}
@@ -757,92 +654,55 @@ export function CommunityRoom() {
           )}
         </div>
         {showJump && (
-          <Button
+          <button
             type="button"
-            size="sm"
             onClick={() => jumpToBottom()}
             aria-label={
               newCount > 0
                 ? `Jump to newest, ${newCount} new message${newCount === 1 ? "" : "s"}`
                 : "Jump to newest"
             }
-            className={
-              "absolute bottom-3 left-1/2 z-10 -translate-x-1/2 gap-1.5 rounded-full shadow-lg " +
-              (newCount > 0
-                ? "border border-primary bg-primary text-primary-foreground shadow-glow animate-[pop_0.25s_ease-out]"
-                : "")
-            }
+            className="ar-icon-btn absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-full px-3 shadow-lg"
           >
             <ArrowDown className="h-3.5 w-3.5" />
             {newCount > 0
               ? `${newCount > 99 ? "99+" : newCount} new message${newCount === 1 ? "" : "s"}`
               : "Jump to newest"}
-          </Button>
+          </button>
         )}
         <div aria-live="polite" aria-atomic="true" className="sr-only">
           {jumpAnnounce}
         </div>
       </div>
 
-      {activeTypers.length > 0 && (
-        <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-          <TypingDots size="sm" aria-label="People typing" />
-          <span className="truncate">
-            {activeTypers.length === 1
+      {send.isPending ? (
+        <ArenaTyping label="OG Bot is cooking a comeback…" />
+      ) : activeTypers.length > 0 ? (
+        <ArenaTyping
+          label={
+            activeTypers.length === 1
               ? `${activeTypers[0].name} is typing…`
               : activeTypers.length === 2
                 ? `${activeTypers[0].name} and ${activeTypers[1].name} are typing…`
-                : `${activeTypers.length} people are typing…`}
-          </span>
-        </div>
-      )}
-
-      <form
-        onSubmit={submit}
-        style={{ touchAction: "manipulation" }}
-        className="sticky bottom-0 z-40 flex items-end gap-2 rounded-xl border border-border/60 bg-card/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur-md sm:p-2.5"
-      >
-        <Textarea
-          ref={composerRef}
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            broadcastTyping();
-          }}
-          style={{ touchAction: "manipulation" }}
-          onKeyDown={(e) => {
-            // On desktop: Enter sends, Shift+Enter newline.
-            // On mobile (touch): Enter always inserts newline; tap Send to submit.
-            const isTouch =
-              typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-            if (e.key === "Enter" && !e.shiftKey && !isTouch) {
-              e.preventDefault();
-              submit(e as unknown as React.FormEvent);
-            }
-          }}
-          placeholder="Give me ur best shot — say or ask anything…"
-          rows={2}
-          maxLength={1000}
-          enterKeyHint="send"
-          className="min-h-14 max-h-36 resize-none overflow-y-auto border-0 bg-transparent px-2.5 py-2 text-base leading-5 shadow-none focus-visible:ring-0 md:text-[15px]"
-          disabled={send.isPending}
+                : `${activeTypers.length} people are typing…`
+          }
         />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!text.trim() || send.isPending}
-          className="mb-1 h-11 w-11 shrink-0 rounded-xl"
-          aria-label="Send message"
-        >
-          {send.isPending ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Send className="h-5 w-5" />
-          )}
-        </Button>
-      </form>
+      ) : null}
+
+      <ArenaComposer
+        ref={composerRef}
+        value={text}
+        onChange={(v) => {
+          setText(v);
+          broadcastTyping();
+        }}
+        onSubmit={submit}
+        pending={send.isPending}
+        disabled={send.isPending}
+        maxLength={1000}
+      />
       {nativeApp && (
-        <p className="px-3 pb-1 text-center text-xs text-muted-foreground">
+        <p className="ar-silver px-3 pb-1 text-center text-xs">
           Zero tolerance for abusive content. By chatting you agree to our{" "}
           <a href="/terms" className="underline">
             Terms of Use
@@ -850,6 +710,7 @@ export function CommunityRoom() {
           .
         </p>
       )}
-    </div>
+      <ArenaVipPromo open={vipPromoOpen} onClose={() => setVipPromoOpen(false)} />
+    </ArenaFrame>
   );
 }
