@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import wallpaperUrl from "@/assets/app-background.png";
+import wallpaperUrl from "@/assets/og-bot-master-logo.webp";
 
 /**
  * Samples the brand wallpaper behind a given element and returns an

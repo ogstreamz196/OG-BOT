@@ -23,9 +23,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import musicHubHero from "@/assets/musichub-hero.jpg";
-import battleZoneLogo from "@/assets/battle-zone-logo.png.asset.json";
-import createTrackTile from "@/assets/create-track-tile.png.asset.json";
-import { PrimaryCard } from "@/components/home/PrimaryCard";
+import battleZoneArt from "@/assets/og-bot-battle-zone.webp";
+import createTrackArt from "@/assets/og-bot-create-track.webp";
+import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
+import masterLogo from "@/assets/og-bot-master-logo.webp";
+import { ModeCard } from "@/components/welcome/ModeCard";
+import { SHARE_IMAGE } from "@/lib/seo";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -60,29 +63,30 @@ export const Route = createFileRoute("/welcome")({
   component: WelcomePage,
   head: () => ({
     meta: [
-      { title: "OG Studio — Prompt Songs & Album Covers | AI Songs & Diss Tracks" },
+      { title: "OG Bot | AI Music Creation, Rap Battles & Entertainment" },
       {
         name: "description",
         content:
-          "Turn prompts, moods and memories into different song styles with album covers. Sign in with Google or Apple.",
+          "Enter OG Bot for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
-      { property: "og:title", content: "OG Studio — Prompt Songs & Album Covers | AI Songs & Diss Tracks" },
+      { property: "og:title", content: "OG Bot | AI Music Creation, Rap Battles & Entertainment" },
       {
         property: "og:description",
-        content: "Prompt rap, pop, drill, afrobeats, heartbreak and party songs with cover art.",
-      },
-      {
-        property: "og:image",
         content:
-          "https://ogstreamz.co.uk/__l5e/assets-v1/c71b8b8a-3ff4-448e-ad15-3446b8fe5e88/ogbot.png",
+          "Enter OG Bot for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
-      { property: "og:image:alt", content: "OG Streamz bot" },
+      { property: "og:image", content: SHARE_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "OG Bot Battle Zone badge" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "OG Bot | AI Music Creation, Rap Battles & Entertainment" },
       {
-        name: "twitter:image",
+        name: "twitter:description",
         content:
-          "https://ogstreamz.co.uk/__l5e/assets-v1/c71b8b8a-3ff4-448e-ad15-3446b8fe5e88/ogbot.png",
+          "Enter OG Bot for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
+      { name: "twitter:image", content: SHARE_IMAGE },
     ],
   }),
 });
@@ -141,19 +145,18 @@ function useRedirectIfSignedIn() {
       }
     }
     let cancelled = false;
-    const target = safeRelativeNext() ?? "/";
+    // Read ?next= at sign-in time: cards set it after the page has opened.
+    const go = () => {
+      const target = safeRelativeNext() ?? "/";
+      if (target === "/") navigate({ to: "/", replace: true });
+      else window.location.replace(target);
+    };
     supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) {
-        if (target === "/") navigate({ to: "/", replace: true });
-        else window.location.replace(target);
-      }
+      if (!cancelled && data.session) go();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
-        if (target === "/") navigate({ to: "/", replace: true });
-        else window.location.replace(target);
-      }
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) go();
     });
     return () => {
       cancelled = true;
@@ -641,6 +644,13 @@ const openSongAuth = (title: string) =>
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
 const OPEN_BATTLE = "og:open-guest-battle";
 const openBattle = () => window.dispatchEvent(new Event(OPEN_BATTLE));
+/** Sports Guide is for members: sign in first, then land on /sports. */
+const openSportsGuide = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/sports");
+  window.history.replaceState(null, "", url.toString());
+  openAuth();
+};
 
 /** Signed-out song wizard: nothing generates until the visitor signs in. */
 function GuestWizard() {
@@ -755,10 +765,8 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
-        <div className="mx-auto w-full max-w-md px-2 pt-4 sm:pt-10">
-          <DodgyLogo size={420} className="w-full" imageClassName="w-full h-auto rounded-3xl" />
-        </div>
         <Hero />
+        <MoreFromOgBot />
         <Superpowers />
 
         <ClosingCta />
@@ -830,34 +838,53 @@ function TopNav() {
   );
 }
 
-/** Tile card matching the welcome superpower cards. */
-/** Same tiles as the signed-in home page; here they open the wizard / guest Battle Zone. */
-function CreateTile() {
+/** The original OG Bot logo, centred at the top and fading into the page. */
+function MasterLogo() {
   return (
-    <PrimaryCard
-      onClick={openWizard}
-      image={createTrackTile.url}
-      imageAlt="OG Bot Create a Track badge"
-      eyebrow="MusicHub"
-      title="Create a song"
-      body="Generate · Remix · Release"
-      cta="Open MusicHub"
-    />
+    <div className="relative mx-auto w-full max-w-[13.5rem] sm:max-w-[15rem] lg:max-w-[16rem]">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-[12%] inset-y-[18%] rounded-full bg-glow-primary blur-2xl"
+      />
+      <DodgyLogo
+        src={masterLogo}
+        alt="OG Bot logo: the red TV-headed mascot in sunglasses with blue flames"
+        size={512}
+        aspectRatio="1607 / 1275"
+        glow={false}
+        priority
+        className="relative w-full"
+        imageClassName="[mask-image:radial-gradient(ellipse_at_center,black_42%,transparent_72%)]"
+      />
+      {/* A slow light sweep across the logo (off with reduced motion). */}
+      <span
+        aria-hidden
+        className="og-logo-sweep pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_65%)]"
+      />
+    </div>
   );
 }
 
-function BattleTile() {
+/** The two main actions, used in the hero and again at the bottom of the page. */
+function PrimaryActions({ className = "" }: { className?: string }) {
   return (
-    <PrimaryCard
-      onClick={openBattle}
-      image={battleZoneLogo.url}
-      imageAlt="OG Bot Battle Zone badge"
-      eyebrow="OG Bot"
-      title="Enter Battle Zone"
-      body="Beast OG Bot is live — cusses back raw, no filter, and turns your bars into foul-mouth diss tracks. Got the balls? Bring it on."
-      cta="Bring it on"
-      variant="accent"
-    />
+    <div className={`mx-auto grid w-full max-w-xl gap-3 sm:grid-cols-2 ${className}`}>
+      <Button
+        size="lg"
+        variant="destructive"
+        onClick={openBattle}
+        className="h-14 rounded-2xl text-base font-black uppercase tracking-wide shadow-glow"
+      >
+        Enter Battle Zone
+      </Button>
+      <Button
+        size="lg"
+        onClick={openWizard}
+        className="h-14 rounded-2xl text-base font-black uppercase tracking-wide shadow-glow"
+      >
+        Create a Track
+      </Button>
+    </div>
   );
 }
 
@@ -886,45 +913,72 @@ function BattleModal() {
 
 function Hero() {
   return (
-    <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
-      <div className="relative mx-auto w-full max-w-3xl text-center">
-        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+    <section className="relative mx-auto max-w-5xl px-3 pt-3 pb-8 sm:px-8 sm:pt-6 sm:pb-14">
+      <MasterLogo />
+      <div className="relative mx-auto -mt-2 w-full max-w-3xl text-center sm:mt-0 md:max-w-5xl">
+        <h1 className="font-display text-[clamp(1.8rem,8vw,2.6rem)] font-black leading-[0.95] tracking-[-0.035em] [text-wrap:balance] md:text-[clamp(2.4rem,4.6vw,3.4rem)]">
+          <span className="wc-pop block md:inline">ROAST THE BOT. </span>
+          <span className="wc-pop block md:inline" style={{ animationDelay: "0.12s" }}>
+            DROP THE <span className="wc-bounce-soft inline-block italic text-accent">DISS.</span>{" "}
+          </span>
+          <span className="wc-pop block md:block" style={{ animationDelay: "0.24s" }}>
+            OR COOK A HIT.
+          </span>
+        </h1>
+
+        <p className="mx-auto mt-3 max-w-xl text-sm font-medium text-foreground/85 sm:mt-4 sm:text-lg md:max-w-2xl">
+          Step into the world of OG Bot. Enter the battle, create your sound and unleash your
+          creativity. Your ideas. Your rules. No limits.
+        </p>
+      </div>
+
+      <div id="modes" className="mx-auto mt-5 max-w-4xl scroll-mt-24 sm:mt-7">
+        <h2 className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/80 sm:text-sm">
+          Choose your mode
+        </h2>
+        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-6">
+          <ModeCard
+            tone="crimson"
+            className="og-rise"
+            image={battleZoneArt}
+            imageAlt="OG Bot Battle Zone badge"
+            eyebrow="OG Bot"
+            title="Battle Zone"
+            description="Beast OG Bot is live. Come with your best bars, challenge the bot and turn the heat into a battle."
+            cta="Enter Battle Zone"
+            onClick={openBattle}
+          />
+          <ModeCard
+            tone="blue"
+            className="og-rise"
+            style={{ animationDelay: "0.1s" }}
+            image={createTrackArt}
+            imageAlt="OG Bot Create a Track badge"
+            eyebrow="MusicHub"
+            title="Music Hub"
+            description="Create, remix and release your sound. Turn your ideas into tracks with AI-powered music creation."
+            cta="Create a Track"
+            onClick={openWizard}
+          />
+        </div>
+      </div>
+
+      <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-4 text-center">
+        <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-primary">
           <span>👑 15 days free VIP</span>
           <span aria-hidden className="text-primary/50">
             ·
           </span>
           <span>No card</span>
         </div>
-
-        <h1 className="font-display mt-5 text-[clamp(2.2rem,10vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance]">
-          <span className="wc-pop block">ROAST THE BOT.</span>
-          <span className="wc-pop block" style={{ animationDelay: "0.15s" }}>
-            DROP THE <span className="wc-bounce-soft inline-block italic text-accent">DISS</span>
-          </span>
-          <span className="wc-pop block" style={{ animationDelay: "0.3s" }}>
-            OR COOK A HIT.
-          </span>
-        </h1>
-
-        <p className="mx-auto mt-4 max-w-xl text-base font-medium text-foreground/85 sm:text-xl">
-          Step in the ring with OG Bot, turn the beef into a real diss track — or make any song from
-          your idea. Real vocals, cover art included.
-        </p>
-
-        <div className="mx-auto mt-6 grid max-w-3xl grid-cols-2 gap-2.5 sm:gap-5">
-          <BattleTile />
-          <CreateTile />
-        </div>
-
         <button
           type="button"
           onClick={openBattle}
-          className="mx-auto mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm font-bold text-foreground transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm font-bold text-foreground transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
         >
           🎤 Try it: “Your beats sound like a microwave”
         </button>
-
-        <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
+        <ul className="flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
           {[
             { i: <Mic2 className="h-3.5 w-3.5" />, t: "Real vocals" },
             { i: <Sparkles className="h-3.5 w-3.5" />, t: "Album cover" },
@@ -939,6 +993,51 @@ function Hero() {
             </li>
           ))}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+/** Supporting features under the two main modes. */
+function MoreFromOgBot() {
+  return (
+    <section aria-labelledby="more-title" className="relative border-t border-border/40">
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-8 sm:py-14">
+        <h2
+          id="more-title"
+          className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/80 sm:text-sm"
+        >
+          More from OG Bot
+        </h2>
+        <article className="group relative mt-4 flex items-center gap-4 overflow-hidden rounded-2xl border border-white/12 bg-card/90 p-3 shadow-card backdrop-blur-xl transition focus-within:ring-2 focus-within:ring-accent hover:border-accent/60 sm:gap-6 sm:rounded-3xl sm:p-5">
+          <img
+            src={sportsGuideArt}
+            alt="OG Bot Sports Guide badge"
+            width={480}
+            height={480}
+            loading="lazy"
+            decoding="async"
+            className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-32 sm:w-32"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-[0.7rem] font-black uppercase tracking-[0.18em] text-accent sm:text-xs">
+              Members
+            </p>
+            <h3 className="font-display text-xl font-black uppercase leading-none sm:text-3xl">
+              Sports Guide
+            </h3>
+            <p className="mt-1 text-xs leading-snug text-foreground/85 sm:text-base">
+              Live daily fixtures, fight cards and TV listings — search any team instantly.
+            </p>
+            <button
+              type="button"
+              onClick={openSportsGuide}
+              className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-accent px-4 pt-0.5 text-xs font-black uppercase tracking-wide text-accent-foreground transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:text-sm"
+            >
+              Sign in for Sports Guide
+            </button>
+          </div>
+        </article>
       </div>
     </section>
   );
@@ -1028,9 +1127,7 @@ function ClosingCta() {
             Free account in seconds · 15 days of VIP on us · No card needed.
           </p>
         </div>
-        <div className="mx-auto mt-8 max-w-sm text-left">
-          <CreateTile />
-        </div>
+        <PrimaryActions className="mt-8" />
       </div>
     </section>
   );
@@ -1044,7 +1141,7 @@ function Footer() {
           © {new Date().getFullYear()} OG Studio · Prompt songs powered by{" "}
           <OgBotLogo className="h-5 w-5" />
         </span>
-        <div className="flex items-center gap-6">
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-2">
           <Link
             to="/policy"
             className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -1058,12 +1155,24 @@ function Footer() {
             Terms
           </Link>
           <Link
+            to="/trust"
+            className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Trust
+          </Link>
+          <Link
+            to="/styles/rap"
+            className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            AI rap generator
+          </Link>
+          <Link
             to="/auth"
             className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Sign in
           </Link>
-        </div>
+        </nav>
       </div>
     </footer>
   );
