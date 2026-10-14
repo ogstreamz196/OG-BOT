@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createPortal } from "react-dom";
 import {
   Coins,
   Check,
@@ -72,6 +73,7 @@ import { toast } from "sonner";
 import { PurchaseHistory } from "@/components/PurchaseHistory";
 import { ReferralReminder } from "@/components/referrals/ReferralReminder";
 import { StoreItemsSection } from "@/components/store/StoreItemsSection";
+import { StoreSectionHead } from "@/components/store/StoreSectionHead";
 import "@/components/store/og-store.css";
 
 export const Route = createFileRoute("/_authenticated/buy-coins/")({
@@ -104,7 +106,14 @@ function BuyCoinsPage() {
   return <CoinStore editMode={search.edit} />;
 }
 
-export function CoinStore({ editMode }: { editMode?: 1 }) {
+export function CoinStore({
+  editMode,
+  nativePaywall,
+}: {
+  editMode?: 1;
+  /** Phone apps: the Google Play / App Store plans, shown inside the VIP section. */
+  nativePaywall?: ReactNode;
+}) {
   const { data: profile } = useProfile();
   const rc = useRevenueCat();
   const rcLoading = rc.loading;
@@ -569,21 +578,32 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
     );
   }
 
+  const bestPack = (() => {
+    const pick = COIN_PACKS.find((p) => p.bestValue) ?? COIN_PACKS[COIN_PACKS.length - 1];
+    return applyPackOverride(
+      pick,
+      parsePackOverride(getSiteContent(packOverrideKey(pick.bundleId), "")),
+    );
+  })();
+  const bestPerCoin = bestPack.priceCents / 100 / bestPack.coins;
+  const bestSave = basePerCoin > 0 ? Math.round((1 - bestPerCoin / basePerCoin) * 100) : 0;
+  const yearlySave = Math.round(
+    (1 - VIP_PLAN_YEARLY.priceCents / (VIP_PLAN.priceCents * 12)) * 100,
+  );
+  const scrollTo = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
     <DashboardShell title="Store">
       <PaymentTestModeBanner />
-      <div className="og-store store-clean mx-auto w-full max-w-6xl space-y-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-8">
-        <section className="og-store__hero p-4 sm:p-6">
-          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-[minmax(0,1fr)_auto] min-[360px]:items-center min-[360px]:gap-4">
+      <div className="og-store store-clean mx-auto w-full max-w-6xl space-y-8 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-12">
+        {/* Header: title, balance, quick links */}
+        <header className="og-store__hero p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="og-store__chrome text-[clamp(1.6rem,7vw,2.75rem)]">
-                <span aria-hidden className="mr-1">
-                  ⚡
-                </span>
-                The OG BOT Store
-              </h1>
-              <span aria-hidden className="og-store__underline mt-2" />
-              <p className="og-store__eyebrow mt-2">
+              <p className="og-store__eyebrow">OG BOT</p>
+              <h1 className="og-store__chrome mt-1 text-[clamp(1.9rem,8vw,3rem)]">The Store</h1>
+              <p className="og-st-muted mt-1.5 text-sm">
                 <EditableContent
                   contentKey="buyCoins.heading"
                   defaultValue="Power up your OG experience"
@@ -593,52 +613,140 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
             <div
               role="status"
               aria-label={`Wallet balance ${profile?.coin_balance ?? 0} OG coins`}
-              className="og-store__balance text-left min-[360px]:text-right"
+              className="og-store__balance flex items-center gap-2.5 px-3 py-2"
             >
-              <p className="og-store__eyebrow">Your balance</p>
-              <div className="mt-1 flex items-center justify-start gap-2 min-[360px]:justify-end">
-                <Coins className="og-st-gold h-5 w-5" />
-                <span className="font-mono text-xl font-bold tabular-nums sm:text-2xl">
+              <span aria-hidden className="og-store-coin h-9 w-9 text-[0.7rem]">
+                OG
+              </span>
+              <div>
+                <p className="og-store__eyebrow text-[0.62rem]">Balance</p>
+                <p className="font-mono text-xl font-bold tabular-nums leading-tight sm:text-2xl">
                   {profile?.coin_balance ?? 0}
-                </span>
-                <span className="og-st-gold hidden text-xs font-bold min-[360px]:inline">OG</span>
+                </p>
               </div>
             </div>
           </div>
-          <ReferralReminder className="mt-4 border-border bg-background/45 shadow-none" />
           {isDev ? (
             <div className="mt-3 flex justify-end">
               <AdminEditModeToggle />
             </div>
           ) : null}
+        </header>
+
+        <StoreNav
+          items={[
+            { id: "section-bundles", label: "Coins", icon: <Coins className="h-4 w-4" /> },
+            { id: "section-vip", label: "VIP", icon: <Crown className="h-4 w-4" /> },
+            { id: "section-unlocks", label: "Unlocks", icon: <Lock className="h-4 w-4" /> },
+            { id: "section-account", label: "History", icon: <Wallet className="h-4 w-4" /> },
+          ]}
+        />
+
+        {/* Featured */}
+        <section aria-label="Featured" className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          {!hasVipRole ? (
+            <button
+              type="button"
+              onClick={() =>
+                isNativeApp
+                  ? scrollTo("section-vip")
+                  : pickSelection({ type: "vip", plan: "yearly" })
+              }
+              className="og-store-panel og-store-panel--purple og-store-panel--featured og-store-feature text-left"
+            >
+              <span aria-hidden className="og-store-feature__icon og-st-purple">
+                <Crown className="h-7 w-7" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="og-store__eyebrow og-st-purple">Featured · VIP Yearly</span>
+                <span className="og-store__title mt-1 block text-xl sm:text-2xl">
+                  A full year of VIP
+                </span>
+                <span className="og-st-muted mt-1 block text-sm">
+                  {CURRENCY_SYMBOL}
+                  {(VIP_PLAN_YEARLY.priceCents / 100).toFixed(0)} a year · about {CURRENCY_SYMBOL}
+                  {(VIP_PLAN_YEARLY.priceCents / 1200).toFixed(2)} a month · save {yearlySave}%
+                </span>
+              </span>
+              <span aria-hidden className="og-store-feature__go og-st-purple">
+                →
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => scrollTo("section-unlocks")}
+              className="og-store-panel og-store-panel--purple og-store-feature text-left"
+            >
+              <span aria-hidden className="og-store-feature__icon og-st-purple">
+                <Crown className="h-7 w-7" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="og-store__eyebrow og-st-purple">You're VIP</span>
+                <span className="og-store__title mt-1 block text-xl sm:text-2xl">
+                  Browse member unlocks
+                </span>
+                <span className="og-st-muted mt-1 block text-sm">
+                  Sports Guide, the OG Vault and more.
+                </span>
+              </span>
+              <span aria-hidden className="og-store-feature__go og-st-purple">
+                →
+              </span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => pickSelection({ type: "coins", pack: bestPack })}
+            className="og-store-panel og-store-panel--gold og-store-panel--featured og-store-feature text-left"
+          >
+            <span aria-hidden className="og-store-feature__icon">
+              <span className="og-store-coin">OG</span>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="og-store__eyebrow og-st-gold">Best value · {bestPack.label}</span>
+              <span className="og-store__title mt-1 block text-xl sm:text-2xl">
+                {bestPack.coins} OG Coins
+              </span>
+              <span className="og-st-muted mt-1 block text-sm">
+                {CURRENCY_SYMBOL}
+                {(bestPack.priceCents / 100).toFixed(2)} · {(bestPerCoin * 100).toFixed(1)}p a coin
+                {bestSave > 0 ? ` · save ${bestSave}%` : ""}
+              </span>
+            </span>
+            <span aria-hidden className="og-store-feature__go og-st-gold">
+              →
+            </span>
+          </button>
         </section>
 
-        <section aria-labelledby="section-bundles" className="scroll-mt-24">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="og-store__eyebrow">One-time purchase</p>
-              <h2
-                id="section-bundles"
-                className="og-store__title text-2xl"
-                style={{ "--a1": "var(--st-gold)" } as React.CSSProperties}
-              >
-                🪙 OG Coins
-              </h2>
-            </div>
-            <span className="og-store__balance og-st-gold shrink-0 px-2 py-1 text-xs font-bold">
-              Save up to{" "}
-              {Math.round(
-                (1 -
-                  COIN_PACKS[COIN_PACKS.length - 1].priceCents /
-                    100 /
-                    COIN_PACKS[COIN_PACKS.length - 1].coins /
-                    basePerCoin) *
-                  100,
-              )}
-              %
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* Coins */}
+        <section
+          aria-labelledby="section-bundles-title"
+          id="section-bundles"
+          className="og-store-section"
+        >
+          <StoreSectionHead
+            id="section-bundles-title"
+            eyebrow="One-time · never expire"
+            title="OG Coins"
+            accent="gold"
+            aside={
+              <span className="og-store__balance og-st-gold px-2.5 py-1 text-xs font-bold">
+                Save up to{" "}
+                {Math.round(
+                  (1 -
+                    COIN_PACKS[COIN_PACKS.length - 1].priceCents /
+                      100 /
+                      COIN_PACKS[COIN_PACKS.length - 1].coins /
+                      basePerCoin) *
+                    100,
+                )}
+                %
+              </span>
+            }
+          />
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {COIN_PACKS.map((t, i) => (
               <PackCard
                 key={t.bundleId}
@@ -650,39 +758,36 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
               />
             ))}
           </div>
-          <p className="og-st-muted mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs">
+          <CustomAmount onBuy={(units) => pickSelection({ type: "custom", units })} />
+          <p className="og-st-muted mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs">
             <Lock className="h-3 w-3" /> Secure checkout · Apple Pay · Google Pay · Card · Coins
             never expire
           </p>
         </section>
 
-        <section aria-labelledby="section-custom" className="scroll-mt-24">
-          <div className="mb-3 flex items-center gap-2">
-            <SlidersHorizontal className="og-st-gold h-4 w-4" />
-            <h2
-              id="section-custom"
-              className="og-store__title text-lg"
-              style={{ "--a1": "var(--st-gold)" } as React.CSSProperties}
-            >
-              Need a different amount?
-            </h2>
-          </div>
-          <CustomPackCard onBuy={(units) => pickSelection({ type: "custom", units })} />
-        </section>
-        <StoreItemsSection />
-
-        <section aria-labelledby="section-vip" className="scroll-mt-24">
+        {/* VIP */}
+        <section
+          aria-labelledby="section-vip-title"
+          id="section-vip-wrap"
+          className="og-store-section"
+        >
+          <span id="section-vip" className="block scroll-mt-32" />
+          <StoreSectionHead
+            id="section-vip-title"
+            eyebrow="Monthly or yearly · cancel any time"
+            title="OG VIP"
+            accent="purple"
+          />
           <div className="og-store-panel og-store-panel--purple overflow-hidden">
             <span aria-hidden className="og-store-panel__corner og-store-panel__corner--tl" />
             <span aria-hidden className="og-store-panel__corner og-store-panel__corner--br" />
-            {/* Hero */}
             <div className="relative p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="og-store__eyebrow og-st-purple">👑 OG VIP membership</p>
-                  <h2 id="section-vip" className="og-store__chrome mt-1 text-2xl sm:text-3xl">
+                  <h3 className="og-store__chrome mt-1 text-2xl sm:text-3xl">
                     {hasVipRole ? "You're VIP 👑" : "Unlock the premium OG experience"}
-                  </h2>
+                  </h3>
                   <p className="og-st-muted mt-1 text-xs sm:text-sm">
                     {hasVipRole
                       ? "All styles, foul-mouth mode and 13% cashback are yours."
@@ -704,8 +809,9 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
             </div>
 
             <div className="space-y-4 p-4 sm:p-6">
+              {!hasVipRole && nativePaywall ? nativePaywall : null}
               {/* Plans */}
-              {!hasVipRole && (
+              {!hasVipRole && !nativePaywall && (
                 <div className={cn("grid gap-3", !isNativeApp && "grid-cols-2")}>
                   {!isNativeApp && (
                     <button
@@ -731,8 +837,8 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                         ≈ {CURRENCY_SYMBOL}
                         {(VIP_PLAN_YEARLY.priceCents / 1200).toFixed(2)}/mo
                       </span>
-                      <span className="og-store-btn og-store-btn--purple mt-2 w-full">
-                        <Crown className="h-3.5 w-3.5" /> Go OG VIP
+                      <span className="og-store-btn og-store-btn--purple mt-2 w-full whitespace-nowrap px-2">
+                        <Crown className="hidden h-3.5 w-3.5 min-[420px]:inline" /> Go OG VIP
                       </span>
                     </button>
                   )}
@@ -750,7 +856,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                     </span>
                     <span className="text-[0.7rem] text-muted-foreground">cancel anytime</span>
                     <span
-                      className="og-store-btn mt-2 w-full"
+                      className="og-store-btn mt-2 w-full whitespace-nowrap px-2"
                       style={{ "--a1": "var(--st-purple)" } as React.CSSProperties}
                     >
                       Go OG VIP
@@ -794,9 +900,161 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
           </div>
         </section>
 
-        <PurchaseHistory />
+        {/* Member unlocks */}
+        <StoreItemsSection />
+
+        {/* Account */}
+        <section
+          aria-labelledby="section-account-title"
+          id="section-account"
+          className="og-store-section"
+        >
+          <StoreSectionHead
+            id="section-account-title"
+            eyebrow="Earn and keep track"
+            title="Your account"
+            accent="blue"
+          />
+          <div className="space-y-4">
+            <ReferralReminder className="border-border bg-background/45 shadow-none" />
+            <PurchaseHistory />
+          </div>
+        </section>
       </div>
     </DashboardShell>
+  );
+}
+
+/**
+ * Jump menu for the Store sections; highlights the one in view. Once it
+ * scrolls away, a floating copy pins under the app header (the page's main
+ * area clips overflow, so CSS sticky can't be used here).
+ */
+function StoreNav({ items }: { items: { id: string; label: string; icon: ReactNode }[] }) {
+  const [active, setActive] = useState(items[0]?.id);
+  const [pin, setPin] = useState<{ left: number; width: number; top: number } | null>(null);
+  const anchor = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const els = items
+      .map((i) => document.getElementById(i.id === "section-vip" ? "section-vip-wrap" : i.id))
+      .filter(Boolean) as HTMLElement[];
+    if (!els.length || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const seen = entries.filter((e) => e.isIntersecting);
+        if (!seen.length) return;
+        const top = seen.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        setActive(top.target.id === "section-vip-wrap" ? "section-vip" : top.target.id);
+      },
+      { rootMargin: "-35% 0px -55% 0px" },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [items]);
+
+  useEffect(() => {
+    const update = () => {
+      const el = anchor.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      // The app header may scroll away with the page; sit under it while it's
+      // visible, otherwise at the top of the screen.
+      const header = document.querySelector("header.sticky") as HTMLElement | null;
+      const headerBottom = Math.max(0, header?.getBoundingClientRect().bottom ?? 0);
+      setPin(
+        r.bottom < headerBottom + 8 ? { left: r.left, width: r.width, top: headerBottom } : null,
+      );
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  const go = (id: string) => {
+    setActive(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const buttons = (floating: boolean) =>
+    items.map((i) => (
+      <button
+        key={i.id}
+        type="button"
+        tabIndex={floating ? -1 : undefined}
+        aria-current={active === i.id ? "true" : undefined}
+        onClick={() => go(i.id)}
+        className="og-store-nav__item"
+      >
+        {i.icon}
+        <span>{i.label}</span>
+      </button>
+    ));
+
+  return (
+    <>
+      <nav ref={anchor} aria-label="Store sections" className="og-store-nav">
+        {buttons(false)}
+      </nav>
+      {pin
+        ? createPortal(
+            // Portalled to <body>: an ancestor's transform would otherwise pin it
+            // to the page instead of the screen. .og-store keeps the colours.
+            <div className="og-store">
+              <div
+                aria-hidden
+                className="og-store-nav og-store-nav--pinned"
+                style={{
+                  left: pin.left,
+                  width: pin.width,
+                  top: pin.top > 0 ? pin.top + 8 : "calc(env(safe-area-inset-top) + 0.5rem)",
+                }}
+              >
+                {buttons(true)}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+/** "Build your own amount", folded away until it's wanted. */
+function CustomAmount({ onBuy }: { onBuy: (units: number) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="og-store-panel og-store-panel--gold flex w-full items-center gap-3 p-3 text-left sm:p-4"
+      >
+        <SlidersHorizontal className="og-st-gold h-5 w-5 shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold">Need a different amount?</span>
+          <span className="og-st-muted block text-xs">
+            Build your own stack from {CURRENCY_SYMBOL}
+            {(CUSTOM_COIN_UNIT.priceCents / 100).toFixed(2)}
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className={cn("og-st-gold text-lg transition-transform", open && "rotate-90")}
+        >
+          ›
+        </span>
+      </button>
+      {open ? (
+        <div className="mt-3">
+          <CustomPackCard onBuy={onBuy} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

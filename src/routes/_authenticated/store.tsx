@@ -31,22 +31,13 @@ export const Route = createFileRoute("/_authenticated/store")({
 
 function StorePage() {
   const search = Route.useSearch();
-  // The phone app must offer subscriptions through Google Play billing, so the
-  // RevenueCat paywall is shown at the top of the Store there. The website keeps
-  // its own card checkout untouched.
+  // The phone app must offer subscriptions through Google Play / App Store
+  // billing, so the RevenueCat paywall replaces the card plans inside the VIP
+  // section there. The website keeps its own card checkout untouched.
   const [native, setNative] = useState(false);
   useEffect(() => {
     setNative(Capacitor.isNativePlatform());
   }, []);
 
-  return (
-    <>
-      {native && (
-        <div className="px-4 pt-4 sm:px-6">
-          <Paywall />
-        </div>
-      )}
-      <CoinStore editMode={search.edit} />
-    </>
-  );
+  return <CoinStore editMode={search.edit} nativePaywall={native ? <Paywall /> : undefined} />;
 }
