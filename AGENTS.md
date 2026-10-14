@@ -37,3 +37,4 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 
 - Sports Guide posts mirror the Telegram group into a table readable only by item owners.
 - /welcome is browser-only; its pendingComponent (src/components/seo/WelcomeSeoFallback.tsx) is crawler copy matching the landing page. Canonicals in src/lib/seo.ts; /sitemap-tracks.xml lists only completed, public, revealed tracks.
+- The landing page's first screen is the master logo (src/assets/og-bot-master-logo.webp, a compressed copy of app-background.png that also serves as the site wallpaper), the headline, and the Battle Zone and Music Hub cards; keep both cards above the fold on phones. Card buttons stretch over the whole card, so they opt out of the global button press scale (active:transform-none) and avoid filter effects, either of which shrinks the tap area to the button.

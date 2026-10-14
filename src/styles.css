@@ -563,7 +563,7 @@
     position: fixed;
     inset: 0;
     z-index: -2;
-    background-image: url("./assets/app-background.png");
+    background-image: url("./assets/og-bot-master-logo.webp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -901,6 +901,35 @@ button.graffiti-accent:hover {
   .wc-float, .wc-float-slow, .wc-wiggle, .wc-pop, .wc-blob, .wc-bounce-soft {
     animation: none !important;
   }
+}
+/* Landing page: a slow light sweep across the OG Bot logo, and mode cards
+   that rise in once. Transform/opacity only, so nothing shifts layout. */
+.og-logo-sweep {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    oklch(0.85 0.12 250 / 0.28) 48%,
+    oklch(1 0 0 / 0.35) 50%,
+    oklch(0.85 0.12 250 / 0.28) 52%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  animation: og-logo-sweep 7s ease-in-out 1s infinite;
+}
+@keyframes og-logo-sweep {
+  0% { background-position: 130% 0; }
+  45%, 100% { background-position: -30% 0; }
+}
+.og-rise { animation: og-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s backwards; }
+@keyframes og-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .og-logo-sweep { animation: none; background: none; }
+  .og-rise { animation: none; }
 }
 .wc-blob { animation: wc-blob 14s ease-in-out infinite; }
 .wc-bounce-soft { animation: wc-bounce-soft 2.4s ease-in-out infinite; }

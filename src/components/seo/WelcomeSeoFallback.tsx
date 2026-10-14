@@ -11,10 +11,11 @@ export function WelcomeSeoFallback() {
         OG Streamz · Powered by OG Bot
       </p>
       <h1 className="mt-3 font-display text-3xl sm:text-5xl">
-        Turn any idea into a hit in seconds.
+        Roast the bot. Drop the diss. Or cook a hit.
       </h1>
       <p className="mt-3 text-muted-foreground">
-        Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
+        Step into the world of OG Bot. Enter the battle, create your sound and unleash your
+        creativity. Your ideas. Your rules. No limits.
       </p>
       <ul className="mt-3 flex flex-wrap gap-3 text-sm">
         <li>Real vocals</li>
@@ -23,52 +24,44 @@ export function WelcomeSeoFallback() {
       </ul>
 
       <section className="mt-8">
+        <h2 className="text-xl font-bold">Choose your mode</h2>
+        <h3 className="mt-3 font-semibold">Battle Zone</h3>
+        <p className="text-muted-foreground">
+          Beast OG Bot is live. Come with your best bars, challenge the bot and turn the heat into a
+          battle.
+        </p>
+        <h3 className="mt-3 font-semibold">Music Hub</h3>
+        <p className="text-muted-foreground">
+          Create, remix and release your sound. Turn your ideas into tracks with AI-powered music
+          creation.
+        </p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-xl font-bold">More from OG Bot</h2>
+        <h3 className="mt-3 font-semibold">Sports Guide</h3>
+        <p className="text-muted-foreground">
+          Live daily fixtures, fight cards and TV listings — search any team instantly.
+        </p>
+      </section>
+
+      <section className="mt-8">
         <h2 className="text-xl font-bold">Your superpowers</h2>
-        <h3 className="mt-3 font-semibold">Foul Mouth Mode</h3>
+        <h3 className="mt-3 font-semibold">The Roast &amp; Diss Engine</h3>
         <p className="text-muted-foreground">
-          Beast bot roasts, raw bars, full foul-mouth diss tracks cooked from your words. Turn the
-          heat from Mild to Demon.
+          Battle Zone, Foul Mouth from Mild to Demon, and personal diss tracks cooked from your own
+          chat — if you can handle it.
         </p>
-        <h3 className="mt-3 font-semibold">2 tracks for the price of 1</h3>
+        <h3 className="mt-3 font-semibold">The Hit-Making Studio</h3>
         <p className="text-muted-foreground">
-          Unlock your first take and the second one is yours free.
+          Real vocals and cover art on every track. 2 tracks for the price of 1, and 15 days of free
+          VIP unlocks every style.
         </p>
-        <h3 className="mt-3 font-semibold">15 days of free VIP</h3>
+        <h3 className="mt-3 font-semibold">The Creator Economy</h3>
         <p className="text-muted-foreground">
-          Every style unlocked from signup — drill, bhangra, afrobeats and more.
+          Earn OG Coins for roasting the bot, claim a daily drop, and get lifetime commission when
+          friends spend. Telegram keeps you posted.
         </p>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-xl font-bold">3 taps to your first track</h2>
-        <ol className="mt-2 space-y-2">
-          <li>
-            <h3 className="font-semibold">Type your idea</h3>
-            <p className="text-muted-foreground">A name, a roast, a memory.</p>
-          </li>
-          <li>
-            <h3 className="font-semibold">Pick the vibe</h3>
-            <p className="text-muted-foreground">Choose a style and mood.</p>
-          </li>
-          <li>
-            <h3 className="font-semibold">OG Bot cooks it</h3>
-            <p className="text-muted-foreground">Your song + cover, ready to play.</p>
-          </li>
-        </ol>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-xl font-bold">Make tracks without spending a penny</h2>
-        <h3 className="mt-3 font-semibold">Battle the bot</h3>
-        <p className="text-muted-foreground">
-          Land your best roasts in Battle Zone and earn OG Coins every round.
-        </p>
-        <h3 className="mt-3 font-semibold">Lifetime referral commission</h3>
-        <p className="text-muted-foreground">
-          Share your link — earn coins every time your friends spend, for life.
-        </p>
-        <h3 className="mt-3 font-semibold">Daily drop</h3>
-        <p className="text-muted-foreground">Pop in each day and claim your free coin drop.</p>
       </section>
 
       <section className="mt-8">
@@ -82,6 +75,7 @@ export function WelcomeSeoFallback() {
         <a href="/terms">Terms of Use</a>
         <a href="/policy">Privacy Policy</a>
         <a href="/trust">Trust &amp; Privacy</a>
+        <a href="/styles/rap">AI rap generator</a>
       </nav>
     </main>
   );

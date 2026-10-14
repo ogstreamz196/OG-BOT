@@ -42,9 +42,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import musicHubHero from "@/assets/musichub-hero.jpg";
-import battleZoneLogo from "@/assets/battle-zone-logo.png.asset.json";
-import createTrackTile from "@/assets/create-track-tile.png.asset.json";
-import sportsGuideLogo from "@/assets/og-bot-sports-guide.png.asset.json";
+import battleZoneArt from "@/assets/og-bot-battle-zone.webp";
+import createTrackArt from "@/assets/og-bot-create-track.webp";
+import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
@@ -358,7 +358,7 @@ function DashboardHome() {
           <PrimaryCard
             to="/messenger"
             search={{ live: true }}
-            image={battleZoneLogo.url}
+            image={battleZoneArt}
             imageAlt="OG Bot Battle Zone badge"
             eyebrow="OG Bot · Diss maker"
             title="Enter Battle Zone"
@@ -368,7 +368,7 @@ function DashboardHome() {
           />
           <PrimaryCard
             to="/library"
-            image={createTrackTile.url}
+            image={createTrackArt}
             imageAlt="OG Bot Create a Track badge"
             eyebrow="MusicHub"
             title="Create a song"
@@ -394,7 +394,14 @@ function DashboardHome() {
             preload="intent"
             className="group flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-foreground transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-sm"
           >
-            <img src={sportsGuideLogo.url} alt="" aria-hidden className="h-5 w-5 rounded" />
+            <img
+              src={sportsGuideArt}
+              alt=""
+              aria-hidden
+              width={20}
+              height={20}
+              className="h-5 w-5 rounded"
+            />
             Sports Guide
           </Link>
         </div>

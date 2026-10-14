@@ -15,6 +15,12 @@ type Props = {
   alt?: string;
   /** Rounded radius class for the image. */
   imageClassName?: string;
+  /** CSS aspect ratio of the box (defaults to square). */
+  aspectRatio?: string;
+  /** Box glow around the image (off for artwork that fades into the page). */
+  glow?: boolean;
+  /** Load straight away when it's the first thing on screen. */
+  priority?: boolean;
 };
 
 /**
@@ -29,6 +35,9 @@ export function DodgyLogo({
   src,
   alt = "OG Bot - AI Music Creator Mascot",
   imageClassName = "rounded-2xl",
+  aspectRatio = "1 / 1",
+  glow = true,
+  priority = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -103,7 +112,7 @@ export function DodgyLogo({
   return (
     <div
       className={`pointer-events-none inline-flex max-w-full items-center justify-center ${className}`}
-      style={{ width: `min(${size}px, 100%)`, aspectRatio: "1 / 1" }}
+      style={{ width: `min(${size}px, 100%)`, aspectRatio }}
     >
       <div
         ref={wrapRef}
@@ -115,9 +124,10 @@ export function DodgyLogo({
           alt={alt}
           width={512}
           height={512}
-          decoding="async"
+          decoding={priority ? "sync" : "async"}
+          fetchPriority={priority ? "high" : undefined}
           draggable={false}
-          className={`h-full w-full select-none object-contain shadow-glow ${imageClassName}`}
+          className={`h-full w-full select-none object-contain ${glow ? "shadow-glow" : ""} ${imageClassName}`}
         />
       </div>
       <style>{`@keyframes wcBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }`}</style>
