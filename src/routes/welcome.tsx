@@ -28,6 +28,7 @@ import createTrackArt from "@/assets/og-bot-create-track.webp";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import masterLogo from "@/assets/og-bot-master-logo.webp";
 import { ModeCard } from "@/components/welcome/ModeCard";
+import { OgPowers } from "@/components/welcome/OgPowers";
 import { SHARE_IMAGE } from "@/lib/seo";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
@@ -644,6 +645,13 @@ const openSongAuth = (title: string) =>
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
 const OPEN_BATTLE = "og:open-guest-battle";
 const openBattle = () => window.dispatchEvent(new Event(OPEN_BATTLE));
+/** Earn page (referrals, daily drop) is for members: sign in, then land on /referrals. */
+const openEarn = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/referrals");
+  window.history.replaceState(null, "", url.toString());
+  openAuth();
+};
 /** Sports Guide is for members: sign in first, then land on /sports. */
 const openSportsGuide = () => {
   const url = new URL(window.location.href);
@@ -1046,63 +1054,15 @@ function MoreFromOgBot() {
 const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 
 function Superpowers() {
-  const items = [
-    {
-      key: "roast",
-      emoji: "🤬",
-      title: "The Roast & Diss Engine",
-      body: "Battle Zone, Foul Mouth from Mild to Demon, and personal diss tracks cooked from your own chat — if you can handle it.",
-    },
-    {
-      key: "studio",
-      emoji: "🎧",
-      title: "The Hit-Making Studio",
-      body: "Real vocals and cover art on every track. 2 tracks for the price of 1, and 15 days of free VIP unlocks every style.",
-    },
-    {
-      key: "economy",
-      emoji: "🪙",
-      title: "The Creator Economy",
-      body: "Earn OG Coins for roasting the bot, claim a daily drop, and get lifetime commission when friends spend. Telegram keeps you posted.",
-    },
-  ];
   return (
-    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <div className="text-center">
-          <p className="heading-plate text-xs font-black uppercase tracking-[0.25em] text-primary">
-            ⚡ Your superpowers
-          </p>
-        </div>
-        <div className="mt-6 grid gap-3 sm:gap-5 md:grid-cols-3">
-          {items.map((it) => (
-            <article
-              key={it.key}
-              className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6"
-            >
-              <CardEditBadge />
-              <span className="text-4xl">{it.emoji}</span>
-              <EditableContent
-                as="h3"
-                contentKey={`welcome.power.${it.key}.title`}
-                defaultValue={it.title}
-                className="font-display mt-3 block text-2xl font-black tracking-tight"
-              />
-              <EditableContent
-                as="p"
-                multiline
-                contentKey={`welcome.power.${it.key}.body`}
-                defaultValue={it.body}
-                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
-              />
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
+    <OgPowers
+      onBattle={openBattle}
+      onCreate={openWizard}
+      onEarn={openEarn}
+      editBadge={<CardEditBadge />}
+    />
   );
 }
-
 
 function ClosingCta() {
   return (
