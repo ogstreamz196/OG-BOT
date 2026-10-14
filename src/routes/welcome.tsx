@@ -23,6 +23,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import musicHubHero from "@/assets/musichub-hero.jpg";
+import battleZoneLogo from "@/assets/battle-zone-logo.png.asset.json";
+import createTrackTile from "@/assets/create-track-tile.png.asset.json";
 import { PrimaryCard } from "@/components/home/PrimaryCard";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
@@ -753,8 +755,8 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
-        <div className="flex justify-center px-4 pt-6 sm:pt-10">
-          <DodgyLogo size={220} imageClassName="rounded-3xl" />
+        <div className="mx-auto w-full max-w-md px-2 pt-4 sm:pt-10">
+          <DodgyLogo size={420} className="w-full" imageClassName="w-full h-auto rounded-3xl" />
         </div>
         <Hero />
         <Superpowers />
@@ -834,13 +836,12 @@ function CreateTile() {
   return (
     <PrimaryCard
       onClick={openWizard}
-      image={musicHubHero}
-      imageAlt="Neon vinyl with equalizer bars"
+      image={createTrackTile.url}
+      imageAlt="OG Bot Create a Track badge"
       eyebrow="MusicHub"
       title="Create a song"
       body="Generate · Remix · Release"
       cta="Open MusicHub"
-      hazard
     />
   );
 }
@@ -849,8 +850,8 @@ function BattleTile() {
   return (
     <PrimaryCard
       onClick={openBattle}
-      image={ogBotAsset.url}
-      imageAlt="OG Bot avatar"
+      image={battleZoneLogo.url}
+      imageAlt="OG Bot Battle Zone badge"
       eyebrow="OG Bot"
       title="Enter Battle Zone"
       body="Beast OG Bot is live — cusses back raw, no filter, and turns your bars into foul-mouth diss tracks. Got the balls? Bring it on."
@@ -910,7 +911,7 @@ function Hero() {
           your idea. Real vocals, cover art included.
         </p>
 
-        <div className="mx-auto mt-6 grid max-w-3xl gap-3 sm:grid-cols-2 sm:gap-5">
+        <div className="mx-auto mt-6 grid max-w-3xl grid-cols-2 gap-2.5 sm:gap-5">
           <BattleTile />
           <CreateTile />
         </div>
