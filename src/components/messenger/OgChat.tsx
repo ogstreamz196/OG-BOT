@@ -84,6 +84,8 @@ const OG_LANGUAGES = [
   "Swahili",
   "Patois",
   "Yoruba",
+  "Igbo",
+  "Hausa",
   "German",
   "Italian",
   "Romanian",

@@ -27,6 +27,9 @@ const GUIDE: Record<string, { lyric: string; voice: string }> = {
   romanian: { lyric: "Romanian: real Romanian words (iubire, inima, te iubesc). Keep ă â î ș ț.", voice: "Romanian vocals" },
   filipino: { lyric: "Filipino/Tagalog: real Tagalog (mahal kita, ikaw, puso, ako). Taglish only if English was also picked.", voice: "Filipino Tagalog vocals" },
   tagalog: { lyric: "Tagalog: real Tagalog (mahal kita, ikaw, puso, ako).", voice: "Tagalog vocals" },
+  yoruba: { lyric: "Yoruba: real Yoruba grammar and words (mo, iwo, mi, re, nife, ore mi, kilode, jowo). Romanised, like Nigerian Yoruba songs.", voice: "Yoruba vocals, Nigerian Yoruba pronunciation" },
+  igbo: { lyric: "Igbo: real Igbo grammar and words (anya, nwa, chukwu, biko, nwanne, obi). Romanised, like Nigerian Igbo songs. Not Hausa or Yoruba.", voice: "Igbo vocals, Nigerian Igbo pronunciation" },
+  hausa: { lyric: "Hausa: real Hausa grammar and words (ina, son, kai, da, zo, kuma). Romanised, like Nigerian Hausa songs. Not Yoruba or Igbo.", voice: "Hausa vocals, Nigerian Hausa pronunciation" },
 };
 
 function key(lang: string) {
