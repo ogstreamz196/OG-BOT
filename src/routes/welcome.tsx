@@ -844,7 +844,7 @@ function MasterLogo() {
     <div className="relative mx-auto w-full max-w-[13.5rem] sm:max-w-[15rem] lg:max-w-[16rem]">
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-[12%] inset-y-[18%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.55_0.22_268/0.45),transparent_70%)] blur-2xl"
+        className="pointer-events-none absolute inset-x-[12%] inset-y-[18%] rounded-full bg-glow-primary blur-2xl"
       />
       <DodgyLogo
         src={masterLogo}

@@ -5,15 +5,15 @@ type Tone = "blue" | "crimson";
 
 const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: string }> = {
   blue: {
-    ring: "hover:border-primary/70 focus-within:ring-primary motion-safe:hover:shadow-[0_18px_60px_-18px_oklch(0.55_0.22_268/0.8)]",
+    ring: "hover:border-primary/70 focus-within:ring-primary motion-safe:hover:shadow-lift-primary",
     eyebrow: "text-primary",
-    cta: "bg-primary text-primary-foreground shadow-[0_8px_30px_-8px_oklch(0.55_0.22_268/0.9)]",
+    cta: "bg-primary text-primary-foreground shadow-glow",
     glow: "from-primary/35",
   },
   crimson: {
-    ring: "hover:border-destructive/70 focus-within:ring-destructive motion-safe:hover:shadow-[0_18px_60px_-18px_oklch(0.62_0.22_25/0.8)]",
+    ring: "hover:border-destructive/70 focus-within:ring-destructive motion-safe:hover:shadow-lift-danger",
     eyebrow: "text-destructive",
-    cta: "bg-destructive text-destructive-foreground shadow-[0_8px_30px_-8px_oklch(0.62_0.22_25/0.9)]",
+    cta: "bg-destructive text-destructive-foreground shadow-glow-danger",
     glow: "from-destructive/35",
   },
 };
@@ -56,7 +56,7 @@ export function ModeCard({
         className,
       )}
     >
-      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-[oklch(0.08_0.03_265)] lg:m-3 lg:w-40 lg:self-center lg:rounded-2xl">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-card lg:m-3 lg:w-40 lg:self-center lg:rounded-2xl">
         <img
           src={image}
           alt={imageAlt}
