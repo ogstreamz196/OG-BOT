@@ -40,11 +40,6 @@ export function WelcomeSeoFallback() {
           Step into the world of OG Bot. Enter the battle, create your sound and unleash your
           creativity. Your ideas. Your rules. No limits.
         </p>
-        <ul className="mt-3 flex flex-wrap gap-3 text-sm">
-          <li>Real vocals</li>
-          <li>Album cover</li>
-          <li>Foul Mouth mode</li>
-        </ul>
 
         <section className="mt-8">
           <h2 className="text-xl font-bold">Choose your mode</h2>
@@ -55,10 +50,10 @@ export function WelcomeSeoFallback() {
         </section>
 
         <section className="mt-8">
-          <h2 className="text-xl font-bold">More from OG Bot</h2>
+          <h2 className="text-xl font-bold">More from OG Bot: never miss a game</h2>
           <h3 className="mt-3 font-semibold">Sports Guide</h3>
           <p className="text-muted-foreground">
-            Live daily fixtures, fight cards and TV listings — search any team instantly.
+            Daily fixtures, fight cards and TV listings. Search any team in seconds.
           </p>
         </section>
 
@@ -83,7 +78,7 @@ export function WelcomeSeoFallback() {
         <section className="mt-8">
           <h2 className="text-xl font-bold">Your next prompt could be a hit.</h2>
           <p className="text-muted-foreground">
-            Free account in seconds · 15 days of VIP on us · No card needed.
+            Free account in seconds. 15 days of VIP on us, no card needed.
           </p>
         </section>
 
