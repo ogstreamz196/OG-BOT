@@ -75,6 +75,7 @@ import { ReferralReminder } from "@/components/referrals/ReferralReminder";
 import { StoreItemsSection } from "@/components/store/StoreItemsSection";
 import { StoreSectionHead } from "@/components/store/StoreSectionHead";
 import "@/components/store/og-store.css";
+import storeBadge from "@/assets/og-bot-store.webp";
 
 export const Route = createFileRoute("/_authenticated/buy-coins/")({
   validateSearch: (s: Record<string, unknown>): { edit?: 1 } =>
@@ -599,36 +600,42 @@ export function CoinStore({
       <div className="og-store store-clean mx-auto w-full max-w-6xl space-y-8 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-12">
         {/* Header: title, balance, quick links */}
         <header className="og-store__hero p-4 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="og-store-mark" aria-label="OG Store">
-                <span aria-hidden className="og-store-mark__og">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <img
+              src={storeBadge}
+              alt=""
+              width={960}
+              height={960}
+              fetchPriority="high"
+              decoding="async"
+              className="og-store__badge h-32 w-32 shrink-0 rounded-2xl object-cover min-[400px]:h-36 min-[400px]:w-36 sm:h-48 sm:w-48"
+            />
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-3">
+              <div className="min-w-0">
+                <h1 className="og-store__title text-[clamp(1.5rem,6vw,2.4rem)] leading-none">
+                  OG Store
+                </h1>
+                <p className="og-st-muted mt-1.5 text-sm">
+                  <EditableContent
+                    contentKey="buyCoins.heading"
+                    defaultValue="Power up your OG experience"
+                  />
+                </p>
+              </div>
+              <div
+                role="status"
+                aria-label={`Wallet balance ${profile?.coin_balance ?? 0} OG coins`}
+                className="og-store__balance flex items-center gap-2.5 px-3 py-2"
+              >
+                <span aria-hidden className="og-store-coin h-9 w-9 text-[0.7rem]">
                   OG
                 </span>
-                <span aria-hidden className="og-store-mark__word">
-                  Store
-                </span>
-              </h1>
-              <p className="og-st-muted mt-1.5 text-sm">
-                <EditableContent
-                  contentKey="buyCoins.heading"
-                  defaultValue="Power up your OG experience"
-                />
-              </p>
-            </div>
-            <div
-              role="status"
-              aria-label={`Wallet balance ${profile?.coin_balance ?? 0} OG coins`}
-              className="og-store__balance flex items-center gap-2.5 px-3 py-2"
-            >
-              <span aria-hidden className="og-store-coin h-9 w-9 text-[0.7rem]">
-                OG
-              </span>
-              <div>
-                <p className="og-store__eyebrow text-[0.62rem]">Balance</p>
-                <p className="font-mono text-xl font-bold tabular-nums leading-tight sm:text-2xl">
-                  {profile?.coin_balance ?? 0}
-                </p>
+                <div>
+                  <p className="og-store__eyebrow text-[0.62rem]">Balance</p>
+                  <p className="font-mono text-xl font-bold tabular-nums leading-tight sm:text-2xl">
+                    {profile?.coin_balance ?? 0}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
