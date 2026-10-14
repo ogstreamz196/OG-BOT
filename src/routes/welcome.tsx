@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
 import { Capacitor } from "@capacitor/core";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
-import { Music2, Sparkles, Loader2, Headphones, Wand2, Mic2, Pencil } from "lucide-react";
+import { Music2, Sparkles, Loader2, Headphones, Wand2, Pencil } from "lucide-react";
 import { EditableContent } from "@/components/admin/EditableContent";
 import {
   AdminEditModeProvider,
@@ -950,9 +950,10 @@ function Hero() {
             className="og-rise"
             image={battleZoneArt}
             imageAlt="OG Bot Battle Zone badge"
-            eyebrow="OG Bot"
+            eyebrow="Live now"
+            live
             title="Battle Zone"
-            description="Beast OG Bot is live. Come with your best bars, challenge the bot and turn the heat into a battle."
+            description="Roast OG Bot. Bank coins for every hit."
             cta="Enter Battle Zone"
             onClick={openBattle}
           />
@@ -962,45 +963,33 @@ function Hero() {
             style={{ animationDelay: "0.1s" }}
             image={createTrackArt}
             imageAlt="OG Bot Create a Track badge"
-            eyebrow="MusicHub"
+            eyebrow="AI studio"
             title="Music Hub"
-            description="Create, remix and release your sound. Turn your ideas into tracks with AI-powered music creation."
+            description="Your idea. Real vocals. Cover art. Done."
             cta="Create a Track"
             onClick={openWizard}
           />
         </div>
       </div>
 
-      <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-4 text-center">
-        <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-primary">
-          <span>👑 15 days free VIP</span>
-          <span aria-hidden className="text-primary/50">
-            ·
-          </span>
-          <span>No card</span>
-        </div>
+      <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-3 text-center sm:mt-8">
         <button
           type="button"
           onClick={openBattle}
-          className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm font-bold text-foreground transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-destructive/45 bg-destructive/10 px-4 py-2 text-[0.82rem] font-bold text-foreground transition hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:text-sm"
         >
-          🎤 Try it: “Your beats sound like a microwave”
+          <span aria-hidden>🎤</span>
+          <span>
+            Try: <span className="italic">“Your beats sound like a microwave”</span>
+          </span>
         </button>
-        <ul className="flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
-          {[
-            { i: <Mic2 className="h-3.5 w-3.5" />, t: "Real vocals" },
-            { i: <Sparkles className="h-3.5 w-3.5" />, t: "Album cover" },
-            { i: <span>🤬</span>, t: "Foul Mouth mode" },
-          ].map((c) => (
-            <li
-              key={c.t}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1"
-            >
-              {c.i}
-              {c.t}
-            </li>
-          ))}
-        </ul>
+        <p className="text-[0.72rem] font-black uppercase tracking-[0.16em] text-foreground/90 sm:text-xs">
+          👑 15 days free VIP <span aria-hidden className="text-foreground/40">·</span> No card
+        </p>
+        <p className="text-xs font-medium text-muted-foreground sm:text-sm">
+          Real vocals <span aria-hidden>·</span> Album cover <span aria-hidden>·</span> Foul Mouth
+          mode
+        </p>
       </div>
     </section>
   );
