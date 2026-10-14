@@ -38,7 +38,7 @@ export function PrimaryCard({
   const isAccent = variant === "accent";
   const isCinema = variant === "cinema";
   const className = cn(
-    "group relative flex flex-row overflow-hidden rounded-3xl border-2 border-white/15 bg-card/85 shadow-card sm:flex-col backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "group relative flex min-w-0 overflow-hidden rounded-3xl border-2 border-white/15 bg-card/85 shadow-card flex-col backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     wide && "sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]",
   );
   const content = (
@@ -62,7 +62,7 @@ export function PrimaryCard({
           "relative overflow-hidden",
           wide
             ? "aspect-video w-full sm:aspect-auto sm:min-h-72"
-            : "m-3 aspect-square w-[6.5rem] shrink-0 self-center rounded-2xl sm:m-0 sm:w-full sm:rounded-none",
+            : "aspect-square w-full",
         )}
       >
         {hazard ? (
@@ -106,7 +106,7 @@ export function PrimaryCard({
             height={768}
             className={
               "h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 " +
-              (isAccent ? "p-1 sm:p-4 lg:p-6" : "")
+              ""
             }
           />
         )}

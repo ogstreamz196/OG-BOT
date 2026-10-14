@@ -42,6 +42,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import musicHubHero from "@/assets/musichub-hero.jpg";
+import battleZoneLogo from "@/assets/battle-zone-logo.png.asset.json";
+import createTrackTile from "@/assets/create-track-tile.png.asset.json";
 import sportsGuideLogo from "@/assets/og-bot-sports-guide.png.asset.json";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -352,12 +354,12 @@ function DashboardHome() {
 
       {/* Primary pillars — Battle Zone & diss tracks first, then the studio */}
       <section className="space-y-3">
-        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-5">
+        <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5">
           <PrimaryCard
             to="/messenger"
             search={{ live: true }}
-            image={ogBotAsset.url}
-            imageAlt="OG Bot avatar"
+            image={battleZoneLogo.url}
+            imageAlt="OG Bot Battle Zone badge"
             eyebrow="OG Bot · Diss maker"
             title="Enter Battle Zone"
             body="Everyone vs OG Bot. Throw your best roast — then turn the beef into a diss track."
@@ -366,13 +368,12 @@ function DashboardHome() {
           />
           <PrimaryCard
             to="/library"
-            image={musicHubHero}
-            imageAlt="Neon vinyl with equalizer bars"
+            image={createTrackTile.url}
+            imageAlt="OG Bot Create a Track badge"
             eyebrow="MusicHub"
             title="Create a song"
             body="Generate · Remix · Release"
             cta="Open MusicHub"
-            hazard
           />
         </div>
       </section>
