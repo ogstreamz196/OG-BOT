@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Link, Outlet, useChildMatches } from "@tanstack/react-router";
 import { VipAcknowledgements } from "@/components/admin/VipAcknowledgements";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
 import { ConfirmAction } from "@/components/admin/ConfirmAction";
+import { BossPasswordInline } from "@/components/admin/BossPasswordCard";
 import { VipExpiryDialog, useVipExpiry, formatVipExpiry } from "@/components/admin/VipExpiryDialog";
 import { listUsersPro } from "@/lib/sign-in-tracking.functions";
 import { getAllCoinPurchases, type AdminPurchaseTotals } from "@/lib/payments.functions";
@@ -58,8 +59,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { sendTelegramDm } from "@/lib/telegram-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
-  component: AdminUsersPage,
+  component: AdminUsersRoute,
 });
+
+/**
+ * /admin/users/$userId (full user settings) is a child of this route, so show
+ * it in place of the list when it's open.
+ */
+function AdminUsersRoute() {
+  const childMatches = useChildMatches();
+  return childMatches.length > 0 ? <Outlet /> : <AdminUsersPage />;
+}
 
 interface ProfileRow {
   id: string;
@@ -544,9 +554,7 @@ function TelegramMessageButton({ user }: { user: ProfileRow }) {
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] space-y-2">
-        <p className="text-sm font-semibold">
-          Message {user.display_name ?? user.email ?? "user"}
-        </p>
+        <p className="text-sm font-semibold">Message {user.display_name ?? user.email ?? "user"}</p>
         <p className="text-xs text-muted-foreground">Delivered by OG Bot on Telegram.</p>
         <Textarea
           value={text}
@@ -1155,6 +1163,13 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
             </Button>
           </div>
         </div>
+
+        {!roles.some((role) => ["admin", "boss", "dev"].includes(role)) ? (
+          <BossPasswordInline
+            userId={user.id}
+            name={user.display_name ?? user.email ?? "this member"}
+          />
+        ) : null}
 
         <Separator />
 
