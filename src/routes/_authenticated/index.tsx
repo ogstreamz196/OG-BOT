@@ -23,14 +23,9 @@ import {
   Globe,
   ShieldCheck,
   Crown,
+  ChevronDown,
 } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useEffect, useState, useCallback, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +45,6 @@ import { useDevMode } from "@/hooks/use-dev-mode";
 import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
 import { useRecentSongs, type RecentSong } from "@/hooks/use-recent-songs";
-import { useAdaptiveOverlay } from "@/hooks/use-adaptive-overlay";
 import welcomeLogo from "@/assets/og-streamz-presentz-ogbot.png.asset.json";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -61,8 +55,6 @@ import { OgPowers } from "@/components/welcome/OgPowers";
 import { SectionHeading, SportsGuideFeature } from "@/components/welcome/SportsGuideFeature";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { VipYearlyTeaser } from "@/components/home/VipYearlyTeaser";
-import { DodgyLogo } from "@/components/welcome/DodgyLogo";
-import { DodgyText } from "@/components/welcome/DodgyText";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,6 +84,9 @@ export const Route = createFileRoute("/_authenticated/")({
     links: [{ rel: "canonical", href: "https://ogbot.co.uk/" }],
   }),
 });
+
+/** useRecentSongs fetches this many, so the count shows "6+" at the cap. */
+const RECENT_LIMIT = 6;
 
 type PromptIdea = { title: string; description: string; vibe: string };
 
@@ -132,9 +127,9 @@ function DashboardHome() {
   const { user } = useAuth();
   const dev = useDevMode();
   const { data: profile } = useProfile();
-  const { isVip, hasVipRole } = useRole();
+  const { isVip, hasVipRole, isTrial } = useRole();
   const navigate = useNavigate();
-  const { data: recentSongs = [] } = useRecentSongs(user?.id);
+  const { data: recentSongs = [], isLoading: recentLoading } = useRecentSongs(user?.id);
 
   const displayName =
     profile?.display_name?.trim() ||
@@ -189,305 +184,306 @@ function DashboardHome() {
   });
   const saidHi = webHi || !!tgHi.data;
   const allStepsDone = profileDone && hasSongs && saidHi && isVip;
-  const welcomeRef = useRef<HTMLElement | null>(null);
-  const scrimOpacity = useAdaptiveOverlay(welcomeRef, { min: 0.55, max: 0.92 });
 
   return (
-    <div className="flex w-full flex-col space-y-10 sm:space-y-12">
-      {/* Welcome */}
+    <div className="flex w-full flex-col">
+      {/* First screen: greeting, member stats and the two modes, all above the
+          fold on phones (screen minus the app header and bottom bar). */}
       <section
-        ref={welcomeRef}
-        className="group/welcome relative flex flex-col gap-3 overflow-hidden rounded-[2rem] border-2 border-white/15 bg-card/55 p-4 shadow-[0_24px_60px_-20px_rgba(80,60,255,0.45)] backdrop-blur-2xl sm:rounded-[2.5rem] sm:p-12"
+        aria-label="Your studio"
+        className="flex min-h-[calc(100dvh-3.5rem-72px-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] flex-col justify-between gap-3 pb-1 md:min-h-0 md:gap-5"
       >
-        {/* Adaptive dark scrim */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-background transition-opacity duration-500"
-          style={{ opacity: scrimOpacity }}
-        />
-        {/* Bottom-up readability gradient */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/95 via-background/70 to-background/30"
-        />
-        {/* Conic rotating halo */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -inset-32 opacity-40 [background:conic-gradient(from_0deg,oklch(0.55_0.22_268/0.35),transparent_35%,oklch(0.7_0.22_25/0.3)_60%,transparent_85%,oklch(0.55_0.22_268/0.35))] animate-[spin_22s_linear_infinite] blur-3xl"
-        />
-        {/* Floating cartoon blobs */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-10 top-8 h-40 w-40 rounded-full bg-primary/30 blur-2xl wc-blob"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-12 bottom-0 h-32 w-32 rounded-full bg-accent/30 blur-2xl wc-float-slow"
-        />
-        {/* Sparkle particles */}
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          {[
-            { top: "12%", left: "8%", d: "0s", s: "h-2 w-2" },
-            { top: "22%", left: "92%", d: "0.6s", s: "h-1.5 w-1.5" },
-            { top: "68%", left: "14%", d: "1.2s", s: "h-1 w-1" },
-            { top: "82%", left: "78%", d: "0.3s", s: "h-2 w-2" },
-            { top: "44%", left: "55%", d: "1.8s", s: "h-1 w-1" },
-          ].map((p, i) => (
-            <span
-              key={i}
-              className={`absolute rounded-full bg-white/80 shadow-[0_0_12px_4px_rgba(255,255,255,0.45)] ${p.s} animate-[wc-pop_2.4s_ease-in-out_infinite]`}
-              style={{ top: p.top, left: p.left, animationDelay: p.d }}
+        {/* 1. Logo, greeting and VIP status */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-background/60 p-2.5 backdrop-blur-md sm:p-3.5">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
+            <img
+              src={welcomeLogo.url}
+              alt="OG Streamz Presentz OG Bot"
+              width={300}
+              height={300}
+              decoding="async"
+              className="h-11 w-auto shrink-0 rounded-xl object-contain sm:h-16"
             />
-          ))}
+            <div className="min-w-0">
+              <p className="flex items-center gap-1 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
+                Welcome back
+                {isVip ? <Crown className="h-3 w-3 shrink-0 fill-current text-coin" /> : null}
+              </p>
+              <h1 className="font-display truncate pb-[0.5em] text-base font-black leading-tight tracking-tight sm:text-2xl">
+                <span className="text-foreground">Hello, </span>
+                <span className="paint-drip uppercase text-gradient-red">{displayName}</span>
+              </h1>
+            </div>
+          </div>
+          {hasVipRole ? (
+            <Link
+              to="/settings"
+              aria-label="You are an OG VIP member"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/60 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-black shadow-[0_0_16px_rgba(251,191,36,0.45)] sm:px-3.5 sm:text-xs"
+            >
+              <Crown className="h-3.5 w-3.5 fill-current" />
+              {profile?.og_vip_id ?? "VIP"}
+            </Link>
+          ) : (
+            <Link
+              to="/store"
+              hash="section-vip"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/50 bg-amber-500/10 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-amber-300 transition hover:bg-amber-500/20 sm:px-3.5 sm:text-xs"
+            >
+              <Crown className="h-3.5 w-3.5" />
+              {isTrial ? "VIP trial" : "Get VIP"}
+            </Link>
+          )}
         </div>
 
-        {/* Top studio status strip */}
-        <div className="relative -mx-4 -mt-4 mb-2 flex justify-center border-b border-white/10 bg-white/[0.03] py-2 sm:-mx-12 sm:-mt-12 sm:mb-4">
-          <span className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-black uppercase tracking-[0.22em] text-foreground/80 sm:text-sm">
-            <Disc3 className="h-4 w-4 animate-[spin_4s_linear_infinite] text-primary" />
-            OG Live Studio
-          </span>
-        </div>
-
-        <div className="relative flex flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
-          <div className="order-2 flex w-full flex-row flex-wrap items-center gap-2 sm:order-none sm:w-auto sm:flex-row sm:items-center sm:text-lg">
-            {hasVipRole ? (
-              <Link
-                to="/settings"
-                aria-label="You are an OG VIP member"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-amber-300/80 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 px-4 py-1.5 text-sm font-black uppercase tracking-wider text-black shadow-[0_0_24px_rgba(251,191,36,0.6)] wc-bounce-soft sm:px-6 sm:py-2.5 sm:text-lg"
-              >
-                <Crown className="h-6 w-6 fill-current sm:h-7 sm:w-7" />
-                {profile?.og_vip_id ?? "OG VIP"}
-              </Link>
-            ) : (
-              <Link
-                to="/store"
-                className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-foreground/80 hover:bg-white/10 sm:px-5 sm:py-2.5 sm:text-lg"
-              >
-                <Crown className="h-4 w-4 text-amber-300" /> Get VIP
-              </Link>
-            )}
-            <Badge
-              variant="outline"
-              className="justify-center gap-1.5 rounded-full border-2 border-white/20 bg-white/5 px-3 py-1.5 text-xs sm:gap-2 sm:px-5 sm:py-2.5 sm:text-lg"
-            >
-              <Coins className="h-4 w-4 shrink-0 text-primary animate-[bounce_2s_ease-in-out_infinite] sm:h-6 sm:w-6" />
-              <span className="truncate">{balance} OG coins</span>
-            </Badge>
-            {/* Live mini equalizer */}
-            <span
-              aria-hidden
-              className="ml-1 hidden items-end gap-[3px] rounded-full border-2 border-white/15 bg-white/[0.04] px-3 py-2 sm:inline-flex"
-            >
-              <span className="inline-flex items-center gap-1.5 pr-2 text-xs font-bold uppercase tracking-[0.2em] text-foreground/70">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                </span>
-                Live
+        {/* 2. Member stats */}
+        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 backdrop-blur-md sm:grid-cols-3 sm:gap-3 sm:p-3">
+          <Link
+            to="/store"
+            aria-label={`${balance} OG coins. Top up in the OG Store`}
+            className="group flex flex-col justify-between rounded-xl border border-white/10 bg-background/50 p-2.5 transition hover:border-amber-400/50 hover:bg-white/5"
+          >
+            <span className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[0.62rem] font-bold uppercase tracking-wider">OG Coins</span>
+              <Coins className="h-3.5 w-3.5 text-amber-400 transition-transform group-hover:scale-110" />
+            </span>
+            <span className="mt-1 flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-black tabular-nums text-foreground sm:text-2xl">
+                {balance}
               </span>
+              <span className="text-[0.65rem] font-bold text-amber-400 group-hover:underline">
+                + Add
+              </span>
+            </span>
+          </Link>
+          <Link
+            to="/library"
+            className="group flex flex-col justify-between rounded-xl border border-white/10 bg-background/50 p-2.5 transition hover:border-destructive/50 hover:bg-white/5"
+          >
+            <span className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[0.62rem] font-bold uppercase tracking-wider">My studio</span>
+              <Music2 className="h-3.5 w-3.5 text-destructive transition-transform group-hover:scale-110" />
+            </span>
+            <span className="mt-1 flex items-baseline justify-between gap-2">
+              <span className="font-mono text-xl font-black tabular-nums text-foreground sm:text-2xl">
+                {recentSongs.length >= RECENT_LIMIT ? `${RECENT_LIMIT}+` : recentSongs.length}
+              </span>
+              <span className="text-[0.65rem] font-bold text-muted-foreground group-hover:text-foreground">
+                {recentSongs.length === 1 ? "Track" : "Tracks"} →
+              </span>
+            </span>
+          </Link>
+          {/* Live strip: dropped on short screens so the modes stay in view. */}
+          <div className="col-span-2 flex items-center justify-between rounded-xl border border-white/10 bg-background/50 px-3 py-1.5 [@media(max-height:700px)]:hidden sm:col-span-1 sm:flex-col sm:items-start sm:p-2.5 sm:[@media(max-height:700px)]:flex">
+            <span className="inline-flex items-center gap-1.5 text-[0.62rem] font-bold uppercase tracking-wider text-emerald-400">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              Studio online
+            </span>
+            <span aria-hidden className="flex items-end gap-[3px] py-1">
               {[0.5, 0.9, 0.6, 1, 0.7].map((h, i) => (
                 <span
                   key={i}
-                  className="w-[3px] rounded-full bg-gradient-to-t from-primary/60 to-primary"
+                  className="w-[3px] rounded-full bg-gradient-to-t from-destructive/70 to-destructive"
                   style={{
-                    height: `${h * 18}px`,
+                    height: `${h * 14}px`,
                     animation: `eqPulse 0.${(i % 5) + 4}s ease-in-out ${i * 0.08}s infinite alternate`,
                   }}
                 />
               ))}
             </span>
           </div>
-          <div className="order-1 w-full min-w-0 basis-full rounded-3xl bg-background/35 p-4 text-center backdrop-blur-md ring-2 ring-white/10 transition-transform duration-500 group-hover/welcome:-translate-y-1 sm:order-none sm:p-8">
-            <p className="inline-flex items-center justify-center gap-2 text-xs uppercase tracking-[0.28em] text-muted-foreground sm:text-xl">
-              <span className="inline-block animate-[wiggle_1.6s_ease-in-out_infinite] [transform-origin:70%_70%]">
-                👋
-              </span>
-              <span className="relative">
-                Welcome back
-                <span
-                  aria-hidden
-                  className="absolute -bottom-1 left-0 h-[2px] w-full origin-left scale-x-0 bg-gradient-to-r from-primary via-accent to-primary animate-[shimmer_3s_ease-in-out_infinite] [animation:wc-pop_0.8s_0.3s_cubic-bezier(.34,1.56,.64,1)_forwards]"
-                />
-              </span>
-            </p>
-            <div className="mt-4 flex flex-col items-center gap-4 sm:mt-5 sm:gap-7">
-              <DodgyLogo
-                src={welcomeLogo.url}
-                alt="OG Streamz Presentz OG Bot"
-                size={300}
-                maxDrift={80}
-                dodgeRadius={160}
-                imageClassName="rounded-3xl ring-1 ring-white/10 shadow-glow w-full max-w-[420px] sm:max-w-[520px] h-auto"
-                className="mx-auto"
-              />
+        </div>
 
-              <DodgyText dodgeRadius={160} maxDrift={28} className="w-full">
-                <h1 className="font-display flex min-w-0 flex-col items-center gap-1 text-[clamp(1.5rem,3.2vw+0.75rem,3.75rem)] font-black leading-[1.05] tracking-[-0.02em] text-foreground [text-shadow:0_4px_28px_rgba(0,0,0,0.75)] [overflow-wrap:anywhere] [text-wrap:balance] [font-variant-ligatures:none] sm:gap-2">
-                  <span className="block wc-pop">Hello,</span>
-                  <span className="paint-drip font-display block max-w-full pb-2 not-italic font-black uppercase tracking-tight text-gradient-red [overflow-wrap:anywhere] text-[clamp(1.5rem,2.6vw+0.75rem,3rem)]">
-                    {displayName}
-                  </span>
-                </h1>
-              </DodgyText>
-            </div>
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.5] text-foreground [text-shadow:0_1px_12px_rgba(0,0,0,0.75)] sm:text-xl md:text-2xl">
-              Dive into{" "}
-              <span className="text-gradient-red font-black tracking-tight text-[0.92em]">
-                MusicHub
-              </span>{" "}
-              to create tracks, or open{" "}
-              <span className="text-gradient-red font-black tracking-tight text-[0.92em]">
-                OG Streamz Messenger
-              </span>{" "}
-              to chat with{" "}
-              <span className="relative inline-block text-gradient-red font-black tracking-tight text-[0.92em]">
-                OG Bot
-                <span aria-hidden className="ml-1 inline-flex gap-0.5 align-middle">
-                  <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:0s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:0.15s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:0.3s]" />
-                </span>
-              </span>
-              .
-            </p>
+        {/* 3. The two modes, side by side */}
+        <div id="modes" className="scroll-mt-24">
+          <div className="mb-1.5 flex items-center justify-between px-1 sm:mb-3">
+            <h2 className="text-[0.68rem] font-black uppercase tracking-[0.25em] text-foreground/80 sm:text-xs">
+              Choose your mode
+            </h2>
+            <span className="text-[0.62rem] text-muted-foreground">Instant launch</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-5">
+            <ModeCard
+              compact
+              tone="crimson"
+              className="og-rise"
+              image={battleZoneArt}
+              imageAlt="OG Bot Battle Zone badge"
+              eyebrow="Live now"
+              live
+              badge={isVip ? "VIP unlocked" : "Free entry"}
+              title="Battle Zone"
+              description={
+                isVip
+                  ? "Roast OG Bot. Bank coins for every hit."
+                  : "Roast OG Bot. VIP lets him swear back."
+              }
+              cta="Enter Battle Zone"
+              onClick={() => navigate({ to: "/messenger", search: { live: true } })}
+            />
+            <ModeCard
+              compact
+              tone="blue"
+              className="og-rise"
+              style={{ animationDelay: "0.1s" }}
+              image={createTrackArt}
+              imageAlt="OG Bot Make a Track badge"
+              eyebrow="AI studio"
+              badge="Instant"
+              title="Music Hub"
+              description={
+                isVip
+                  ? "Your idea. Real vocals. Cover art. Done."
+                  : "Your idea. Real vocals. VIP opens every style."
+              }
+              cta="Create a Track"
+              onClick={() => navigate({ to: "/library" })}
+            />
           </div>
         </div>
-      </section>
 
-      {/* Same modes as the landing page; members go straight in. */}
-      <section id="modes" aria-labelledby="modes-title" className="scroll-mt-24">
-        <h2
-          id="modes-title"
-          className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/80 sm:text-sm"
+        {/* 4. Scroll cue */}
+        <a
+          href="#more-studio"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById("more-studio")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="mx-auto inline-flex min-h-8 items-center gap-1.5 text-[0.7rem] font-bold text-muted-foreground transition hover:text-foreground md:hidden"
         >
-          Choose your mode
-        </h2>
-        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-6">
-          <ModeCard
-            tone="crimson"
-            className="og-rise"
-            image={battleZoneArt}
-            imageAlt="OG Bot Battle Zone badge"
-            eyebrow="Live now"
-            live
-            title="Battle Zone"
-            description={
-              isVip
-                ? "Roast OG Bot. Bank coins for every hit."
-                : "Roast OG Bot. VIP lets him swear back."
-            }
-            cta="Enter Battle Zone"
-            onClick={() => navigate({ to: "/messenger", search: { live: true } })}
-          />
-          <ModeCard
-            tone="blue"
-            className="og-rise"
-            style={{ animationDelay: "0.1s" }}
-            image={createTrackArt}
-            imageAlt="OG Bot Make a Track badge"
-            eyebrow="AI studio"
-            title="Music Hub"
-            description={
-              isVip
-                ? "Your idea. Real vocals. Cover art. Done."
-                : "Your idea. Real vocals. VIP opens every style."
-            }
-            cta="Create a Track"
-            onClick={() => navigate({ to: "/library" })}
-          />
-        </div>
+          Daily drop, recent tracks &amp; more
+          <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" />
+        </a>
       </section>
 
-      <VipYearlyTeaser />
+      <div
+        id="more-studio"
+        className="mt-8 flex scroll-mt-20 flex-col space-y-10 sm:mt-12 sm:space-y-12"
+      >
+        <VipYearlyTeaser />
 
-      <DailyDrop />
+        <DailyDrop />
 
-      {/* Continuity demo */}
-      {/* <ContinuityDemo /> hidden per request */}
+        <section aria-labelledby="recent-title">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <h2
+              id="recent-title"
+              className="heading-plate text-sm font-bold uppercase tracking-[0.18em] text-foreground sm:text-base"
+            >
+              🎧 Recent tracks
+            </h2>
+            {hasSongs ? (
+              <Link
+                to="/library"
+                className="text-xs font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                See all
+              </Link>
+            ) : null}
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-card/80 px-2 backdrop-blur-xl">
+            {recentLoading ? (
+              <RecentSkeleton />
+            ) : hasSongs ? (
+              <ul className="divide-y divide-border/40">
+                {recentSongs.slice(0, 3).map((song) => (
+                  <RecentRow key={song.id} song={song} />
+                ))}
+              </ul>
+            ) : (
+              <EmptyRecent />
+            )}
+          </div>
+        </section>
 
-      {/* Quick actions */}
-      <section>
-        <h2 className="heading-plate mb-3 text-sm font-bold uppercase tracking-[0.18em] text-foreground sm:mb-4 sm:text-base sm:tracking-[0.24em]">
-          ⚡ Quick actions
-        </h2>
-        <div className="grid grid-cols-4 gap-2 sm:gap-4">
-          <QuickAction
-            to="/library"
-            icon={<Plus className="h-7 w-7" />}
-            label="Create"
-            tone="violet"
-          />
-          <QuickAction
-            to="/messenger"
-            icon={<Wand2 className="h-7 w-7" />}
-            label="Ask OG"
-            tone="pink"
-          />
-          <QuickAction
-            to="/library"
-            icon={<Library className="h-7 w-7" />}
-            label="Music"
-            tone="cyan"
-          />
-          <QuickAction
-            to="/referrals"
-            icon={<Gift className="h-7 w-7" />}
-            label="Earn"
-            tone="emerald"
-          />
-        </div>
-      </section>
+        {/* Continuity demo */}
+        {/* <ContinuityDemo /> hidden per request */}
 
-      <section aria-labelledby="more-title">
-        <SectionHeading id="more-title" eyebrow="More from OG Bot" title="Never miss a game" />
-        <SportsGuideFeature tag="Members" onOpen={() => navigate({ to: "/sports" })} />
-      </section>
+        {/* Quick actions */}
+        <section>
+          <h2 className="heading-plate mb-3 text-sm font-bold uppercase tracking-[0.18em] text-foreground sm:mb-4 sm:text-base sm:tracking-[0.24em]">
+            ⚡ Quick actions
+          </h2>
+          <div className="grid grid-cols-4 gap-2 sm:gap-4">
+            <QuickAction
+              to="/library"
+              icon={<Plus className="h-7 w-7" />}
+              label="Create"
+              tone="violet"
+            />
+            <QuickAction
+              to="/messenger"
+              icon={<Wand2 className="h-7 w-7" />}
+              label="Ask OG"
+              tone="pink"
+            />
+            <QuickAction
+              to="/library"
+              icon={<Library className="h-7 w-7" />}
+              label="Music"
+              tone="cyan"
+            />
+            <QuickAction
+              to="/referrals"
+              icon={<Gift className="h-7 w-7" />}
+              label="Earn"
+              tone="emerald"
+            />
+          </div>
+        </section>
 
-      <OgPowers
-        onBattle={() => navigate({ to: "/messenger", search: { live: true } })}
-        onCreate={() => navigate({ to: "/library" })}
-        onEarn={() => navigate({ to: "/referrals" })}
-      />
+        <section aria-labelledby="more-title">
+          <SectionHeading id="more-title" eyebrow="More from OG Bot" title="Never miss a game" />
+          <SportsGuideFeature tag="Members" onOpen={() => navigate({ to: "/sports" })} />
+        </section>
 
-      <CommunityShowcase />
+        <OgPowers
+          onBattle={() => navigate({ to: "/messenger", search: { live: true } })}
+          onCreate={() => navigate({ to: "/library" })}
+          onEarn={() => navigate({ to: "/referrals" })}
+        />
 
-      {!allStepsDone && (
-        <div className="grid grid-cols-1 gap-6">
-          {/* Next steps */}
-          <Card className="rounded-[2rem] border-2 border-white/15 shadow-[0_18px_50px_-20px_rgba(80,60,255,0.35)]">
-            <CardHeader>
-              <CardTitle className="font-display text-2xl font-black leading-[1.1] tracking-tight break-words sm:text-4xl md:text-5xl">
-                Next steps
-              </CardTitle>
-              <CardDescription className="text-base sm:text-lg">
-                Get the most out of OG Studio.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ChecklistItem
-                done={profileDone}
-                label="Complete your profile (username, email & Telegram)"
-                to="/settings"
-              />
-              <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
-              <ChecklistItem done={saidHi} label="Say hi in OG Bot" to="/messenger" />
-              <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <CommunityShowcase />
 
-      <footer className="flex justify-center border-t border-white/10 pt-6">
-        <Link
-          to="/policy"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ShieldCheck className="h-4 w-4 shrink-0" />
-          Privacy Policy
-        </Link>
-      </footer>
+        {!allStepsDone && (
+          <div className="grid grid-cols-1 gap-6">
+            {/* Next steps */}
+            <Card className="rounded-[2rem] border-2 border-white/15 shadow-[0_18px_50px_-20px_rgba(80,60,255,0.35)]">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl font-black leading-[1.1] tracking-tight break-words sm:text-4xl md:text-5xl">
+                  Next steps
+                </CardTitle>
+                <CardDescription className="text-base sm:text-lg">
+                  Get the most out of OG Studio.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ChecklistItem
+                  done={profileDone}
+                  label="Complete your profile (username, email & Telegram)"
+                  to="/settings"
+                />
+                <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
+                <ChecklistItem done={saidHi} label="Say hi in OG Bot" to="/messenger" />
+                <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <footer className="flex justify-center border-t border-white/10 pt-6">
+          <Link
+            to="/policy"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Privacy Policy
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }

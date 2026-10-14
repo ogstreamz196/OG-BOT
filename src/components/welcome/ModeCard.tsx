@@ -35,7 +35,13 @@ export function ModeCard({
   live = false,
   className,
   style,
+  compact = false,
+  badge,
 }: {
+  /** Shorter artwork and tighter text, for the members' first screen. */
+  compact?: boolean;
+  /** Small chip over the artwork, e.g. "Free entry". */
+  badge?: string;
   /** Show a pulsing "live" dot before the eyebrow. */
   live?: boolean;
   image: string;
@@ -59,14 +65,27 @@ export function ModeCard({
         className,
       )}
     >
-      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-card lg:m-3 lg:w-40 lg:self-center lg:rounded-2xl">
+      <div
+        className={cn(
+          "relative w-full shrink-0 overflow-hidden bg-card lg:m-3 lg:w-40 lg:self-center lg:rounded-2xl",
+          compact ? "aspect-[16/11] lg:aspect-square" : "aspect-square",
+        )}
+      >
+        {badge ? (
+          <span className="absolute left-2 top-2 z-[1] rounded-full border border-white/20 bg-background/75 px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-wider text-foreground backdrop-blur-md">
+            {badge}
+          </span>
+        ) : null}
         <img
           src={image}
           alt={imageAlt}
           width={960}
           height={960}
           decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.04]"
+          className={cn(
+            "h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.04]",
+            compact && "object-[center_62%] lg:object-center",
+          )}
         />
         <span
           aria-hidden
@@ -76,7 +95,9 @@ export function ModeCard({
           )}
         />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-5 lg:pl-1">
+      <div
+        className={cn("flex min-w-0 flex-1 flex-col sm:p-5 lg:pl-1", compact ? "p-2.5" : "p-3.5")}
+      >
         <p
           className={cn(
             "flex items-center gap-1.5 text-[0.68rem] font-black uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.2em]",
@@ -91,17 +112,28 @@ export function ModeCard({
           ) : null}
           {eyebrow}
         </p>
-        <h3 className="mt-1.5 font-display text-[1.35rem] font-black uppercase leading-none tracking-tight sm:text-2xl">
+        <h3
+          className={cn(
+            "font-display font-black uppercase leading-none tracking-tight sm:mt-1.5 sm:text-2xl",
+            compact ? "mt-1 text-[1.15rem]" : "mt-1.5 text-[1.35rem]",
+          )}
+        >
           {title}
         </h3>
-        <p className="mt-1.5 mb-3.5 text-[0.8rem] leading-snug text-foreground/85 sm:text-sm sm:leading-relaxed">
+        <p
+          className={cn(
+            "leading-snug text-foreground/85 sm:mt-1.5 sm:mb-3.5 sm:text-sm sm:leading-relaxed",
+            compact ? "mt-1 mb-2.5 line-clamp-2 text-[0.74rem]" : "mt-1.5 mb-3.5 text-[0.8rem]",
+          )}
+        >
           {description}
         </p>
         <button
           type="button"
           onClick={onClick}
           className={cn(
-            "mt-auto inline-flex min-h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-1 pt-0.5 text-center text-[0.7rem] leading-none font-black uppercase tracking-normal sm:px-3 sm:tracking-wide transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:text-sm",
+            compact ? "min-h-10" : "min-h-11",
+            "mt-auto inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-1 pt-0.5 text-center text-[0.7rem] leading-none font-black uppercase tracking-normal sm:px-3 sm:tracking-wide transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:text-sm",
             t.cta,
           )}
         >
