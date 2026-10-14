@@ -19,6 +19,7 @@ import { CoinPill } from "@/components/ui/coin-pill";
 import type { StoreItem } from "@/lib/store.functions";
 import { cn } from "@/lib/utils";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
+import vaultArt from "@/assets/og-bot-vault.webp";
 
 const RARITY: Record<StoreItem["rarity"], { label: string; icon: ReactNode }> = {
   common: {
@@ -88,10 +89,10 @@ export function StoreItemCard({
   const ownsSportsGuide =
     isSportsGuide && sportsGuideState && !["unowned", "revoked"].includes(sportsGuideState);
   // Phone apps block insecure (http) images, so always load them over https.
-  const imageUrl = isSportsGuide
-    ? sportsGuideArt
-    : item.image_url?.replace(/^http:\/\//i, "https://");
   const isVipPass = item.slug === "og-vip-pass";
+  // Our own badges for the two branded items; everything else uses its store image.
+  const brandArt = isSportsGuide ? sportsGuideArt : isVipPass ? vaultArt : null;
+  const imageUrl = brandArt ?? item.image_url?.replace(/^http:\/\//i, "https://");
   const ownsVipPass = isVipPass && !!vipPass?.owned;
   const vaultKept = ownsVipPass && !vipPass?.trial;
   const vipSoldOut = isVipPass && !ownsVipPass && (vipPass?.available ?? 0) === 0;
@@ -131,7 +132,7 @@ export function StoreItemCard({
             alt={item.name}
             className={cn(
               "h-full w-full transition-transform duration-500 motion-safe:group-hover:scale-105",
-              isSportsGuide ? "object-contain p-2" : "object-cover",
+              brandArt ? "object-contain p-2" : "object-cover",
             )}
             loading="lazy"
             decoding="async"

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { EditableContent } from "@/components/admin/EditableContent";
-import masterLogo from "@/assets/og-bot-master-logo.webp";
+import battleZoneArt from "@/assets/og-bot-battle-zone.webp";
 import createTrackArt from "@/assets/og-bot-create-track.webp";
 
 type Theme = "roast" | "studio" | "vault";
@@ -99,13 +99,13 @@ export function OgPowers({
                 {p.theme === "roast" && (
                   <>
                     <img
-                      src={masterLogo}
+                      src={battleZoneArt}
                       alt=""
-                      width={1607}
-                      height={1275}
+                      width={960}
+                      height={960}
                       loading="lazy"
                       decoding="async"
-                      className="og-power-card__img og-power-card__img--wide"
+                      className="og-power-card__img"
                     />
                     <span className="og-power-card__ember" style={{ left: "18%" }} />
                     <span
@@ -145,6 +145,7 @@ export function OgPowers({
                     />
                     <span className="og-coin">
                       <span className="og-coin__face">OG</span>
+                      <span className="og-coin__spark" />
                     </span>
                   </>
                 )}
