@@ -49,15 +49,9 @@ export function WelcomeSeoFallback() {
         <section className="mt-8">
           <h2 className="text-xl font-bold">Choose your mode</h2>
           <h3 className="mt-3 font-semibold">Battle Zone</h3>
-          <p className="text-muted-foreground">
-            Beast OG Bot is live. Come with your best bars, challenge the bot and turn the heat into
-            a battle.
-          </p>
+          <p className="text-muted-foreground">Roast OG Bot. Bank coins for every hit.</p>
           <h3 className="mt-3 font-semibold">Music Hub</h3>
-          <p className="text-muted-foreground">
-            Create, remix and release your sound. Turn your ideas into tracks with AI-powered music
-            creation.
-          </p>
+          <p className="text-muted-foreground">Your idea. Real vocals. Cover art. Done.</p>
         </section>
 
         <section className="mt-8">

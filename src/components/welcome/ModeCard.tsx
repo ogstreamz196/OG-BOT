@@ -6,7 +6,7 @@ type Tone = "blue" | "crimson";
 const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: string }> = {
   blue: {
     ring: "hover:border-primary/70 focus-within:ring-primary motion-safe:hover:shadow-lift-primary",
-    eyebrow: "text-primary",
+    eyebrow: "text-muted-foreground",
     cta: "bg-primary text-primary-foreground shadow-glow",
     glow: "from-primary/35",
   },
@@ -32,9 +32,12 @@ export function ModeCard({
   cta,
   onClick,
   tone = "blue",
+  live = false,
   className,
   style,
 }: {
+  /** Show a pulsing "live" dot before the eyebrow. */
+  live?: boolean;
   image: string;
   imageAlt: string;
   eyebrow: string;
@@ -73,33 +76,39 @@ export function ModeCard({
           )}
         />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3 sm:gap-2 sm:p-5 lg:pl-1">
+      <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-5 lg:pl-1">
         <p
           className={cn(
-            "text-[0.7rem] font-black uppercase tracking-[0.18em] sm:text-xs sm:tracking-[0.22em]",
+            "flex items-center gap-1.5 text-[0.68rem] font-black uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.2em]",
             t.eyebrow,
           )}
         >
+          {live ? (
+            <span aria-hidden className="relative inline-flex h-1.5 w-1.5 shrink-0">
+              <span className="absolute inset-0 rounded-full bg-destructive motion-safe:animate-ping" />
+              <span className="relative h-1.5 w-1.5 rounded-full bg-destructive" />
+            </span>
+          ) : null}
           {eyebrow}
         </p>
-        <h3 className="font-display text-xl font-black uppercase leading-none tracking-tight sm:text-2xl">
+        <h3 className="mt-1.5 font-display text-[1.35rem] font-black uppercase leading-none tracking-tight sm:text-2xl">
           {title}
         </h3>
-        <p className="mb-1 line-clamp-3 text-xs leading-snug sm:mb-2 text-foreground/85 sm:line-clamp-none sm:text-sm sm:leading-relaxed">
+        <p className="mt-1.5 mb-3.5 text-[0.8rem] leading-snug text-foreground/85 sm:text-sm sm:leading-relaxed">
           {description}
         </p>
         <button
           type="button"
           onClick={onClick}
           className={cn(
-            "mt-auto inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl px-1.5 pt-0.5 text-center text-[0.72rem] leading-tight font-black uppercase tracking-normal sm:px-3 sm:tracking-wide transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:text-sm",
+            "mt-auto inline-flex min-h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-1 pt-0.5 text-center text-[0.7rem] leading-none font-black uppercase tracking-normal sm:px-3 sm:tracking-wide transition after:absolute after:inset-0 after:z-10 after:content-[''] active:transform-none focus-visible:outline-none group-hover:ring-2 group-hover:ring-white/25 sm:text-sm",
             t.cta,
           )}
         >
           <span>{cta}</span>
           <ArrowRight
             aria-hidden
-            className="hidden h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5 min-[400px]:inline"
+            className="hidden h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5 sm:inline"
           />
         </button>
       </div>
