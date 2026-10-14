@@ -584,7 +584,10 @@ async function runChatAI(
   }
 
   // Show "typing…" straight away and keep it alive every 4s (Telegram drops
-  // it after ~5s) until the reply is sent.
+  // it after ~5s) until the reply is sent. Replies go out as soon as they're
+  // cooked — with a 2s minimum typing beat so it feels human, and no max wait.
+  const MIN_TYPING_MS = 2_000;
+  const typingStartedAt = Date.now();
   void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
   const typingTimer = setInterval(() => {
     void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
