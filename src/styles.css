@@ -1785,6 +1785,8 @@ html[data-kb="1"] nav.safe-bottom.fixed {
   --pw-purple: oklch(0.62 0.24 305);
   --pw-gold: oklch(0.84 0.15 85);
   --pw-gold-deep: oklch(0.58 0.12 70);
+  --pw-gold-light: oklch(0.96 0.08 95);
+  --pw-gold-dark: oklch(0.4 0.09 60);
   --pw-white: oklch(0.99 0 0);
   background:
     radial-gradient(60% 40% at 50% 0%, color-mix(in oklab, var(--pw-blue) 18%, transparent), transparent 70%),
@@ -1897,7 +1899,6 @@ html[data-kb="1"] nav.safe-bottom.fixed {
 @media (min-width: 768px) {
   .og-power-card__art { height: 10rem; }
   .og-power-card__img { height: 9rem; }
-  .og-power-card__img--wide { height: 12rem; }
 }
 .og-power-card__img {
   position: relative;
@@ -1908,13 +1909,6 @@ html[data-kb="1"] nav.safe-bottom.fixed {
   object-fit: contain;
   border-radius: 0.9rem;
   filter: drop-shadow(0 10px 22px color-mix(in oklab, var(--c1) 60%, transparent));
-}
-.og-power-card__img--wide {
-  height: 10rem;
-  max-width: 112%;
-  border-radius: 0;
-  -webkit-mask-image: radial-gradient(ellipse at center, black 45%, transparent 75%);
-  mask-image: radial-gradient(ellipse at center, black 45%, transparent 75%);
 }
 
 /* Roast: rising embers. */
@@ -1953,38 +1947,88 @@ html[data-kb="1"] nav.safe-bottom.fixed {
   animation: og-pw-eq 1.4s ease-in-out infinite alternate;
 }
 
-/* Vault: a gold OG coin with a shimmer, plus two floating mini coins. */
+/* Vault: a minted gold OG coin (reeded rim, raised face, stamped letters,
+   shimmer and a sparkle), plus two floating mini coins. */
 .og-coin {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 5.75rem;
-  height: 5.75rem;
+  width: 6.25rem;
+  height: 6.25rem;
   place-items: center;
-  overflow: hidden;
   border-radius: 9999px;
-  background: radial-gradient(circle at 35% 30%, var(--pw-white) 0 4%, var(--pw-gold) 22%, var(--pw-gold-deep) 70%, var(--pw-gold) 100%);
+  background:
+    repeating-conic-gradient(from 0deg, color-mix(in oklab, var(--pw-gold-dark) 45%, transparent) 0 2deg, transparent 2deg 5deg),
+    conic-gradient(from 200deg, var(--pw-gold-light), var(--pw-gold) 18%, var(--pw-gold-dark) 34%, var(--pw-gold) 50%, var(--pw-gold-light) 64%, var(--pw-gold-deep) 82%, var(--pw-gold-light));
   box-shadow:
-    inset 0 0 0 5px color-mix(in oklab, var(--pw-gold-deep) 80%, transparent),
-    inset 0 0 0 7px color-mix(in oklab, var(--pw-white) 35%, transparent),
-    0 0 0 2px color-mix(in oklab, var(--pw-blue) 70%, transparent),
-    0 12px 34px -6px color-mix(in oklab, var(--pw-gold) 70%, transparent);
+    inset 0 0 0 1px color-mix(in oklab, var(--pw-gold-light) 70%, transparent),
+    0 0 0 1.5px color-mix(in oklab, var(--pw-gold-dark) 90%, transparent),
+    0 0 26px 2px color-mix(in oklab, var(--pw-gold) 45%, transparent),
+    0 16px 30px -10px color-mix(in oklab, var(--pw-ink) 95%, transparent);
   animation: og-pw-float 5s ease-in-out infinite;
 }
+/* Raised inner face with an engraved ring. */
+.og-coin::before {
+  content: "";
+  position: absolute;
+  inset: 11%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 32% 26%, color-mix(in oklab, var(--pw-white) 85%, transparent) 0 5%, transparent 22%),
+    radial-gradient(circle at 50% 45%, var(--pw-gold-light) 0%, var(--pw-gold) 42%, var(--pw-gold-deep) 88%, var(--pw-gold-dark) 100%);
+  box-shadow:
+    inset 0 0 0 3px color-mix(in oklab, var(--pw-gold-deep) 55%, transparent),
+    inset 0 0 0 4px color-mix(in oklab, var(--pw-gold-light) 55%, transparent),
+    inset 0 -6px 10px color-mix(in oklab, var(--pw-gold-dark) 55%, transparent),
+    0 2px 3px color-mix(in oklab, var(--pw-gold-dark) 80%, transparent);
+}
+/* Light sweep, clipped to the coin. */
 .og-coin::after {
   content: "";
   position: absolute;
-  inset: -20%;
-  background: linear-gradient(105deg, transparent 40%, color-mix(in oklab, var(--pw-white) 70%, transparent) 50%, transparent 60%);
-  transform: translateX(-120%);
-  animation: og-pw-shimmer 4s ease-in-out 1s infinite;
+  inset: 0;
+  border-radius: 9999px;
+  background: linear-gradient(105deg, transparent 38%, color-mix(in oklab, var(--pw-white) 65%, transparent) 50%, transparent 62%) no-repeat;
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  animation: og-coin-sweep 4s ease-in-out 1s infinite;
 }
 .og-coin__face {
+  position: relative;
+  z-index: 1;
   font-family: var(--font-display);
-  font-size: 1.9rem;
+  font-size: 2.05rem;
   line-height: 1;
+  letter-spacing: -0.02em;
   color: var(--pw-gold-deep);
-  text-shadow: 0 1px 0 color-mix(in oklab, var(--pw-white) 60%, transparent);
+  /* Stamped look: light catch below, dark cut above. */
+  text-shadow:
+    0 1px 0 color-mix(in oklab, var(--pw-gold-light) 90%, transparent),
+    0 -1px 0 color-mix(in oklab, var(--pw-gold-dark) 85%, transparent);
+}
+.og-coin__spark {
+  position: absolute;
+  top: 6%;
+  right: 8%;
+  z-index: 2;
+  width: 1.1rem;
+  height: 1.1rem;
+  background: var(--pw-white);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  filter: drop-shadow(0 0 4px var(--pw-gold-light));
+  animation: og-coin-twinkle 3.2s ease-in-out infinite;
+}
+@keyframes og-coin-sweep {
+  0%, 55% { background-position: 130% 0; }
+  100% { background-position: -30% 0; }
+}
+@keyframes og-coin-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  45%, 60% { opacity: 1; transform: scale(1) rotate(45deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .og-coin, .og-coin::after, .og-coin__spark { animation: none; }
+  .og-coin__spark { opacity: 0.9; }
 }
 .og-power-card__mini {
   position: absolute;
@@ -1992,8 +2036,11 @@ html[data-kb="1"] nav.safe-bottom.fixed {
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 9999px;
-  background: radial-gradient(circle at 35% 30%, var(--pw-white) 0 6%, var(--pw-gold) 30%, var(--pw-gold-deep));
-  box-shadow: 0 0 10px color-mix(in oklab, var(--pw-gold) 70%, transparent);
+  background:
+    radial-gradient(circle at 35% 30%, var(--pw-white) 0 6%, var(--pw-gold-light) 18%, var(--pw-gold) 40%, var(--pw-gold-deep) 80%, var(--pw-gold-dark));
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in oklab, var(--pw-gold-dark) 60%, transparent),
+    0 0 10px color-mix(in oklab, var(--pw-gold) 70%, transparent);
   animation: og-pw-float 4.4s ease-in-out infinite;
 }
 
