@@ -20,7 +20,7 @@ const TABS: Tab[] = [
   },
   {
     to: "/store",
-    label: "Store",
+    label: "OG Store",
     icon: ShoppingBag,
     match: (p) => p.startsWith("/store") || p.startsWith("/buy-coins"),
   },
@@ -82,7 +82,7 @@ export function MobileBottomNav() {
                   className={`h-5 w-5 ${active ? "drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" : ""}`}
                   aria-hidden
                 />
-                <span className="max-w-full text-center leading-tight">{label}</span>
+                <span className="max-w-full whitespace-nowrap text-center leading-tight tracking-tight">{label}</span>
               </Link>
             </li>
           );

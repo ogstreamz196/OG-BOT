@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, PackageOpen } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { StoreSectionHead } from "@/components/store/StoreSectionHead";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { arePaymentsEnabled } from "@/lib/stripe";
@@ -165,16 +166,17 @@ export function StoreItemsSection() {
   );
 
   return (
-    <section aria-labelledby="store-items-heading" className="scroll-mt-24">
-      <div className="mb-3 flex items-center gap-2">
-        <PackageOpen className="og-st-blue h-4 w-4 shrink-0" />
-        <div>
-          <p className="og-store__eyebrow">Member access &amp; extras</p>
-          <h2 id="store-items-heading" className="og-store__title text-2xl">
-            🔐 Unlock access
-          </h2>
-        </div>
-      </div>
+    <section
+      aria-labelledby="store-items-heading"
+      id="section-unlocks"
+      className="og-store-section"
+    >
+      <StoreSectionHead
+        id="store-items-heading"
+        eyebrow="Member access & extras"
+        title="Unlocks"
+        accent="blue"
+      />
 
       {catalog.isLoading ? (
         <div className="grid place-items-center rounded-2xl border border-border py-12">
@@ -188,6 +190,8 @@ export function StoreItemsSection() {
         <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           No Store items are available yet.
         </div>
+      ) : categories.length <= 1 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{allItems.map(renderItem)}</div>
       ) : (
         <Tabs defaultValue={ALL_ITEMS}>
           <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 min-[520px]:flex min-[520px]:flex-wrap min-[520px]:justify-start">

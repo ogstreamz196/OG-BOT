@@ -338,3 +338,135 @@
     linear-gradient(180deg, var(--st-ink-2), var(--st-ink));
   box-shadow: 0 24px 60px -20px color-mix(in oklab, var(--st-gold) 55%, transparent);
 }
+
+/* ---------- Page structure ---------- */
+.og-store-section {
+  scroll-margin-top: 8rem;
+}
+
+/* Jump menu; a pinned copy floats under the app header once scrolled past. */
+.og-store-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--st-blue) 35%, transparent);
+  background: color-mix(in oklab, var(--st-ink) 90%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 30px -18px var(--st-ink);
+}
+.og-store-nav--pinned {
+  position: fixed;
+  z-index: 25;
+  animation: og-st-drop 180ms ease-out;
+}
+@keyframes og-st-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.og-store-nav__item {
+  display: inline-flex;
+  min-height: 2.75rem;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border-radius: 0.75rem;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-transform: uppercase;
+  color: var(--st-muted);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+@media (min-width: 480px) {
+  .og-store-nav__item {
+    flex-direction: row;
+    gap: 0.45rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8rem;
+  }
+}
+.og-store-nav__item:hover {
+  color: var(--st-white);
+}
+.og-store-nav__item[aria-current="true"] {
+  color: var(--st-ink);
+  background: linear-gradient(180deg, var(--st-white), var(--st-steel));
+}
+.og-store-nav__item:focus-visible {
+  outline: 2px solid var(--st-blue);
+  outline-offset: 2px;
+}
+
+/* Featured row: two big tappable tiles. */
+.og-store-feature {
+  display: flex;
+  width: 100%;
+  min-height: 6.5rem;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+}
+.og-store-feature:focus-visible {
+  outline: 2px solid var(--a1);
+  outline-offset: 3px;
+}
+.og-store-feature__icon {
+  display: grid;
+  height: 3.5rem;
+  width: 3.5rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--a1) 50%, transparent);
+  background: color-mix(in oklab, var(--a1) 14%, transparent);
+}
+.og-store-feature__go {
+  flex-shrink: 0;
+  font-size: 1.4rem;
+  font-weight: 900;
+  transition: transform 180ms ease;
+}
+@media (hover: hover) {
+  .og-store-feature:hover .og-store-feature__go {
+    transform: translateX(3px);
+  }
+}
+
+/* Accent bar under section titles. */
+.og-store-head-bar {
+  display: block;
+  margin-top: 0.55rem;
+  height: 3px;
+  width: 3.5rem;
+  border-radius: 3px;
+}
+.og-store-head-bar--gold {
+  background: linear-gradient(90deg, var(--st-gold), transparent);
+  box-shadow: 0 0 10px var(--st-gold);
+}
+.og-store-head-bar--purple {
+  background: linear-gradient(90deg, var(--st-purple), transparent);
+  box-shadow: 0 0 10px var(--st-purple);
+}
+.og-store-head-bar--blue {
+  background: linear-gradient(90deg, var(--st-blue), transparent);
+  box-shadow: 0 0 10px var(--st-blue);
+}
+
+/* OG STORE badge in the header. */
+.og-store__badge {
+  border: 1px solid color-mix(in oklab, var(--st-blue) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--st-gold) 25%, transparent),
+    0 14px 34px -14px color-mix(in oklab, var(--st-blue) 90%, transparent);
+}
