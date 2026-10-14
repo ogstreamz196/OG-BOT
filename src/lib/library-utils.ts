@@ -47,6 +47,7 @@ export const POOLS: Record<Category, string[]> = {
     "Arabic",
     "Swahili",
     "Yoruba",
+    "Igbo",
     "Russian",
     "Turkish",
     "Romanian",

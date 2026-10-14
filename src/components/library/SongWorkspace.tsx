@@ -85,6 +85,8 @@ const LANGUAGES = orderLanguages([
   "Swahili",
   "Patois",
   "Yoruba",
+  "Igbo",
+  "Hausa",
   "German",
   "Italian",
   "Romanian",
