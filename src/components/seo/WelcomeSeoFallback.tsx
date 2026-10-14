@@ -46,21 +46,20 @@ export function WelcomeSeoFallback() {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-xl font-bold">Your superpowers</h2>
-        <h3 className="mt-3 font-semibold">The Roast &amp; Diss Engine</h3>
+        <h2 className="text-xl font-bold">Unleash your OG powers</h2>
+        <h3 className="mt-3 font-semibold">Roast &amp; Destroy</h3>
         <p className="text-muted-foreground">
-          Battle Zone, Foul Mouth from Mild to Demon, and personal diss tracks cooked from your own
-          chat — if you can handle it.
+          Enter the Battle Zone. Unleash savage roasts, brutal comebacks and personalised diss
+          tracks.
         </p>
-        <h3 className="mt-3 font-semibold">The Hit-Making Studio</h3>
+        <h3 className="mt-3 font-semibold">OG Hit Factory</h3>
         <p className="text-muted-foreground">
-          Real vocals and cover art on every track. 2 tracks for the price of 1, and 15 days of free
-          VIP unlocks every style.
+          Turn your ideas into personalised tracks with real vocals, custom cover art and unlimited
+          creativity.
         </p>
-        <h3 className="mt-3 font-semibold">The Creator Economy</h3>
+        <h3 className="mt-3 font-semibold">Earn OG Rewards</h3>
         <p className="text-muted-foreground">
-          Earn OG Coins for roasting the bot, claim a daily drop, and get lifetime commission when
-          friends spend. Telegram keeps you posted.
+          Collect OG Coins, claim daily rewards and earn lifetime referral commissions.
         </p>
       </section>
 
