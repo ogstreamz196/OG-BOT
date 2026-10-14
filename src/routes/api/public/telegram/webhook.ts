@@ -737,6 +737,9 @@ async function runChatAI(
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);
   }
+  } finally {
+    clearInterval(typingTimer);
+  }
 }
 
 function startMatchKind(text: string | undefined): string {
