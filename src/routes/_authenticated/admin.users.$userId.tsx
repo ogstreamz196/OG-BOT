@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
+import { BossPasswordCard } from "@/components/admin/BossPasswordCard";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { UserAuditTrail } from "@/components/admin/UserAuditTrail";
@@ -368,6 +369,14 @@ function UserSettingsPage() {
           </div>
         </section>
 
+        {/* Password (Boss only; privileged accounts are protected) */}
+        {isBoss && !roles.some((role) => ["admin", "boss", "dev"].includes(role)) ? (
+          <BossPasswordCard
+            userId={userId}
+            name={profile.display_name ?? profile.email ?? "this member"}
+          />
+        ) : null}
+
         {/* Roles & access */}
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
           <header>
@@ -462,15 +471,18 @@ function UserSettingsPage() {
           <header>
             <h3 className="font-semibold">Coin balance</h3>
             <p className="text-sm text-muted-foreground">
-              Balance now: <b className="font-mono">{(profile.coin_balance ?? 0).toLocaleString()}</b>.
-              Every change is logged.
+              Balance now:{" "}
+              <b className="font-mono">{(profile.coin_balance ?? 0).toLocaleString()}</b>. Every
+              change is logged.
             </p>
           </header>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="set-balance">Replace total balance with</Label>
-              <p className="text-xs text-muted-foreground">Overwrites the balance — does not add.</p>
+              <p className="text-xs text-muted-foreground">
+                Overwrites the balance — does not add.
+              </p>
               <div className="flex gap-2">
                 <Input
                   id="set-balance"
