@@ -44,7 +44,6 @@ import ogBotAsset from "@/assets/ogbot.png.asset.json";
 import musicHubHero from "@/assets/musichub-hero.jpg";
 import battleZoneArt from "@/assets/og-bot-battle-zone.webp";
 import createTrackArt from "@/assets/og-bot-create-track.webp";
-import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
@@ -57,7 +56,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { PrimaryCard } from "@/components/home/PrimaryCard";
+import { ModeCard } from "@/components/welcome/ModeCard";
+import { OgPowers } from "@/components/welcome/OgPowers";
+import { SectionHeading, SportsGuideFeature } from "@/components/welcome/SportsGuideFeature";
+import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
+import { VipYearlyTeaser } from "@/components/home/VipYearlyTeaser";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import { DodgyText } from "@/components/welcome/DodgyText";
 import { useQuery } from "@tanstack/react-query";
@@ -130,6 +133,7 @@ function DashboardHome() {
   const dev = useDevMode();
   const { data: profile } = useProfile();
   const { isVip, hasVipRole } = useRole();
+  const navigate = useNavigate();
   const { data: recentSongs = [] } = useRecentSongs(user?.id);
 
   const displayName =
@@ -352,60 +356,53 @@ function DashboardHome() {
         </div>
       </section>
 
-      {/* Primary pillars — Battle Zone & diss tracks first, then the studio */}
-      <section className="space-y-3">
-        <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-5">
-          <PrimaryCard
-            to="/messenger"
-            search={{ live: true }}
+      {/* Same modes as the landing page; members go straight in. */}
+      <section id="modes" aria-labelledby="modes-title" className="scroll-mt-24">
+        <h2
+          id="modes-title"
+          className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/80 sm:text-sm"
+        >
+          Choose your mode
+        </h2>
+        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-6">
+          <ModeCard
+            tone="crimson"
+            className="og-rise"
             image={battleZoneArt}
             imageAlt="OG Bot Battle Zone badge"
-            eyebrow="OG Bot · Diss maker"
-            title="Enter Battle Zone"
-            body="Everyone vs OG Bot. Throw your best roast — then turn the beef into a diss track."
+            eyebrow="Live now"
+            live
+            title="Battle Zone"
+            description={
+              isVip
+                ? "Roast OG Bot. Bank coins for every hit."
+                : "Roast OG Bot. VIP lets him swear back."
+            }
             cta="Enter Battle Zone"
-            variant="accent"
+            onClick={() => navigate({ to: "/messenger", search: { live: true } })}
           />
-          <PrimaryCard
-            to="/library"
+          <ModeCard
+            tone="blue"
+            className="og-rise"
+            style={{ animationDelay: "0.1s" }}
             image={createTrackArt}
-            imageAlt="OG Bot Create a Track badge"
-            eyebrow="MusicHub"
-            title="Create a song"
-            body="Generate · Remix · Release"
-            cta="Open MusicHub"
+            imageAlt="OG Bot Make a Track badge"
+            eyebrow="AI studio"
+            title="Music Hub"
+            description={
+              isVip
+                ? "Your idea. Real vocals. Cover art. Done."
+                : "Your idea. Real vocals. VIP opens every style."
+            }
+            cta="Create a Track"
+            onClick={() => navigate({ to: "/library" })}
           />
         </div>
       </section>
 
-      {/* Utility row — daily drop, referrals, sports */}
-      <div className="space-y-3">
-        <DailyDrop />
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            to="/referrals"
-            preload="intent"
-            className="group flex items-center justify-center gap-2 rounded-2xl bg-primary px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground shadow-glow transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-sm"
-          >
-            <Share2 className="h-4 w-4" /> Refer to earn
-          </Link>
-          <Link
-            to="/sports"
-            preload="intent"
-            className="group flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-foreground transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:text-sm"
-          >
-            <img
-              src={sportsGuideArt}
-              alt=""
-              aria-hidden
-              width={20}
-              height={20}
-              className="h-5 w-5 rounded"
-            />
-            Sports Guide
-          </Link>
-        </div>
-      </div>
+      <VipYearlyTeaser />
+
+      <DailyDrop />
 
       {/* Continuity demo */}
       {/* <ContinuityDemo /> hidden per request */}
@@ -442,6 +439,19 @@ function DashboardHome() {
           />
         </div>
       </section>
+
+      <section aria-labelledby="more-title">
+        <SectionHeading id="more-title" eyebrow="More from OG Bot" title="Never miss a game" />
+        <SportsGuideFeature tag="Members" onOpen={() => navigate({ to: "/sports" })} />
+      </section>
+
+      <OgPowers
+        onBattle={() => navigate({ to: "/messenger", search: { live: true } })}
+        onCreate={() => navigate({ to: "/library" })}
+        onEarn={() => navigate({ to: "/referrals" })}
+      />
+
+      <CommunityShowcase />
 
       {!allStepsDone && (
         <div className="grid grid-cols-1 gap-6">
