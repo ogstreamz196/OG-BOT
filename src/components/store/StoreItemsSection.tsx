@@ -16,6 +16,16 @@ import {
 import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { getVipPassStatus, purchaseVipPass } from "@/lib/vip-pass.functions";
+import { useProfile } from "@/hooks/use-profile";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ALL_ITEMS = "all";
 
@@ -26,6 +36,14 @@ export function StoreItemsSection() {
   const createCheckout = useServerFn(createStoreItemCheckoutSession);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  // Coin purchases ask first: nothing is spent until the buyer confirms.
+  const [confirming, setConfirming] = useState<{
+    kind: "sports" | "vault";
+    name: string;
+    price: number;
+  } | null>(null);
+  const { data: profile } = useProfile();
+  const balance = profile?.coin_balance ?? 0;
   const catalog = useQuery({
     queryKey: ["store-catalog"],
     queryFn: () => listStoreCatalog(),
@@ -87,14 +105,29 @@ export function StoreItemsSection() {
   const buy = (itemId: string) => {
     const item = allItems.find((candidate) => candidate.id === itemId);
     if (item?.slug === "og-sports-guide-access") {
-      sportsGuide.mutate();
+      setConfirming({ kind: "sports", name: item.name, price: item.coin_price ?? 0 });
       return;
     }
     if (item?.slug === "og-vip-pass") {
-      vipPass.mutate();
+      setConfirming({ kind: "vault", name: item.name, price: item.coin_price ?? 50 });
       return;
     }
     startCheckout(itemId);
+  };
+
+  const confirmCoinPurchase = () => {
+    const c = confirming;
+    setConfirming(null);
+    if (!c) return;
+    if (c.kind === "sports") sportsGuide.mutate();
+    else vipPass.mutate();
+  };
+
+  const goTopUp = () => {
+    setConfirming(null);
+    document
+      .getElementById("section-bundles")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const startCheckout = (itemId: string) => {
@@ -134,13 +167,11 @@ export function StoreItemsSection() {
   return (
     <section aria-labelledby="store-items-heading" className="scroll-mt-24">
       <div className="mb-3 flex items-center gap-2">
-        <PackageOpen className="h-4 w-4 shrink-0 text-primary" />
+        <PackageOpen className="og-st-blue h-4 w-4 shrink-0" />
         <div>
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
-            Member access & extras
-          </p>
-          <h2 id="store-items-heading" className="font-display text-xl font-black">
-            Store items
+          <p className="og-store__eyebrow">Member access &amp; extras</p>
+          <h2 id="store-items-heading" className="og-store__title text-2xl">
+            🔐 Unlock access
           </h2>
         </div>
       </div>
@@ -193,6 +224,35 @@ export function StoreItemsSection() {
       )}
 
       <StripeCheckoutDialog clientSecret={clientSecret} onClose={() => setClientSecret(null)} />
+
+      <AlertDialog open={!!confirming} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent className="og-store og-store-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlock {confirming?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirming && balance >= confirming.price
+                ? `${confirming.price} OG Coins will come out of your balance. You'll have ${balance - confirming.price} left.`
+                : `This costs ${confirming?.price ?? 0} OG Coins and you have ${balance}. Top up first, then come back to unlock it.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            {confirming && balance >= confirming.price ? (
+              <button
+                type="button"
+                className="og-store-btn og-store-btn--gold"
+                onClick={confirmCoinPurchase}
+              >
+                Unlock · {confirming.price} coins
+              </button>
+            ) : (
+              <button type="button" className="og-store-btn og-store-btn--gold" onClick={goTopUp}>
+                Get coins
+              </button>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

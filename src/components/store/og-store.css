@@ -1,0 +1,340 @@
+/* ============================================================
+   OG BOT Store ("the Underground Marketplace").
+   Everything is scoped under .og-store, and the colour variables
+   below exist only inside the Store, so no other page changes.
+   Effects use transform/opacity/shadow only and stop for
+   prefers-reduced-motion. Decorative layers never take pointer
+   events, so they can't sit over a purchase button.
+   ============================================================ */
+.og-store {
+  --st-ink: oklch(0.1 0.03 265);
+  --st-ink-2: oklch(0.15 0.035 262);
+  --st-steel: oklch(0.8 0.02 255);
+  --st-steel-dim: oklch(0.52 0.02 255);
+  --st-blue: oklch(0.65 0.2 258);
+  --st-gold: oklch(0.84 0.15 85);
+  --st-gold-deep: oklch(0.58 0.12 70);
+  --st-purple: oklch(0.62 0.22 300);
+  --st-purple-deep: oklch(0.42 0.18 300);
+  --st-white: oklch(0.99 0 0);
+  --st-muted: oklch(0.86 0.02 255);
+}
+
+/* Accent text helpers (scoped). */
+.og-store .og-st-gold {
+  color: var(--st-gold);
+}
+.og-store .og-st-purple {
+  color: var(--st-purple);
+}
+.og-store .og-st-blue {
+  color: var(--st-blue);
+}
+.og-store .og-st-muted {
+  color: var(--st-muted);
+}
+
+/* ---------- Header ---------- */
+.og-store__hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in oklab, var(--st-blue) 45%, transparent);
+  background:
+    radial-gradient(
+      70% 90% at 0% 0%,
+      color-mix(in oklab, var(--st-blue) 22%, transparent),
+      transparent 70%
+    ),
+    repeating-linear-gradient(
+      115deg,
+      color-mix(in oklab, var(--st-white) 2.5%, transparent) 0 1px,
+      transparent 1px 9px
+    ),
+    linear-gradient(180deg, var(--st-ink-2), var(--st-ink));
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--st-white) 14%, transparent),
+    0 24px 60px -34px color-mix(in oklab, var(--st-blue) 90%, transparent);
+}
+.og-store__chrome {
+  font-family: var(--font-display);
+  line-height: 0.95;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  background: linear-gradient(
+    180deg,
+    var(--st-white) 0%,
+    var(--st-steel) 46%,
+    var(--st-steel-dim) 52%,
+    var(--st-white) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 color-mix(in oklab, var(--st-ink) 90%, transparent))
+    drop-shadow(0 0 14px color-mix(in oklab, var(--st-blue) 65%, transparent));
+}
+.og-store__underline {
+  display: block;
+  height: 2px;
+  width: min(11rem, 60%);
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--st-blue), transparent);
+  box-shadow: 0 0 12px var(--st-blue);
+}
+.og-store__balance {
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in oklab, var(--st-gold) 45%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--st-gold) 12%, transparent),
+    transparent
+  );
+  padding: 0.5rem 0.75rem;
+}
+
+/* ---------- Section headings ---------- */
+.og-store__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+}
+.og-store__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  color: var(--st-white);
+  text-shadow: 0 0 16px color-mix(in oklab, var(--a1, var(--st-blue)) 45%, transparent);
+}
+
+/* ---------- Panels (cards) ----------
+   --a1 sets the accent: blue by default, gold for coins, purple for
+   VIP, vault for the Vault pass. */
+.og-store-panel {
+  --a1: var(--st-blue);
+  position: relative;
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in oklab, var(--a1) 45%, transparent);
+  background:
+    radial-gradient(
+      90% 55% at 50% 0%,
+      color-mix(in oklab, var(--a1) 16%, transparent),
+      transparent 70%
+    ),
+    repeating-linear-gradient(
+      115deg,
+      color-mix(in oklab, var(--st-white) 2.5%, transparent) 0 1px,
+      transparent 1px 9px
+    ),
+    linear-gradient(180deg, var(--st-ink-2), var(--st-ink));
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--st-white) 12%, transparent),
+    0 18px 44px -30px color-mix(in oklab, var(--a1) 90%, transparent);
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+@media (hover: hover) {
+  .og-store-panel:hover {
+    border-color: color-mix(in oklab, var(--a1) 80%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--st-white) 16%, transparent),
+      0 22px 50px -26px color-mix(in oklab, var(--a1) 100%, transparent);
+  }
+}
+.og-store-panel--gold {
+  --a1: var(--st-gold);
+}
+.og-store-panel--purple {
+  --a1: var(--st-purple);
+}
+.og-store-panel--vault {
+  --a1: var(--st-gold);
+  background:
+    radial-gradient(
+      90% 55% at 50% 0%,
+      color-mix(in oklab, var(--st-blue) 14%, transparent),
+      transparent 70%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--st-white) 3%, transparent) 0 1px,
+      transparent 1px 6px
+    ),
+    linear-gradient(180deg, oklch(0.18 0.01 255), var(--st-ink));
+}
+.og-store-panel--featured {
+  border-width: 1.5px;
+  border-color: color-mix(in oklab, var(--a1) 85%, transparent);
+}
+/* Angular corner accents (decorative only). */
+.og-store-panel__corner {
+  position: absolute;
+  z-index: 1;
+  width: 1rem;
+  height: 1rem;
+  pointer-events: none;
+  border-color: var(--a1);
+  opacity: 0.85;
+}
+.og-store-panel__corner--tl {
+  top: 0.45rem;
+  left: 0.45rem;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+.og-store-panel__corner--br {
+  right: 0.45rem;
+  bottom: 0.45rem;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+}
+
+/* Ribbon for existing "Popular" / "Best value" flags. */
+.og-store__ribbon {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  padding: 0.15rem 0 0.1rem;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--st-ink);
+  background: linear-gradient(180deg, var(--st-gold), var(--st-gold-deep));
+}
+
+/* Gold OG coin (CSS only) used in the coin pack stack. */
+.og-store-coin {
+  position: relative;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9999px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--st-gold-deep);
+  background: radial-gradient(
+    circle at 35% 30%,
+    var(--st-white) 0 5%,
+    var(--st-gold) 25%,
+    var(--st-gold-deep) 75%,
+    var(--st-gold) 100%
+  );
+  box-shadow:
+    inset 0 0 0 3px color-mix(in oklab, var(--st-gold-deep) 80%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--st-blue) 60%, transparent),
+    0 6px 14px -4px color-mix(in oklab, var(--st-gold) 70%, transparent);
+}
+.og-store-coin::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    color-mix(in oklab, var(--st-white) 65%, transparent) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  animation: og-st-shimmer 5s ease-in-out 1s infinite;
+}
+
+/* ---------- Buttons ----------
+   Default: dark metal with an accent outline. --gold: solid gold.
+   Only appearance changes; handlers and disabled states are untouched. */
+.og-store-btn {
+  --a1: var(--st-blue);
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.8rem;
+  border: 1px solid color-mix(in oklab, var(--a1) 75%, transparent);
+  padding: 0.55rem 1rem 0.45rem;
+  font-family: var(--font-store-heading);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--st-white);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--st-white) 10%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--st-ink-2), var(--st-ink));
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--st-white) 18%, transparent),
+    0 0 20px -6px color-mix(in oklab, var(--a1) 85%, transparent);
+  transition:
+    box-shadow 180ms ease,
+    filter 180ms ease,
+    transform 140ms ease;
+}
+.og-store-btn:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--st-white) 22%, transparent),
+    0 0 30px -4px color-mix(in oklab, var(--a1) 100%, transparent);
+}
+.og-store-btn:focus-visible {
+  outline: 2px solid var(--a1);
+  outline-offset: 3px;
+}
+.og-store-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+.og-store-btn--gold {
+  --a1: var(--st-gold);
+  color: var(--st-ink);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--st-white) 35%, transparent), transparent 50%),
+    linear-gradient(180deg, var(--st-gold), var(--st-gold-deep));
+  text-shadow: 0 1px 0 color-mix(in oklab, var(--st-white) 45%, transparent);
+}
+.og-store-btn--purple {
+  --a1: var(--st-purple);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--st-white) 18%, transparent), transparent 50%),
+    linear-gradient(180deg, var(--st-purple), var(--st-purple-deep));
+}
+.og-store-btn--ghost {
+  background: transparent;
+  box-shadow: none;
+}
+
+@keyframes og-st-shimmer {
+  0%,
+  70% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .og-store *,
+  .og-store *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Solid panel for Store dialogs (no position rules, so the dialog stays centred). */
+.og-store-dialog {
+  border: 1px solid color-mix(in oklab, var(--st-gold) 50%, transparent);
+  background:
+    radial-gradient(
+      90% 55% at 50% 0%,
+      color-mix(in oklab, var(--st-gold) 14%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--st-ink-2), var(--st-ink));
+  box-shadow: 0 24px 60px -20px color-mix(in oklab, var(--st-gold) 55%, transparent);
+}

@@ -324,6 +324,7 @@ type ReconcileResult =
   | { status: "already_credited"; coins: number; balance: number }
   | { status: "vip_granted"; ogVipId?: string | null }
   | { status: "pending"; reason: string }
+  | { status: "store_item" }
   | { error: string };
 
 export const reconcileCoinSession = createServerFn({ method: "POST" })
@@ -379,6 +380,11 @@ export const reconcileCoinSession = createServerFn({ method: "POST" })
         return { status: "vip_granted", ogVipId };
       }
 
+      // Store items (Vault pass, perks, coin-reward items) are fulfilled once by
+      // the webhook under its own reference; crediting here as well would pay
+      // twice, and items without coins would wrongly report an error.
+      if (bundleId?.startsWith("store:")) return { status: "store_item" };
+
       const metaCoins = meta.coins ? Number(meta.coins) : 0;
       const pack = bundleId ? findCoinPackByBundleId(bundleId) : null;
       const coins = Number.isFinite(metaCoins) && metaCoins > 0 ? metaCoins : (pack?.coins ?? 0);
@@ -398,18 +404,7 @@ export const reconcileCoinSession = createServerFn({ method: "POST" })
 
       const balance = Number((result as { balance?: number } | null)?.balance ?? 0);
       const credited = Boolean((result as { credited?: boolean } | null)?.credited);
-      if (credited) {
-        const rewardCoins = Math.max(1, Math.floor(coins / 10));
-        const { error: referralError } = await (supabaseAdmin as any).rpc(
-          "credit_payment_referral",
-          {
-            _referee_id: userId,
-            _reward_coins: rewardCoins,
-            _payment_reference: reference,
-          },
-        );
-        if (referralError) console.error("payment referral reward failed", referralError);
-      }
+      // No referral reward on card payments (owner rule; see AGENTS.md).
       return credited
         ? { status: "credited", coins, balance }
         : { status: "already_credited", coins, balance };
@@ -543,18 +538,7 @@ export const reconcileTrackUnlock = createServerFn({ method: "POST" })
           `stripe:${data.environment}:${session.id}`,
         );
         if (!result.ok) return { error: result.error };
-        if (!result.already) {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { error: referralError } = await (supabaseAdmin as any).rpc(
-            "credit_payment_referral",
-            {
-              _referee_id: userId,
-              _reward_coins: 1,
-              _payment_reference: `stripe:${data.environment}:track:${session.id}`,
-            },
-          );
-          if (referralError) console.error("payment referral reward failed", referralError);
-        }
+        // No referral reward on card payments (owner rule; see AGENTS.md).
         return { status: "unlocked", songId: meta.songId };
       } catch (error) {
         console.error("reconcileTrackUnlock failed", error);
