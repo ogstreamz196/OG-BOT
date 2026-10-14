@@ -462,3 +462,52 @@
   background: linear-gradient(90deg, var(--st-blue), transparent);
   box-shadow: 0 0 10px var(--st-blue);
 }
+
+/* ---------- "OG STORE" wordmark, styled like the OG badges ----------
+   Chrome "OG" over icy, slanted "STORE" with a dark edge so it reads on blue.
+   Gradient-filled (text colour stays transparent), like .og-store__chrome. */
+.og-store-mark {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-display);
+  line-height: 0.82;
+  text-transform: uppercase;
+}
+.og-store-mark__og,
+.og-store-mark__word {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  paint-order: stroke fill;
+}
+.og-store-mark__og {
+  font-size: clamp(3.4rem, 16vw, 5rem);
+  letter-spacing: 0.03em;
+  background-image: linear-gradient(
+    180deg,
+    var(--st-white) 0%,
+    var(--st-steel) 40%,
+    var(--st-steel-dim) 50%,
+    var(--st-white) 64%,
+    var(--st-steel) 100%
+  );
+  -webkit-text-stroke: 2px var(--st-ink);
+  filter: drop-shadow(0 3px 0 var(--st-ink))
+    drop-shadow(0 0 14px color-mix(in oklab, var(--st-blue) 70%, transparent));
+}
+.og-store-mark__word {
+  margin-top: -0.12em;
+  font-size: clamp(2.4rem, 11.5vw, 3.6rem);
+  letter-spacing: 0.05em;
+  transform: skewX(-10deg);
+  background-image: linear-gradient(
+    180deg,
+    oklch(0.99 0.02 215) 0%,
+    oklch(0.92 0.08 222) 45%,
+    oklch(0.8 0.13 238) 100%
+  );
+  -webkit-text-stroke: 2px oklch(0.18 0.07 262);
+  filter: drop-shadow(0 2px 0 var(--st-ink))
+    drop-shadow(0 0 12px color-mix(in oklab, var(--st-blue) 85%, transparent));
+}

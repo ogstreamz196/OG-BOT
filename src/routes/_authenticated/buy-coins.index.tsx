@@ -594,15 +594,21 @@ export function CoinStore({
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <DashboardShell title="Store">
+    <DashboardShell title="OG Store">
       <PaymentTestModeBanner />
       <div className="og-store store-clean mx-auto w-full max-w-6xl space-y-8 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-12">
         {/* Header: title, balance, quick links */}
         <header className="og-store__hero p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="og-store__eyebrow">OG BOT</p>
-              <h1 className="og-store__chrome mt-1 text-[clamp(1.9rem,8vw,3rem)]">The Store</h1>
+              <h1 className="og-store-mark" aria-label="OG Store">
+                <span aria-hidden className="og-store-mark__og">
+                  OG
+                </span>
+                <span aria-hidden className="og-store-mark__word">
+                  Store
+                </span>
+              </h1>
               <p className="og-st-muted mt-1.5 text-sm">
                 <EditableContent
                   contentKey="buyCoins.heading"

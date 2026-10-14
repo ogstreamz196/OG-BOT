@@ -81,7 +81,7 @@ const primaryNav: NavItem[] = [
 const accountNav: NavItem[] = [
   { title: "Profile", url: "/profile", icon: UserRound, accent: "from-cyan-400/30 to-blue-500/30" },
   { title: "Earnings", url: "/referrals", icon: Gift, accent: "from-pink-500/30 to-rose-400/30" },
-  { title: "Store", url: "/store", icon: Coins, accent: "from-amber-400/40 to-yellow-300/40" },
+  { title: "OG Store", url: "/store", icon: Coins, accent: "from-amber-400/40 to-yellow-300/40" },
   {
     title: "Settings",
     url: "/settings",
