@@ -273,12 +273,12 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       void alertBossPresence(context.userId, "battle");
     }
 
-    // 2. Build short context: last ~20 messages including the one just posted
+    // 2. Build short context: last ~12 messages including the one just posted
     const { data: recent } = await supabaseAdmin
       .from("community_messages")
       .select("role, content, display_name")
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(12);
     const history = (recent ?? []).reverse() as {
       role: "user" | "bot";
       content: string;
@@ -289,6 +289,11 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     const { aiChatTarget, fetchAiChat } = await import("@/lib/ai-endpoint.server");
     const ai = aiChatTarget(context.userId);
     const apiKey = ai ? "configured" : "";
+    // The judge runs alongside the clapback instead of after it, so the
+    // reply isn't held up waiting for two AI calls back to back.
+    const judgePromise: Promise<number> = apiKey
+      ? scoreRoast(apiKey, data.content, null)
+      : Promise.resolve(0);
     let botReply: string | null = null;
     if (ai) {
       // Live chat = foul mouth by default for everyone.
@@ -396,7 +401,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
         .filter((m) => m.role === "user" && m.display_name === displayName)
         .slice(-3, -1)
         .some((m) => m.content.trim().toLowerCase() === data.content.trim().toLowerCase());
-      const judgedScore = apiKey ? await scoreRoast(apiKey, data.content, botReply) : 0;
+      const judgedScore = await judgePromise;
       const raw = Math.max(judgedScore, estimateRoastFloor(data.content));
       earnedTenths = calibrateAward(raw, data.content, avgTenths, isRepeat);
 

@@ -583,11 +583,20 @@ async function runChatAI(
     return;
   }
 
-  // Show "typing…" straight away, then load everything in parallel.
+  // Show "typing…" straight away and keep it alive every 4s (Telegram drops
+  // it after ~5s) until the reply is sent.
   void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
+  const typingTimer = setInterval(() => {
+    void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
+  }, 4000);
   const vp = await import("@/lib/vip-promo.server");
   const { loadUserDossier } = await import("@/lib/og-user-dossier.server");
   const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
+  // The full account dossier is heavy — only load it when they ask about their account.
+  const wantsAccount =
+    /\b(coin|coins|balance|vip|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
+      userText,
+    );
   const [profileRes, prefRes, siteRes, historyRes, dossier, promo, sportsBlock] = await Promise.all([
     admin.from("profiles").select("display_name, email, coin_balance").eq("id", profileId).maybeSingle(),
     admin.from("user_preferences").select("foul_mouth").eq("user_id", profileId).maybeSingle(),
@@ -601,7 +610,7 @@ async function runChatAI(
       .eq("user_id", profileId)
       .order("created_at", { ascending: false })
       .limit(20),
-    loadUserDossier(admin, profileId).catch(() => null),
+    wantsAccount ? loadUserDossier(admin, profileId).catch(() => null) : Promise.resolve(null),
     vp.detectPromoIntent(userText)
       ? vp.getOrCreateVipPromo(admin, profileId, { isPaidVip: roles.includes("vip") }).catch(() => null)
       : Promise.resolve(null),
@@ -612,6 +621,7 @@ async function runChatAI(
   ]);
   const profile = profileRes.data;
   if (!profile) {
+    clearInterval(typingTimer);
     await reply(chat_id, "Profile not found.");
     return;
   }
@@ -726,6 +736,8 @@ async function runChatAI(
     }
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);
+  } finally {
+    clearInterval(typingTimer);
   }
 }
 

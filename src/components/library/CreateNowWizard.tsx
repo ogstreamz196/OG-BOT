@@ -495,51 +495,6 @@ export function CreateNowWizard({
           >
             {step === 1 && (
               <div className="space-y-5">
-                <div role="group" aria-label="Track mode" className="grid grid-cols-2 gap-2">
-                  {(() => {
-                    const dissPicks = ["UK Drill", "Grime", "Trap"];
-                    const dissOn = styles.some((s) => dissPicks.includes(s)) && explicit;
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          aria-pressed={dissOn}
-                          onClick={() => {
-                            const pick =
-                              dissPicks.find((s) => isVip || isFreeStyle(s)) ?? dissPicks[2];
-                            setStyles([pick]);
-                            selectRating(true);
-                            if (!description.trim())
-                              setDescription("What did they do? Give OG Bot the ammo: ");
-                          }}
-                          className={cn(
-                            "rounded-xl border-2 px-3 py-2.5 text-sm font-black uppercase tracking-wide transition",
-                            dissOn
-                              ? "border-destructive bg-destructive text-destructive-foreground"
-                              : "border-destructive/50 bg-destructive/10 text-foreground hover:bg-destructive/20",
-                          )}
-                        >
-                          🔥 Diss track
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={!dissOn}
-                          onClick={() => {
-                            if (dissOn) setStyles([]);
-                          }}
-                          className={cn(
-                            "rounded-xl border-2 px-3 py-2.5 text-sm font-black uppercase tracking-wide transition",
-                            !dissOn
-                              ? "border-primary bg-primary/15 text-foreground"
-                              : "border-border bg-background/40 text-muted-foreground",
-                          )}
-                        >
-                          🎵 Custom song
-                        </button>
-                      </>
-                    );
-                  })()}
-                </div>
                 <div className="space-y-3 rounded-xl border border-border bg-background/40 p-3">
                   <Label
                     htmlFor="wiz-subject"
