@@ -134,13 +134,11 @@ export function StoreItemsSection() {
   return (
     <section aria-labelledby="store-items-heading" className="scroll-mt-24">
       <div className="mb-3 flex items-center gap-2">
-        <PackageOpen className="h-4 w-4 shrink-0 text-primary" />
+        <PackageOpen className="og-st-blue h-4 w-4 shrink-0" />
         <div>
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
-            Member access & extras
-          </p>
-          <h2 id="store-items-heading" className="font-display text-xl font-black">
-            Store items
+          <p className="og-store__eyebrow">Member access &amp; extras</p>
+          <h2 id="store-items-heading" className="og-store__title text-2xl">
+            🔐 Unlock access
           </h2>
         </div>
       </div>

@@ -72,6 +72,7 @@ import { toast } from "sonner";
 import { PurchaseHistory } from "@/components/PurchaseHistory";
 import { ReferralReminder } from "@/components/referrals/ReferralReminder";
 import { StoreItemsSection } from "@/components/store/StoreItemsSection";
+import "@/components/store/og-store.css";
 
 export const Route = createFileRoute("/_authenticated/buy-coins/")({
   validateSearch: (s: Record<string, unknown>): { edit?: 1 } =>
@@ -574,27 +575,36 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
   return (
     <DashboardShell title="Store">
       <PaymentTestModeBanner />
-      <div className="store-clean mx-auto w-full max-w-6xl space-y-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-8">
-        <section className="overflow-hidden rounded-xl border border-border bg-store-card p-4 shadow-card sm:p-6">
+      <div className="og-store store-clean mx-auto w-full max-w-6xl space-y-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-8">
+        <section className="og-store__hero p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-[minmax(0,1fr)_auto] min-[360px]:items-center min-[360px]:gap-4">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">OG BOT Store</p>
-              <h1 className="mt-1 max-w-[13rem] font-display text-xl font-black leading-tight min-[390px]:max-w-none sm:text-3xl">
-                <EditableContent contentKey="buyCoins.heading" defaultValue="Stock up. Power up." />
+              <h1 className="og-store__chrome text-[clamp(1.6rem,7vw,2.75rem)]">
+                <span aria-hidden className="mr-1">
+                  ⚡
+                </span>
+                The OG BOT Store
               </h1>
+              <span aria-hidden className="og-store__underline mt-2" />
+              <p className="og-store__eyebrow mt-2">
+                <EditableContent
+                  contentKey="buyCoins.heading"
+                  defaultValue="Power up your OG experience"
+                />
+              </p>
             </div>
             <div
               role="status"
               aria-label={`Wallet balance ${profile?.coin_balance ?? 0} OG coins`}
-              className="text-left min-[360px]:text-right"
+              className="og-store__balance text-left min-[360px]:text-right"
             >
-              <p className="text-xs font-semibold uppercase text-muted-foreground">Balance</p>
+              <p className="og-store__eyebrow">Your balance</p>
               <div className="mt-1 flex items-center justify-start gap-2 min-[360px]:justify-end">
-                <Coins className="h-5 w-5 text-primary" />
+                <Coins className="og-st-gold h-5 w-5" />
                 <span className="font-mono text-xl font-bold tabular-nums sm:text-2xl">
                   {profile?.coin_balance ?? 0}
                 </span>
-                <span className="hidden text-xs text-muted-foreground min-[360px]:inline">OG</span>
+                <span className="og-st-gold hidden text-xs font-bold min-[360px]:inline">OG</span>
               </div>
             </div>
           </div>
@@ -609,14 +619,16 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
         <section aria-labelledby="section-bundles" className="scroll-mt-24">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                One-time purchase
-              </p>
-              <h2 id="section-bundles" className="font-display text-xl font-black">
-                Coin packs
+              <p className="og-store__eyebrow">One-time purchase</p>
+              <h2
+                id="section-bundles"
+                className="og-store__title text-2xl"
+                style={{ "--a1": "var(--st-gold)" } as React.CSSProperties}
+              >
+                🪙 OG Coins
               </h2>
             </div>
-            <span className="shrink-0 rounded-md bg-coin/15 px-2 py-1 text-xs font-bold text-coin">
+            <span className="og-store__balance og-st-gold shrink-0 px-2 py-1 text-xs font-bold">
               Save up to{" "}
               {Math.round(
                 (1 -
@@ -641,15 +653,20 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
               />
             ))}
           </div>
-          <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs text-muted-foreground">
-            <Lock className="h-3 w-3" /> Secure checkout · Apple Pay · Google Pay · Card
+          <p className="og-st-muted mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs">
+            <Lock className="h-3 w-3" /> Secure checkout · Apple Pay · Google Pay · Card · Coins
+            never expire
           </p>
         </section>
 
         <section aria-labelledby="section-custom" className="scroll-mt-24">
           <div className="mb-3 flex items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 text-primary" />
-            <h2 id="section-custom" className="font-display text-lg font-black">
+            <SlidersHorizontal className="og-st-gold h-4 w-4" />
+            <h2
+              id="section-custom"
+              className="og-store__title text-lg"
+              style={{ "--a1": "var(--st-gold)" } as React.CSSProperties}
+            >
               Need a different amount?
             </h2>
           </div>
@@ -658,36 +675,31 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
         <StoreItemsSection />
 
         <section aria-labelledby="section-vip" className="scroll-mt-24">
-          <div className="overflow-hidden rounded-2xl border border-coin/40 bg-store-card shadow-card">
+          <div className="og-store-panel og-store-panel--purple overflow-hidden">
+            <span aria-hidden className="og-store-panel__corner og-store-panel__corner--tl" />
+            <span aria-hidden className="og-store-panel__corner og-store-panel__corner--br" />
             {/* Hero */}
-            <div className="relative bg-gradient-to-br from-coin/25 via-coin/5 to-transparent p-4 sm:p-6">
+            <div className="relative p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-coin">
-                    OG VIP membership
-                  </p>
-                  <h2
-                    id="section-vip"
-                    className="mt-1 font-display text-2xl font-black leading-tight"
-                  >
-                    {hasVipRole ? "You're VIP 👑" : "Unlock everything."}
+                  <p className="og-store__eyebrow og-st-purple">👑 OG VIP membership</p>
+                  <h2 id="section-vip" className="og-store__chrome mt-1 text-2xl sm:text-3xl">
+                    {hasVipRole ? "You're VIP 👑" : "Unlock the premium OG experience"}
                   </h2>
-                  <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  <p className="og-st-muted mt-1 text-xs sm:text-sm">
                     {hasVipRole
                       ? "All styles, foul-mouth mode and 13% cashback are yours."
                       : "Every style, unfiltered OG Bot, gold status and double cashback."}
                   </p>
                 </div>
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-coin/20 ring-1 ring-coin/50">
-                  <Crown className="h-6 w-6 text-coin" />
+                <div className="og-store__balance grid h-12 w-12 shrink-0 place-items-center p-0">
+                  <Crown className="og-st-purple h-6 w-6" />
                 </div>
               </div>
               {hasVipRole && profile?.og_vip_id ? (
-                <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-coin/50 bg-background/60 px-3 py-1.5">
-                  <span className="text-[0.7rem] font-bold uppercase text-muted-foreground">
-                    Your ID
-                  </span>
-                  <span className="font-mono text-sm font-black tracking-widest text-coin">
+                <div className="og-store__balance mt-3 inline-flex items-center gap-2 px-3 py-1.5">
+                  <span className="og-store__eyebrow">Your ID</span>
+                  <span className="og-st-purple font-mono text-sm font-black tracking-widest">
                     {profile.og_vip_id}
                   </span>
                 </div>
@@ -702,9 +714,9 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                     <button
                       type="button"
                       onClick={() => pickSelection({ type: "vip", plan: "yearly" })}
-                      className="relative flex flex-col items-center rounded-xl border-2 border-coin bg-coin/10 p-3 pt-4 text-center transition hover:bg-coin/15"
+                      className="og-store-panel og-store-panel--purple og-store-panel--featured relative flex flex-col items-center overflow-hidden p-3 pt-7 text-center"
                     >
-                      <span className="absolute -top-2.5 rounded-full bg-coin px-2 py-0.5 text-[0.7rem] font-black uppercase text-background">
+                      <span className="og-store__ribbon">
                         Save{" "}
                         {Math.round(
                           (1 - VIP_PLAN_YEARLY.priceCents / (VIP_PLAN.priceCents * 12)) * 100,
@@ -722,15 +734,15 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                         ≈ {CURRENCY_SYMBOL}
                         {(VIP_PLAN_YEARLY.priceCents / 1200).toFixed(2)}/mo
                       </span>
-                      <span className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 rounded-lg bg-coin text-xs font-black text-background">
-                        <Crown className="h-3.5 w-3.5" /> Go yearly
+                      <span className="og-store-btn og-store-btn--purple mt-2 w-full">
+                        <Crown className="h-3.5 w-3.5" /> Go OG VIP
                       </span>
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => pickSelection({ type: "vip", plan: "monthly" })}
-                    className="flex flex-col items-center rounded-xl border border-border bg-background/40 p-3 pt-4 text-center transition hover:border-primary/60"
+                    className="og-store-panel og-store-panel--purple relative flex flex-col items-center p-3 pt-7 text-center"
                   >
                     <span className="text-[0.7rem] font-bold uppercase text-muted-foreground">
                       Monthly
@@ -740,8 +752,11 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                       {(VIP_PLAN.priceCents / 100).toFixed(2)}
                     </span>
                     <span className="text-[0.7rem] text-muted-foreground">cancel anytime</span>
-                    <span className="mt-2 inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-                      Go monthly
+                    <span
+                      className="og-store-btn mt-2 w-full"
+                      style={{ "--a1": "var(--st-purple)" } as React.CSSProperties}
+                    >
+                      Go OG VIP
                     </span>
                   </button>
                 </div>
@@ -752,7 +767,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                 <div className="grid grid-cols-[minmax(0,1fr)_56px_64px] bg-muted/40 px-3 py-2 text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
                   <span>Feature</span>
                   <span className="text-center">Free</span>
-                  <span className="inline-flex items-center justify-center gap-1 text-coin">
+                  <span className="og-st-purple inline-flex items-center justify-center gap-1">
                     <Crown className="h-3 w-3" /> VIP
                   </span>
                 </div>
@@ -773,7 +788,7 @@ export function CoinStore({ editMode }: { editMode?: 1 }) {
                     >
                       <span className="min-w-0 font-medium">{f}</span>
                       <span className="text-center text-muted-foreground">{a}</span>
-                      <span className="text-center font-black text-coin">{b}</span>
+                      <span className="og-st-purple text-center font-black">{b}</span>
                     </div>
                   ))}
                 </div>
@@ -1010,23 +1025,18 @@ function PackCard({
   return (
     <div
       className={cn(
-        "relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-store-card p-3 shadow-card transition-colors sm:p-4",
-        accent ? "border-coin/70 ring-1 ring-coin/30" : "border-border",
-        tier.glow,
+        "og-store-panel og-store-panel--gold flex min-w-0 flex-col overflow-hidden p-3 sm:p-4",
+        accent && "og-store-panel--featured",
       )}
     >
-      {badge && (
-        <div className="absolute inset-x-0 top-0 bg-coin py-0.5 text-center text-[0.7rem] font-black uppercase tracking-widest text-background">
-          {badge}
-        </div>
-      )}
+      {badge && <div className="og-store__ribbon">{badge}</div>}
 
       <div className="mt-3 flex items-center justify-between gap-1">
-        <span className="inline-flex min-w-0 items-center gap-1 truncate text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="og-store__eyebrow inline-flex min-w-0 items-center gap-1 truncate tracking-wider">
           <TierIcon className="h-3 w-3 shrink-0" /> {tier.name}
         </span>
         {savingsPct > 0 && !canEdit && (
-          <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[0.7rem] font-black text-primary">
+          <span className="og-store__balance og-st-gold shrink-0 px-1.5 py-0.5 text-[0.7rem] font-black">
             −{savingsPct}%
           </span>
         )}
@@ -1035,13 +1045,13 @@ function PackCard({
       {/* Coin stack visual */}
       <div className="relative mx-auto mt-2 flex h-12 items-end justify-center" aria-hidden>
         {Array.from({ length: stackCount }).map((_, k) => (
-          <div
+          <span
             key={k}
-            className="-ml-3 grid h-10 w-10 place-items-center rounded-full border-2 border-coin/60 bg-coin/20 first:ml-0"
+            className="og-store-coin -ml-3 first:ml-0"
             style={{ transform: `translateY(${-(k % 2) * 6}px)` }}
           >
-            <Coins className="h-5 w-5 text-coin" />
-          </div>
+            OG
+          </span>
         ))}
       </div>
 
@@ -1058,11 +1068,7 @@ function PackCard({
           draft={draft}
           setDraft={setDraft}
           inputProps={{ maxLength: 40 }}
-          view={
-            <div className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              {effective.label}
-            </div>
-          }
+          view={<div className="og-store__eyebrow">{effective.label}</div>}
         />
       </div>
 
@@ -1087,7 +1093,7 @@ function PackCard({
                 </span>
               )}
               <span className="text-3xl font-black tabular-nums">{effective.coins}</span>
-              <span className="text-[0.7rem] font-bold text-coin">coins</span>
+              <span className="og-st-gold text-[0.7rem] font-bold">coins</span>
             </div>
           }
         />
@@ -1105,7 +1111,7 @@ function PackCard({
               {showBonus ? "2× on" : "2× off"}
             </button>
           ) : showBonus ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-coin/15 px-2 py-0.5 text-[0.7rem] font-black uppercase text-coin">
+            <span className="og-store__balance og-st-gold inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-black uppercase">
               <Sparkles className="h-2.5 w-2.5" /> 2× bonus
             </span>
           ) : null}
@@ -1164,9 +1170,9 @@ function PackCard({
         onClick={() => onBuy(effective)}
         disabled={field !== null}
         aria-label={`Buy ${effective.coins} OG Coins for ${CURRENCY_SYMBOL}${(effective.priceCents / 100).toFixed(2)}`}
-        className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-2 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+        className="og-store-btn og-store-btn--gold mt-2 w-full px-2"
       >
-        Buy
+        Get coins
       </button>
     </div>
   );
@@ -1381,19 +1387,24 @@ function CustomPackCard({ onBuy }: { onBuy: (units: number) => void }) {
   const quickPicks = [5, 10, 25, 50].filter((n) => n <= CUSTOM_COIN_UNIT.maxUnits);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-store-card p-4 shadow-card sm:p-5">
+    <div className="og-store-panel og-store-panel--gold overflow-hidden p-4 sm:p-5">
+      <span aria-hidden className="og-store-panel__corner og-store-panel__corner--tl" />
+      <span aria-hidden className="og-store-panel__corner og-store-panel__corner--br" />
       {/* Header */}
       <div className="relative flex items-start gap-3 sm:gap-4">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Coins className="h-5 w-5" />
-        </div>
+        <span aria-hidden className="og-store-coin shrink-0">
+          OG
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold uppercase text-muted-foreground">
-            Choose any amount
-          </div>
-          <h3 className="font-display text-lg font-black sm:text-xl">Build your stack</h3>
+          <div className="og-store__eyebrow">Choose any amount</div>
+          <h3
+            className="og-store__title text-lg sm:text-xl"
+            style={{ "--a1": "var(--st-gold)" } as React.CSSProperties}
+          >
+            Build your stack
+          </h3>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+            <span className="og-store__balance og-st-gold inline-flex items-center gap-1 px-2 py-1 text-xs font-bold">
               {CURRENCY_SYMBOL}
               {(CUSTOM_COIN_UNIT.priceCents / 100).toFixed(2)} → {CUSTOM_COIN_UNIT.coins} OG
             </span>
@@ -1431,7 +1442,7 @@ function CustomPackCard({ onBuy }: { onBuy: (units: number) => void }) {
             You get
           </div>
           <div className="relative mt-1 flex items-baseline justify-center gap-2 leading-none">
-            <Coins className="h-6 w-6 shrink-0 text-coin drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]" />
+            <Coins className="og-st-gold h-6 w-6 shrink-0" />
             <span
               key={coins}
               className="font-mono text-[clamp(2rem,10vw,3rem)] font-bold tabular-nums"
@@ -1486,11 +1497,11 @@ function CustomPackCard({ onBuy }: { onBuy: (units: number) => void }) {
       </div>
 
       {bumpError ? (
-        <p role="alert" className="relative mt-2 text-xs font-bold text-red-300">
+        <p role="alert" className="relative mt-2 text-xs font-bold text-destructive">
           {bumpError}
         </p>
       ) : atMin || atMax ? (
-        <p className="relative mt-2 text-xs text-white/60">
+        <p className="og-st-muted relative mt-2 text-xs">
           {atMin
             ? `You're at the minimum (${minCoins} coins).`
             : `You're at the maximum (${maxCoins} coins).`}
@@ -1510,14 +1521,14 @@ function CustomPackCard({ onBuy }: { onBuy: (units: number) => void }) {
           </div>
           <div className="mt-1 text-xs text-muted-foreground">one-time · {coins} OG coins</div>
         </div>
-        <Button
-          size="lg"
+        <button
+          type="button"
           onClick={() => onBuy(units)}
-          className="h-11 w-full rounded-md px-4 font-bold min-[400px]:w-auto"
+          className="og-store-btn og-store-btn--gold w-full px-4 min-[400px]:w-auto"
         >
-          <Flame className="mr-2 h-4 w-4" /> Buy · {CURRENCY_SYMBOL}
+          <Flame className="h-4 w-4" /> Get coins · {CURRENCY_SYMBOL}
           {(totalCents / 100).toFixed(2)}
-        </Button>
+        </button>
       </div>
     </div>
   );

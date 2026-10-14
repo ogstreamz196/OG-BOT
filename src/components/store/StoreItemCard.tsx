@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { CoinPill } from "@/components/ui/coin-pill";
 import type { StoreItem } from "@/lib/store.functions";
 import { cn } from "@/lib/utils";
-import sportsGuideLogo from "@/assets/og-bot-sports-guide.png.asset.json";
+import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 
 const RARITY: Record<
   StoreItem["rarity"],
@@ -100,7 +100,7 @@ export function StoreItemCard({
     isSportsGuide && sportsGuideState && !["unowned", "revoked"].includes(sportsGuideState);
   // Phone apps block insecure (http) images, so always load them over https.
   const imageUrl = isSportsGuide
-    ? sportsGuideLogo.url
+    ? sportsGuideArt
     : item.image_url?.replace(/^http:\/\//i, "https://");
   const isVipPass = item.slug === "og-vip-pass";
   const ownsVipPass = isVipPass && !!vipPass?.owned;
@@ -113,16 +113,19 @@ export function StoreItemCard({
     <div
       id={`item-${item.slug}`}
       className={cn(
-        "group relative flex h-full min-w-0 scroll-mt-24 flex-col overflow-hidden rounded-lg border bg-store-card p-4 shadow-card transition-colors",
-        r.ring,
-        r.glow,
+        "og-store-panel group flex h-full min-w-0 scroll-mt-24 flex-col overflow-hidden p-4",
+        isVipPass && "og-store-panel--vault",
+        !isVipPass && item.rarity === "legendary" && "og-store-panel--gold",
+        !isVipPass && item.rarity === "epic" && "og-store-panel--purple",
       )}
     >
+      <span aria-hidden className="og-store-panel__corner og-store-panel__corner--tl" />
+      <span aria-hidden className="og-store-panel__corner og-store-panel__corner--br" />
       {/* rarity badge */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1 text-[0.7rem] font-bold uppercase text-muted-foreground">
-          {r.icon}
-          {r.label}
+        <span className="og-store__eyebrow inline-flex items-center gap-1 tracking-wider">
+          {isVipPass ? <KeyRound className="h-3 w-3" /> : r.icon}
+          {isVipPass ? "OG Vault access" : r.label}
         </span>
         {item.recurring_interval && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[0.7rem] font-bold uppercase text-amber-300">
@@ -132,23 +135,31 @@ export function StoreItemCard({
       </div>
 
       {/* image */}
-      <div className="mb-3 aspect-[4/3] w-full overflow-hidden rounded-md border border-border bg-background/50">
+      <div className="mb-3 aspect-[16/10] w-full overflow-hidden rounded-xl border border-border bg-background/50">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={item.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={cn(
+              "h-full w-full transition-transform duration-500 motion-safe:group-hover:scale-105",
+              isSportsGuide ? "object-contain p-2" : "object-cover",
+            )}
             loading="lazy"
+            decoding="async"
           />
         ) : (
-          <div className="grid h-full w-full place-items-center text-primary/60">
-            <ShoppingBag className="h-16 w-16" />
+          <div className="grid h-full w-full place-items-center">
+            {isVipPass ? (
+              <KeyRound className="og-st-gold h-14 w-14" />
+            ) : (
+              <ShoppingBag className="og-st-blue h-14 w-14" />
+            )}
           </div>
         )}
       </div>
 
       {/* name + desc */}
-      <h3 className="line-clamp-2 font-display text-base font-black uppercase">{item.name}</h3>
+      <h3 className="og-store__title line-clamp-2 text-lg">{item.name}</h3>
       {item.description && (
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
       )}
@@ -182,7 +193,7 @@ export function StoreItemCard({
         <div className="min-w-0 font-mono text-lg font-bold leading-tight text-foreground sm:text-xl">
           {isVipPass && vipPass?.trial ? (
             <>
-              <span className="block text-coin">FREE trial 👑</span>
+              <span className="og-st-gold block">FREE trial</span>
               <span className="block text-xs font-semibold text-muted-foreground">
                 {trialDaysLeft(vipPass.trialEndsAt)} · then £10 or 50 OG Coins
               </span>
@@ -200,8 +211,8 @@ export function StoreItemCard({
             formatPrice(item.price_cents, item.currency)
           )}
         </div>
-        <Button
-          size="sm"
+        <button
+          type="button"
           onClick={() => {
             if (ownsSportsGuide) {
               window.location.assign("/sports");
@@ -210,7 +221,10 @@ export function StoreItemCard({
             onBuy(item.id);
           }}
           disabled={(soldOut && !ownsVipPass) || buying || vaultKept}
-          className="w-full bg-gradient-brand font-bold uppercase tracking-wider min-[400px]:w-auto"
+          className={cn(
+            "og-store-btn w-full min-[400px]:w-auto",
+            (isVipPass || item.coin_price !== null) && !ownsSportsGuide && "og-store-btn--gold",
+          )}
         >
           {buying ? (
             <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -230,25 +244,26 @@ export function StoreItemCard({
                 : ownsSportsGuide
                   ? "Open Sports Guide"
                   : isVipPass
-                    ? "50 coins"
-                    : "Buy"}
-        </Button>
+                    ? `${item.coin_price ?? 50} coins`
+                    : isSportsGuide
+                      ? "Unlock access"
+                      : "Buy"}
+        </button>
         {onBuyCash && !vaultKept && !soldOut && (
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
             onClick={() => onBuyCash(item.id)}
             disabled={buying}
-            className="w-full font-bold uppercase tracking-wider min-[400px]:col-span-2"
+            className="og-store-btn w-full min-[400px]:col-span-2"
           >
             Pay {formatPrice(item.price_cents, item.currency)} by card
-          </Button>
+          </button>
         )}
       </div>
       {ownsVipPass && vipPass?.username ? (
         <div className="mt-3 space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-3">
           <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-primary">
-            <KeyRound className="h-3.5 w-3.5" /> Your VIP login
+            <KeyRound className="h-3.5 w-3.5" /> Your Vault login
           </p>
           <p className="text-xs font-semibold text-foreground">
             Important: sign out of the Vault first, then sign in with these details.
@@ -282,11 +297,9 @@ export function StoreItemCard({
           ))}
         </div>
       ) : null}
-      {isVipPass && !ownsVipPass ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {vipSoldOut
-            ? "All passes are currently claimed — check back soon."
-            : `${vipPass?.available ?? 0} passes left`}
+      {isVipPass && !ownsVipPass && vipSoldOut ? (
+        <p className="og-st-muted mt-3 text-xs">
+          All passes are currently claimed — check back soon.
         </p>
       ) : null}
       {ownsSportsGuide ? (
