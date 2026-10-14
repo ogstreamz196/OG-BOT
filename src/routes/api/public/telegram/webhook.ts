@@ -589,7 +589,6 @@ async function runChatAI(
   const typingTimer = setInterval(() => {
     void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
   }, 4000);
-  try {
   const vp = await import("@/lib/vip-promo.server");
   const { loadUserDossier } = await import("@/lib/og-user-dossier.server");
   const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
@@ -622,6 +621,7 @@ async function runChatAI(
   ]);
   const profile = profileRes.data;
   if (!profile) {
+    clearInterval(typingTimer);
     await reply(chat_id, "Profile not found.");
     return;
   }
@@ -736,7 +736,6 @@ async function runChatAI(
     }
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);
-  }
   } finally {
     clearInterval(typingTimer);
   }
