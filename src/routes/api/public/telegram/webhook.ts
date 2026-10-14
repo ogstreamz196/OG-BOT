@@ -727,6 +727,14 @@ async function runChatAI(
       content: replyText,
     });
 
+    // Send as soon as it's ready, but keep at least 2s of "typing…" so fast
+    // replies don't feel like canned copy-paste. No upper cap — slow cooks
+    // are fine, the typing heartbeat stays alive.
+    const remainingBeat = MIN_TYPING_MS - (Date.now() - typingStartedAt);
+    if (remainingBeat > 0) {
+      await new Promise((resolve) => setTimeout(resolve, remainingBeat));
+    }
+
     // Telegram caps messages at ~4096 chars
     const chunks = replyText.match(/[\s\S]{1,3800}/g) ?? [replyText];
     for (const c of chunks) {
