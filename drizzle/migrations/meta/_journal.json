@@ -134,6 +134,13 @@
       "when": 1791845711959,
       "tag": "0018_vip_username_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792097762752,
+      "tag": "0019_prepay_track_upfront",
+      "breakpoints": true
     }
   ]
 }
