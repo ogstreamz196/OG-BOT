@@ -22,6 +22,7 @@ import {
   type CommunityMessage,
 } from "@/lib/community.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { BattleCapDialog } from "@/components/battle/BattleCapDialog";
 import { Capacitor } from "@capacitor/core";
 import { MoreVertical } from "lucide-react";
 import {
@@ -155,6 +156,7 @@ export function CommunityRoom() {
   const [lastEarned, setLastEarned] = useState<number | null>(null);
   const [showRoast, setShowRoast] = useState(true);
   const [vipPromoOpen, setVipPromoOpen] = useState(false);
+  const [capOpen, setCapOpen] = useState(false);
   const pendingCoins = ((tally?.pendingTenths ?? 0) / 10).toFixed(2);
   const messages: CommunityMessage[] = useMemo(
     () =>
@@ -387,6 +389,7 @@ export function CommunityRoom() {
             rounds: number;
             streakDays?: number;
             streakBonusTenths?: number;
+            capHit?: boolean;
           };
         }
       ).award;
@@ -397,6 +400,10 @@ export function CommunityRoom() {
           totalAwardedCoins: prev?.totalAwardedCoins ?? 0,
           streakDays: award.streakDays ?? prev?.streakDays ?? 0,
         }));
+        if (award.capHit) {
+          toast.success("Congrats — you banked 2 OG Coins today! 🏆");
+          setCapOpen(true);
+        }
         if (award.earnedTenths > 0) {
           setLastEarned(award.earnedTenths);
           window.setTimeout(() => setLastEarned(null), 2500);
@@ -427,6 +434,7 @@ export function CommunityRoom() {
   const quit = useMutation({
     mutationFn: () => endFn(),
     onSuccess: (res) => {
+      setCapOpen(false);
       qc.invalidateQueries({ queryKey: ["battle-tally"] });
       qc.invalidateQueries({ queryKey: ["battle-leaderboard"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
@@ -506,6 +514,13 @@ export function CommunityRoom() {
 
   return (
     <ArenaFrame className="h-full font-sans">
+      <BattleCapDialog
+        open={capOpen}
+        onOpenChange={setCapOpen}
+        purse={`${pendingCoins} OG`}
+        onWithdraw={() => quit.mutate()}
+        withdrawing={quit.isPending}
+      />
       <ArenaHeader
         compact
         subtitle={`Live battle · you're ${myName}`}
