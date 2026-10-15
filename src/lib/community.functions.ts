@@ -866,7 +866,10 @@ export const postGuestBattleMessage = createServerFn({ method: "POST" })
         !!last && String(last.content).trim().toLowerCase() === data.content.toLowerCase();
       const judged = await scoreRoast("configured", data.content, botReply);
       const raw = Math.max(judged, estimateRoastFloor(data.content));
-      earnedTenths = calibrateAward(raw, data.content, 0, isRepeat);
+      earnedTenths = shapeDailyReward(
+        calibrateAward(raw, data.content, 0, isRepeat),
+        await guestPurse(supabaseAdmin, data.guestId),
+      );
       if (earnedTenths > 0) {
         await supabaseAdmin
           .from("community_messages")
