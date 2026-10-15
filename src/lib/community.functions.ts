@@ -526,7 +526,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
 
     return {
       message: userRow as CommunityMessage,
-      award: { earnedTenths, pendingTenths, rounds, streakDays, streakBonusTenths },
+      award: { earnedTenths, pendingTenths, rounds, streakDays, streakBonusTenths, capHit },
     };
   });
 
