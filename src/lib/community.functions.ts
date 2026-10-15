@@ -249,6 +249,20 @@ export function calibrateAward(
   return drops[index] ?? 0;
 }
 
+/** Hidden Battle Zone daily ceiling: 2 OG Coins (20 tenths) per UTC day. */
+export const BATTLE_DAILY_CAP_TENTHS = 20;
+
+/**
+ * First paying roast of the day always lands at least 0.5 coin; after that
+ * rounds pay small increments (max 0.2). Never exceeds the daily ceiling.
+ */
+export function shapeDailyReward(requested: number, dailySoFar: number): number {
+  const asked = Math.max(0, Math.min(10, Math.round(requested)));
+  if (asked <= 0) return 0;
+  const shaped = dailySoFar <= 0 ? Math.max(asked, 5) : Math.min(asked, 2);
+  return Math.max(0, Math.min(shaped, BATTLE_DAILY_CAP_TENTHS - dailySoFar));
+}
+
 /** Today's date as YYYY-MM-DD (UTC) — streaks are counted per calendar day. */
 export function todayISO(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
@@ -429,6 +443,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     let rounds = 0;
     let streakDays = 0;
     let streakBonusTenths = 0;
+    let capHit = false;
     try {
       const { data: tally } = await supabaseAdmin
         .from("battle_tallies")
@@ -453,12 +468,30 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       streakDays = streak.days;
       const bonusPaidToday = (tally?.streak_bonus_date ?? null) === todayISO();
       streakBonusTenths = bonusPaidToday ? 0 : streakBonus(streak.days);
-      const requestTenths = Math.min(10, earnedTenths + streakBonusTenths);
-
-      const { data: rewardResult, error: rewardError } = await supabaseAdmin.rpc(
-        "add_battle_reward",
-        { _user_id: context.userId, _earned_tenths: requestTenths },
+      // Hidden daily ceiling: today's banked scores live on the user's own lines.
+      const { data: todayRows } = await supabaseAdmin
+        .from("community_messages")
+        .select("score_tenths")
+        .eq("user_id", context.userId)
+        .eq("role", "user")
+        .gte("created_at", `${todayISO()}T00:00:00Z`)
+        .not("score_tenths", "is", null);
+      const dailySoFar = ((todayRows ?? []) as { score_tenths: number | null }[]).reduce(
+        (s, r) => s + Number(r.score_tenths ?? 0),
+        0,
       );
+      const requestTenths = shapeDailyReward(
+        Math.min(10, earnedTenths + streakBonusTenths),
+        dailySoFar,
+      );
+
+      const { data: rewardResult, error: rewardError } =
+        requestTenths > 0
+          ? await supabaseAdmin.rpc("add_battle_reward", {
+              _user_id: context.userId,
+              _earned_tenths: requestTenths,
+            })
+          : { data: null, error: null };
       if (rewardError) throw rewardError;
       const applied = rewardResult as {
         earned_tenths?: number;
@@ -469,6 +502,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       pendingTenths = Number(applied?.pending_tenths ?? pendingTenths);
       rounds = Number(applied?.rounds ?? rounds);
       if (earnedTenths <= 0) streakBonusTenths = 0;
+      capHit = earnedTenths > 0 && dailySoFar + earnedTenths >= BATTLE_DAILY_CAP_TENTHS;
 
       await supabaseAdmin
         .from("battle_tallies")
@@ -492,7 +526,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
 
     return {
       message: userRow as CommunityMessage,
-      award: { earnedTenths, pendingTenths, rounds, streakDays, streakBonusTenths },
+      award: { earnedTenths, pendingTenths, rounds, streakDays, streakBonusTenths, capHit },
     };
   });
 
@@ -832,7 +866,10 @@ export const postGuestBattleMessage = createServerFn({ method: "POST" })
         !!last && String(last.content).trim().toLowerCase() === data.content.toLowerCase();
       const judged = await scoreRoast("configured", data.content, botReply);
       const raw = Math.max(judged, estimateRoastFloor(data.content));
-      earnedTenths = calibrateAward(raw, data.content, 0, isRepeat);
+      earnedTenths = shapeDailyReward(
+        calibrateAward(raw, data.content, 0, isRepeat),
+        await guestPurse(supabaseAdmin, data.guestId),
+      );
       if (earnedTenths > 0) {
         await supabaseAdmin
           .from("community_messages")
