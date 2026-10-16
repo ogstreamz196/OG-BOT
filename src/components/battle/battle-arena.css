@@ -181,6 +181,14 @@
   outline: 2px solid var(--ar-cyan);
   outline-offset: 2px;
 }
+/* Floating "Jump to newest" over the feed: solid and blurred so text reads. */
+.ar-jump {
+  background: color-mix(in oklab, var(--ar-ink) 94%, transparent);
+  backdrop-filter: blur(8px);
+  border-color: color-mix(in oklab, var(--ar-cyan) 60%, transparent);
+  box-shadow: 0 8px 22px -8px var(--ar-ink);
+  white-space: nowrap;
+}
 .ar-icon-btn[aria-expanded="true"] {
   border-color: var(--ar-cyan);
 }
@@ -218,6 +226,12 @@
   overscroll-behavior: contain;
   padding: 0.6rem 0.6rem 0.4rem;
   -webkit-overflow-scrolling: touch;
+}
+/* Member room: the feed fills a sized box. Set here, not with Tailwind's
+   "absolute inset-0", because .ar-feed's position:relative would win. */
+.ar-feed--fill {
+  position: absolute;
+  inset: 0;
 }
 .ar-row {
   display: flex;

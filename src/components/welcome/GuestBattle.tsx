@@ -116,7 +116,11 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
     [data?.messages, hiddenIds, clearedAt],
   );
 
+  // Follow new lines only while the guest is at the bottom (or just sent one),
+  // so scrolling up to read older roasts isn't yanked back down.
+  const atBottom = useRef(true);
   useEffect(() => {
+    if (!atBottom.current && !sending) return;
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [messages.length, sending]);
 
@@ -233,7 +237,14 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
         ) : null}
         {showBoard ? <ArenaRanks loading={extrasLoading} rows={rows} /> : null}
 
-        <div ref={scroller} className="ar-feed">
+        <div
+          ref={scroller}
+          className="ar-feed"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+          }}
+        >
           {isLoading || !guestId || messages.length === 0 ? (
             <ArenaEmpty loading={isLoading || !guestId} />
           ) : (
