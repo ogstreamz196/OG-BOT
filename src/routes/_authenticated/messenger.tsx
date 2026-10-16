@@ -40,13 +40,23 @@ export const Route = createFileRoute("/_authenticated/messenger")({
   }),
   head: () => ({
     meta: [
-      { title: "OG Bot · Loner Mode & OG Battle Zone | AI Songs & Diss Tracks" },
+      { title: "OG Bot Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
       {
         name: "description",
         content:
-          "Chat privately in OG Bot Loner Mode, or enter the OG Battle Zone and roast-battle OG Bot.",
+          "Step into the Battle Zone and trade insults with foul-mouth OG Bot. Earn OG Coins, then get a savage AI diss track cooked about you.",
       },
+      { property: "og:title", content: "OG Bot Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
+      {
+        property: "og:description",
+        content:
+          "Step into the Battle Zone and trade insults with foul-mouth OG Bot. Earn OG Coins, then get a savage AI diss track cooked about you.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://ogbot.co.uk/messenger" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://ogbot.co.uk/messenger" }],
   }),
 });
 
