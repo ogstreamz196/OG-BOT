@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { claimPendingGuestTracks, useTrackGuestSession } from "@/components/welcome/guest-session";
 import { Toaster } from "@/components/ui/sonner";
 import { ensureCurrentUserBootstrap } from "@/lib/user-bootstrap.functions";
 import { getDeviceId } from "@/lib/device-id";
@@ -103,7 +104,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
         { name: "author", content: "OG Streamz" },
         { property: "og:site_name", content: "OG Streamz" },
-        { property: "og:title", content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
+        {
+          property: "og:title",
+          content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone",
+        },
         {
           property: "og:description",
           content:
@@ -122,7 +126,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
         },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
+        {
+          name: "twitter:title",
+          content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone",
+        },
         {
           name: "twitter:description",
           content:
@@ -231,6 +238,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const bootstrapUser = useServerFn(ensureCurrentUserBootstrap);
+  useTrackGuestSession();
 
   useEffect(() => {
     registerAppServiceWorker();
@@ -241,7 +249,9 @@ function RootComponent() {
 
     const bootstrap = async () => {
       const { data } = await supabase.auth.getUser();
-      if (!active || !data.user) return;
+      if (!active || !data.user || data.user.is_anonymous) return;
+      // Tracks made as a guest on this device move into the real account.
+      void claimPendingGuestTracks(queryClient);
       try {
         const result = await bootstrapUser({ data: { deviceId: getDeviceId() ?? undefined } });
         if (

@@ -13,7 +13,8 @@ export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/welcome" });
+    // Guest (anonymous) sessions stay on the landing page's guest studio.
+    if (error || !data.user || data.user.is_anonymous) throw redirect({ to: "/welcome" });
     return { user: data.user };
   },
   component: function AuthedLayout() {

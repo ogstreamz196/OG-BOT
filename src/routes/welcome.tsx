@@ -35,6 +35,11 @@ import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundM
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { GuestBattle } from "@/components/welcome/GuestBattle";
+import {
+  GuestStudio,
+  guestCreationAvailable,
+  startGuestCreation,
+} from "@/components/welcome/GuestStudio";
 import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import {
@@ -152,12 +157,19 @@ function useRedirectIfSignedIn() {
       if (target === "/") navigate({ to: "/", replace: true });
       else window.location.replace(target);
     };
+    // Guest (anonymous) sessions belong on this page, so they don't redirect.
     supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) go();
+      if (!cancelled && data.session && !data.session.user.is_anonymous) go();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) go();
+      if (
+        (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+        session &&
+        !session.user.is_anonymous
+      ) {
+        go();
+      }
     });
     return () => {
       cancelled = true;
@@ -643,6 +655,13 @@ const openAuthFromBattle = () =>
 const openSongAuth = (title: string) =>
   window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
+/** Guest made a track: sign up / in to keep it, then land in the library. */
+const openSaveTrackAuth = (title: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/library");
+  window.history.replaceState(null, "", url.toString());
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { savedTrack: title } }));
+};
 const OPEN_BATTLE = "og:open-guest-battle";
 const openBattle = () => window.dispatchEvent(new Event(OPEN_BATTLE));
 /** Earn page (referrals, daily drop) is for members: sign in, then land on /referrals. */
@@ -668,7 +687,11 @@ function GuestWizard() {
     window.addEventListener(OPEN_WIZARD, on);
     return () => window.removeEventListener(OPEN_WIZARD, on);
   }, []);
-  const done = (result: WizardResult, draft: WizardDraft) => {
+  // Website guests cook straight away (silent guest account + 99p); the phone
+  // apps, or a backend with guest sign-ins off, fall back to signing up first.
+  const guestCook = guestCreationAvailable();
+  const done = async (result: WizardResult, draft: WizardDraft) => {
+    if (guestCook && (await startGuestCreation(result))) return;
     try {
       localStorage.setItem(GUEST_PENDING_SONG_KEY, JSON.stringify({ result, draft }));
     } catch {
@@ -684,9 +707,9 @@ function GuestWizard() {
     <CreateNowWizard
       open={open}
       onOpenChange={setOpen}
-      onComplete={done}
+      onComplete={(result, draft) => void done(result, draft)}
       guestMode
-      submitLabel="Create my song"
+      submitLabel={guestCook ? "Cook Master Track" : "Create my song"}
     />
   );
 }
@@ -695,10 +718,14 @@ function AuthModal() {
   const [open, setOpen] = useState(false);
   const [songTitle, setSongTitle] = useState<string | null>(null);
   const [fromBattle, setFromBattle] = useState(false);
+  const [savedTrack, setSavedTrack] = useState<string | null>(null);
   useEffect(() => {
     const on = (e: Event) => {
-      const d = (e as CustomEvent<{ songTitle?: string; fromBattle?: boolean }>).detail;
+      const d = (
+        e as CustomEvent<{ songTitle?: string; fromBattle?: boolean; savedTrack?: string }>
+      ).detail;
       setSongTitle(d?.songTitle ?? null);
+      setSavedTrack(d?.savedTrack ?? null);
       setFromBattle(!!d?.fromBattle);
       setOpen(true);
     };
@@ -709,6 +736,7 @@ function AuthModal() {
       if (a) {
         e.preventDefault();
         setFromBattle(false);
+        setSavedTrack(null);
         setOpen(true);
       }
     };
@@ -738,6 +766,19 @@ function AuthModal() {
               <p className="mt-3 text-xs font-medium text-card-foreground/80">
                 🔒 100% free. Email only for password resets — no spam, ever.
               </p>
+            </div>
+          )}
+          {savedTrack && (
+            <div className="mb-4 rounded-2xl border-2 border-amber-300/60 bg-card p-4 text-card-foreground">
+              <p className="font-display text-xl font-black">Save your track forever 💾</p>
+              <p className="mt-1 text-sm">
+                <span className="font-bold">"{savedTrack}"</span> moves into your library as soon as
+                you're in. New here? Join free below. Already an OG? Sign in.
+              </p>
+              <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
+                <li>🪙 Free welcome coins</li>
+                <li>👑 15 days of VIP on us</li>
+              </ul>
             </div>
           )}
           {fromBattle && (
@@ -781,6 +822,7 @@ function WelcomePage() {
         <Footer />
         <AuthModal />
         <GuestWizard />
+        <GuestStudio onSave={openSaveTrackAuth} />
         <BattleModal />
 
         <div className="fixed bottom-4 right-4 z-50">
