@@ -16,7 +16,10 @@ export function RevenueCatBridge({ children }: { children: React.ReactNode }) {
   return (
     <ClientOnly fallback={<>{children}</>}>
       <Suspense fallback={<>{children}</>}>
-        <RevenueCatProvider userId={user?.id}>{children}</RevenueCatProvider>
+        {/* Guest (anonymous) sessions never become RevenueCat customers. */}
+        <RevenueCatProvider userId={user?.is_anonymous ? undefined : user?.id}>
+          {children}
+        </RevenueCatProvider>
       </Suspense>
     </ClientOnly>
   );

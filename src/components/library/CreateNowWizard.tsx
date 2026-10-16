@@ -51,7 +51,10 @@ import {
 } from "@/hooks/use-foul-mouth";
 import { Slider } from "@/components/ui/slider";
 import { useServerFn } from "@tanstack/react-start";
-import { suggestTrackTitle, fallbackTitle as localFallbackTitle } from "@/lib/track-title.functions";
+import {
+  suggestTrackTitle,
+  fallbackTitle as localFallbackTitle,
+} from "@/lib/track-title.functions";
 
 /** Song designed on the welcome page before sign-up, picked up after login. */
 export const GUEST_PENDING_SONG_KEY = "ogbot.guestPendingSong.v1";
@@ -326,17 +329,18 @@ export function CreateNowWizard({
     const typedTitle = title.trim();
     const fallbackTitle = localFallbackTitle(subjectName, description);
     const finalTitle = typedTitle || fallbackTitle;
-    const titlePromise: Promise<string> | undefined = typedTitle || guestMode
-      ? undefined
-      : suggestTitle({
-          data: {
-            subjectName: subjectName.trim(),
-            description: description.trim(),
-            style: styles.filter(Boolean).join(", "),
-          },
-        })
-          .then((res) => (res?.title ?? "").trim() || fallbackTitle)
-          .catch(() => fallbackTitle);
+    const titlePromise: Promise<string> | undefined =
+      typedTitle || guestMode
+        ? undefined
+        : suggestTitle({
+            data: {
+              subjectName: subjectName.trim(),
+              description: description.trim(),
+              style: styles.filter(Boolean).join(", "),
+            },
+          })
+            .then((res) => (res?.title ?? "").trim() || fallbackTitle)
+            .catch(() => fallbackTitle);
 
     onComplete(
       {
@@ -426,7 +430,7 @@ export function CreateNowWizard({
         </div>
         <button
           type="button"
-          aria-label="Longer track (1 extra coin)"
+          aria-label="Longer track"
           disabled={targetMinutes >= MAX_LENGTH}
           onClick={() => setTargetMinutes((m) => Math.min(MAX_LENGTH, m + 1))}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/40 bg-primary/15 text-lg font-bold text-primary transition hover:bg-primary/25 disabled:opacity-40"
@@ -435,7 +439,7 @@ export function CreateNowWizard({
         </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Every length is free to create. Pay only when you download the full track.
+        Same price for every length. Your full track comes unlocked, ready to download.
       </p>
     </div>
   );
@@ -558,8 +562,12 @@ export function CreateNowWizard({
                         onClick={() => {
                           if (locked) {
                             toast(`👑 ${s} is an OG VIP style`, {
-                              description: "Unlock all 50+ styles & moods, plus custom style and language requests.",
-                              action: { label: "Get VIP", onClick: () => void navigateVip({ to: "/buy-coins" }) },
+                              description:
+                                "Unlock all 50+ styles & moods, plus custom style and language requests.",
+                              action: {
+                                label: "Get VIP",
+                                onClick: () => void navigateVip({ to: "/buy-coins" }),
+                              },
                             });
                             return;
                           }
@@ -588,8 +596,13 @@ export function CreateNowWizard({
                         )}
                       >
                         {locked && (
-                          <span aria-label="VIP only" className="mr-1 inline-flex items-end text-xs">
-                            <span className="relative">🔒<span className="absolute -top-2 left-0.5 text-[0.7rem]">👑</span></span>
+                          <span
+                            aria-label="VIP only"
+                            className="mr-1 inline-flex items-end text-xs"
+                          >
+                            <span className="relative">
+                              🔒<span className="absolute -top-2 left-0.5 text-[0.7rem]">👑</span>
+                            </span>
                           </span>
                         )}
                         {s}
@@ -911,7 +924,6 @@ export function CreateNowWizard({
                   )}
                 </div>
 
-
                 {/* Compact track recipe so nothing is a surprise before creating. */}
                 <div className="rounded-xl border border-border bg-background/60 p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -1073,8 +1085,6 @@ export function CreateNowWizard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-
     </Dialog>
   );
 }

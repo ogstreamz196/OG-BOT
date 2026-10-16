@@ -14,6 +14,7 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 - Card-payment return checks (reconcileCoinSession, reconcileTrackUnlock) never pay referral rewards; reconcileCoinSession leaves `store:` sessions to the webhook, which credits store items once under its own reference.
 - Store coin purchases (Sports Guide, Vault pass) always confirm price and balance-after first; the old Telegram Sports Guide invite function stays switched off.
 - Song creation needs ≥5 coins; after 3 unpaid tracks each sample costs 2, charged by start_generation_charge.
+- Guest tracks (website only, src/components/welcome/GuestStudio.tsx + src/lib/guest-track.functions.ts): a silent anonymous session stages a draft with no plan; the 99p card unlock (kind "track_unlock") pays for it; startGuestTrack attaches the plan only once the unlock row exists; claimGuestTracks moves paid tracks into the account after sign-in and drops unpaid drafts. Anonymous sessions get no bootstrap (welcome coins, device slot, roles, referral), no new-member alert, no RevenueCat id, and are kept out of /_authenticated. If anonymous sign-ins are off, guests fall back to signing up first.
 - Diss ambush timing lives in src/lib/diss-ambush.ts (marker in the chat thread); charge/refund in src/lib/diss-track.functions.ts.
 
 ## Native apps

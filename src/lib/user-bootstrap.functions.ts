@@ -19,6 +19,16 @@ export const ensureCurrentUserBootstrap = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<BootstrapResult> => {
     const { userId, claims } = context;
+    // Guest (anonymous) sessions exist only to make one paid track on the
+    // website: no device slot, welcome coins, roles or referral for them.
+    if ((claims as Record<string, unknown>).is_anonymous === true) {
+      return {
+        ensuredProfile: false,
+        ensuredUserRole: false,
+        ensuredBossRole: false,
+        welcomeCoinsGranted: false,
+      };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = typeof claims.email === "string" ? claims.email : "";
     const userMetadata =
