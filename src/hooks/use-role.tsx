@@ -25,14 +25,15 @@ export function useRole() {
         .eq("user_id", user!.id);
       if (error) throw error;
       const roles = (data ?? []).map((r) => r.role as AppRole);
-      const isAdmin = roles.includes("admin");
+      // One Boss level: the older `admin` role and `boss` mean the same thing.
+      const isAdmin = roles.includes("admin") || roles.includes("boss");
       return {
         roles,
         isAdmin,
         isUser: roles.includes("user"),
         hasVipRole: roles.includes("vip"),
         isDev: roles.includes("dev") || isAdmin,
-        isBoss: roles.includes("boss") || isAdmin,
+        isBoss: isAdmin,
       };
     },
   });

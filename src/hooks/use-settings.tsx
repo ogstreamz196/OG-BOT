@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicAppSettings } from "@/lib/public-settings.functions";
 
 export type AppSettings = {
   coins_per_generation: number;
@@ -50,9 +51,16 @@ export function useSettings() {
     queryKey: SETTINGS_QUERY_KEY,
     staleTime: 30_000,
     queryFn: async (): Promise<AppSettings> => {
-      const { data, error } = await supabase.from("app_settings").select("key, value");
+      const [{ data, error }, extra] = await Promise.all([
+        supabase.from("app_settings").select("key, value"),
+        // Prices members can't read directly (see public-settings.functions).
+        getPublicAppSettings().catch(() => null),
+      ]);
       if (error) throw error;
       const map: Record<string, unknown> = {};
+      if (extra?.coins_per_remake != null) map.coins_per_remake = extra.coins_per_remake;
+      if (extra?.coins_per_lyric_video != null)
+        map.coins_per_lyric_video = extra.coins_per_lyric_video;
       for (const row of data ?? []) map[row.key] = row.value;
       const numOrDefault = (v: unknown, d: number) =>
         typeof v === "number"

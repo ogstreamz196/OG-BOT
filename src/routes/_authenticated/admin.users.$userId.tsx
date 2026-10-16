@@ -43,6 +43,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
+import { setBossRole } from "@/lib/admin-roles.functions";
+import { useAuth } from "@/hooks/use-auth";
 import { BossPasswordCard } from "@/components/admin/BossPasswordCard";
 import { BossMergeCard } from "@/components/admin/BossMergeCard";
 import { Switch } from "@/components/ui/switch";
@@ -82,6 +84,9 @@ function UserSettingsPage() {
   const { userId } = Route.useParams();
   const navigate = useNavigate();
   const { isAdmin, isBoss, isLoading } = useRole();
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?.id;
+  const setBossFn = useServerFn(setBossRole);
   const qc = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState("");
   const deleteAccount = useMutation({
@@ -400,23 +405,13 @@ function UserSettingsPage() {
             rpc="set_vip_admin"
             paramKey="make_vip"
             vipExpiry
+            confirm={{ revoke: "Remove VIP from this member now?" }}
           />
 
           <VaultToggleRow
             userId={profile.id}
             checked={vaultQ.data ?? false}
             loading={vaultQ.isLoading}
-          />
-
-          <RoleToggleRow
-            icon={<Bot className="h-5 w-5 text-primary" />}
-            title="OG Bot access"
-            description="Grants automated/bot privileges across the site."
-            checked={roles.includes("og_bot")}
-            userId={profile.id}
-            role="og_bot"
-            rpc="set_og_bot_admin"
-            paramKey="make_og"
           />
 
           <RoleToggleRow
@@ -428,31 +423,29 @@ function UserSettingsPage() {
             role="dev"
             rpc="set_dev_admin"
             paramKey="make_dev"
+            confirm={{
+              grant: "Give this member Dev access? Dev can override any member's coin balance.",
+              revoke: "Remove Dev access from this member?",
+            }}
           />
 
           <RoleToggleRow
             icon={<Flame className="h-5 w-5 text-orange-500" />}
             title="Boss"
-            description="Can burn or reclaim OG coins from any user."
-            checked={roles.includes("boss")}
+            description="Full Boss access: every Boss page, coins, roles and member tools."
+            checked={isAdminUser || roles.includes("boss")}
             userId={profile.id}
             role="boss"
-            rpc="set_boss_admin"
-            paramKey="make_boss"
+            rpc=""
+            paramKey=""
+            onSet={(next) => setBossFn({ data: { userId: profile.id, makeBoss: next } })}
+            disabled={profile.id === currentUserId}
+            disabledHint="That's you. Ask another Boss to change your access."
+            confirm={{
+              grant: "Make this member a Boss? They get full access to every Boss tool.",
+              revoke: "Remove Boss access from this member?",
+            }}
           />
-
-          <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-4 opacity-80">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <div>
-                <Label className="text-sm font-medium">Boss / admin</Label>
-                <p className="text-xs text-muted-foreground">
-                  Provisioned in the database for security.
-                </p>
-              </div>
-            </div>
-            <Switch checked={isAdminUser} disabled />
-          </div>
 
           <div className="flex flex-wrap gap-1.5">
             {roles.length === 0 ? (
@@ -573,9 +566,11 @@ function TelegramDmCard({
   tgUsername: string | null;
 }) {
   const linked = !!chatId;
-  const fallbackToken = userId.replace(/-/g, "").slice(0, 24);
-  const [activeToken, setActiveToken] = useState<string>(fallbackToken);
-  const connectLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${activeToken}`;
+  // Only random single-use tokens (never anything derived from the user id).
+  const [activeToken, setActiveToken] = useState<string>("");
+  const connectLink = activeToken
+    ? `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${activeToken}`
+    : "";
   const [text, setText] = useState("");
   const qc = useQueryClient();
   const sendFn = useServerFn(sendTelegramDm);
@@ -633,6 +628,7 @@ function TelegramDmCard({
 
   const copy = async () => {
     try {
+      if (!connectLink) return toast.error("Create a link first");
       await navigator.clipboard.writeText(connectLink);
       toast.success("Registration link copied");
     } catch {
@@ -724,13 +720,14 @@ function TelegramDmCard({
               ) : (
                 <RotateCw className="mr-2 h-4 w-4" />
               )}
-              Regenerate token
+              {activeToken ? "Regenerate link" : "Create link"}
             </Button>
           </div>
           <div className="mt-1 flex items-center gap-2">
             <Input
               readOnly
               value={connectLink}
+              placeholder="Tap Create link to make a connect link"
               className="font-mono text-xs"
               onFocus={(e) => e.currentTarget.select()}
             />
@@ -746,9 +743,9 @@ function TelegramDmCard({
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            {activeToken.startsWith("t_")
-              ? "Fresh single-use token minted. Share this link — it replaces any previous one."
-              : "Send this to the user — once they tap Start in Telegram, OG Bot can DM them."}
+            {activeToken
+              ? "Fresh single-use link. Share it with the member; it replaces any previous one."
+              : "Create a link, then send it to the member. Once they tap Start in Telegram, OG Bot can DM them."}
           </p>
         </div>
       )}
@@ -904,9 +901,15 @@ interface RoleToggleRowProps {
   checked: boolean;
   userId: string;
   role: string;
-  rpc: "set_vip_admin" | "set_og_bot_admin" | "set_dev_admin" | "set_boss_admin";
-  paramKey: "make_vip" | "make_og" | "make_dev" | "make_boss";
+  rpc: "set_vip_admin" | "set_dev_admin" | "";
+  paramKey: "make_vip" | "make_dev" | "";
   vipExpiry?: boolean;
+  /** Custom save (e.g. the Boss role via a server function) instead of `rpc`. */
+  onSet?: (next: boolean) => Promise<unknown>;
+  /** Ask before granting/removing; omit a side to skip asking for it. */
+  confirm?: { grant?: string; revoke?: string };
+  disabled?: boolean;
+  disabledHint?: string;
 }
 
 function RoleToggleRow({
@@ -919,12 +922,21 @@ function RoleToggleRow({
   rpc,
   paramKey,
   vipExpiry = false,
+  onSet,
+  confirm,
+  disabled = false,
+  disabledHint,
 }: RoleToggleRowProps) {
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [pending, setPending] = useState<boolean | null>(null);
   const expiry = useVipExpiry(userId, vipExpiry && checked);
   const mut = useMutation({
     mutationFn: async (next: boolean) => {
+      if (onSet) {
+        await onSet(next);
+        return next;
+      }
       const args: Record<string, unknown> = {
         target_user_id: userId,
         admin_notes: "settings_page_toggle",
@@ -957,6 +969,9 @@ function RoleToggleRow({
         <div>
           <Label className="text-sm font-medium">{title}</Label>
           <p className="text-xs text-muted-foreground">{description}</p>
+          {disabled && disabledHint ? (
+            <p className="text-xs text-muted-foreground">{disabledHint}</p>
+          ) : null}
           {vipExpiry && checked && (
             <button
               type="button"
@@ -972,11 +987,37 @@ function RoleToggleRow({
         {mut.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         <Switch
           checked={checked}
-          disabled={mut.isPending}
-          onCheckedChange={(v) => (vipExpiry && v ? setDialogOpen(true) : mut.mutate(v))}
+          disabled={mut.isPending || disabled}
+          onCheckedChange={(v) => {
+            if (vipExpiry && v) return setDialogOpen(true);
+            if (confirm && (v ? confirm.grant : confirm.revoke)) return setPending(v);
+            mut.mutate(v);
+          }}
           aria-label={`Toggle ${title}`}
         />
       </div>
+      <AlertDialog open={pending !== null} onOpenChange={(o) => !o && setPending(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pending ? `Grant ${title}?` : `Remove ${title}?`}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pending ? confirm?.grant : confirm?.revoke}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant={pending ? "default" : "destructive"}
+              onClick={() => {
+                if (pending !== null) mut.mutate(pending);
+                setPending(null);
+              }}
+            >
+              {pending ? "Grant" : "Remove"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {vipExpiry && (
         <VipExpiryDialog
           open={dialogOpen}
