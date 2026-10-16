@@ -905,7 +905,7 @@ function BattleModal() {
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl overflow-y-auto border-0 bg-transparent p-0 shadow-none">
+      <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none">
         <DialogTitle className="sr-only">Battle Zone — roast OG Bot</DialogTitle>
         <GuestBattle
           onNeedAccount={() => {

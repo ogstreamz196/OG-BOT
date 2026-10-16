@@ -277,8 +277,9 @@ export function CommunityRoom() {
   const rowVirtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 58,
-    overscan: 8,
+    // Real bubbles are ~90–200px; a close estimate stops jumps while measuring.
+    estimateSize: () => 120,
+    overscan: 10,
     getItemKey: (i) => messages[i]?.id ?? i,
   });
 
