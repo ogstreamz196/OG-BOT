@@ -12,6 +12,7 @@ import { reconcileTrackUnlock } from "@/lib/payments.functions";
 import { downloadFile } from "@/lib/download-file";
 import { shareTrack } from "@/lib/share-track";
 import type { WizardResult } from "@/components/library/CreateNowWizard";
+import { buildTrackPlan } from "@/lib/track-plan";
 import {
   type GuestActiveTrack,
   readGuestActive,
@@ -20,98 +21,12 @@ import {
 } from "./guest-session";
 
 const OPEN_GUEST_STUDIO = "og:open-guest-studio";
-const MIN_TRACK_MINUTES = 3;
 const PRICE_LABEL = "£0.99";
 let returnHandled = false;
 
 /** Guests can cook straight away on the website (the phone apps sign up first). */
 export function guestCreationAvailable() {
   return typeof window !== "undefined" && !Capacitor.isNativePlatform() && arePaymentsEnabled();
-}
-
-/** Same song plan the members' studio stages (see createSong in the library). */
-function buildPlan(v: WizardResult) {
-  const title = v.title.trim();
-  const subject = v.subjectName.trim();
-  const style = v.style.trim();
-  const language = (v.language || "English").trim();
-  const details = v.description.trim();
-  const vocal = (v.vocal || "Mix voice").trim();
-  const vocalsOnly = !!v.vocalsOnly;
-  const beatPath = (v.beatPath || "").trim();
-  const intensity = Math.max(0, Math.min(3, Math.round(v.foulIntensity || 0)));
-  const foulMouth = v.foulMouth && intensity > 0;
-  const targetSec = Math.max(MIN_TRACK_MINUTES, v.targetMinutes || MIN_TRACK_MINUTES) * 60;
-  const vocalsOnlyTags = vocalsOnly
-    ? beatPath
-      ? ["vocals only", "a cappella over the uploaded beat", "no added instruments"]
-      : [
-          "a cappella",
-          "vocals only",
-          "unaccompanied voice",
-          "humming and vocal harmonies only",
-          "no instruments",
-          "no drums",
-          "no percussion",
-          "no bass",
-          "no synths",
-        ]
-    : [];
-  const styleTags = style
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .concat(vocalsOnlyTags);
-  const earlyStyle = [style, vocal, ...vocalsOnlyTags].filter(Boolean).join(", ");
-  const prompt =
-    ([
-      title,
-      subject ? `For: ${subject}` : null,
-      earlyStyle ? `Style: ${earlyStyle}` : null,
-      language ? `Language: ${language}` : null,
-    ]
-      .filter(Boolean)
-      .join(" — ") ||
-      title ||
-      "Untitled") + (details ? `\n— Idea: ${details}` : "");
-  return {
-    row: {
-      title: title || null,
-      prompt,
-      style: earlyStyle || null,
-      vocals_only: vocalsOnly,
-      beat_path: beatPath || null,
-      target_duration_sec: targetSec,
-      is_public: v.isPublic ?? true,
-      foul_mouth: foulMouth,
-      foul_intensity: intensity,
-    },
-    plan: {
-      lyrics: {
-        songName: title,
-        description: style,
-        styleTags,
-        language,
-        vocal,
-        foulMouth,
-        foulIntensity: intensity,
-        personalDetails: details || undefined,
-        subjectName: subject || undefined,
-        targetDurationSec: targetSec,
-        vocalsOnly,
-      } as Record<string, unknown>,
-      suno: {
-        prompt,
-        title: title || null,
-        style: style || null,
-        language: language || null,
-        vocal: vocal || null,
-        vocals_only: vocalsOnly,
-        beat_path: beatPath || null,
-        target_duration_sec: targetSec,
-      } as Record<string, unknown>,
-    },
-  };
 }
 
 /**
@@ -131,7 +46,7 @@ export async function startGuestCreation(result: WizardResult): Promise<boolean>
       data = { session: anon.session };
     }
     saveGuestSession(data.session);
-    const { row, plan } = buildPlan(result);
+    const { row, plan } = buildTrackPlan(result);
     const { data: staged, error: stageErr } = await supabase
       .from("songs")
       .insert({ ...row, user_id: data.session!.user.id, status: "draft" } as never)
@@ -399,7 +314,7 @@ export function GuestStudio({ onSave }: { onSave: (title: string) => void }) {
   );
 }
 
-async function startGuestTrackSafely(track: GuestActiveTrack) {
+export async function startGuestTrackSafely(track: Pick<GuestActiveTrack, "songId" | "plan">) {
   // The ledger row can land a moment after Stripe says "paid": retry briefly.
   for (let i = 0; i < 5; i++) {
     const call = startGuestTrack({ data: { songId: track.songId, plan: track.plan } });

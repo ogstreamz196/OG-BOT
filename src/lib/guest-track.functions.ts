@@ -4,7 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 
 /**
- * Guest track creation (website only).
+ * Pay-by-card track creation (website only): guests, and members who pick
+ * the 99p option instead of coins.
  *
  * A visitor who presses "Cook Master Track" gets a silent anonymous session.
  * Their draft song belongs to that guest account, they pay the existing 99p
@@ -28,9 +29,6 @@ export const createGuestTrackCheckout = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<{ clientSecret: string } | { error: string }> => {
-    if (!isAnonymous(context.claims as Record<string, unknown>)) {
-      return { error: "Guest checkout is only for guests." };
-    }
     const { data: song } = await context.supabase
       .from("songs")
       .select("id, title, status, user_id")
@@ -92,9 +90,6 @@ export const startGuestTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ songId: z.string().uuid(), plan: planSchema }).parse(d))
   .handler(async ({ data, context }) => {
-    if (!isAnonymous(context.claims as Record<string, unknown>)) {
-      return { ok: false as const, reason: "not_guest" };
-    }
     if (JSON.stringify(data.plan).length > 30_000) return { ok: false as const, reason: "too_big" };
 
     const { data: song } = await context.supabase
