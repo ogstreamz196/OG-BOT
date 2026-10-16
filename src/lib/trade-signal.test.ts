@@ -189,8 +189,8 @@ describe("buildPlan", () => {
 describe("validityWindow", () => {
   it("is short for scalps, a session for intraday and days for swings", () => {
     const now = Date.UTC(2026, 9, 16, 12, 0);
-    expect(validityWindow("scalp", now).until.toISOString()).toBe("2026-10-16T14:00:00.000Z");
-    expect(validityWindow("intraday", now).hours).toBe(8);
-    expect(validityWindow("swing", now).hours).toBe(72);
+    expect(validityWindow("scalp", now).until.toISOString()).toBe("2026-10-16T13:00:00.000Z");
+    expect(validityWindow("intraday", now).hours).toBe(4);
+    expect(validityWindow("swing", now).hours).toBe(24);
   });
 });

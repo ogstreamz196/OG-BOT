@@ -671,7 +671,9 @@ async function runChatAI(
       dossier,
     }) +
     catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth))) +
-    (tradeBlock ? `\n\n${tradeBlock}` : "");
+    (tradeBlock
+      ? `\n\n${tradeBlock}\n\nOn Telegram this reply self-destructs at the valid-until time. Say so in a few words on the valid-until line.`
+      : "");
 
   const history = ((historyRes.data ?? []) as { role: string; content: string }[])
     .reverse()
@@ -727,13 +729,13 @@ async function runChatAI(
       replyText = ensureFoulFlavour(replyText);
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
-    // Trade signals: plain text for Telegram, and keep the message up for as
-    // long as the signal is valid.
+    // Trade signals: plain text for Telegram, and the reply self-destructs
+    // when the signal expires.
     let replyTtlMs = DEFAULT_TTL_MS;
     if (tradeBlock) {
       const ts = await import("@/lib/trade-signal-context.server");
       replyText = ts.plainForTelegram(replyText);
-      replyTtlMs = ts.tradeReplyTtlMs(userText, DEFAULT_TTL_MS);
+      replyTtlMs = ts.tradeReplyTtlMs(userText);
     }
 
     await admin.from("og_messages").insert({

@@ -306,14 +306,17 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
   return value;
 }
 
+/** How often the Telegram clean-up job runs (sports-guide-reminders cron). */
+const SWEEP_MS = 5 * 60_000;
+
 /**
- * How long a Telegram signal reply should stay before auto-delete: at least
- * the usual chat lifetime, and never shorter than the signal's own validity
- * plus a day, so a swing signal doesn't vanish while it's still live.
+ * When a Telegram signal reply should self-destruct: as the signal expires.
+ * The clean-up job runs every 5 minutes, so the delete is scheduled one sweep
+ * early to make sure the message is gone by the valid-until time.
  */
-export function tradeReplyTtlMs(userText: string, defaultTtlMs: number): number {
-  const hours = validityWindow(detectStyle(userText)).hours + 24;
-  return Math.max(defaultTtlMs, hours * 3600_000);
+export function tradeReplyTtlMs(userText: string): number {
+  const ms = validityWindow(detectStyle(userText)).hours * 3600_000;
+  return Math.max(SWEEP_MS, ms - SWEEP_MS);
 }
 
 /** Telegram chat replies go out as plain text, so drop markdown emphasis. */

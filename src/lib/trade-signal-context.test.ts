@@ -88,7 +88,7 @@ describe("buildTradeSignalContext", () => {
     expect(out).toMatch(/Stop loss: \d/);
     expect(out).toMatch(/TP1: \d.*TP2: \d.*TP3: \d/);
     expect(out).toMatch(/Confidence: \d{2}% \((Low|Medium|High)\)/);
-    expect(out).toMatch(/Valid until: .+ UK time \(intraday signal, good for 8 hours\)/);
+    expect(out).toMatch(/Valid until: .+ UK time \(intraday signal, good for 4 hours\)/);
   });
 
   it("falls back to Kraken when Binance is blocked", async () => {
@@ -153,11 +153,12 @@ describe("buildTradeSignalContext", () => {
 });
 
 describe("Telegram delivery", () => {
-  const H47 = 47 * 3600_000;
-  it("keeps swing signals up past their 3-day validity", () => {
-    expect(tradeReplyTtlMs("btc swing", H47)).toBe(96 * 3600_000);
-    expect(tradeReplyTtlMs("gold scalp", H47)).toBe(H47);
-    expect(tradeReplyTtlMs("eurusd signal", H47)).toBe(H47);
+  it("self-destructs one clean-up sweep before the signal expires", () => {
+    const H = 3600_000;
+    const SWEEP = 5 * 60_000;
+    expect(tradeReplyTtlMs("gold scalp")).toBe(1 * H - SWEEP);
+    expect(tradeReplyTtlMs("eurusd signal")).toBe(4 * H - SWEEP);
+    expect(tradeReplyTtlMs("btc swing")).toBe(24 * H - SWEEP);
   });
 
   it("strips markdown emphasis that Telegram would show as asterisks", () => {

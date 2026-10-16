@@ -488,12 +488,12 @@ export function buildPlan(
 }
 
 /**
- * How long a signal stays usable before the market has likely moved on:
- * a couple of hours for scalps, the trading session for intraday, a few days
- * for swings. After this the user should ask again for a fresh read.
+ * How long a signal stays usable before the market has likely moved on.
+ * Kept deliberately short (1h scalp, 4h intraday, 24h swing) so nobody
+ * trades a stale read. After this the user should ask again for a fresh read.
  */
 export function validityWindow(style: Style, now = Date.now()): { hours: number; until: Date } {
-  const hours = style === "scalp" ? 2 : style === "swing" ? 72 : 8;
+  const hours = style === "scalp" ? 1 : style === "swing" ? 24 : 4;
   return { hours, until: new Date(now + hours * 3600_000) };
 }
 
