@@ -235,6 +235,7 @@ function frameLine(f: FrameRead, fmt: (n: number) => string): string {
 }
 
 const HOW_TO_ANSWER = `TRADE SIGNAL MODE — the user wants a trade call. Rules:
+- The user has already had an instant "hold on, checking the charts" message. Don't repeat that; open straight with the signal card.
 - Use ONLY the prices, levels, confidence and times in the LIVE MARKET DATA block. Copy them exactly; never invent, round differently or "adjust" a price, stop, target, percentage or time.
 - Always give the most likely direction. Lay it out as a clean signal card first (plain lines, no tables, no markdown headers):
   📊 PAIR — BUY or SELL

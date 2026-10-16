@@ -10,6 +10,8 @@ import {
   readFrame,
   rsi,
   validityWindow,
+  holdingMessage,
+  isHoldingMessage,
   type Candle,
 } from "./trade-signal";
 
@@ -192,5 +194,26 @@ describe("validityWindow", () => {
     expect(validityWindow("scalp", now).until.toISOString()).toBe("2026-10-16T13:00:00.000Z");
     expect(validityWindow("intraday", now).hours).toBe(4);
     expect(validityWindow("swing", now).hours).toBe(24);
+  });
+});
+
+describe("holdingMessage", () => {
+  const gold = parseInstrument("gold")!;
+  it("names the market and is tagged so history can skip it", () => {
+    for (const tone of ["foul", "cheeky", "safe"] as const) {
+      const msg = holdingMessage(gold, tone, () => 0);
+      expect(msg).toContain("XAU/USD (Gold)");
+      expect(msg).toMatch(/next message/i);
+      expect(isHoldingMessage(msg)).toBe(true);
+    }
+    expect(isHoldingMessage("normal reply")).toBe(false);
+  });
+
+  it("keeps the clean tone clean", () => {
+    for (let i = 0; i < 10; i++) {
+      expect(holdingMessage(gold, "safe", () => i / 10)).not.toMatch(
+        /fuck|shit|bastard|bellend|sod/i,
+      );
+    }
   });
 });
