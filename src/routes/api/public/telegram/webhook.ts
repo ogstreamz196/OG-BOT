@@ -586,9 +586,16 @@ async function runChatAI(
             .maybeSingle();
           foul = data?.foul_mouth ?? true;
         }
+        const { pickTradeHold } = await import("@/lib/trade-hold.server");
+        const line = await pickTradeHold(
+          admin as never,
+          profileId,
+          market,
+          foul ? "foul" : "cheeky",
+        );
         const res = await tg("sendMessage", {
           chat_id,
-          text: ts.holdingMessage(market, foul ? "foul" : "cheeky"),
+          text: line,
           disable_web_page_preview: true,
         });
         const { tradeReplyTtlMs } = await import("@/lib/trade-signal-context.server");
