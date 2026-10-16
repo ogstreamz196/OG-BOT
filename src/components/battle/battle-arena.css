@@ -200,6 +200,10 @@
   border: 1px solid color-mix(in oklab, var(--ar-cyan) 25%, transparent);
   background: color-mix(in oklab, var(--ar-ink) 80%, transparent);
   padding: 0.55rem 0.7rem;
+  flex-shrink: 0;
+  max-height: 32dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .ar-panel--roast {
   border-color: color-mix(in oklab, var(--ar-gold) 40%, transparent);
