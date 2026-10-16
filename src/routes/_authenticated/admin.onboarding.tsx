@@ -179,10 +179,10 @@ export function OnboardingWizard() {
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="flex items-center gap-2 text-2xl font-semibold">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <ShieldCheck className="h-6 w-6 text-primary" />
                 Connector onboarding
-              </h1>
+              </h2>
               <Badge
                 variant="outline"
                 className={cn("gap-1.5 px-2.5 py-0.5 text-xs font-semibold", statusTone)}

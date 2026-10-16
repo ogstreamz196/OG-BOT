@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bell, HeartPulse, Send, Sparkles } from "lucide-react";
+import { Bell, HeartPulse, Radio, Send, Sparkles } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -9,6 +9,7 @@ import { OgBotPing } from "@/components/admin/OgBotPing";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
 import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
 import { OgPersonaPanel } from "./admin.og-persona";
+import { LiveUsersPanel } from "./developer";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
@@ -53,6 +54,13 @@ const TABS: readonly BossTab[] = [
     Icon: Bell,
     hint: "Which events OG Bot sends to your Telegram.",
     Panel: BossNotificationsPanel,
+  },
+  {
+    value: "live",
+    label: "Live users",
+    Icon: Radio,
+    hint: "Who is online right now. Pick someone to speak to them as OG Bot.",
+    Panel: LiveUsersPanel,
   },
 ];
 

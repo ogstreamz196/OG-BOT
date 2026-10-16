@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   Search,
-  ArrowLeft,
   Users as UsersIcon,
   UserCog,
   Crown,
@@ -165,7 +164,7 @@ function AdminUsersPage() {
 
   if (roleLoading) {
     return (
-      <DashboardShell title="Users">
+      <DashboardShell title="Members">
         <div className="grid place-items-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -186,26 +185,12 @@ function AdminUsersPage() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <DashboardShell title="Users">
+      <DashboardShell title="Members">
         <div className="boss-ui mx-auto max-w-7xl space-y-5">
           <BossNav />
           <VipAcknowledgements />
-          {/* Header */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-xl">User Management</h2>
-              <p className="text-xs text-muted-foreground">
-                Members, balances, roles and audits in one place.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <AdminEditModeToggle />
-              <Link to="/admin">
-                <Button variant="outline" size="sm">
-                  <ArrowLeft className="mr-1.5 h-4 w-4" /> Boss home
-                </Button>
-              </Link>
-            </div>
+          <div className="flex justify-end">
+            <AdminEditModeToggle />
           </div>
 
           {/* Stats */}

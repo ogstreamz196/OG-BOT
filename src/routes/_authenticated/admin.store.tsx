@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,8 +14,6 @@ import {
   Eye,
 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { BossNav } from "@/components/admin/BossNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +54,11 @@ import {
 } from "@/lib/store.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/store")({
-  component: AdminStorePage,
+  // The store editor now lives in Money.
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/coins", search: { tab: "store" } });
+  },
+  component: () => null,
 });
 
 type FormState = {
@@ -96,8 +98,9 @@ const EMPTY: FormState = {
   active: true,
 };
 
-function AdminStorePage() {
-  const { isAdmin, isLoading } = useRole();
+/** Store editor: categories, items, prices and stock. Shown in Boss → Money. */
+export function StoreAdminPanel() {
+  const { isAdmin } = useRole();
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [catDialog, setCatDialog] = useState(false);
@@ -201,16 +204,13 @@ function AdminStorePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading) {
+  if (query.isLoading) {
     return (
-      <DashboardShell title="Store admin">
-        <div className="grid place-items-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardShell>
+      <div className="grid place-items-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
-  if (!isAdmin) return <Navigate to="/" />;
 
   const categories: StoreCategory[] = query.data?.categories ?? [];
   const items: StoreItem[] = query.data?.items ?? [];
@@ -260,9 +260,8 @@ function AdminStorePage() {
   }
 
   return (
-    <DashboardShell title="Store admin">
-      <div className="boss-ui mx-auto w-full min-w-0 max-w-5xl space-y-6">
-        <BossNav />
+    <>
+      <div className="w-full min-w-0 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-xl text-sm text-muted-foreground">
             Add items across coins, subscriptions and random loot. Each item is checkout-ready.
@@ -684,6 +683,6 @@ function AdminStorePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardShell>
+    </>
   );
 }

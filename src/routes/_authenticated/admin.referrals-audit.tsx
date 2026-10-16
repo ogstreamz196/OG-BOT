@@ -1,15 +1,7 @@
-import { createFileRoute, Link, Navigate, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Copy,
-  Scale,
-  Search,
-  ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Scale, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -19,7 +11,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/referrals-audit")({
   beforeLoad: () => {
-    throw redirect({ to: "/admin/audit" });
+    throw redirect({ to: "/admin/coins", search: { tab: "referrals" } });
   },
   component: () => null,
 });
@@ -127,17 +119,6 @@ export function ReferralsAuditPage() {
   return (
     <DashboardShell title="Referral audit">
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-2">
-          <Link to="/admin">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Button>
-          </Link>
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-widest text-primary">
-            <ShieldCheck className="h-3 w-3" /> Admin only
-          </span>
-        </div>
-
         <section className="rounded-2xl border border-white/10 bg-card/60 p-4">
           <form
             className="flex flex-col gap-2 sm:flex-row"
@@ -264,7 +245,9 @@ export function ReferralsAuditPage() {
 
         <section className="rounded-2xl border border-white/10 bg-card/60">
           <div className="flex items-center justify-between border-b border-white/5 p-4">
-            <h2 className="font-display text-lg font-bold">Top OG Leaders · total payouts (6% free · 13% VIP)</h2>
+            <h2 className="font-display text-lg font-bold">
+              Top OG Leaders · total payouts (6% free · 13% VIP)
+            </h2>
             <span className="text-xs text-muted-foreground">
               {leaderboard.length} leaders · {totalPaid} OG paid total
             </span>
@@ -419,14 +402,14 @@ export function ReferralsAuditPage() {
                     </td>
                   </tr>
                 )}
-                {!reconQ.isLoading && (reconQ.data?.rows.length ?? 0) === 0 && (
+                {!reconQ.isLoading && (reconQ.data?.rows?.length ?? 0) === 0 && (
                   <tr>
                     <td colSpan={7} className="p-6 text-center text-muted-foreground">
                       No referral activity yet
                     </td>
                   </tr>
                 )}
-                {reconQ.data?.rows.map((r) => {
+                {reconQ.data?.rows?.map((r) => {
                   const ok = r.delta === 0;
                   return (
                     <tr

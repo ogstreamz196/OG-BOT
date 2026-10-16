@@ -1,21 +1,22 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { Send, Circle, Radio, ShieldAlert, Loader2 } from "lucide-react";
+import { Send, Circle, ShieldAlert, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useRole } from "@/hooks/use-role";
 import { useOnlineUsers, type OnlineUser } from "@/hooks/use-presence";
 import { maskDevIdentity } from "@/lib/dev-identity";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { BossNav } from "@/components/admin/BossNav";
-import { FreeAccessPanel } from "@/components/admin/FreeAccessPanel";
 
 export const Route = createFileRoute("/_authenticated/developer")({
-  component: DeveloperPage,
+  // Live users now sits in Boss → OG Bot.
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/bot", search: { tab: "live" } });
+  },
+  component: () => null,
 });
 
 type OutboundLog = {
@@ -25,8 +26,8 @@ type OutboundLog = {
   at: string;
 };
 
-function DeveloperPage() {
-  const { isDev, isLoading } = useRole();
+/** Who is online right now, and a way to speak to them as OG Bot. */
+export function LiveUsersPanel() {
   const { user } = useAuth();
   const online = useOnlineUsers();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -69,27 +70,8 @@ function DeveloperPage() {
     },
   });
 
-  if (isLoading) return <div className="p-8 text-muted-foreground">Loading…</div>;
-  if (!isDev) {
-    throw redirect({ to: "/" });
-  }
-
   return (
-    <div className="px-4 py-6 md:px-8">
-      <BossNav />
-      <FreeAccessPanel />
-      <header className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <Radio className="h-6 w-6 shrink-0 text-primary" />
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-bold sm:text-2xl">Live users</h1>
-            <p className="truncate text-xs text-muted-foreground sm:text-sm">
-              Realtime presence — speak through OG Bot in their widget.
-            </p>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-w-0">
       <div className="grid gap-4 md:grid-cols-[320px,1fr]">
         <aside className="glass-panel rounded-2xl border border-border p-3">
           <div className="mb-2 flex items-center justify-between px-1 text-xs uppercase tracking-wider text-muted-foreground">
