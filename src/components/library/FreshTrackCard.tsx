@@ -7,6 +7,7 @@ import { Download, Loader2, Lock, Pause, Play, Share2, Sparkles } from "lucide-r
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requestFullTrackPlay } from "@/lib/full-track-autoplay";
+import { claimAudio } from "@/lib/audio-focus";
 import { downloadFile } from "@/lib/download-file";
 import { shareTrack } from "@/lib/share-track";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,10 @@ export function FreshTrackCard({
   const title = song.title || "Your track";
   // Never offer a download until the finished master exists.
   const fullReady = song.status === "completed" && !!song.audio_path;
-  const cap = Math.max(5, sampleSeconds);
+  // Paid tracks (upfront coins or card) play the full master, uncapped.
+  const playFull = unlocked && fullReady;
+  const [duration, setDuration] = useState(0);
+  const cap = playFull ? duration || Infinity : Math.max(5, sampleSeconds);
 
   // Fetch the preview URL and start playing straight away.
   useEffect(() => {
@@ -88,7 +92,7 @@ export function FreshTrackCard({
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("song-url", {
-          body: { song_id: song.id, mode: "preview" },
+          body: { song_id: song.id, mode: playFull ? "full" : "preview" },
         });
         if (error) throw error;
         if (cancelled) return;
@@ -97,6 +101,7 @@ export function FreshTrackCard({
         el.src = data.url as string;
         el.load();
         try {
+          claimAudio(el);
           await el.play();
           setPlaying(true);
         } catch {
@@ -112,7 +117,7 @@ export function FreshTrackCard({
       cancelled = true;
       audioRef.current?.pause();
     };
-  }, [song.id]);
+  }, [song.id, playFull]);
 
   // Keep the preview capped to the configured sample length.
   useEffect(() => {
@@ -120,7 +125,7 @@ export function FreshTrackCard({
     if (!el) return;
     const onTime = () => {
       setProgress(el.currentTime);
-      if (el.currentTime >= cap) {
+      if (!playFull && el.currentTime >= cap) {
         el.pause();
         el.currentTime = 0;
         setPlaying(false);
@@ -137,6 +142,7 @@ export function FreshTrackCard({
       el.pause();
       setPlaying(false);
     } else {
+      claimAudio(el);
       await el.play().catch(() => {});
       setPlaying(true);
     }
@@ -153,7 +159,9 @@ export function FreshTrackCard({
       await qc.invalidateQueries({ queryKey: ["profile"] });
       await qc.invalidateQueries({ queryKey: ["library"] });
       if (!unlockData?.already) {
-        toast.success(`Full track unlocked + Take 2 free · -${unlockData?.cost ?? unlockCost} coins`);
+        toast.success(
+          `Full track unlocked + Take 2 free · -${unlockData?.cost ?? unlockCost} coins`,
+        );
       }
       const { data, error } = await supabase.functions.invoke("song-url", {
         body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
@@ -186,7 +194,7 @@ export function FreshTrackCard({
     }
   }
 
-  const pct = Math.min(100, (progress / cap) * 100);
+  const pct = Number.isFinite(cap) && cap > 0 ? Math.min(100, (progress / cap) * 100) : 0;
 
   return (
     <section
@@ -242,7 +250,11 @@ export function FreshTrackCard({
               {title}
             </h3>
             <p className="mt-0.5 truncate text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300/90">
-              {unlocked ? "Full version unlocked" : `${sampleSeconds}s free preview`}
+              {playFull
+                ? "Full Master Ready"
+                : unlocked
+                  ? "Master finishing…"
+                  : `${sampleSeconds}s free preview`}
             </p>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
               <div
@@ -251,7 +263,7 @@ export function FreshTrackCard({
               />
             </div>
             <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-              {fmt(progress)} / {fmt(cap)}
+              {fmt(progress)} / {Number.isFinite(cap) ? fmt(cap) : "--:--"}
             </p>
           </div>
         </div>
@@ -310,6 +322,7 @@ export function FreshTrackCard({
         onEnded={() => setPlaying(false)}
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
         className="hidden"
       />
 
