@@ -1,10 +1,9 @@
 import { createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Loader2,
-  ShieldCheck,
   ArrowLeft,
   Crown,
   Coins,
@@ -14,7 +13,6 @@ import {
   Mail,
   Calendar,
   Fingerprint,
-  Bot,
   Send,
   Copy,
   MessageCircle,
@@ -40,9 +38,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
+import { DeleteAccountDialog } from "@/components/admin/DeleteAccountDialog";
+import { MemberActivityCard } from "@/components/admin/MemberActivityCard";
 import { setBossRole } from "@/lib/admin-roles.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { BossPasswordCard } from "@/components/admin/BossPasswordCard";
@@ -65,8 +63,14 @@ import { Wrench, Flame } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/users/$userId")({
-  component: UserSettingsPage,
+  component: UserSettingsRoute,
 });
+
+/** Keyed by member so moving between members never carries form state over. */
+function UserSettingsRoute() {
+  const { userId } = Route.useParams();
+  return <UserSettingsPage key={userId} />;
+}
 
 const TELEGRAM_BOT_USERNAME = "OGStreamzBot";
 
@@ -78,6 +82,7 @@ interface ProfileRow {
   created_at: string;
   telegram_chat_id: number | null;
   telegram_username: string | null;
+  og_vip_id: string | null;
 }
 
 function UserSettingsPage() {
@@ -88,16 +93,6 @@ function UserSettingsPage() {
   const currentUserId = currentUser?.id;
   const setBossFn = useServerFn(setBossRole);
   const qc = useQueryClient();
-  const [confirmDelete, setConfirmDelete] = useState("");
-  const deleteAccount = useMutation({
-    mutationFn: () => deleteUserAccount({ data: { userId } }),
-    onSuccess: () => {
-      toast.success("Account deleted");
-      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
-      navigate({ to: "/admin/users", replace: true });
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
 
   const profileQ = useQuery({
     queryKey: ["admin-user-profile", userId],
@@ -106,7 +101,7 @@ function UserSettingsPage() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "id, email, display_name, coin_balance, created_at, telegram_chat_id, telegram_username",
+          "id, email, display_name, coin_balance, created_at, telegram_chat_id, telegram_username, og_vip_id",
         )
         .eq("id", userId)
         .maybeSingle();
@@ -144,18 +139,22 @@ function UserSettingsPage() {
   const [balanceDirty, setBalanceDirty] = useState(false);
   const [adjust, setAdjust] = useState<string>("");
 
-  // Hydrate inputs when profile loads
-  if (profileQ.data && !labelDirty && label === "") {
-    if (profileQ.data.display_name) setLabel(profileQ.data.display_name);
-  }
-  if (profileQ.data && !balanceDirty && balance === "") {
-    setBalance(String(profileQ.data.coin_balance ?? 0));
-  }
+  // Keep untouched inputs in step with the saved profile (after saves, coin
+  // adjustments or a refetch); anything being edited is left alone.
+  const savedName = profileQ.data?.display_name ?? "";
+  const savedBalance = profileQ.data?.coin_balance;
+  useEffect(() => {
+    if (!labelDirty) setLabel(savedName);
+  }, [savedName, labelDirty]);
+  useEffect(() => {
+    if (!balanceDirty && savedBalance != null) setBalance(String(savedBalance));
+  }, [savedBalance, balanceDirty]);
 
   const saveLabel = useMutation({
     mutationFn: async () => {
       const trimmed = label.trim();
       if (!trimmed) throw new Error("Display name required");
+      if (trimmed === savedName) return savedName;
       const { data, error } = await supabase.rpc("admin_update_profile_label", {
         target_user_id: userId,
         new_display_name: trimmed,
@@ -189,6 +188,7 @@ function UserSettingsPage() {
       toast.success("Balance set");
       setBalanceDirty(false);
       qc.invalidateQueries({ queryKey: ["admin-user-profile", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-member-activity", userId] });
       qc.invalidateQueries({ queryKey: ["admin-users-list"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -210,6 +210,7 @@ function UserSettingsPage() {
       toast.success(`${delta > 0 ? "+" : ""}${delta} coins · new balance ${newBalance}`);
       setAdjust("");
       qc.invalidateQueries({ queryKey: ["admin-user-profile", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-member-activity", userId] });
       qc.invalidateQueries({ queryKey: ["admin-users-list"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -260,7 +261,12 @@ function UserSettingsPage() {
             <h2 className="truncate font-semibold">
               {profile.display_name ?? profile.email ?? "Unnamed user"}
             </h2>
-            <p className="truncate text-xs text-muted-foreground">{profile.email}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {profile.email}
+              {profile.og_vip_id ? (
+                <span className="ml-2 font-mono text-amber-300">{profile.og_vip_id}</span>
+              ) : null}
+            </p>
           </div>
           <Link to="/admin/users">
             <Button variant="outline" size="sm">
@@ -287,59 +293,6 @@ function UserSettingsPage() {
             value={new Date(profile.created_at).toLocaleDateString()}
           />
         </section>
-
-        {isBoss && !roles.some((role) => ["admin", "boss", "dev"].includes(role)) && (
-          <section className="border-t border-destructive/40 pt-6">
-            <h3 className="font-semibold text-destructive">Delete account</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Permanently removes this account and its linked records. This cannot be undone.
-            </p>
-            <AlertDialog
-              onOpenChange={(open) => {
-                if (!open) setConfirmDelete("");
-              }}
-            >
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="mt-4 gap-2">
-                  <Trash2 className="h-4 w-4" /> Delete account
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Delete {profile.display_name ?? profile.email ?? "this account"}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    All linked account data will be permanently removed. Type DELETE to confirm.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <Label htmlFor="confirm-delete-account">Confirmation</Label>
-                <Input
-                  id="confirm-delete-account"
-                  value={confirmDelete}
-                  onChange={(event) => setConfirmDelete(event.target.value)}
-                  placeholder="DELETE"
-                  autoComplete="off"
-                />
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    disabled={confirmDelete !== "DELETE" || deleteAccount.isPending}
-                    onClick={() => deleteAccount.mutate()}
-                  >
-                    {deleteAccount.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Permanently delete
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </section>
-        )}
 
         {/* Identity */}
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
@@ -391,7 +344,7 @@ function UserSettingsPage() {
           <header>
             <h3 className="font-semibold">Roles & access</h3>
             <p className="text-sm text-muted-foreground">
-              Grant VIP perks, OG Bot access, and review role assignments.
+              VIP, Vault, Dev and Boss access. Every change asks first and is logged.
             </p>
           </header>
 
@@ -538,6 +491,8 @@ function UserSettingsPage() {
           </div>
         </section>
 
+        <MemberActivityCard userId={profile.id} />
+
         {/* Direct message via OG Bot */}
         <TelegramDmCard
           userId={profile.id}
@@ -551,6 +506,26 @@ function UserSettingsPage() {
         <UserAuditTrail userId={profile.id} email={profile.email} />
 
         {isBoss && <TelegramSignInLog userId={profile.id} />}
+
+        {isBoss && !roles.some((role) => ["admin", "boss", "dev"].includes(role)) && (
+          <section className="space-y-3 rounded-2xl border border-destructive/50 bg-card p-6 shadow-card">
+            <header>
+              <h3 className="font-semibold text-destructive">Danger zone</h3>
+              <p className="text-sm text-muted-foreground">
+                Deleting removes this account and its linked records for good.
+              </p>
+            </header>
+            <DeleteAccountDialog
+              userId={profile.id}
+              name={profile.display_name ?? profile.email ?? "this account"}
+              onDeleted={() => navigate({ to: "/admin/users", replace: true })}
+            >
+              <Button variant="destructive" className="gap-2">
+                <Trash2 className="h-4 w-4" /> Delete account
+              </Button>
+            </DeleteAccountDialog>
+          </section>
+        )}
       </div>
     </DashboardShell>
   );
@@ -857,6 +832,7 @@ function VaultToggleRow({
     onSuccess: (next) => {
       toast.success(`Vault access ${next ? "granted" : "revoked"}`);
       qc.invalidateQueries({ queryKey: ["admin-user-vault", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
       qc.invalidateQueries({ queryKey: ["admin-user-audit", userId] });
     },
     onError: (e: Error) => {

@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
-  ShieldCheck,
   Search,
   ArrowLeft,
   Users as UsersIcon,
@@ -12,7 +11,6 @@ import {
   Crown,
   Coins,
   Settings as SettingsIcon,
-  Bot,
   Plus,
   Minus,
   Pencil,
@@ -25,12 +23,11 @@ import {
   Trash2,
   KeyRound,
 } from "lucide-react";
-import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
-import { ConfirmAction } from "@/components/admin/ConfirmAction";
+import { DeleteAccountDialog } from "@/components/admin/DeleteAccountDialog";
 import { BossPasswordInline } from "@/components/admin/BossPasswordCard";
 import { VipExpiryDialog, useVipExpiry, formatVipExpiry } from "@/components/admin/VipExpiryDialog";
-import { listUsersPro } from "@/lib/sign-in-tracking.functions";
-import { getAllCoinPurchases, type AdminPurchaseTotals } from "@/lib/payments.functions";
+import { listBossMembers, type BossMember } from "@/lib/admin-members.functions";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { maskDevIdentity } from "@/lib/dev-identity";
@@ -53,7 +50,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -81,126 +77,91 @@ function AdminUsersRoute() {
   return childMatches.length > 0 ? <Outlet /> : <AdminUsersPage />;
 }
 
-interface ProfileRow {
-  id: string;
-  email: string | null;
-  display_name: string | null;
-  coin_balance: number;
-  created_at: string;
-}
+type ProfileRow = BossMember;
 
-interface RoleRow {
-  user_id: string;
-  role: string;
-}
+type MemberFilter = "all" | "boss" | "vip" | "trial" | "vault" | "dev" | "telegram" | "member";
+type SortKey = "joined" | "seen" | "balance" | "name" | "spend" | "buys";
 
-type ProUserRow = Awaited<ReturnType<typeof listUsersPro>>[number];
+const PAGE_SIZE = 25;
 
-type RoleFilter = "all" | "admin" | "vip" | "telegram" | "og_bot" | "user";
-type SortKey = "joined" | "balance" | "name" | "spend" | "buys";
+const hasBoss = (roles: string[]) => roles.includes("admin") || roles.includes("boss");
+const onTrial = (m: ProfileRow) =>
+  !m.roles.includes("vip") &&
+  !!m.vip_trial_ends_at &&
+  new Date(m.vip_trial_ends_at).getTime() > Date.now();
+
+const FILTERS: { key: MemberFilter; label: string; test: (m: ProfileRow) => boolean }[] = [
+  { key: "all", label: "All", test: () => true },
+  { key: "member", label: "Members", test: (m) => !hasBoss(m.roles) && !m.roles.includes("vip") },
+  { key: "vip", label: "VIP", test: (m) => m.roles.includes("vip") },
+  { key: "trial", label: "On trial", test: onTrial },
+  { key: "vault", label: "Vault", test: (m) => m.has_vault },
+  { key: "telegram", label: "Telegram", test: (m) => m.telegram_linked },
+  { key: "boss", label: "Boss", test: (m) => hasBoss(m.roles) },
+  { key: "dev", label: "Dev", test: (m) => m.roles.includes("dev") },
+];
 
 function AdminUsersPage() {
   const { isAdmin, isLoading: roleLoading } = useRole();
+  const isMobile = useIsMobile();
   const [q, setQ] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [filter, setFilter] = useState<MemberFilter>("all");
   const [sort, setSort] = useState<SortKey>("joined");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(0);
   const [showBulk, setShowBulk] = useState(false);
 
+  const fetchMembers = useServerFn(listBossMembers);
   const usersQ = useQuery({
     queryKey: ["admin-users-list"],
     enabled: isAdmin,
     queryFn: async (): Promise<ProfileRow[]> => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, display_name, coin_balance, created_at")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      return ((data ?? []) as ProfileRow[]).map((p) => maskDevIdentity(p));
+      const { members } = await fetchMembers();
+      return members.map((m) => maskDevIdentity(m));
     },
-  });
-
-  const rolesQ = useQuery({
-    queryKey: ["admin-users-roles"],
-    enabled: isAdmin,
-    queryFn: async (): Promise<RoleRow[]> => {
-      const { data, error } = await supabase.from("user_roles").select("user_id, role");
-      if (error) throw error;
-      return (data ?? []) as RoleRow[];
-    },
-  });
-
-  const proQ = useQuery({
-    queryKey: ["admin-users-pro"],
-    enabled: isAdmin,
-    queryFn: () => listUsersPro({ data: { search: "" } }),
     staleTime: 30_000,
   });
-  const proByUser = useMemo(() => {
-    const m = new Map<string, ProUserRow>();
-    (proQ.data ?? []).forEach((r) => m.set(r.id, r as ProUserRow));
-    return m;
-  }, [proQ.data]);
+  const all = useMemo(() => usersQ.data ?? [], [usersQ.data]);
 
-  const fetchPurchases = useServerFn(getAllCoinPurchases);
-  const purchasesQ = useQuery({
-    queryKey: ["admin-users-purchase-totals"],
-    enabled: isAdmin,
-    queryFn: () => fetchPurchases(),
-    staleTime: 60_000,
-  });
-  const spendByUser: AdminPurchaseTotals = purchasesQ.data?.totals ?? {};
-
-  const rolesByUser = useMemo(() => {
-    const map = new Map<string, string[]>();
-    (rolesQ.data ?? []).forEach((r) => {
-      const arr = map.get(r.user_id) ?? [];
-      arr.push(r.role);
-      map.set(r.user_id, arr);
-    });
-    return map;
-  }, [rolesQ.data]);
+  const counts = useMemo(() => {
+    const c = {} as Record<MemberFilter, number>;
+    for (const f of FILTERS) c[f.key] = all.filter(f.test).length;
+    return c;
+  }, [all]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    let list = usersQ.data ?? [];
-
-    if (roleFilter === "telegram") {
-      list = list.filter((u) => !!proByUser.get(u.id)?.telegram_chat_id);
-    } else if (roleFilter !== "all") {
-      list = list.filter((u) => {
-        const r = rolesByUser.get(u.id) ?? [];
-        if (roleFilter === "user") return r.length === 0 || (r.length === 1 && r[0] === "user");
-        return r.includes(roleFilter);
-      });
-    }
-
+    const test = FILTERS.find((f) => f.key === filter)?.test ?? (() => true);
+    let list = all.filter(test);
     if (needle) {
+      const bare = needle.replace(/^@/, "");
       list = list.filter(
         (u) =>
           (u.email ?? "").toLowerCase().includes(needle) ||
           (u.display_name ?? "").toLowerCase().includes(needle) ||
-          u.id.toLowerCase().includes(needle),
+          (u.telegram_username ?? "").toLowerCase().includes(bare) ||
+          (u.og_vip_id ?? "").toLowerCase().includes(needle) ||
+          u.id.toLowerCase().startsWith(needle),
       );
     }
-
-    const sorted = [...list].sort((a, b) => {
+    const time = (s: string | null) => (s ? new Date(s).getTime() : 0);
+    return [...list].sort((a, b) => {
       let cmp = 0;
-      if (sort === "joined")
-        cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      else if (sort === "balance") cmp = (a.coin_balance ?? 0) - (b.coin_balance ?? 0);
+      if (sort === "joined") cmp = time(a.created_at) - time(b.created_at);
+      else if (sort === "seen") cmp = time(a.last_sign_in_at) - time(b.last_sign_in_at);
+      else if (sort === "balance") cmp = a.coin_balance - b.coin_balance;
       else if (sort === "name")
         cmp = (a.display_name ?? a.email ?? "").localeCompare(b.display_name ?? b.email ?? "");
-      else if (sort === "spend")
-        cmp = (spendByUser[a.id]?.totalCoins ?? 0) - (spendByUser[b.id]?.totalCoins ?? 0);
-      else if (sort === "buys")
-        cmp = (spendByUser[a.id]?.purchaseCount ?? 0) - (spendByUser[b.id]?.purchaseCount ?? 0);
+      else if (sort === "spend") cmp = a.spent_coins - b.spent_coins;
+      else if (sort === "buys") cmp = a.purchase_count - b.purchase_count;
       return sortDir === "asc" ? cmp : -cmp;
     });
+  }, [all, q, filter, sort, sortDir]);
 
-    return sorted;
-  }, [usersQ.data, q, roleFilter, rolesByUser, proByUser, sort, sortDir, spendByUser]);
+  useEffect(() => setPage(0), [q, filter, sort, sortDir]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   if (roleLoading) {
     return (
@@ -213,11 +174,7 @@ function AdminUsersPage() {
   }
   if (!isAdmin) return <Navigate to="/" />;
 
-  const totalUsers = usersQ.data?.length ?? 0;
-  const totalCoins = (usersQ.data ?? []).reduce((sum, p) => sum + (p.coin_balance ?? 0), 0);
-  const totalVip = (rolesQ.data ?? []).filter((r) => r.role === "vip").length;
-  const totalBots = (rolesQ.data ?? []).filter((r) => r.role === "og_bot").length;
-  const totalTelegram = (proQ.data ?? []).filter((p) => !!p.telegram_chat_id).length;
+  const totalCoins = all.reduce((sum, p) => sum + (p.coin_balance ?? 0), 0);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -245,7 +202,7 @@ function AdminUsersPage() {
               <AdminEditModeToggle />
               <Link to="/admin">
                 <Button variant="outline" size="sm">
-                  <ArrowLeft className="mr-1.5 h-4 w-4" /> Admin
+                  <ArrowLeft className="mr-1.5 h-4 w-4" /> Boss home
                 </Button>
               </Link>
             </div>
@@ -255,8 +212,8 @@ function AdminUsersPage() {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard
               icon={<UserCog className="h-4 w-4" />}
-              label="Total users"
-              value={totalUsers}
+              label="Total members"
+              value={all.length}
               accent="primary"
             />
             <StatCard
@@ -268,114 +225,116 @@ function AdminUsersPage() {
             <StatCard
               icon={<Crown className="h-4 w-4" />}
               label="VIP members"
-              value={totalVip}
+              value={counts.vip ?? 0}
               accent="amber"
             />
             <StatCard
-              icon={<Bot className="h-4 w-4" />}
-              label="OG Bots"
-              value={totalBots}
+              icon={<Send className="h-4 w-4" />}
+              label="Telegram linked"
+              value={counts.telegram ?? 0}
               accent="primary"
             />
           </div>
 
-          {/* Bulk tools (collapsible) */}
-          <div className="rounded-2xl border border-border bg-card">
-            <button
-              type="button"
-              onClick={() => setShowBulk((s) => !s)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30"
-            >
-              <div className="flex items-center gap-2">
-                <SettingsIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Bulk reconcile & maintenance</span>
-              </div>
-              {showBulk ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-            {showBulk && (
-              <div className="border-t border-border p-4">
-                <BulkReconcilePanel />
-              </div>
-            )}
-          </div>
-
           {/* Toolbar */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search email, display name, or id…"
-                className="pl-9"
-              />
-              {q && (
-                <button
-                  type="button"
-                  onClick={() => setQ("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted"
-                  aria-label="Clear search"
+          <div className="space-y-3 rounded-2xl border border-border bg-card p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search name, email, Telegram, VIP ID or account id"
+                  className="pl-9"
+                />
+                {q && (
+                  <button
+                    type="button"
+                    onClick={() => setQ("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {isMobile ? (
+                <select
+                  value={`${sort}:${sortDir}`}
+                  onChange={(e) => {
+                    const [k, d] = e.target.value.split(":");
+                    setSort(k as SortKey);
+                    setSortDir(d as "asc" | "desc");
+                  }}
+                  className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                  aria-label="Sort members"
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+                  <option value="joined:desc">Newest first</option>
+                  <option value="seen:desc">Recently signed in</option>
+                  <option value="spend:desc">Top spenders</option>
+                  <option value="balance:desc">Most coins</option>
+                  <option value="name:asc">Name A to Z</option>
+                </select>
+              ) : null}
+              <div className="text-xs text-muted-foreground sm:ml-auto">
+                {usersQ.data ? `${filtered.length.toLocaleString()} found` : ""}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {(["all", "admin", "vip", "telegram", "og_bot", "user"] as RoleFilter[]).map((r) => (
+              {FILTERS.map((f) => (
                 <button
-                  key={r}
+                  key={f.key}
                   type="button"
-                  onClick={() => setRoleFilter(r)}
+                  onClick={() => setFilter(f.key)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wide transition-colors ${
-                    roleFilter === r
+                    filter === f.key
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   }`}
                 >
-                  {r === "og_bot" ? "OG bot" : r === "telegram" ? `Telegram (${totalTelegram})` : r}
+                  {f.label}
+                  {usersQ.data ? ` (${(counts[f.key] ?? 0).toLocaleString()})` : ""}
                 </button>
               ))}
             </div>
-            <div className="ml-auto text-xs text-muted-foreground">
-              {usersQ.data ? `Showing ${filtered.length} of ${totalUsers}` : ""}
-            </div>
           </div>
 
-          {/* Table */}
+          {/* List */}
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             {usersQ.isLoading ? (
               <div className="grid place-items-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : filtered.length > 0 ? (
-              <>
-                <ul className="divide-y divide-border sm:hidden">
-                  {filtered.map((u) => (
-                    <MobileUserCard
-                      key={u.id}
-                      user={u}
-                      roles={rolesByUser.get(u.id) ?? []}
-                      pro={proByUser.get(u.id)}
-                      spend={spendByUser[u.id]}
-                    />
+            ) : usersQ.isError ? (
+              <div className="grid place-items-center gap-2 px-4 py-16 text-center">
+                <p className="text-sm font-semibold text-destructive">Couldn't load members.</p>
+                <p className="max-w-sm text-xs text-muted-foreground">
+                  {(usersQ.error as Error)?.message || "Something went wrong."}
+                </p>
+                <Button variant="outline" size="sm" onClick={() => usersQ.refetch()}>
+                  Try again
+                </Button>
+              </div>
+            ) : visible.length > 0 ? (
+              isMobile ? (
+                <ul className="divide-y divide-border">
+                  {visible.map((u) => (
+                    <MobileUserCard key={u.id} user={u} />
                   ))}
                 </ul>
-                <div className="hidden overflow-x-auto sm:block">
-                  <div className="min-w-[640px]">
+              ) : (
+                <div className="overflow-x-auto">
+                  <div className="min-w-[760px]">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/30 hover:bg-muted/30">
                           <SortableHead
-                            label="User"
+                            label="Member"
                             active={sort === "name"}
                             dir={sortDir}
                             onClick={() => toggleSort("name")}
                           />
-                          <TableHead>Roles</TableHead>
+                          <TableHead>Access</TableHead>
                           <SortableHead
                             label="Balance"
                             align="right"
@@ -407,35 +366,81 @@ function AdminUsersPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filtered.map((u) => {
-                          const roles = rolesByUser.get(u.id) ?? [];
-                          const pro = proByUser.get(u.id);
-                          const spend = spendByUser[u.id];
-                          return (
-                            <UserRow key={u.id} user={u} roles={roles} pro={pro} spend={spend} />
-                          );
-                        })}
+                        {visible.map((u) => (
+                          <UserRow key={u.id} user={u} />
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
                 </div>
-              </>
+              )
             ) : (
               <div className="grid place-items-center gap-2 py-16 text-muted-foreground">
                 <UsersIcon className="h-8 w-8" />
-                <p className="text-sm">No users match.</p>
-                {(q || roleFilter !== "all") && (
+                <p className="text-sm">No members match.</p>
+                {(q || filter !== "all") && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
                       setQ("");
-                      setRoleFilter("all");
+                      setFilter("all");
                     }}
                   >
                     Clear filters
                   </Button>
                 )}
+              </div>
+            )}
+            {filtered.length > PAGE_SIZE && !usersQ.isError ? (
+              <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+                <span>
+                  {(safePage * PAGE_SIZE + 1).toLocaleString()} to{" "}
+                  {Math.min(filtered.length, (safePage + 1) * PAGE_SIZE).toLocaleString()} of{" "}
+                  {filtered.length.toLocaleString()}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={safePage === 0}
+                    onClick={() => setPage(safePage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={safePage >= pageCount - 1}
+                    onClick={() => setPage(safePage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Bulk tools (collapsible, kept out of the way under the list) */}
+          <div className="rounded-2xl border border-border bg-card">
+            <button
+              type="button"
+              onClick={() => setShowBulk((s) => !s)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30"
+            >
+              <div className="flex items-center gap-2">
+                <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Bulk reconcile & maintenance</span>
+              </div>
+              {showBulk ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {showBulk && (
+              <div className="border-t border-border p-4">
+                <BulkReconcilePanel />
               </div>
             )}
           </div>
@@ -585,21 +590,27 @@ function TelegramMessageButton({ user }: { user: ProfileRow }) {
   );
 }
 
-function UserRow({
-  user,
-  roles,
-  pro,
-  spend,
-}: {
-  user: ProfileRow;
-  roles: string[];
-  pro?: ProUserRow;
-  spend?: { totalCoins: number; purchaseCount: number };
-}) {
-  const isVip = roles.includes("vip");
-  const isOgBot = roles.includes("og_bot");
-  const isAdminUser = roles.includes("admin");
-  const hasPro = !!(pro && (pro.telegram_chat_id || pro.last_sign_in_at));
+function AccessChips({ user }: { user: ProfileRow }) {
+  const isBossUser = hasBoss(user.roles);
+  const isVip = user.roles.includes("vip");
+  const isDev = user.roles.includes("dev");
+  const trial = onTrial(user);
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {isBossUser && <RoleChip label="Boss" tone="primary" />}
+      {isDev && <RoleChip label="Dev" tone="primary-soft" />}
+      {isVip && <RoleChip label="VIP" tone="amber" />}
+      {trial && <RoleChip label="Trial" tone="amber" />}
+      {user.has_vault && <RoleChip label="Vault" tone="amber" />}
+      {user.telegram_linked && <RoleChip label="Telegram" tone="primary-soft" />}
+      {!isBossUser && !isDev && !isVip && !trial && <RoleChip label="Member" tone="muted" />}
+    </div>
+  );
+}
+
+function UserRow({ user }: { user: ProfileRow }) {
+  const isVip = user.roles.includes("vip");
+  const hasActivity = !!(user.telegram_linked || user.last_sign_in_at);
   const [spendOpen, setSpendOpen] = useState(false);
 
   return (
@@ -613,7 +624,12 @@ function UserRow({
             <div className="min-w-0 flex-1">
               <InlineNameEdit user={user} />
               <div className="truncate text-xs text-muted-foreground">{user.email ?? "—"}</div>
-              {spend && spend.totalCoins > 0 && (
+              {user.og_vip_id ? (
+                <div className="truncate font-mono text-[0.7rem] text-amber-300">
+                  {user.og_vip_id}
+                </div>
+              ) : null}
+              {user.spent_coins > 0 && (
                 <button
                   type="button"
                   onClick={() => setSpendOpen((v) => !v)}
@@ -622,16 +638,16 @@ function UserRow({
                   title="Toggle total spend"
                 >
                   <Coins className="h-3 w-3" />
-                  Spent {spend.totalCoins.toLocaleString()} · {spend.purchaseCount} buys
+                  Spent {user.spent_coins.toLocaleString()} · {user.purchase_count} buys
                 </button>
               )}
-              {spendOpen && spend && (
+              {spendOpen && (
                 <div className="mt-1 rounded-md border border-border/40 bg-background/40 px-2 py-1 text-xs text-muted-foreground">
                   Lifetime:{" "}
                   <span className="font-mono tabular-nums text-coin">
-                    {spend.totalCoins.toLocaleString()} coins
+                    {user.spent_coins.toLocaleString()} coins
                   </span>{" "}
-                  across {spend.purchaseCount} purchase{spend.purchaseCount === 1 ? "" : "s"}.
+                  across {user.purchase_count} purchase{user.purchase_count === 1 ? "" : "s"}.
                 </div>
               )}
             </div>
@@ -639,13 +655,7 @@ function UserRow({
         </TableCell>
 
         <TableCell>
-          <div className="flex flex-wrap items-center gap-1">
-            {isAdminUser && <RoleChip label="Admin" tone="primary" />}
-            {isVip && <RoleChip label="VIP" tone="amber" />}
-            {pro?.telegram_chat_id && <RoleChip label="Telegram" tone="primary-soft" />}
-            {isOgBot && <RoleChip label="Bot" tone="primary-soft" />}
-            {!isAdminUser && !isVip && !isOgBot && <RoleChip label="User" tone="muted" />}
-          </div>
+          <AccessChips user={user} />
         </TableCell>
 
         <TableCell className="text-right">
@@ -656,14 +666,14 @@ function UserRow({
         </TableCell>
 
         <TableCell className="text-right">
-          <span className="font-mono text-sm tabular-nums text-amber-300">
-            {(spend?.totalCoins ?? 0).toLocaleString()}
+          <span className="whitespace-nowrap font-mono text-sm tabular-nums text-amber-300">
+            {user.spent_coins.toLocaleString()}
           </span>
         </TableCell>
 
         <TableCell className="text-right">
           <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {spend?.purchaseCount ?? 0}
+            {user.purchase_count}
           </span>
         </TableCell>
 
@@ -673,10 +683,11 @@ function UserRow({
 
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
-            {pro?.telegram_chat_id && <TelegramMessageButton user={user} />}
+            {user.telegram_linked && <TelegramMessageButton user={user} />}
             <VipQuickToggle userId={user.id} checked={isVip} />
+            <VaultQuickToggle userId={user.id} checked={user.has_vault} />
             <CoinsPopover userId={user.id} balance={user.coin_balance ?? 0} />
-            <EditUserPopover user={user} roles={roles} />
+            <EditUserPopover user={user} />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link to="/admin/users/$userId" params={{ userId: user.id }}>
@@ -684,7 +695,7 @@ function UserRow({
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8"
-                    aria-label="Open full user settings"
+                    aria-label="Open full member settings"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
@@ -695,19 +706,20 @@ function UserRow({
           </div>
         </TableCell>
       </TableRow>
-      {hasPro && (
+      {hasActivity && (
         <TableRow className="border-t-0 hover:bg-transparent">
-          <TableCell colSpan={5} className="pt-0 pb-3">
+          <TableCell colSpan={7} className="pt-0 pb-3">
             <div className="ml-12 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              {pro!.last_sign_in_at && (
+              {user.last_sign_in_at && (
                 <span className="rounded-full border border-border/40 bg-background/40 px-2 py-0.5">
-                  Last sign-in {new Date(pro!.last_sign_in_at).toLocaleString()}
-                  {pro!.sign_in_count ? ` · ${pro!.sign_in_count} total` : ""}
+                  Last sign-in {new Date(user.last_sign_in_at).toLocaleString()}
+                  {user.sign_in_count ? ` · ${user.sign_in_count} total` : ""}
                 </span>
               )}
-              {pro!.telegram_chat_id ? (
+              {user.telegram_linked ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300">
                   <Send className="h-3 w-3" /> Telegram linked
+                  {user.telegram_username ? ` · @${user.telegram_username}` : ""}
                 </span>
               ) : (
                 <span className="rounded-full bg-muted px-2 py-0.5">No Telegram</span>
@@ -722,20 +734,8 @@ function UserRow({
 
 /* ---------- Mobile card ---------- */
 
-function MobileUserCard({
-  user,
-  roles,
-  pro,
-  spend,
-}: {
-  user: ProfileRow;
-  roles: string[];
-  pro?: ProUserRow;
-  spend?: { totalCoins: number; purchaseCount: number };
-}) {
-  const isVip = roles.includes("vip");
-  const isOgBot = roles.includes("og_bot");
-  const isAdminUser = roles.includes("admin");
+function MobileUserCard({ user }: { user: ProfileRow }) {
+  const isVip = user.roles.includes("vip");
   return (
     <li className="space-y-3 p-4">
       <div className="flex min-w-0 items-start gap-3">
@@ -745,12 +745,11 @@ function MobileUserCard({
         <div className="min-w-0 flex-1">
           <InlineNameEdit user={user} />
           <p className="truncate text-xs text-muted-foreground">{user.email ?? "—"}</p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {isAdminUser && <RoleChip label="Admin" tone="primary" />}
-            {isVip && <RoleChip label="VIP" tone="amber" />}
-            {pro?.telegram_chat_id && <RoleChip label="Telegram" tone="primary-soft" />}
-            {isOgBot && <RoleChip label="Bot" tone="primary-soft" />}
-            {!isAdminUser && !isVip && !isOgBot && <RoleChip label="User" tone="muted" />}
+          {user.og_vip_id ? (
+            <p className="truncate font-mono text-[0.7rem] text-amber-300">{user.og_vip_id}</p>
+          ) : null}
+          <div className="mt-1.5">
+            <AccessChips user={user} />
           </div>
         </div>
       </div>
@@ -765,7 +764,7 @@ function MobileUserCard({
         <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
           <p className="text-[0.7rem] uppercase text-muted-foreground">Spent</p>
           <p className="font-mono text-sm font-bold tabular-nums text-amber-300">
-            {(spend?.totalCoins ?? 0).toLocaleString()}
+            {user.spent_coins.toLocaleString()}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
@@ -774,28 +773,36 @@ function MobileUserCard({
         </div>
       </div>
 
-      {pro && (pro.last_sign_in_at || pro.telegram_chat_id) && (
+      {(user.last_sign_in_at || user.telegram_linked) && (
         <p className="text-xs text-muted-foreground">
-          {pro.last_sign_in_at
-            ? `Last sign-in ${new Date(pro.last_sign_in_at).toLocaleDateString()}${pro.sign_in_count ? ` · ${pro.sign_in_count} total` : ""}`
-            : ""}
-          {pro.telegram_chat_id ? " · Telegram linked" : " · No Telegram"}
+          {[
+            user.last_sign_in_at
+              ? `Last sign-in ${new Date(user.last_sign_in_at).toLocaleDateString()}${user.sign_in_count ? ` · ${user.sign_in_count} total` : ""}`
+              : null,
+            user.telegram_linked
+              ? `Telegram${user.telegram_username ? ` @${user.telegram_username}` : " linked"}`
+              : "No Telegram",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
         <VipQuickToggle userId={user.id} checked={isVip} />
-        <VaultQuickToggle userId={user.id} />
+        <VaultQuickToggle userId={user.id} checked={user.has_vault} />
+      </div>
+      <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1">
-          {pro?.telegram_chat_id && <TelegramMessageButton user={user} />}
+          {user.telegram_linked && <TelegramMessageButton user={user} />}
           <CoinsPopover userId={user.id} balance={user.coin_balance ?? 0} />
-          <EditUserPopover user={user} roles={roles} />
-          <Link to="/admin/users/$userId" params={{ userId: user.id }}>
-            <Button size="sm" variant="outline" className="h-8">
-              Open <ExternalLink className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </Link>
+          <EditUserPopover user={user} />
         </div>
+        <Link to="/admin/users/$userId" params={{ userId: user.id }}>
+          <Button size="sm" variant="outline" className="h-8">
+            Open <ExternalLink className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </Link>
       </div>
     </li>
   );
@@ -823,7 +830,7 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
     },
     onSuccess: (next) => {
       toast.success(next ? "VIP granted" : "VIP revoked");
-      qc.invalidateQueries({ queryKey: ["admin-users-roles"] });
+      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
       qc.invalidateQueries({ queryKey: ["user-role"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -893,17 +900,8 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
   );
 }
 
-function VaultQuickToggle({ userId }: { userId: string }) {
+function VaultQuickToggle({ userId, checked }: { userId: string; checked: boolean }) {
   const qc = useQueryClient();
-  const vaultQ = useQuery({
-    queryKey: ["admin-user-vault", userId],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("admin_has_vault_pass", { p_user: userId });
-      if (error) throw new Error(error.message);
-      return Boolean(data);
-    },
-  });
-  const checked = vaultQ.data ?? false;
   const mut = useMutation({
     mutationFn: async (next: boolean) => {
       const { error } = await supabase.rpc("set_vault_pass_admin", {
@@ -917,6 +915,7 @@ function VaultQuickToggle({ userId }: { userId: string }) {
     onSuccess: (next) => {
       toast.success(next ? "Vault access granted" : "Vault access revoked");
       qc.invalidateQueries({ queryKey: ["admin-user-vault", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
     },
     onError: (e: Error) => {
       const m = e.message.toLowerCase();
@@ -939,7 +938,7 @@ function VaultQuickToggle({ userId }: { userId: string }) {
           </span>
           <Switch
             checked={checked}
-            disabled={mut.isPending || vaultQ.isLoading}
+            disabled={mut.isPending}
             onCheckedChange={(v) => mut.mutate(v)}
             aria-label="Toggle OG Vault access"
           />
@@ -998,7 +997,7 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
         </TooltipTrigger>
         <TooltipContent>Grant or remove coins</TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-72 space-y-3">
+      <PopoverContent align="end" className="w-[min(18rem,calc(100vw-2rem))] space-y-3">
         <div>
           <p className="text-sm font-semibold">Add or take away coins</p>
           <p className="text-xs text-muted-foreground">
@@ -1061,7 +1060,8 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
   );
 }
 
-function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] }) {
+function EditUserPopover({ user }: { user: ProfileRow }) {
+  const roles = user.roles;
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState(user.display_name ?? "");
   const [balance, setBalance] = useState(String(user.coin_balance ?? 0));
@@ -1074,12 +1074,12 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
     }
   }, [open, user.display_name, user.coin_balance]);
 
-  const isOgBot = roles.includes("og_bot");
-
   const saveLabel = useMutation({
     mutationFn: async () => {
       const trimmed = label.trim();
       if (!trimmed) throw new Error("Display name required");
+      // Unchanged (including the masked dev label) is not saved over the real name.
+      if (trimmed === (user.display_name ?? "")) return;
       const { error } = await supabase.rpc("admin_update_profile_label", {
         target_user_id: user.id,
         new_display_name: trimmed,
@@ -1112,38 +1112,6 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const deleteAccount = useServerFn(deleteUserAccount);
-  const removeUser = useMutation({
-    mutationFn: () => deleteAccount({ data: { userId: user.id } }),
-    onSuccess: () => {
-      toast.success("Account deleted");
-      setOpen(false);
-      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
-      qc.invalidateQueries({ queryKey: ["admin-users-roles"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const toggleOg = useMutation({
-    mutationFn: async (next: boolean) => {
-      const { error } = await supabase.rpc(
-        "set_og_bot_admin" as never,
-        {
-          target_user_id: user.id,
-          make_og: next,
-          admin_notes: "users_list_edit",
-        } as never,
-      );
-      if (error) throw new Error(error.message);
-      return next;
-    },
-    onSuccess: (next) => {
-      toast.success(next ? "OG Bot granted" : "OG Bot revoked");
-      qc.invalidateQueries({ queryKey: ["admin-users-roles"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip>
@@ -1156,7 +1124,10 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
         </TooltipTrigger>
         <TooltipContent>Edit user inline</TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-80 space-y-4">
+      <PopoverContent
+        align="end"
+        className="max-h-[min(80vh,var(--radix-popover-content-available-height))] w-[min(20rem,calc(100vw-2rem))] space-y-4 overflow-y-auto"
+      >
         <div className="flex items-center gap-2">
           <UserCog className="h-4 w-4 text-primary" />
           <p className="truncate text-sm font-semibold">{user.email}</p>
@@ -1214,33 +1185,22 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
 
         <Separator />
 
-        <ConfirmAction
-          title={`Delete ${user.display_name ?? user.email ?? "this account"}?`}
-          description={
-            <p>
-              This permanently deletes the account, songs, coins and linked data. This cannot be
-              undone.
-            </p>
-          }
-          confirmLabel="Delete account"
-          tooltip="Permanently delete this user's account and all their data"
-          destructive
-          onConfirm={() => removeUser.mutateAsync().then(() => undefined)}
-        >
-          <Button
-            variant="destructive"
-            size="sm"
-            className="w-full"
-            disabled={removeUser.isPending}
+        {!roles.some((role) => ["admin", "boss", "dev"].includes(role)) ? (
+          <DeleteAccountDialog
+            userId={user.id}
+            name={user.display_name ?? user.email ?? "this account"}
+            onDeleted={() => setOpen(false)}
           >
-            {removeUser.isPending ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
+            <Button variant="destructive" size="sm" className="w-full">
               <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Delete account
-          </Button>
-        </ConfirmAction>
+              Delete account
+            </Button>
+          </DeleteAccountDialog>
+        ) : (
+          <p className="text-center text-xs text-muted-foreground">
+            Boss and Dev accounts can't be deleted here.
+          </p>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -1266,7 +1226,7 @@ function SortableHead({
       <button
         type="button"
         onClick={onClick}
-        className={`inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide transition-colors ${
+        className={`inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide transition-colors ${
           active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
         }`}
       >
