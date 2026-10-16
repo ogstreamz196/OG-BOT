@@ -83,6 +83,8 @@ describe("buildTradeSignalContext", () => {
     expect(out).toContain("Direction: BUY");
     expect(out).toMatch(/Stop loss: \d/);
     expect(out).toMatch(/TP1: \d.*TP2: \d.*TP3: \d/);
+    expect(out).toMatch(/Confidence: \d{2}% \((Low|Medium|High)\)/);
+    expect(out).toMatch(/Valid until: .+ UK time \(intraday signal, good for 8 hours\)/);
   });
 
   it("falls back to Kraken when Binance is blocked", async () => {

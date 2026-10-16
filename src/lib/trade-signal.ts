@@ -358,21 +358,23 @@ export function readFrame(name: string, candles: Candle[]): FrameRead | null {
 /* ── Signal engine ─────────────────────────────────────────────────────── */
 
 export type TradePlan = {
-  direction: "BUY" | "SELL" | "NO TRADE";
-  entry: number | null;
+  direction: "BUY" | "SELL";
+  entry: number;
   entryNote: string;
-  stop: number | null;
+  stop: number;
   targets: number[];
-  rr: string | null;
+  rr: string;
   confidence: "Low" | "Medium" | "High";
+  /** 51–90: how strongly the indicators agree on this direction (not a win rate). */
+  confidencePct: number;
+  /** Set when the timeframes are mixed, so the call is a lean rather than a clean setup. */
+  caution?: string;
   score: number;
   maxScore: number;
   reasons: string[];
   invalidation: string;
   resistance: number[];
   support: number[];
-  breakoutAbove?: number;
-  breakdownBelow?: number;
 };
 
 const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
@@ -425,42 +427,29 @@ export function buildPlan(
     `${entry.name} MACD momentum ${entry.macdHist >= 0 ? "positive" : "negative"} and ${entry.macdRising ? "rising" : "falling"}`,
   );
 
-  const strength = Math.abs(score) / maxScore;
+  // Always name the most likely side: overall score, then the entry frame,
+  // then momentum breaks a tie.
+  const lean = Math.sign(score) || Math.sign(entry.score) || Math.sign(entry.macdHist) || 1;
+  const long = lean > 0;
+  const aligned =
+    higher.score !== 0 && Math.sign(higher.score) === lean && Math.sign(middle.score) === lean;
+  const strength = Math.min(1, Math.abs(score) / maxScore);
+  const stretchedNow = long ? entry.rsi >= 74 : entry.rsi <= 26;
+  let pct = 50 + strength * 40;
+  if (!aligned) pct -= 8;
+  if (stretchedNow) pct -= 5;
+  const confidencePct = Math.round(Math.min(90, Math.max(51, pct)));
   const confidence: TradePlan["confidence"] =
-    strength >= 0.7 ? "High" : strength >= 0.45 ? "Medium" : "Low";
-  const aligned = Math.sign(higher.score) === Math.sign(middle.score) && higher.score !== 0;
-  const wantLong = score >= 3 && aligned;
-  const wantShort = score <= -3 && aligned;
+    confidencePct >= 75 ? "High" : confidencePct >= 62 ? "Medium" : "Low";
+  const caution = aligned
+    ? undefined
+    : `Timeframes are mixed (${higher.name} ${higher.bias}, ${middle.name} ${middle.bias}, ${entry.name} ${entry.bias}), so this is the most likely side rather than a clean setup. Use smaller size.`;
 
-  const none = (why: string): TradePlan => ({
-    direction: "NO TRADE",
-    entry: null,
-    entryNote: why,
-    stop: null,
-    targets: [],
-    rr: null,
-    confidence: "Low",
-    score: Math.round(score * 10) / 10,
-    maxScore,
-    reasons,
-    invalidation: "",
-    resistance,
-    support,
-    breakoutAbove: resistance[0],
-    breakdownBelow: support[0],
-  });
-
-  if (!wantLong && !wantShort) {
-    return none("Timeframes disagree, so there's no clean edge. Wait for a break of the range.");
-  }
-
-  const long = wantLong;
-  // Don't chase: stretched momentum against the entry means wait for a pullback.
-  const stretched = long ? entry.rsi >= 74 : entry.rsi <= 26;
+  // Don't chase: stretched momentum means wait for a pullback.
   const farFromMean = Math.abs(price - entry.ema20) > a * 1.2;
   let entryPx = price;
   let entryNote = "Market price now";
-  if (stretched || farFromMean) {
+  if (stretchedNow || farFromMean) {
     entryPx = entry.ema20;
     entryNote = `Limit on a pullback to the ${entry.name} 20 EMA (price is stretched right now)`;
   }
@@ -485,6 +474,8 @@ export function buildPlan(
     targets: [t1, t2, t3],
     rr: `1:1 / 1:2 / 1:${rr3.toFixed(1)}`,
     confidence,
+    confidencePct,
+    caution,
     score: Math.round(score * 10) / 10,
     maxScore,
     reasons,
@@ -494,6 +485,16 @@ export function buildPlan(
     resistance,
     support,
   };
+}
+
+/**
+ * How long a signal stays usable before the market has likely moved on:
+ * a couple of hours for scalps, the trading session for intraday, a few days
+ * for swings. After this the user should ask again for a fresh read.
+ */
+export function validityWindow(style: Style, now = Date.now()): { hours: number; until: Date } {
+  const hours = style === "scalp" ? 2 : style === "swing" ? 72 : 8;
+  return { hours, until: new Date(now + hours * 3600_000) };
 }
 
 /** Sensible decimals for quoting an instrument's price. */

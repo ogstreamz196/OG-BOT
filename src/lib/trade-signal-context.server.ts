@@ -13,6 +13,7 @@ import {
   type Candle,
   type FrameRead,
   type Instrument,
+  validityWindow,
   type Style,
 } from "./trade-signal";
 
@@ -159,15 +160,18 @@ function frameLine(f: FrameRead, fmt: (n: number) => string): string {
 }
 
 const HOW_TO_ANSWER = `TRADE SIGNAL MODE — the user wants a trade call. Rules:
-- Use ONLY the prices and levels in the LIVE MARKET DATA block. Copy the signal numbers exactly; never invent, round differently or "adjust" a price, stop or target.
-- Lay it out as a clean signal card first (plain lines, no tables, no markdown headers):
-  📊 PAIR — DIRECTION
+- Use ONLY the prices, levels, confidence and times in the LIVE MARKET DATA block. Copy them exactly; never invent, round differently or "adjust" a price, stop, target, percentage or time.
+- Always give the most likely direction. Lay it out as a clean signal card first (plain lines, no tables, no markdown headers):
+  📊 PAIR — BUY or SELL
+  Confidence: …% (Low/Medium/High)
   Entry: … (say if it's market or a pullback limit)
   SL: … (distance in pips/points if given)
   TP1 / TP2 / TP3: …
-  R:R and Confidence: …
-  Then 2–4 short lines on WHY (trend across timeframes, momentum, the key level), what would cancel it, and any news risk from the headlines given.
-- If the engine says NO TRADE, say so straight and give the breakout/breakdown levels to watch instead. Don't force a trade.
+  R:R: …
+  ⏳ Valid until: … (UK time) — say plainly that after this time the signal is stale and they should ask you again, and that an unfilled pullback entry should be cancelled by then.
+  Then 2–4 short lines on WHY (trend across timeframes, momentum, the key level), what would cancel it early, and any news risk from the headlines given.
+- If a CAUTION line is given, say the timeframes are mixed so it's a lean, and to go smaller.
+- Explain that the confidence is how strongly the indicators agree, not a guaranteed win rate.
 - Keep your usual voice for the commentary, but the numbers stay serious and exact.
 - End with ONE short line: risk 1–2% per trade, move SL to entry after TP1, not financial advice. Don't lecture beyond that.
 - Never claim a win rate, guarantee, or that you "know" where price is going.`;
@@ -265,27 +269,28 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
     `SIGNAL ENGINE (computed from the data above — quote these exactly):`,
     `Direction: ${plan.direction}`,
   ];
-  if (plan.direction === "NO TRADE") {
-    lines.push(
-      `Why: ${plan.entryNote}`,
-      plan.breakoutAbove != null
-        ? `Bullish trigger: a ${mid.name} close above ${fmt(plan.breakoutAbove)}`
-        : "",
-      plan.breakdownBelow != null
-        ? `Bearish trigger: a ${mid.name} close below ${fmt(plan.breakdownBelow)}`
-        : "",
-    );
-  } else {
-    lines.push(
-      `Entry: ${fmt(plan.entry!)} — ${plan.entryNote}`,
-      `Stop loss: ${fmt(plan.stop!)} (${dist(plan.entry!, plan.stop!)})`,
-      `TP1: ${fmt(plan.targets[0])}  TP2: ${fmt(plan.targets[1])}  TP3: ${fmt(plan.targets[2])}`,
-      `Risk:reward: ${plan.rr}`,
-      `Invalidation: ${plan.invalidation}`,
-    );
-  }
+  const valid = validityWindow(style);
+  const ukTime = (d: Date) =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
   lines.push(
-    `Confidence: ${plan.confidence} (confluence score ${plan.score} of ±${plan.maxScore})`,
+    `Confidence: ${plan.confidencePct}% (${plan.confidence})`,
+    ...(plan.caution ? [`CAUTION: ${plan.caution}`] : []),
+    `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
+    `Stop loss: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
+    `TP1: ${fmt(plan.targets[0])}  TP2: ${fmt(plan.targets[1])}  TP3: ${fmt(plan.targets[2])}`,
+    `Risk:reward: ${plan.rr}`,
+    `Valid until: ${ukTime(valid.until)} UK time (${style} signal, good for ${valid.hours} hours). After that the read is stale; cancel an unfilled entry and ask again.`,
+    `Cancel early if: ${plan.invalidation}`,
+  );
+  lines.push(
+    `Confluence score: ${plan.score} of ±${plan.maxScore}`,
     `Reasons: ${plan.reasons.join("; ")}`,
   );
   if (news)
@@ -295,7 +300,7 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
       news,
     );
 
-  const value = `${HOW_TO_ANSWER}\n\n${lines.filter((l) => l !== undefined).join("\n")}`;
+  const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
   cache.set(key, { exp: Date.now() + 60_000, value });
   if (cache.size > 200) cache.delete(cache.keys().next().value!);
   return value;

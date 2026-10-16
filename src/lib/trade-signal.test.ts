@@ -9,6 +9,7 @@ import {
   parseInstrument,
   readFrame,
   rsi,
+  validityWindow,
   type Candle,
 } from "./trade-signal";
 
@@ -142,7 +143,7 @@ describe("buildPlan", () => {
     expect(plan.targets[0]).toBeLessThan(plan.entry!);
   });
 
-  it("stands aside when the higher timeframes disagree", () => {
+  it("still names the most likely side when timeframes disagree, with low confidence", () => {
     const d = series(300, 2000, -2, 24);
     const h = series(1000, 1400, 0.5);
     const h4 = aggregate(h, 4);
@@ -153,7 +154,43 @@ describe("buildPlan", () => {
       h,
       h4,
     );
-    expect(plan.direction).toBe("NO TRADE");
-    expect(plan.entry).toBeNull();
+    expect(["BUY", "SELL"]).toContain(plan.direction);
+    expect(plan.caution).toMatch(/mixed/);
+    expect(plan.confidencePct).toBeGreaterThanOrEqual(51);
+    expect(plan.confidencePct).toBeLessThan(75);
+    expect(Number.isFinite(plan.stop)).toBe(true);
+  });
+
+  it("gives aligned trends a higher confidence than mixed ones", () => {
+    const up = series(300, 1000, 2, 24);
+    const down = series(300, 2000, -2, 24);
+    const h = series(1000, 1400, 0.5);
+    const h4 = aggregate(h, 4);
+    const aligned = buildPlan(
+      readFrame("Daily", up)!,
+      readFrame("4H", h4)!,
+      readFrame("1H", h)!,
+      h,
+      h4,
+    );
+    const mixed = buildPlan(
+      readFrame("Daily", down)!,
+      readFrame("4H", h4)!,
+      readFrame("1H", h)!,
+      h,
+      h4,
+    );
+    expect(aligned.caution).toBeUndefined();
+    expect(aligned.confidencePct).toBeGreaterThan(mixed.confidencePct);
+    expect(aligned.confidencePct).toBeLessThanOrEqual(90);
+  });
+});
+
+describe("validityWindow", () => {
+  it("is short for scalps, a session for intraday and days for swings", () => {
+    const now = Date.UTC(2026, 9, 16, 12, 0);
+    expect(validityWindow("scalp", now).until.toISOString()).toBe("2026-10-16T14:00:00.000Z");
+    expect(validityWindow("intraday", now).hours).toBe(8);
+    expect(validityWindow("swing", now).hours).toBe(72);
   });
 });
