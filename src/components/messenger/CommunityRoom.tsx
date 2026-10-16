@@ -585,7 +585,7 @@ export function CommunityRoom() {
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="ar-feed absolute inset-0"
+          className="ar-feed ar-feed--fill"
           style={{ touchAction: "pan-y" }}
         >
           {isLoading || messages.length === 0 ? (
@@ -678,7 +678,7 @@ export function CommunityRoom() {
                 ? `Jump to newest, ${newCount} new message${newCount === 1 ? "" : "s"}`
                 : "Jump to newest"
             }
-            className="ar-icon-btn absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-full px-3 shadow-lg"
+            className="ar-icon-btn ar-jump absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-full px-3"
           >
             <ArrowDown className="h-3.5 w-3.5" />
             {newCount > 0
