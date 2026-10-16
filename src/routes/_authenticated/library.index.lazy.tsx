@@ -1,4 +1,5 @@
 import { runQueuedSong } from "@/lib/song-queue.functions";
+import { prepayTrack } from "@/lib/track-unlock.functions";
 import { startAttempt, updateAttempt, describeError } from "@/lib/generation-attempts";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -284,6 +285,7 @@ function LibraryPage() {
   const [personalDetails, setPersonalDetails] = useState("");
   const [improving, setImproving] = useState(false);
   const [improveError, setImproveError] = useState<string | null>(null);
+  const prepayTrackFn = useServerFn(prepayTrack);
   const improveDescription = useServerFn(improveLyricDescription);
   const listDrafts = useServerFn(listSongBriefDrafts);
   const deleteDraft = useServerFn(deleteSongBriefDraft);
@@ -518,8 +520,19 @@ function LibraryPage() {
       toast.error(`Need ${audioCost} coins to generate a song`);
       return;
     }
-    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
-    if (!(await confirmGenerationAllowed())) return;
+    // Pay upfront: 5 coins (or the 99p pack) unlocks the full track + free Take 2.
+    if (balance < 5) {
+      toast.error("Each track costs 5 OG Coins — grab the 5-coin pack for 99p", {
+        action: { label: "Buy 99p", onClick: () => void navigate({ to: "/buy-coins" }) },
+        duration: 10_000,
+      });
+      return;
+    }
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Cook this track for 5 OG Coins? You get the full track + a free Take 2.\nBalance after: ${balance - 5} coins.`)
+    )
+      return;
     generateLockRef.current = true;
     setGenSong(true);
     try {
@@ -899,6 +912,12 @@ function LibraryPage() {
       const stagedId = (staged as { id: string }).id;
       attemptSongId = stagedId;
       void updateAttempt(attemptId, { song_id: stagedId });
+      try {
+        await prepayTrackFn({ data: { songId: stagedId } });
+      } catch (payErr) {
+        await supabase.from("songs").delete().eq("id", stagedId).eq("status", "draft");
+        throw payErr;
+      }
       // Hand the whole job to the server queue. The phone just watches the
       // row; closing the app or losing signal can't stop the song now.
       void runQueuedSong({ data: { songId: stagedId } }).catch(() => {

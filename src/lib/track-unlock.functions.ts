@@ -18,3 +18,19 @@ export const purchaseOwnerTrack = createServerFn({ method: "POST" })
       ? "Not enough coins" : "Could not unlock this track. Please try again.");
     return result as { ok: boolean; already: boolean; cost: number; coin_balance: number; second_take: string | null };
   });
+/** Charges the full-track price before generation starts (idempotent per song). */
+export const prepayTrack = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ songId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: song } = await context.supabase.from("songs").select("user_id")
+      .eq("id", data.songId).maybeSingle();
+    if (!song || song.user_id !== context.userId) throw new Error("Track not found");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc("prepay_track" as never, {
+      p_user: context.userId, p_song: data.songId,
+    } as never);
+    if (error) throw new Error(/insufficient/i.test(error.message)
+      ? "Not enough coins" : "Payment failed. Please try again.");
+    return result as unknown as { ok: boolean; already: boolean; cost: number; coin_balance: number };
+  });

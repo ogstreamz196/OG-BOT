@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/layout/AppShell";
 import { SignInTracker } from "@/components/auth/SignInTracker";
 import { AccountChecklistModal } from "@/components/auth/AccountChecklistModal";
+import { TrackReadyListener } from "@/components/library/TrackReadyListener";
 import { RoyaltyCelebration } from "@/components/celebration/RoyaltyCelebration";
 
 // Floating OG Bot widget removed site-wide. The full chat lives on /messenger.
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
         <SignInTracker userId={user.id} />
         <AccountChecklistModal />
         <RoyaltyCelebration userId={user.id} />
+        <TrackReadyListener userId={user.id} />
         <Outlet />
       </AppShell>
     );
