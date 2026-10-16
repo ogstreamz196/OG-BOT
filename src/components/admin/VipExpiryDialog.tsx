@@ -36,9 +36,7 @@ export function useVipExpiry(userId: string, enabled = true) {
         .eq("user_id", userId)
         .eq("role", "vip")
         .maybeSingle();
-      return ((data as { expires_at?: string | null } | null)?.expires_at ?? null) as
-        | string
-        | null;
+      return ((data as { expires_at?: string | null } | null)?.expires_at ?? null) as string | null;
     },
   });
 }
@@ -132,6 +130,7 @@ export function VipExpiryDialog({
       toast.success(`VIP ${isVip ? "updated" : "granted"} · ${formatVipExpiry(expires)}`);
       qc.invalidateQueries({ queryKey: ["admin-vip-expiry", userId] });
       qc.invalidateQueries({ queryKey: ["admin-users-roles"] });
+      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
       qc.invalidateQueries({ queryKey: ["admin-user-roles", userId] });
       qc.invalidateQueries({ queryKey: ["user-roles", userId] });
       qc.invalidateQueries({ queryKey: ["admin-user-audit", userId] });

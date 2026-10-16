@@ -15,6 +15,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ConfirmAction } from "@/components/admin/ConfirmAction";
 
 interface CsvRow {
   user_id: string;
@@ -92,24 +93,32 @@ export function BulkReconcilePanel() {
       const ids = Array.from(new Set(valid.map((r) => r.user_id)));
       if (!ids.length) return rows;
 
-      // Fetch profiles for current balances + emails
-      const { data: profs, error: pErr } = await supabase
-        .from("profiles")
-        .select("id, email, coin_balance")
-        .in("id", ids);
-      if (pErr) throw pErr;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table/SDK shape
-      const profMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
-
-      // Fetch all coin_transactions for these users
-      const { data: txs, error: tErr } = await supabase
-        .from("coin_transactions")
-        .select("user_id, amount")
-        .in("user_id", ids);
-      if (tErr) throw tErr;
+      // Small id batches keep each request short; every ledger page is read
+      // so busy members' sums aren't cut off at the per-request row cap.
+      const profMap = new Map<string, { email: string | null; coin_balance: number }>();
       const sumMap = new Map<string, number>();
-      for (const t of (txs ?? []) as { user_id: string; amount: number }[]) {
-        sumMap.set(t.user_id, (sumMap.get(t.user_id) ?? 0) + t.amount);
+      for (let i = 0; i < ids.length; i += 100) {
+        const batch = ids.slice(i, i + 100);
+        const { data: profs, error: pErr } = await supabase
+          .from("profiles")
+          .select("id, email, coin_balance")
+          .in("id", batch);
+        if (pErr) throw pErr;
+        for (const p of profs ?? []) profMap.set(p.id, p);
+
+        for (let from = 0; ; from += 1000) {
+          const { data: txs, error: tErr } = await supabase
+            .from("coin_transactions")
+            .select("user_id, amount")
+            .in("user_id", batch)
+            .order("id", { ascending: true })
+            .range(from, from + 999);
+          if (tErr) throw tErr;
+          for (const t of (txs ?? []) as { user_id: string; amount: number }[]) {
+            sumMap.set(t.user_id, (sumMap.get(t.user_id) ?? 0) + t.amount);
+          }
+          if (!txs || txs.length < 1000) break;
+        }
       }
 
       return rows.map((r): CsvRow => {
@@ -234,18 +243,30 @@ export function BulkReconcilePanel() {
           )}
           Verify against ledger
         </Button>
-        <Button
-          disabled={!summary.selected || applyMut.isPending}
-          onClick={() => applyMut.mutate()}
-          className="bg-gradient-brand text-primary-foreground"
+        <ConfirmAction
+          title={`Replace ${summary.selected} balance(s)?`}
+          description={
+            <p>
+              Each selected member's balance is overwritten with the CSV value. Every change is
+              logged.
+            </p>
+          }
+          confirmLabel="Replace balances"
+          tooltip="Overwrite the selected balances with the CSV values"
+          onConfirm={() => applyMut.mutate()}
         >
-          {applyMut.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="mr-2 h-4 w-4" />
-          )}
-          Apply {summary.selected || 0} update(s)
-        </Button>
+          <Button
+            disabled={!summary.selected || applyMut.isPending}
+            className="bg-gradient-brand text-primary-foreground"
+          >
+            {applyMut.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            Apply {summary.selected || 0} update(s)
+          </Button>
+        </ConfirmAction>
 
         {rows.length > 0 && (
           <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
