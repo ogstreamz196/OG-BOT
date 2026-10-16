@@ -18,8 +18,10 @@ export function BossNotificationsPanel() {
     queryFn: () => getBossNotifPrefs(),
   });
   const updateMut = useMutation({
-    mutationFn: (data: Partial<NonNullable<Prefs>>) => updateBossNotifPrefs({ data }),
+    mutationFn: (data: Partial<NonNullable<Prefs>>) =>
+      updateBossNotifPrefs({ data: data as never }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["boss-notif-prefs"] }),
+    onError: (e) => toast.error((e as Error).message || "Couldn't save that setting"),
   });
   const testMut = useMutation({
     mutationFn: () => sendTestBossNotification(),

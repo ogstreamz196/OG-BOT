@@ -25,18 +25,6 @@ function safeEqual(a: string, b: string): boolean {
   return la.length === lb.length && timingSafeEqual(la, lb);
 }
 
-function tokenToUuidPrefix(token: string): string {
-  return `${token.slice(0, 8)}-${token.slice(8, 12)}-${token.slice(12, 16)}-${token.slice(16, 20)}-${token.slice(20, 24)}`;
-}
-
-function tokenToUuidRange(token: string): { min: string; max: string } {
-  const base = tokenToUuidPrefix(token);
-  return {
-    min: `${base}00000000`,
-    max: `${base}ffffffff`,
-  };
-}
-
 async function tg(method: string, body: Record<string, unknown>) {
   // Prefer the Boss's own bot token (direct Telegram API, no Lovable involved).
   const botToken = process.env.OG_BOT_TOKEN;
@@ -145,16 +133,14 @@ async function scheduleDelete(chat_id: number, payload: unknown, ttlMs: number) 
   if (!mid || ttlMs <= 0) return;
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
-      .from("telegram_ephemeral_messages" as never)
-      .upsert(
-        {
-          chat_id,
-          message_id: mid,
-          delete_at: new Date(Date.now() + ttlMs).toISOString(),
-        } as never,
-        { onConflict: "chat_id,message_id" },
-      );
+    await supabaseAdmin.from("telegram_ephemeral_messages" as never).upsert(
+      {
+        chat_id,
+        message_id: mid,
+        delete_at: new Date(Date.now() + ttlMs).toISOString(),
+      } as never,
+      { onConflict: "chat_id,message_id" },
+    );
   } catch (e) {
     console.error("[tg] schedule delete failed", e);
   }
@@ -1287,31 +1273,13 @@ async function handleTelegramUpdate(
     }
     profileId = byToken[0].id as string;
   } else {
-    const uuidPrefix = tokenToUuidPrefix(token);
-    const { min, max } = tokenToUuidRange(token);
-    const { data: candidates } = await admin
-      .from("profiles")
-      .select("id")
-      .gte("id", min)
-      .lte("id", max)
-      .limit(2);
-    if (!candidates || candidates.length !== 1) {
-      await reply(
-        chat_id,
-        "⚠️ I couldn't match that link to an OG profile. Please open the Telegram button directly from OG Streamz Settings.",
-      );
-      return Response.json({ ok: true, rejected: "no_or_ambiguous_match" });
-    }
-    const pid = candidates[0].id as string;
-    const reconstructed = pid.replace(/-/g, "").slice(0, 24).toLowerCase();
-    if (reconstructed !== token) {
-      await reply(
-        chat_id,
-        "⚠️ This connect token doesn't match your OG profile. Please open a fresh Telegram link from Settings.",
-      );
-      return Response.json({ ok: true, rejected: "token_mismatch" });
-    }
-    profileId = pid;
+    // Old links were made from the account id, which isn't secret (it appears
+    // in referral links). Only random t_ tokens can link a chat now.
+    await reply(
+      chat_id,
+      "⚠️ That's an old connect link. Open a fresh one from OG Streamz → Settings → Connect Telegram.",
+    );
+    return Response.json({ ok: true, rejected: "legacy_token" });
   }
 
   // Verify chat reachable

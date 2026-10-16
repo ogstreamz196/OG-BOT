@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -235,19 +236,21 @@ export const getBossNotifPrefs = createServerFn({ method: "GET" })
 
 export const updateBossNotifPrefs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (
-      d: Partial<{
-        notify_on_signup: boolean;
-        notify_every_signin: boolean;
-        notify_new_device: boolean;
-        notify_new_country: boolean;
-        notify_suspicious: boolean;
-        sheets_sync_enabled: boolean;
-        quiet_hours_start: number | null;
-        quiet_hours_end: number | null;
-      }>,
-    ) => d ?? {},
+  // Only these columns, nothing else (e.g. never user_id).
+  .inputValidator((d) =>
+    z
+      .object({
+        notify_on_signup: z.boolean().optional(),
+        notify_every_signin: z.boolean().optional(),
+        notify_new_device: z.boolean().optional(),
+        notify_new_country: z.boolean().optional(),
+        notify_suspicious: z.boolean().optional(),
+        sheets_sync_enabled: z.boolean().optional(),
+        quiet_hours_start: z.number().int().min(0).max(23).nullable().optional(),
+        quiet_hours_end: z.number().int().min(0).max(23).nullable().optional(),
+      })
+      .strict()
+      .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as any;

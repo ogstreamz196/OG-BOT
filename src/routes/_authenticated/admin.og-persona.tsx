@@ -107,10 +107,10 @@ export function OgPersonaPanel() {
             <Skull className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold">Foul mouth mode</p>
+            <p className="text-sm font-semibold">Foul mouth mode (your chats)</p>
             <p className="text-xs text-muted-foreground">
-              When ON, OG Bot drops the language filter and talks raw. Script is still pulled from
-              the OG Bot code section below — this only flips the filter.
+              Your own setting, not everyone's. When ON, OG Bot drops the language filter and talks
+              raw in your chats. Members flip their own switch.
             </p>
           </div>
         </div>

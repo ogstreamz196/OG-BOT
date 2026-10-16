@@ -51,6 +51,16 @@ import {
 } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AdminEditModeToggle } from "@/components/admin/AdminEditMode";
 import { BulkReconcilePanel } from "@/components/admin/BulkReconcilePanel";
 import { BossNav } from "@/components/admin/BossNav";
@@ -796,6 +806,7 @@ function MobileUserCard({
 function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean }) {
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
   const expiry = useVipExpiry(userId, checked);
   const mut = useMutation({
     mutationFn: async (next: boolean) => {
@@ -820,7 +831,7 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-border bg-background/40 px-2.5 text-sm">
+        <div className="flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-background/40 px-2.5 text-sm">
           <Crown className={`h-4 w-4 ${checked ? "text-amber-500" : "text-muted-foreground"}`} />
           <span
             className={`whitespace-nowrap ${checked ? "text-amber-400" : "text-muted-foreground"}`}
@@ -830,7 +841,7 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
           <Switch
             checked={checked}
             disabled={mut.isPending}
-            onCheckedChange={(v) => (v ? setDialogOpen(true) : mut.mutate(false))}
+            onCheckedChange={(v) => (v ? setDialogOpen(true) : setConfirmRevoke(true))}
             aria-label="Toggle VIP"
           />
           {checked && (
@@ -846,7 +857,7 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
               {expiry.isLoading ? "…" : formatVipExpiry(expiry.data)}
             </button>
           )}
-        </label>
+        </div>
       </TooltipTrigger>
       <TooltipContent>{checked ? "Revoke VIP or tap date to adjust" : "Grant VIP"}</TooltipContent>
       <VipExpiryDialog
@@ -856,6 +867,28 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
         isVip={checked}
         currentExpiry={expiry.data}
       />
+      <AlertDialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove VIP?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This member loses VIP perks straight away.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmRevoke(false);
+                mut.mutate(false);
+              }}
+            >
+              Remove VIP
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Tooltip>
   );
 }
@@ -897,7 +930,7 @@ function VaultQuickToggle({ userId }: { userId: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <label className="flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-md border border-border bg-background/40 px-2.5 text-sm">
+        <div className="flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-background/40 px-2.5 text-sm">
           <KeyRound className={`h-4 w-4 ${checked ? "text-amber-500" : "text-muted-foreground"}`} />
           <span
             className={`whitespace-nowrap ${checked ? "text-amber-400" : "text-muted-foreground"}`}
@@ -910,7 +943,7 @@ function VaultQuickToggle({ userId }: { userId: string }) {
             onCheckedChange={(v) => mut.mutate(v)}
             aria-label="Toggle OG Vault access"
           />
-        </label>
+        </div>
       </TooltipTrigger>
       <TooltipContent>
         {checked ? "Revoke OG Vault access" : "Grant OG Vault access (free, independent of VIP)"}
@@ -1172,21 +1205,6 @@ function EditUserPopover({ user, roles }: { user: ProfileRow; roles: string[] })
         ) : null}
 
         <Separator />
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-primary" />
-            <div>
-              <p className="text-sm font-medium">OG Bot</p>
-              <p className="text-xs text-muted-foreground">Bot privileges</p>
-            </div>
-          </div>
-          <Switch
-            checked={isOgBot}
-            disabled={toggleOg.isPending}
-            onCheckedChange={(v) => toggleOg.mutate(v)}
-          />
-        </div>
 
         <Link to="/admin/users/$userId" params={{ userId: user.id }} onClick={() => setOpen(false)}>
           <Button variant="outline" size="sm" className="w-full">

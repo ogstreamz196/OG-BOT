@@ -56,7 +56,7 @@ function SettingsPage() {
   const { user } = useAuth();
   const dev = useDevMode();
   const { data: profile, refetch } = useProfile();
-  const { isAdmin, isVip, roles } = useRole();
+  const { isAdmin, hasVipRole } = useRole();
   const qc = useQueryClient();
 
   const [name, setName] = useState("");
@@ -76,8 +76,6 @@ function SettingsPage() {
   useEffect(() => {
     if (profile && !balanceDirty) setBalance(String(profile.coin_balance ?? 0));
   }, [profile?.coin_balance, balanceDirty]);
-
-  const isOgBot = (roles as string[]).includes("og_bot");
 
   const saveName = useMutation({
     mutationFn: async () => {
@@ -379,28 +377,20 @@ function SettingsPage() {
                 icon={<Crown className="h-5 w-5 text-amber-500" />}
                 title="VIP"
                 description="Premium tiers and bonus features."
-                checked={isVip}
+                checked={hasVipRole}
                 pending={toggleRole.isPending}
                 onChange={(v) =>
                   toggleRole.mutate({ rpc: "set_vip_admin", key: "make_vip", value: v })
-                }
-              />
-              <RoleRow
-                icon={<Bot className="h-5 w-5 text-primary" />}
-                title="OG Bot"
-                description="Automated/bot privileges."
-                checked={isOgBot}
-                pending={toggleRole.isPending}
-                onChange={(v) =>
-                  toggleRole.mutate({ rpc: "set_og_bot_admin", key: "make_og", value: v })
                 }
               />
               <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-3 opacity-80">
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="h-5 w-5 text-primary" />
                   <div>
-                    <Label className="text-sm font-medium">Boss / admin</Label>
-                    <p className="text-xs text-muted-foreground">Provisioned in the database.</p>
+                    <Label className="text-sm font-medium">Boss</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Another Boss can change this from Users.
+                    </p>
                   </div>
                 </div>
                 <Switch checked disabled />
