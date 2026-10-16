@@ -459,51 +459,35 @@ async function runAdminCommand(
       return true;
     }
     const note = (reason ?? `telegram_${cmd.slice(1)}`).slice(0, 200);
-    let newBalance: number | null = null;
-    if (cmd === "/addcoins") {
-      if (amount === 0) {
-        await reply(chat_id, "Amount must be non-zero.");
-        return true;
-      }
-      const updated = Math.max(0, (target.coin_balance ?? 0) + amount);
-      const { error: upErr } = await admin
-        .from("profiles")
-        .update({ coin_balance: updated })
-        .eq("id", target.id);
+    // Balance and ledger move by the same amount: an atomic increment, then a
+    // ledger row for exactly what was applied (balances never go below 0).
+    if (cmd === "/addcoins" && amount === 0) {
+      await reply(chat_id, "Amount must be non-zero.");
+      return true;
+    }
+    if (cmd !== "/addcoins" && amount < 0) {
+      await reply(chat_id, "Balance must be 0 or positive.");
+      return true;
+    }
+    const current = target.coin_balance ?? 0;
+    const delta = cmd === "/addcoins" ? Math.max(amount, -current) : amount - current;
+    let newBalance: number = current;
+    if (delta !== 0) {
+      const { data: updated, error: upErr } = await admin.rpc("increment_coin_balance", {
+        _user_id: target.id,
+        _delta: delta,
+      });
       if (upErr) {
         await reply(chat_id, `❌ ${upErr.message}`);
         return true;
       }
       await admin.from("coin_transactions").insert({
         user_id: target.id,
-        amount,
-        type: amount > 0 ? "admin_mint" : "admin_deduct",
+        amount: delta,
+        type: delta > 0 ? "admin_mint" : "admin_deduct",
         reference: note,
       });
-      newBalance = updated;
-    } else {
-      if (amount < 0) {
-        await reply(chat_id, "Balance must be 0 or positive.");
-        return true;
-      }
-      const delta = amount - (target.coin_balance ?? 0);
-      const { error: upErr } = await admin
-        .from("profiles")
-        .update({ coin_balance: amount })
-        .eq("id", target.id);
-      if (upErr) {
-        await reply(chat_id, `❌ ${upErr.message}`);
-        return true;
-      }
-      if (delta !== 0) {
-        await admin.from("coin_transactions").insert({
-          user_id: target.id,
-          amount: delta,
-          type: delta > 0 ? "admin_mint" : "admin_deduct",
-          reference: note,
-        });
-      }
-      newBalance = amount;
+      newBalance = typeof updated === "number" ? updated : current + delta;
     }
     await reply(
       chat_id,

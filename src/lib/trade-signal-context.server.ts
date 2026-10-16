@@ -20,14 +20,17 @@ import {
 type Interval = "15m" | "1h" | "1d";
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; OGBot/1.0)" };
-const TIMEOUT_MS = 6000;
+const TIMEOUT_MS = 3500;
+/** Start the next source if the current one hasn't answered by now. */
+const HEDGE_MS = 900;
+const NEWS_TIMEOUT_MS = 2500;
 
 async function getJson(url: string): Promise<unknown> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, { headers: UA, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
     return await res.json();
   } finally {
     clearTimeout(timer);
@@ -99,33 +102,105 @@ async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> 
   );
 }
 
-/** Tries each source in turn until one returns enough candles. */
+// Warm caches shared by every request on this server instance.
+const CANDLE_TTL: Record<Interval, number> = { "1d": 10 * 60_000, "1h": 60_000, "15m": 30_000 };
+const candleCache = new Map<string, { exp: number; value: { data: Candle[]; source: string } }>();
+const inflight = new Map<string, Promise<{ data: Candle[]; source: string }>>();
+/** Sources that refused us (e.g. a region block) are skipped for a while. */
+const sourceDownUntil = new Map<string, number>();
+
+function markDown(source: string, e: unknown) {
+  const status = (e as { status?: number }).status;
+  if (status === 451 || status === 403 || status === 429) {
+    sourceDownUntil.set(source, Date.now() + (status === 429 ? 2 : 30) * 60_000);
+  }
+}
+
+/**
+ * Hedged fetch: sources are tried in preference order, but the next one
+ * starts if the current one is slow, and the first good answer in preference
+ * order wins. Results are cached per market and timeframe.
+ */
 async function candles(
   inst: Instrument,
   interval: Interval,
 ): Promise<{ data: Candle[]; source: string }> {
+  const key = `${inst.code}:${interval}`;
+  const hit = candleCache.get(key);
+  if (hit && hit.exp > Date.now()) return hit.value;
+  const running = inflight.get(key);
+  if (running) return running;
+
   const limit = interval === "1d" ? 365 : interval === "1h" ? 1000 : 500;
   const tries: [string, () => Promise<Candle[]>][] = [];
   if (inst.binance) tries.push(["Binance", () => fromBinance(inst.binance!, interval, limit)]);
   if (inst.kraken) tries.push(["Kraken", () => fromKraken(inst.kraken!, interval)]);
   if (inst.yahoo) tries.push(["Yahoo Finance", () => fromYahoo(inst.yahoo!, interval)]);
-  for (const [source, run] of tries) {
-    try {
-      const data = await run();
-      if (data.length >= 60) return { data, source };
-    } catch (e) {
-      console.warn(`[trade] ${source} ${inst.code} ${interval} failed:`, (e as Error).message);
+  const live = tries.filter(([src]) => (sourceDownUntil.get(src) ?? 0) < Date.now());
+  const order = live.length ? live : tries;
+
+  const job = (async () => {
+    const results: Promise<Candle[] | null>[] = [];
+    const start = (i: number) => {
+      const [source, run] = order[i];
+      results[i] = run()
+        .then((d) => (d.length >= 60 ? d : null))
+        .catch((e) => {
+          markDown(source, e);
+          console.warn(`[trade] ${source} ${inst.code} ${interval} failed:`, (e as Error).message);
+          return null;
+        });
+      return results[i];
+    };
+    for (let i = 0; i < order.length; i++) {
+      const p = start(i);
+      // Wait for this source, but no longer than the hedge delay before
+      // starting the next one (unless it's the last).
+      const settled = await Promise.race([
+        p.then((d) => ({ done: true as const, d })),
+        new Promise<{ done: false }>((r) =>
+          setTimeout(
+            () => r({ done: false }),
+            i === order.length - 1 ? TIMEOUT_MS + 500 : HEDGE_MS,
+          ),
+        ),
+      ]);
+      if (settled.done && settled.d) return { data: settled.d, source: order[i][0] };
     }
+    // Everything has started; take the first good answer in preference order.
+    for (let i = 0; i < results.length; i++) {
+      const d = await results[i];
+      if (d) return { data: d, source: order[i][0] };
+    }
+    return { data: [] as Candle[], source: "" };
+  })();
+
+  inflight.set(key, job);
+  try {
+    const value = await job;
+    if (value.data.length) candleCache.set(key, { exp: Date.now() + CANDLE_TTL[interval], value });
+    return value;
+  } finally {
+    inflight.delete(key);
   }
-  return { data: [], source: "" };
 }
+
+const newsCache = new Map<string, { exp: number; value: string | null }>();
 
 async function marketNews(inst: Instrument): Promise<string | null> {
   const key = process.env.PERPLEXITY_API_KEY;
   if (!key) return null;
+  const hit = newsCache.get(inst.code);
+  if (hit && hit.exp > Date.now()) return hit.value;
+  const value = await fetchNews(inst, key);
+  newsCache.set(inst.code, { exp: Date.now() + (value ? 10 : 2) * 60_000, value });
+  return value;
+}
+
+async function fetchNews(inst: Instrument, key: string): Promise<string | null> {
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => ctrl.abort(), NEWS_TIMEOUT_MS);
     const res = await fetch("https://api.perplexity.ai/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },

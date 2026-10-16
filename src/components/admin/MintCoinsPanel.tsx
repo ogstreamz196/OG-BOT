@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { adjustCoinsAsBoss } from "@/lib/admin-coins";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Coins,
@@ -95,13 +96,12 @@ export function MintCoinsPanel() {
       if (!Number.isFinite(signedAmount) || signedAmount === 0)
         throw new Error("Amount must be a non-zero integer");
 
-      const { data, error } = await supabase.rpc("mint_coins_admin", {
-        target_user_id: selected.id,
-        amount: Math.trunc(signedAmount),
-        admin_notes: notes.trim() || (signedAmount > 0 ? "admin_mint" : "admin_deduct"),
-      });
-      if (error) throw new Error(error.message);
-      return { newBalance: data as number, signedAmount };
+      const { newBalance, applied } = await adjustCoinsAsBoss(
+        selected.id,
+        signedAmount,
+        notes.trim() || (signedAmount > 0 ? "admin_mint" : "admin_deduct"),
+      );
+      return { newBalance, signedAmount: applied };
     },
     onSuccess: ({ newBalance, signedAmount }) => {
       toast.success(

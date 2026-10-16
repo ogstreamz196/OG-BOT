@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
+import { adjustCoinsAsBoss } from "@/lib/admin-coins";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -198,15 +199,14 @@ function UserSettingsPage() {
     mutationFn: async (delta: number) => {
       if (!Number.isFinite(delta) || delta === 0) throw new Error("Enter a non-zero amount");
       if (Math.abs(delta) > 100000) throw new Error("Max ±100,000 per adjustment");
-      const { data, error } = await supabase.rpc("mint_coins_admin", {
-        target_user_id: userId,
-        amount: delta,
-        admin_notes: "settings_page_adjust",
-      });
-      if (error) throw new Error(error.message);
-      return data as number;
+      const { newBalance, applied } = await adjustCoinsAsBoss(
+        userId,
+        delta,
+        "settings_page_adjust",
+      );
+      return { newBalance, delta: applied };
     },
-    onSuccess: (newBalance, delta) => {
+    onSuccess: ({ newBalance, delta }) => {
       toast.success(`${delta > 0 ? "+" : ""}${delta} coins · new balance ${newBalance}`);
       setAdjust("");
       qc.invalidateQueries({ queryKey: ["admin-user-profile", userId] });

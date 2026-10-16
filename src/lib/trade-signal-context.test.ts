@@ -141,6 +141,43 @@ describe("buildTradeSignalContext", () => {
     expect(out).toMatch(/Stop loss: \d\.\d{5} \(\d+ pips\)/);
   });
 
+  it("starts the backup source when the first is slow", async () => {
+    const krak = (b: ReturnType<typeof bars>) => ({
+      error: [],
+      result: {
+        XLTCZUSD: b.map((x) => [
+          x.t / 1000,
+          String(x.o),
+          String(x.h),
+          String(x.l),
+          String(x.c),
+          "0",
+          "1",
+          1,
+        ]),
+        last: 1,
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("binance")) {
+          await new Promise((r) => setTimeout(r, 3000));
+          return new Response("slow", { status: 504 });
+        }
+        if (url.includes("kraken") && url.includes("interval=1440"))
+          return ok(krak(bars(365, 80, 0.5, 24 * HOUR)));
+        if (url.includes("kraken") && url.includes("interval=60"))
+          return ok(krak(bars(720, 100, 0.05, HOUR)));
+        return new Response("nope", { status: 404 });
+      }),
+    );
+    const started = Date.now();
+    const out = await buildTradeSignalContext("ltc signal");
+    expect(out).toContain("source: Kraken");
+    expect(Date.now() - started).toBeLessThan(2500);
+  });
+
   it("refuses to invent levels when no feed answers", async () => {
     vi.stubGlobal(
       "fetch",

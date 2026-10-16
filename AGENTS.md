@@ -7,6 +7,7 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 ## Coins and access
 
 - All coin moves (track purchases, welcome/Battle rewards, VIP IDs, diss-track charges/refunds) go through authenticated server functions and service-only atomic, idempotent RPCs, so retries or client calls never duplicate or authorise coin changes.
+- Coin ledger: a balance must always equal the sum of its coin_transactions. Every balance change writes a ledger row for exactly the amount applied (Boss take-aways go through src/lib/admin-coins.ts, which caps at the balance); never re-own or edit ledger rows. Audit, reconcile ("use ledger" / "keep balance") and the one-off reset live in src/lib/coin-audit.functions.ts (Boss → Money → Coin check).
 - VIP IDs are `OG` + uppercase username via the service-only function, synced on username change.
 - Boss account deletion: authenticated server function, server-checked role, protected targets.
 - Boss member directory (src/lib/admin-members.functions.ts): every member loads in one server call (paged reads, no row cap); the list pages on the client. Account deletes everywhere go through src/components/admin/DeleteAccountDialog.tsx (type DELETE) and never offer Boss or Dev accounts. Member activity shows device type only, never location.

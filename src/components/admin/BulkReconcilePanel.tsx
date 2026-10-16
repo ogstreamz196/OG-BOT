@@ -16,6 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ConfirmAction } from "@/components/admin/ConfirmAction";
+import { useServerFn } from "@tanstack/react-start";
+import { reconcileUserCoinBalance } from "@/lib/coin-audit.functions";
 
 interface CsvRow {
   user_id: string;
@@ -65,6 +67,7 @@ function parseCsv(text: string): { rows: CsvRow[]; error?: string } {
 
 export function BulkReconcilePanel() {
   const qc = useQueryClient();
+  const reconcile = useServerFn(reconcileUserCoinBalance);
   const [rows, setRows] = useState<CsvRow[]>([]);
   const [verifying, setVerifying] = useState(false);
 
@@ -159,12 +162,24 @@ export function BulkReconcilePanel() {
       let fail = 0;
       for (const r of toApply) {
         try {
-          const { error } = await supabase.rpc("set_balance_admin", {
-            target_user_id: r.user_id,
-            new_balance: r.target,
-            admin_notes: `csv_reconcile: tx_sum=${r.tx_sum} target=${r.target}`,
-          });
-          if (error) throw error;
+          if (r.status === "verified") {
+            // The ledger already says the CSV value: move the balance to it
+            // without adding another ledger row.
+            const res = await reconcile({ data: { userId: r.user_id, trust: "ledger" } });
+            if ("error" in res) throw new Error(res.error);
+          } else {
+            // Deliberate override: record the old gap first so the ledger
+            // matches the current balance, then set the new balance (which
+            // writes its own ledger row).
+            const res = await reconcile({ data: { userId: r.user_id, trust: "balance" } });
+            if ("error" in res) throw new Error(res.error);
+            const { error } = await supabase.rpc("set_balance_admin", {
+              target_user_id: r.user_id,
+              new_balance: r.target,
+              admin_notes: `csv_reconcile: tx_sum=${r.tx_sum} target=${r.target}`,
+            });
+            if (error) throw error;
+          }
           ok++;
         } catch (e) {
           fail++;
