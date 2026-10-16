@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimGuestTracks } from "@/lib/guest-track.functions";
+import type { WizardResult } from "@/components/library/CreateNowWizard";
 
 /** The guest (anonymous) account on this device: proof used to claim its tracks. */
 export const GUEST_SESSION_KEY = "ogbot.guestSession.v1";
@@ -16,6 +17,8 @@ export type GuestActiveTrack = {
   /** Orchestration plan, attached server-side once the track is paid. */
   plan: { lyrics: Record<string, unknown>; suno: Record<string, unknown> };
   stage: "checkout" | "cooking";
+  /** Wizard answers, so "sign up for free coins" can hand the song to the library. */
+  result?: Omit<WizardResult, "titlePromise">;
 };
 
 export function readGuestActive(): GuestActiveTrack | null {

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Capacitor } from "@capacitor/core";
-import { Download, Flame, Loader2, Pause, Play, Save, Share2 } from "lucide-react";
+import { Coins, Download, Flame, Loader2, Pause, Play, Save, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useSettings } from "@/hooks/use-settings";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
 import { arePaymentsEnabled, getStripeEnvironment } from "@/lib/stripe";
@@ -58,6 +59,7 @@ export async function startGuestCreation(result: WizardResult): Promise<boolean>
       title: result.title,
       plan,
       stage: "checkout",
+      result: (({ titlePromise: _ignored, ...rest }) => rest)(result),
     });
     window.dispatchEvent(new CustomEvent(OPEN_GUEST_STUDIO, { detail: { pay: true } }));
     return true;
@@ -81,7 +83,19 @@ type GuestSong = {
  * download and share the full track, with an optional nudge to save it to an
  * account.
  */
-export function GuestStudio({ onSave }: { onSave: (title: string) => void }) {
+/** Every new account's welcome bonus (grant_welcome_bonus). */
+const WELCOME_COINS = 25;
+
+export function GuestStudio({
+  onSave,
+  onSignUpForCoins,
+}: {
+  onSave: (title: string) => void;
+  /** Guest picked "sign up for free coins": hand the song to the library. */
+  onSignUpForCoins: (track: GuestActiveTrack) => void;
+}) {
+  const { data: settings } = useSettings();
+  const coinCost = settings?.coins_per_full_unlock ?? 5;
   const [active, setActive] = useState<GuestActiveTrack | null>(null);
   const [open, setOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -245,6 +259,33 @@ export function GuestStudio({ onSave }: { onSave: (title: string) => void }) {
                 <span className="font-bold text-foreground">{title}</span> — full-length track with
                 real vocals. Play it, download the MP3 and share it. No account needed.
               </DialogDescription>
+              {!confirming && active.result ? (
+                <div className="rounded-2xl border border-amber-300/50 bg-amber-500/10 p-4 text-left">
+                  <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+                    <Coins className="h-4 w-4 text-amber-300" /> You have 0 OG coins
+                  </p>
+                  <p className="mt-1 text-sm text-foreground/85">
+                    Sign up free and get {WELCOME_COINS} coins. This track costs {coinCost}, so it's
+                    covered with {Math.max(0, WELCOME_COINS - coinCost)} to spare.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={paying}
+                    onClick={() => {
+                      setOpen(false);
+                      onSignUpForCoins(active);
+                    }}
+                    className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-amber-400 px-5 text-sm font-black uppercase tracking-wide text-black disabled:opacity-60"
+                  >
+                    Sign up free · get {WELCOME_COINS} coins
+                  </button>
+                </div>
+              ) : null}
+              {!confirming && active.result ? (
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  or pay as a guest
+                </p>
+              ) : null}
               {!confirming ? (
                 <button
                   type="button"

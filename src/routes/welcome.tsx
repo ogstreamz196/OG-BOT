@@ -755,11 +755,11 @@ function AuthModal() {
             <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
               <p className="font-display text-xl font-black">Your track is ready to cook 🎧</p>
               <p className="mt-1 text-sm">
-                <span className="font-bold">"{songTitle}"</span> is saved. Join free and it starts
-                cooking straight away.
+                <span className="font-bold">"{songTitle}"</span> is saved. Join free, grab your 25
+                welcome coins and cook it in one tap.
               </p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
-                <li>🪙 Free welcome coins to make it</li>
+                <li>🪙 25 free welcome coins (this track costs 5)</li>
                 <li>👑 15 days of VIP — every style unlocked</li>
                 <li>💸 Earn commission when friends join</li>
               </ul>
@@ -822,7 +822,27 @@ function WelcomePage() {
         <Footer />
         <AuthModal />
         <GuestWizard />
-        <GuestStudio onSave={openSaveTrackAuth} />
+        <GuestStudio
+          onSave={openSaveTrackAuth}
+          onSignUpForCoins={(track) => {
+            // After sign-up the library picks this song up and offers the pay
+            // step, where the welcome coins cover it.
+            if (track.result) {
+              try {
+                localStorage.setItem(
+                  GUEST_PENDING_SONG_KEY,
+                  JSON.stringify({ result: track.result, draft: {} }),
+                );
+              } catch {
+                /* storage blocked */
+              }
+            }
+            const url = new URL(window.location.href);
+            url.searchParams.set("next", "/library");
+            window.history.replaceState(null, "", url.toString());
+            openSongAuth(track.title);
+          }}
+        />
         <BattleModal />
 
         <div className="fixed bottom-4 right-4 z-50">
