@@ -568,6 +568,34 @@ async function runChatAI(
   const typingTimer = setInterval(() => {
     void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
   }, 4000);
+  // Trade signal: send an instant "hold on" line in OG Bot's voice so the user
+  // knows the next message is the analysis. Not saved to chat history.
+  let holdingSent: Promise<unknown> = Promise.resolve();
+  {
+    const ts = await import("@/lib/trade-signal");
+    const market = ts.detectTradeIntent(userText);
+    if (market) {
+      holdingSent = (async () => {
+        const vipish = ["vip", "admin", "dev"].some((r) => roles.includes(r));
+        let foul = false;
+        if (vipish) {
+          const { data } = await admin
+            .from("user_preferences")
+            .select("foul_mouth")
+            .eq("user_id", profileId)
+            .maybeSingle();
+          foul = data?.foul_mouth ?? true;
+        }
+        const res = await tg("sendMessage", {
+          chat_id,
+          text: ts.holdingMessage(market, foul ? "foul" : "cheeky"),
+          disable_web_page_preview: true,
+        });
+        const { tradeReplyTtlMs } = await import("@/lib/trade-signal-context.server");
+        await scheduleDelete(chat_id, res, tradeReplyTtlMs(userText));
+      })().catch((e) => console.warn("[telegram] holding message failed", e));
+    }
+  }
   const vp = await import("@/lib/vip-promo.server");
   const { loadUserDossier } = await import("@/lib/og-user-dossier.server");
   const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
@@ -736,6 +764,8 @@ async function runChatAI(
       await new Promise((resolve) => setTimeout(resolve, remainingBeat));
     }
 
+    // The holding line (if any) must land before the analysis.
+    await holdingSent;
     // Telegram caps messages at ~4096 chars
     const chunks = replyText.match(/[\s\S]{1,3800}/g) ?? [replyText];
     for (const c of chunks) {

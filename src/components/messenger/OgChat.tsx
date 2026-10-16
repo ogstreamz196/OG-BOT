@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
+import { detectTradeIntent, holdingMessage, isHoldingMessage } from "@/lib/trade-signal";
 import { ogErrorMessage } from "@/lib/og-error-message";
 import { DISS_DONE, DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
 import { DissAmbushCard } from "@/components/messenger/DissAmbushCard";
@@ -30,10 +31,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
-import {
-  useFoulMouth,
-  useSetFoulMouth,
-} from "@/hooks/use-foul-mouth";
+import { useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
 // useShareLive intentionally removed — Loner/Community is page-level now.
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -389,7 +387,6 @@ export function OgChat({
     return () => clearTimeout(t);
   }, [m.isPending, showSkeleton]);
 
-
   function sendText(text: string, opts?: { forcePrivate?: boolean }) {
     const t = text.trim();
     const att = attachment;
@@ -431,12 +428,28 @@ export function OgChat({
     // private — free, no coin check. Images are read and discussed, never edited.
     const visibleText = t || (att ? `📎 ${att.name}` : "");
     const next = [...messages, { role: "user" as const, content: visibleText }];
-    setMessages(next);
+    // Trade signal: an instant "hold on" line in OG Bot's voice, so the user
+    // knows the next message is the analysis. It never goes into the history.
+    const market = att ? null : detectTradeIntent(t);
+    setMessages(
+      market
+        ? [
+            ...next,
+            {
+              role: "assistant" as const,
+              content: holdingMessage(market, foulMouth ? "foul" : "safe"),
+            },
+          ]
+        : next,
+    );
     selfSyncRef.current = true;
     window.dispatchEvent(new Event(SYNC_EVENT));
     setInput("");
     setAttachment(null);
-    m.mutate({ history: next, attachmentDataUrl: att?.dataUrl });
+    m.mutate({
+      history: next.filter((msg) => !isHoldingMessage(msg.content)),
+      attachmentDataUrl: att?.dataUrl,
+    });
   }
 
   function resolveAmbush(index: number, botLine: string) {
@@ -1027,7 +1040,11 @@ export function OgChat({
             data-testid="og-loner-send"
             className="mb-1 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-brand text-primary-foreground shadow-[0_8px_22px_-6px_hsl(var(--primary)/0.6)] ring-1 ring-primary/40 transition hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:ring-0"
           >
-            {m.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {m.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </button>
         </div>
         <p

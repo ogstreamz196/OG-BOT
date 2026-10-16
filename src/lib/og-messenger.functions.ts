@@ -68,6 +68,13 @@ export const chatOgBot = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // The instant "hold on" line before a trade signal is UI only; never feed it back.
+    {
+      const { isHoldingMessage } = await import("@/lib/trade-signal");
+      const kept = data.messages.filter((m) => !isHoldingMessage(m.content));
+      data.messages.splice(0, data.messages.length, ...kept);
+    }
+
     // Trade signals: start pulling live prices now so they load alongside the
     // user context below instead of after it.
     const lastUserText = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";

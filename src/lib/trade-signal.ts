@@ -507,3 +507,48 @@ export function decimalsFor(inst: Instrument, price: number): number {
   if (price >= 0.01) return 5;
   return 8;
 }
+
+/* ── Instant "hold on" message ─────────────────────────────────────────── */
+
+export type HoldingTone = "foul" | "cheeky" | "safe";
+
+/** Invisible tag on the holding line so chat history can leave it out. */
+export const HOLDING_TAG = "⁣";
+
+const HOLDING_LINES: Record<HoldingTone, string[]> = {
+  foul: [
+    "⏳ Hold your horses, you impatient sod. Pulling live {m} charts and grilling every timeframe. Honest signal lands in my next message, no bullshit.",
+    "⏳ Chill, for fuck's sake. I'm ripping through {m} price action right now. Next message is the real signal, straight up.",
+    "⏳ Sit tight, bellend. Scanning {m} across every timeframe so I don't feed you shite. Signal's coming next.",
+    "⏳ Easy, you greedy bastard. Checking live {m} levels and the news. The honest call drops in my next message.",
+  ],
+  cheeky: [
+    "⏳ Easy tiger. Pulling live {m} charts and checking every timeframe for the most honest read I can give. Signal lands in my next message.",
+    "⏳ Kettle on, feet up. I'm scanning {m} right now. Next message is your signal, no fluff.",
+    "⏳ Hold tight, chief. Crunching live {m} price action. The honest call is coming in my next message.",
+    "⏳ Two secs, I'm not a magician. Reading the {m} charts properly. Signal follows in my next message.",
+  ],
+  safe: [
+    "⏳ On it. I'm pulling live {m} prices and checking each timeframe so the signal is honest. It'll be in my next message.",
+    "⏳ One moment while I scan live {m} data and the latest news. Your signal follows in my next message.",
+    "⏳ Checking the {m} charts across timeframes now. The full signal will be my next message.",
+  ],
+};
+
+/**
+ * The instant line sent before a trade analysis, so the user knows the next
+ * message is the signal. Picked at random from the pool for OG Bot's mood.
+ */
+export function holdingMessage(
+  inst: Instrument,
+  tone: HoldingTone,
+  rand: () => number = Math.random,
+): string {
+  const pool = HOLDING_LINES[tone];
+  const line = pool[Math.floor(rand() * pool.length) % pool.length];
+  return line.replace("{m}", inst.label) + HOLDING_TAG;
+}
+
+export function isHoldingMessage(content: string | null | undefined): boolean {
+  return !!content && content.endsWith(HOLDING_TAG);
+}
