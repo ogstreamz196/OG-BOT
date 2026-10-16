@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildTradeSignalContext } from "./trade-signal-context.server";
+import {
+  buildTradeSignalContext,
+  plainForTelegram,
+  tradeReplyTtlMs,
+} from "./trade-signal-context.server";
 
 const HOUR = 3600_000;
 const T0 = Date.UTC(2026, 0, 1);
@@ -145,5 +149,18 @@ describe("buildTradeSignalContext", () => {
     const out = await buildTradeSignalContext("usdcad entry");
     expect(out).toContain("could not be loaded");
     expect(out).not.toContain("SIGNAL ENGINE");
+  });
+});
+
+describe("Telegram delivery", () => {
+  const H47 = 47 * 3600_000;
+  it("keeps swing signals up past their 3-day validity", () => {
+    expect(tradeReplyTtlMs("btc swing", H47)).toBe(96 * 3600_000);
+    expect(tradeReplyTtlMs("gold scalp", H47)).toBe(H47);
+    expect(tradeReplyTtlMs("eurusd signal", H47)).toBe(H47);
+  });
+
+  it("strips markdown emphasis that Telegram would show as asterisks", () => {
+    expect(plainForTelegram("## Setup\n**Entry:** 1.08500")).toBe("Setup\nEntry: 1.08500");
   });
 });

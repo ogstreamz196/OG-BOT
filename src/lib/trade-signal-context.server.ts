@@ -305,3 +305,18 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
   if (cache.size > 200) cache.delete(cache.keys().next().value!);
   return value;
 }
+
+/**
+ * How long a Telegram signal reply should stay before auto-delete: at least
+ * the usual chat lifetime, and never shorter than the signal's own validity
+ * plus a day, so a swing signal doesn't vanish while it's still live.
+ */
+export function tradeReplyTtlMs(userText: string, defaultTtlMs: number): number {
+  const hours = validityWindow(detectStyle(userText)).hours + 24;
+  return Math.max(defaultTtlMs, hours * 3600_000);
+}
+
+/** Telegram chat replies go out as plain text, so drop markdown emphasis. */
+export function plainForTelegram(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#{1,6}\s+/gm, "");
+}

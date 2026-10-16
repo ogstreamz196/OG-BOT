@@ -727,6 +727,14 @@ async function runChatAI(
       replyText = ensureFoulFlavour(replyText);
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
+    // Trade signals: plain text for Telegram, and keep the message up for as
+    // long as the signal is valid.
+    let replyTtlMs = DEFAULT_TTL_MS;
+    if (tradeBlock) {
+      const ts = await import("@/lib/trade-signal-context.server");
+      replyText = ts.plainForTelegram(replyText);
+      replyTtlMs = ts.tradeReplyTtlMs(userText, DEFAULT_TTL_MS);
+    }
 
     await admin.from("og_messages").insert({
       user_id: profileId,
@@ -750,7 +758,7 @@ async function runChatAI(
         text: c,
         disable_web_page_preview: true,
       });
-      await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
+      await scheduleDelete(chat_id, res, replyTtlMs);
     }
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);
