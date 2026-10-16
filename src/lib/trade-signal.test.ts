@@ -12,6 +12,11 @@ import {
   validityWindow,
   holdingMessage,
   isHoldingMessage,
+  tagSignalExpiry,
+  signalExpiry,
+  stripSignalTag,
+  cleanTradeHistory,
+  EXPIRED_SIGNAL_NOTE,
   type Candle,
 } from "./trade-signal";
 
@@ -215,5 +220,30 @@ describe("holdingMessage", () => {
         /fuck|shit|bastard|bellend|sod/i,
       );
     }
+  });
+});
+
+describe("signal expiry tag", () => {
+  const at = "2026-10-16T16:00:00.000Z";
+  it("round-trips the expiry and strips cleanly", () => {
+    const tagged = tagSignalExpiry("📊 XAU/USD — BUY", at);
+    expect(signalExpiry(tagged)?.toISOString()).toBe(at);
+    expect(stripSignalTag(tagged)).toBe("📊 XAU/USD — BUY");
+    expect(signalExpiry("plain reply")).toBeNull();
+  });
+
+  it("cleans history: drops holding lines, hides expired levels, untags live ones", () => {
+    const gold = parseInstrument("gold")!;
+    const msgs = [
+      { role: "user", content: "gold signal" },
+      { role: "assistant", content: holdingMessage(gold, "safe", () => 0) },
+      { role: "assistant", content: tagSignalExpiry("BUY 2400 SL 2390", at) },
+      { role: "user", content: "btc signal" },
+      { role: "assistant", content: tagSignalExpiry("SELL 70000", "2026-10-16T20:00:00.000Z") },
+    ];
+    const out = cleanTradeHistory(msgs, Date.parse("2026-10-16T17:00:00.000Z"));
+    expect(out).toHaveLength(4);
+    expect(out[1].content).toBe(EXPIRED_SIGNAL_NOTE);
+    expect(out[3].content).toBe("SELL 70000");
   });
 });

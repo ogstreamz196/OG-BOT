@@ -227,7 +227,7 @@ async function fetchNews(inst: Instrument, key: string): Promise<string | null> 
   }
 }
 
-const cache = new Map<string, { exp: number; value: string }>();
+const cache = new Map<string, { exp: number; value: string; expiresAt: string | null }>();
 
 function frameLine(f: FrameRead, fmt: (n: number) => string): string {
   const e200 = Number.isFinite(f.ema200) ? `, 200 EMA ${fmt(f.ema200)}` : "";
@@ -260,12 +260,22 @@ const NO_DATA = (inst: Instrument) =>
  * Cached for 60s per market and style so a busy chat doesn't hammer the feeds.
  */
 export async function buildTradeSignalContext(userText: string): Promise<string> {
+  return (await buildTradeSignal(userText)).block;
+}
+
+/**
+ * The prompt block plus when the signal stops being valid (null when no
+ * signal was built), so the app can expire it at exactly the stated time.
+ */
+export async function buildTradeSignal(
+  userText: string,
+): Promise<{ block: string; expiresAt: string | null }> {
   const inst = detectTradeIntent(userText);
-  if (!inst) return "";
+  if (!inst) return { block: "", expiresAt: null };
   const style: Style = detectStyle(userText);
   const key = `${inst.code}:${style}`;
   const hit = cache.get(key);
-  if (hit && hit.exp > Date.now()) return hit.value;
+  if (hit && hit.exp > Date.now()) return { block: hit.value, expiresAt: hit.expiresAt };
 
   const entryIv: Interval = style === "scalp" ? "15m" : "1h";
   const [daily, hourly, fifteen, news] = await Promise.all([
@@ -308,8 +318,8 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
   const [hi, mid, lo] = frames;
   if (!hi || !mid || !lo) {
     const value = NO_DATA(inst);
-    cache.set(key, { exp: Date.now() + 30_000, value });
-    return value;
+    cache.set(key, { exp: Date.now() + 30_000, value, expiresAt: null });
+    return { block: value, expiresAt: null };
   }
 
   const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles);
@@ -377,9 +387,10 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
     );
 
   const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
-  cache.set(key, { exp: Date.now() + 60_000, value });
+  const expiresAt = valid.until.toISOString();
+  cache.set(key, { exp: Date.now() + 60_000, value, expiresAt });
   if (cache.size > 200) cache.delete(cache.keys().next().value!);
-  return value;
+  return { block: value, expiresAt };
 }
 
 /** How often the Telegram clean-up job runs (sports-guide-reminders cron). */

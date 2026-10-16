@@ -13,6 +13,8 @@ interface ChatReply {
   learned_insults?: string[];
   /** True when OG Bot is pitching a diss track; the client shows the ambush card. */
   ambush?: boolean;
+  /** Set when the reply is a trade signal: when it stops being valid (ISO). */
+  signal_expires_at?: string | null;
 }
 
 /**
@@ -68,22 +70,24 @@ export const chatOgBot = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // The instant "hold on" line before a trade signal is UI only; never feed it back.
+    // Trade-signal UI bits never reach the AI: the instant "hold on" line is
+    // dropped, expiry tags removed, and expired signals' stale levels hidden.
     {
-      const { isHoldingMessage } = await import("@/lib/trade-signal");
-      const kept = data.messages.filter((m) => !isHoldingMessage(m.content));
+      const { cleanTradeHistory } = await import("@/lib/trade-signal");
+      const kept = cleanTradeHistory(data.messages);
       data.messages.splice(0, data.messages.length, ...kept);
     }
 
     // Trade signals: start pulling live prices now so they load alongside the
     // user context below instead of after it.
     const lastUserText = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
-    const tradePromise: Promise<string> = import("@/lib/trade-signal-context.server")
-      .then((m) => m.buildTradeSignalContext(lastUserText))
-      .catch((e) => {
-        console.warn("trade signal context failed", e);
-        return "";
-      });
+    const tradePromise: Promise<{ block: string; expiresAt: string | null }> =
+      import("@/lib/trade-signal-context.server")
+        .then((m) => m.buildTradeSignal(lastUserText))
+        .catch((e) => {
+          console.warn("trade signal context failed", e);
+          return { block: "", expiresAt: null };
+        });
 
     // 1. Load user context in parallel (profile, role flags, foul pref, persona overrides, learned insults, free-access flag).
     const [profileRes, rolesRes, prefRes, siteRes, learnedRes, freeRes] = await Promise.all([
@@ -206,7 +210,7 @@ export const chatOgBot = createServerFn({ method: "POST" })
       console.warn("sports guide context failed", e);
     }
     // Trade signals: live prices and a computed plan, so levels are never guessed.
-    const tradeBlock = await tradePromise;
+    const { block: tradeBlock, expiresAt: signalExpiresAt } = await tradePromise;
     const tradeNote = tradeBlock ? `\n\n${tradeBlock}` : "";
     const cp = await import("@/lib/og-catchphrases.server");
     const phrases = await cp.pickCatchphrases(
@@ -340,6 +344,7 @@ export const chatOgBot = createServerFn({ method: "POST" })
         coin_balance: newBalance ?? userCtx.coin_balance,
         learned_insults: newlyLearned,
         ambush,
+        signal_expires_at: signalExpiresAt,
       };
     }
   });

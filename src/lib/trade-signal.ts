@@ -552,3 +552,47 @@ export function holdingMessage(
 export function isHoldingMessage(content: string | null | undefined): boolean {
   return !!content && content.endsWith(HOLDING_TAG);
 }
+
+/* ── Signal expiry tag (app chat) ─────────────────────────────────────── */
+
+const EXPIRY_RE = /\n?\[\[SIGNAL_EXPIRES:([0-9T:.\-Z]+)\]\]/;
+
+/** Adds a hidden expiry tag to a signal reply so the app can expire it. */
+export function tagSignalExpiry(content: string, expiresAt: string): string {
+  return `${content}\n[[SIGNAL_EXPIRES:${expiresAt}]]`;
+}
+
+/** When a tagged signal reply stops being valid, or null for other messages. */
+export function signalExpiry(content: string | null | undefined): Date | null {
+  const m = content?.match(EXPIRY_RE);
+  if (!m) return null;
+  const d = new Date(m[1]);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function stripSignalTag(content: string): string {
+  return content.replace(EXPIRY_RE, "");
+}
+
+export const EXPIRED_SIGNAL_NOTE =
+  "(An earlier trade signal was here. It has expired, so its levels are stale and must not be reused.)";
+
+/**
+ * Chat history for the AI: holding lines dropped, expiry tags removed, and
+ * expired signals replaced with a note so stale levels are never repeated.
+ */
+export function cleanTradeHistory<T extends { role: string; content: string }>(
+  messages: T[],
+  now = Date.now(),
+): T[] {
+  return messages
+    .filter((m) => !isHoldingMessage(m.content))
+    .map((m) => {
+      const exp = signalExpiry(m.content);
+      if (!exp) return m;
+      return {
+        ...m,
+        content: exp.getTime() <= now ? EXPIRED_SIGNAL_NOTE : stripSignalTag(m.content),
+      };
+    });
+}
