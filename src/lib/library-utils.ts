@@ -100,6 +100,7 @@ export const POOLS: Record<Category, string[]> = {
     "Bhangra",
     "Nasheed",
     "Nursery Rhyme",
+    "Spoken Word",
     "Dance",
     "Reggae",
     "Rock",
