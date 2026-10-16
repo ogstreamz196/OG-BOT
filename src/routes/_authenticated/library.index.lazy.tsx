@@ -50,6 +50,21 @@ import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettings } from "@/hooks/use-settings";
+import { PayChoiceDialog } from "@/components/library/PayChoiceDialog";
+import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
+import {
+  guestCreationAvailable as cardCheckoutAvailable,
+  startGuestTrackSafely,
+} from "@/components/welcome/GuestStudio";
+import type { GuestActiveTrack } from "@/components/welcome/guest-session";
+import { createGuestTrackCheckout as createCardTrackCheckout } from "@/lib/guest-track.functions";
+import { reconcileTrackUnlock } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { buildTrackPlan } from "@/lib/track-plan";
+
+/** A member's £0.99 track waiting on checkout (survives the Stripe redirect). */
+const PAID_TRACK_PENDING_KEY = "ogbot.paidTrackPending.v1";
+
 import { readInvokeError } from "@/lib/invoke-error";
 import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
@@ -164,7 +179,6 @@ function LibraryPage() {
   const [autoUnlockPrompt, setAutoUnlockPrompt] = useState(false);
   // download cost is configured via settings.coins_per_full_unlock when needed
   const balance = profile?.coin_balance ?? 0;
-
 
   const firstName = useMemo(() => {
     if (dev.isDev) return "Developer";
@@ -530,7 +544,9 @@ function LibraryPage() {
     }
     if (
       typeof window !== "undefined" &&
-      !window.confirm(`Cook this track for 5 OG Coins? You get the full track + a free Take 2.\nBalance after: ${balance - 5} coins.`)
+      !window.confirm(
+        `Cook this track for 5 OG Coins? You get the full track + a free Take 2.\nBalance after: ${balance - 5} coins.`,
+      )
     )
       return;
     generateLockRef.current = true;
@@ -773,7 +789,7 @@ function LibraryPage() {
     } else if (!canRunPipeline) {
       return;
     }
-    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
+    // Paid up front (coins via prepay_track, or the £0.99 card path above).
     if (!(await confirmGenerationAllowed())) return;
 
     let songTitle = (override?.title ?? title).trim();
@@ -874,9 +890,16 @@ function LibraryPage() {
       // the background worker finishes the song from these exact answers.
       const earlyStyle = [songStyle, songVocal, ...vocalsOnlyTags].filter(Boolean).join(", ");
       const earlyPrompt =
-        ([songTitle, songSubject ? `For: ${songSubject}` : null, earlyStyle ? `Style: ${earlyStyle}` : null, songLanguage ? `Language: ${songLanguage}` : null]
+        ([
+          songTitle,
+          songSubject ? `For: ${songSubject}` : null,
+          earlyStyle ? `Style: ${earlyStyle}` : null,
+          songLanguage ? `Language: ${songLanguage}` : null,
+        ]
           .filter(Boolean)
-          .join(" — ") || songTitle || "Untitled") + (songDetails ? `\n— Idea: ${songDetails}` : "");
+          .join(" — ") ||
+          songTitle ||
+          "Untitled") + (songDetails ? `\n— Idea: ${songDetails}` : "");
       const sunoBase = {
         prompt: earlyPrompt,
         title: songTitle || null,
@@ -930,10 +953,19 @@ function LibraryPage() {
           if (!t) return;
           setTitle(t);
           const fp =
-            [t, songSubject ? `For: ${songSubject}` : null, earlyStyle ? `Style: ${earlyStyle}` : null, songLanguage ? `Language: ${songLanguage}` : null]
+            [
+              t,
+              songSubject ? `For: ${songSubject}` : null,
+              earlyStyle ? `Style: ${earlyStyle}` : null,
+              songLanguage ? `Language: ${songLanguage}` : null,
+            ]
               .filter(Boolean)
               .join(" — ") + (songDetails ? `\n— Idea: ${songDetails}` : "");
-          void supabase.from("songs").update({ title: t, prompt: fp } as never).eq("id", stagedId).eq("status", "draft");
+          void supabase
+            .from("songs")
+            .update({ title: t, prompt: fp } as never)
+            .eq("id", stagedId)
+            .eq("status", "draft");
         });
       }
       const row = { id: stagedId };
@@ -941,7 +973,9 @@ function LibraryPage() {
       // status indicator until the track is ready (or fails).
       void updateAttempt(attemptId, { stage: "queued", status: "succeeded", song_id: row.id });
       library.refetch();
-      toast.success("OG Bot is cooking your track — you can close the app, it'll be in your Library");
+      toast.success(
+        "OG Bot is cooking your track — you can close the app, it'll be in your Library",
+      );
       try {
         window.localStorage.removeItem(WIZARD_DRAFT_KEY);
       } catch {
@@ -1058,8 +1092,7 @@ function LibraryPage() {
     const id = peekFullTrackPlay();
     if (!id || !playlist) return;
     const row = (library.data ?? []).find((s) => s.id === id) as
-      | (Song & { unlocked?: boolean | null })
-      | undefined;
+      (Song & { unlocked?: boolean | null }) | undefined;
     if (!row || !row.unlocked) {
       const t = window.setTimeout(() => void library.refetch(), 1500);
       return () => window.clearTimeout(t);
@@ -1182,8 +1215,7 @@ function LibraryPage() {
         ...s,
         artistUnlocked: !!s.unlocked,
         // Your own Community tracks follow your own unlock state.
-        unlocked:
-          unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
+        unlocked: unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
       })) as unknown as Song[];
     },
     getNextPageParam: (lastPage, allPages) =>
@@ -1257,7 +1289,8 @@ function LibraryPage() {
         return;
       }
       if (row.status === "processing" || row.status === "pending") {
-        if (pipelineStageRef.current !== "rendering" && pipelineStageRef.current !== "idle") advanceStage("rendering");
+        if (pipelineStageRef.current !== "rendering" && pipelineStageRef.current !== "idle")
+          advanceStage("rendering");
         return;
       }
       if (row.status === "completed") {
@@ -1370,7 +1403,131 @@ function LibraryPage() {
     }
   }
 
+  // Pay step before cooking: coins (existing prepay path) or £0.99 by card.
+  const [payChoice, setPayChoice] = useState<{ v: WizardResult; draft: WizardDraft } | null>(null);
+  const [payBusy, setPayBusy] = useState<"coins" | "card" | null>(null);
+  const [cardSecret, setCardSecret] = useState<string | null>(null);
+  const cardSongRef = useRef<string | null>(null);
+  const coinCost = settings?.coins_per_full_unlock ?? 5;
+  const cardAvailable = cardCheckoutAvailable();
+
   function startFromWizard(v: WizardResult, draft: WizardDraft) {
+    setPayChoice({ v, draft });
+  }
+
+  function clearGuestPending() {
+    try {
+      window.localStorage.removeItem(GUEST_PENDING_SONG_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function cookWithCard(v: WizardResult) {
+    if (!user) return;
+    setPayBusy("card");
+    let songId: string | null = null;
+    try {
+      const { row, plan } = buildTrackPlan(v);
+      const { data: staged, error } = await supabase
+        .from("songs")
+        .insert({ ...row, user_id: user.id, status: "draft" } as never)
+        .select("id")
+        .single();
+      if (error || !staged) throw new Error(error?.message || "Couldn't save your song");
+      songId = (staged as { id: string }).id;
+      window.localStorage.setItem(
+        PAID_TRACK_PENDING_KEY,
+        JSON.stringify({ songId, title: v.title, plan }),
+      );
+      const res = await createCardTrackCheckout({
+        data: {
+          songId,
+          returnUrl: `${window.location.origin}/library?paid_track=1&session_id={CHECKOUT_SESSION_ID}`,
+          environment: getStripeEnvironment(),
+        },
+      });
+      if ("error" in res) throw new Error(res.error);
+      cardSongRef.current = songId;
+      setPayChoice(null);
+      clearGuestPending();
+      setCardSecret(res.clientSecret);
+    } catch (e) {
+      if (songId) await discardUnpaidDraft(songId);
+      toast.error(e instanceof Error ? e.message : "Checkout couldn't start");
+    } finally {
+      setPayBusy(null);
+    }
+  }
+
+  /** Checkout closed without paying: remove the staged draft. */
+  async function discardUnpaidDraft(songId: string) {
+    const { data: paid } = await supabase
+      .from("unlocked_songs")
+      .select("id")
+      .eq("song_id", songId)
+      .limit(1);
+    if (paid && paid.length > 0) return;
+    await supabase.from("songs").delete().eq("id", songId).eq("status", "draft");
+    try {
+      window.localStorage.removeItem(PAID_TRACK_PENDING_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Back from the £0.99 checkout: confirm payment, then start cooking.
+  const cardReturnRef = useRef(false);
+  useEffect(() => {
+    if (cardReturnRef.current || !user) return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (params.get("paid_track") !== "1" || !sessionId) return;
+    cardReturnRef.current = true;
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("paid_track");
+    clean.searchParams.delete("session_id");
+    window.history.replaceState(null, "", clean.toString());
+    let pending: { songId: string; title: string; plan: GuestActiveTrack["plan"] } | null = null;
+    try {
+      const raw = window.localStorage.getItem(PAID_TRACK_PENDING_KEY);
+      pending = raw ? JSON.parse(raw) : null;
+    } catch {
+      pending = null;
+    }
+    if (!pending) return;
+    const track = pending;
+    setCooking({ open: true, title: track.title });
+    void (async () => {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        try {
+          const r = await reconcileTrackUnlock({
+            data: { sessionId, environment: getStripeEnvironment() },
+          });
+          if ("status" in r && r.status === "unlocked") {
+            if (await startGuestTrackSafely(track)) {
+              setTrackedSongId(track.songId);
+              void library.refetch();
+              toast.success("Paid — OG Bot is cooking your track 🔥");
+            }
+            try {
+              window.localStorage.removeItem(PAID_TRACK_PENDING_KEY);
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+          if ("error" in r) throw new Error(r.error);
+        } catch (e) {
+          if (attempt === 7) toast.error(e instanceof Error ? e.message : "Payment check failed");
+        }
+        await new Promise((res) => setTimeout(res, 2500));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  function cookWithCoins(v: WizardResult, draft: WizardDraft) {
     setWizardDraft(draft);
     setTitle(v.title);
     setSubjectName(v.subjectName);
@@ -1402,11 +1559,8 @@ function LibraryPage() {
     }
     if (!pending?.result || !pending?.draft) return;
     guestPickupRef.current = true;
-    try {
-      window.localStorage.removeItem(GUEST_PENDING_SONG_KEY);
-    } catch {
-      /* ignore */
-    }
+    // The key is cleared once the member picks how to pay (or closes the pay
+    // step), so a remount during sign-in doesn't lose the song.
     const draft = { ...EMPTY_DRAFT, ...pending.draft };
     if (balance >= totalCost) {
       toast.success(`Welcome! Cooking "${pending.result.title}" now 🔥`);
@@ -1515,7 +1669,8 @@ function LibraryPage() {
 
           {/* Track length now lives in step 1 of the wizard — keep this clean. */}
           <p className="text-center text-xs font-semibold text-muted-foreground">
-            Free to create · {targetMinutes} min
+            {cardAvailable ? `${coinCost} coins or £0.99` : `${coinCost} coins`} · {targetMinutes}{" "}
+            min
           </p>
 
           {/* Hazard robotic CREATE button — a big 3D push-button on a base plate */}
@@ -1617,6 +1772,37 @@ function LibraryPage() {
         initialDraft={wizardDraft}
         submitLabel="Create now"
         onComplete={startFromWizard}
+      />
+
+      <PayChoiceDialog
+        open={!!payChoice}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPayChoice(null);
+            clearGuestPending();
+          }
+        }}
+        title={payChoice?.v.title ?? ""}
+        coinCost={coinCost}
+        balance={balance}
+        cardAvailable={cardAvailable}
+        busy={payBusy}
+        onCoins={() => {
+          if (!payChoice) return;
+          const { v, draft } = payChoice;
+          setPayChoice(null);
+          clearGuestPending();
+          cookWithCoins(v, draft);
+        }}
+        onCard={() => payChoice && void cookWithCard(payChoice.v)}
+      />
+      <StripeCheckoutDialog
+        clientSecret={cardSecret}
+        onClose={() => {
+          setCardSecret(null);
+          if (cardSongRef.current) void discardUnpaidDraft(cardSongRef.current);
+          cardSongRef.current = null;
+        }}
       />
 
       <CookingDialog
@@ -2010,9 +2196,7 @@ function LibraryPage() {
               unlockedCount={
                 communityTracks.filter((s) => !!s.unlocked || !!s.artistUnlocked).length
               }
-              lockedCount={
-                communityTracks.filter((s) => !s.unlocked && !s.artistUnlocked).length
-              }
+              lockedCount={communityTracks.filter((s) => !s.unlocked && !s.artistUnlocked).length}
               hideAll
             />
             {communityTracks.length > 3 && (
