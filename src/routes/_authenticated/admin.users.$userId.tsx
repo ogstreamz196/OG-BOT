@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteUserAccount } from "@/lib/admin-delete-account.functions";
 import { BossPasswordCard } from "@/components/admin/BossPasswordCard";
+import { BossMergeCard } from "@/components/admin/BossMergeCard";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { UserAuditTrail } from "@/components/admin/UserAuditTrail";
@@ -376,6 +377,9 @@ function UserSettingsPage() {
             name={profile.display_name ?? profile.email ?? "this member"}
           />
         ) : null}
+
+        {/* Merge a duplicate into this account (Boss only) */}
+        {isBoss ? <BossMergeCard userId={userId} /> : null}
 
         {/* Roles & access */}
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">

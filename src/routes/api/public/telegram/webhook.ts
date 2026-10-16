@@ -145,10 +145,16 @@ async function scheduleDelete(chat_id: number, payload: unknown, ttlMs: number) 
   if (!mid || ttlMs <= 0) return;
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("telegram_ephemeral_messages" as never).upsert(
-      { chat_id, message_id: mid, delete_at: new Date(Date.now() + ttlMs).toISOString() } as never,
-      { onConflict: "chat_id,message_id" },
-    );
+    await supabaseAdmin
+      .from("telegram_ephemeral_messages" as never)
+      .upsert(
+        {
+          chat_id,
+          message_id: mid,
+          delete_at: new Date(Date.now() + ttlMs).toISOString(),
+        } as never,
+        { onConflict: "chat_id,message_id" },
+      );
   } catch (e) {
     console.error("[tg] schedule delete failed", e);
   }
@@ -600,28 +606,36 @@ async function runChatAI(
     /\b(coin|coins|balance|vip|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
       userText,
     );
-  const [profileRes, prefRes, siteRes, historyRes, dossier, promo, sportsBlock] = await Promise.all([
-    admin.from("profiles").select("display_name, email, coin_balance").eq("id", profileId).maybeSingle(),
-    admin.from("user_preferences").select("foul_mouth").eq("user_id", profileId).maybeSingle(),
-    admin
-      .from("site_content")
-      .select("key, value")
-      .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
-    admin
-      .from("og_messages")
-      .select("role, content")
-      .eq("user_id", profileId)
-      .order("created_at", { ascending: false })
-      .limit(20),
-    wantsAccount ? loadUserDossier(admin, profileId).catch(() => null) : Promise.resolve(null),
-    vp.detectPromoIntent(userText)
-      ? vp.getOrCreateVipPromo(admin, profileId, { isPaidVip: roles.includes("vip") }).catch(() => null)
-      : Promise.resolve(null),
-    buildSportsGuideContext(admin, profileId, userText).catch((e) => {
-      console.warn("[telegram] sports guide context failed", e);
-      return "";
-    }),
-  ]);
+  const [profileRes, prefRes, siteRes, historyRes, dossier, promo, sportsBlock] = await Promise.all(
+    [
+      admin
+        .from("profiles")
+        .select("display_name, email, coin_balance")
+        .eq("id", profileId)
+        .maybeSingle(),
+      admin.from("user_preferences").select("foul_mouth").eq("user_id", profileId).maybeSingle(),
+      admin
+        .from("site_content")
+        .select("key, value")
+        .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
+      admin
+        .from("og_messages")
+        .select("role, content")
+        .eq("user_id", profileId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      wantsAccount ? loadUserDossier(admin, profileId).catch(() => null) : Promise.resolve(null),
+      vp.detectPromoIntent(userText)
+        ? vp
+            .getOrCreateVipPromo(admin, profileId, { isPaidVip: roles.includes("vip") })
+            .catch(() => null)
+        : Promise.resolve(null),
+      buildSportsGuideContext(admin, profileId, userText).catch((e) => {
+        console.warn("[telegram] sports guide context failed", e);
+        return "";
+      }),
+    ],
+  );
   const profile = profileRes.data;
   if (!profile) {
     clearInterval(typingTimer);
@@ -654,17 +668,18 @@ async function runChatAI(
     promoNote +
     "" +
     buildSystemPrompt({
-    mode: "og",
-    foulMouth,
-    bossScript: personaMap.get("og_persona.script") ?? null,
-    bossVoice: personaMap.get("og_persona.voice") ?? null,
-    bossDictionary: personaMap.get("og_persona.dictionary") ?? null,
-    learnedInsults: [],
-    language: "English",
-    user: userCtx,
-    songIntent: detectSongIntent(userText),
-    dossier,
-  }) + catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth)));
+      mode: "og",
+      foulMouth,
+      bossScript: personaMap.get("og_persona.script") ?? null,
+      bossVoice: personaMap.get("og_persona.voice") ?? null,
+      bossDictionary: personaMap.get("og_persona.dictionary") ?? null,
+      learnedInsults: [],
+      language: "English",
+      user: userCtx,
+      songIntent: detectSongIntent(userText),
+      dossier,
+    }) +
+    catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth)));
 
   const history = ((historyRes.data ?? []) as { role: string; content: string }[])
     .reverse()
@@ -674,7 +689,10 @@ async function runChatAI(
     }));
 
   // Save user message without holding up the reply.
-  void admin.from("og_messages").insert({ user_id: profileId, role: "user", content: userText }).then(() => {});
+  void admin
+    .from("og_messages")
+    .insert({ user_id: profileId, role: "user", content: userText })
+    .then(() => {});
 
   try {
     let currentUserText = userText;
@@ -701,10 +719,7 @@ async function runChatAI(
       if (res.status === 429) {
         await reply(chat_id, "⏱️ OG Bot is rate-limited, try again soon.");
       } else if (res.status === 402) {
-        await reply(
-          chat_id,
-          `💳 AI quota is exhausted (${provider}).`,
-        );
+        await reply(chat_id, `💳 AI quota is exhausted (${provider}).`);
       } else {
         await reply(chat_id, `OG Bot couldn't respond right now (HTTP ${res.status}).`);
       }
@@ -782,7 +797,9 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           update?.channel_post ??
           update?.edited_channel_post ??
           (update?.message?.chat?.id === SPORTS_GUIDE_CHAT_ID ? update.message : null) ??
-          (update?.edited_message?.chat?.id === SPORTS_GUIDE_CHAT_ID ? update.edited_message : null);
+          (update?.edited_message?.chat?.id === SPORTS_GUIDE_CHAT_ID
+            ? update.edited_message
+            : null);
         if (sgPost) {
           if (sgPost.chat?.id !== SPORTS_GUIDE_CHAT_ID) {
             return Response.json({ ok: true, ignored: "other_channel" });
@@ -871,6 +888,10 @@ async function handleTelegramUpdate(
     let trimmed = text.trim();
     const { admin: isBoss, roles } = await isAdmin(admin, linkedProfile.id);
     const keyboard = isBoss ? BOSS_KEYBOARD : USER_KEYBOARD;
+    // Buttons to the site sign the member straight into this account (see
+    // telegram-signin.server.ts), so Telegram's browser never starts a new one.
+    const { telegramSignInLinker } = await import("@/lib/telegram-signin.server");
+    const siteLink = telegramSignInLinker(admin, linkedProfile.id);
 
     // Map emoji-keyboard button taps → slash commands
     const buttonMap: Record<string, string> = {
@@ -880,7 +901,7 @@ async function handleTelegramUpdate(
       "👤 My Profile": "/me",
       "👑 VIP Status": "/vip",
       "❓ Help": "/help",
-"⚽ Sports Guide": "/sports",
+      "⚽ Sports Guide": "/sports",
       "🧹 Clear chat": "/clear",
       "🔐 Vault ID": "/vault",
       ...(isBoss ? { "📊 Stats": "/stats", "👥 Users": "/users" } : {}),
@@ -889,11 +910,15 @@ async function handleTelegramUpdate(
 
     // Categorised menu navigation
     if (trimmed === MENU || trimmed === "🔙 Categories") {
-      await reply(chat_id, "📂 <b>Pick a category</b>", { reply_markup: CATEGORY_KEYBOARD(isBoss) });
+      await reply(chat_id, "📂 <b>Pick a category</b>", {
+        reply_markup: CATEGORY_KEYBOARD(isBoss),
+      });
       return Response.json({ ok: true, menu: true });
     }
     if (trimmed === BACK) {
-      await reply(chat_id, "💬 Back to chatting. Tap 📂 Menu any time.", { reply_markup: keyboard });
+      await reply(chat_id, "💬 Back to chatting. Tap 📂 Menu any time.", {
+        reply_markup: keyboard,
+      });
       return Response.json({ ok: true, menu: "closed" });
     }
     if (SUBMENUS[trimmed] && (trimmed !== "🛠 Boss tools" || isBoss)) {
@@ -906,7 +931,7 @@ async function handleTelegramUpdate(
     if (trimmed === "🌐 OGBOT.CO.UK") {
       await reply(chat_id, "🌐 <b>OG BOT on the web</b>", {
         reply_markup: {
-          inline_keyboard: [[{ text: "Open OGBOT.CO.UK", url: "https://ogbot.co.uk" }]],
+          inline_keyboard: [[{ text: "Open OGBOT.CO.UK", url: await siteLink("/") }]],
         },
       });
       return Response.json({ ok: true, site: true });
@@ -933,17 +958,17 @@ async function handleTelegramUpdate(
       const { quickSportsReply } = await import("@/lib/sports-guide-context.server");
       const q = trimmed.replace(/^\/sports(@\w+)?/i, "").trim();
       let body = "⚽ <b>OG Sports Guide</b>";
-      try { body = await quickSportsReply(admin, linkedProfile.id, q); } catch (e) { console.warn("[telegram] quick sports failed", e); }
+      try {
+        body = await quickSportsReply(admin, linkedProfile.id, q);
+      } catch (e) {
+        console.warn("[telegram] quick sports failed", e);
+      }
       if (!q) body += "\n\nTip: send <code>/sports arsenal</code> or <code>/sports dazn</code>";
-      await reply(
-        chat_id,
-        body.slice(0, 4000),
-        {
-          reply_markup: {
-            inline_keyboard: [[{ text: "Open Sports Guide", url: "https://ogbot.co.uk/sports" }]],
-          },
+      await reply(chat_id, body.slice(0, 4000), {
+        reply_markup: {
+          inline_keyboard: [[{ text: "Open Sports Guide", url: await siteLink("/sports") }]],
         },
-      );
+      });
       return Response.json({ ok: true, sports: true });
     }
     if (/^\/balance\b/i.test(trimmed)) {
@@ -978,10 +1003,11 @@ async function handleTelegramUpdate(
             .join("\n") +
           "\n\nTap a track to listen. Make it public in the app to share the link."
         : "🎧 No finished tracks yet — go make one!";
-      const rows = list.map((s) => [
+      const libraryLinks = await Promise.all(list.map((s) => siteLink(`/library/${s.id}`)));
+      const rows = list.map((s, i) => [
         {
           text: `▶️ ${(s.title || "Untitled").slice(0, 30)}`,
-          url: `https://ogbot.co.uk/library/${s.id}`,
+          url: libraryLinks[i],
         },
         ...(s.is_public && s.revealed
           ? [
@@ -992,14 +1018,14 @@ async function handleTelegramUpdate(
             ]
           : []),
       ]);
-      rows.push([{ text: "Open full library", url: "https://ogbot.co.uk/library" }]);
+      rows.push([{ text: "Open full library", url: await siteLink("/library") }]);
       await reply(chat_id, body, { reply_markup: { inline_keyboard: rows } });
       return Response.json({ ok: true, library: true });
     }
     if (/^\/buy\b/i.test(trimmed)) {
       await reply(chat_id, "🛒 <b>Top up OG coins</b>", {
         reply_markup: {
-          inline_keyboard: [[{ text: "Open Store", url: "https://ogbot.co.uk/buy-coins" }]],
+          inline_keyboard: [[{ text: "Open Store", url: await siteLink("/store") }]],
         },
       });
       return Response.json({ ok: true, buy: true });
@@ -1035,7 +1061,7 @@ async function handleTelegramUpdate(
       const vipFree = isBoss;
       const owned = !!purchase || vipFree;
       // Rotate the wording so repeat asks don't get the same canned line.
-      const pick = <T,>(arr: T[]): T =>
+      const pick = <T>(arr: T[]): T =>
         arr[(Math.floor(Date.now() / (10 * 60 * 1000)) + String(chat_id).length) % arr.length];
       const notOwnedLines = [
         `🔐 <b>OG Vault Access Pass</b>\n\nYou need to buy the Vault Access Pass — grab it in the Store for £10 or 50 OG Coins.`,
@@ -1056,7 +1082,8 @@ async function handleTelegramUpdate(
         body = pick(noCredsLines);
       } else {
         const cred = creds[Math.floor(Date.now() / (2 * 60 * 60 * 1000)) % creds.length];
-        const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const esc = (v: string) =>
+          v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         body =
           `🔐 <b>Your OG Vault Access</b>\n\n` +
           `🆔 ID: <code>${esc(cred.username)}</code>\n` +
@@ -1069,7 +1096,7 @@ async function handleTelegramUpdate(
         body,
         {
           reply_markup: {
-            inline_keyboard: [[{ text: "🛒 Open Store", url: "https://ogbot.co.uk/buy-coins" }]],
+            inline_keyboard: [[{ text: "🛒 Open Store", url: await siteLink("/store") }]],
           },
         },
         owned && creds?.length ? VAULT_TTL_MS : undefined,
@@ -1150,7 +1177,7 @@ async function handleTelegramUpdate(
       }
       await reply(chat_id, body, {
         reply_markup: {
-          inline_keyboard: [[{ text: "👑 Open VIP Store", url: "https://ogbot.co.uk/store" }]],
+          inline_keyboard: [[{ text: "👑 Open VIP Store", url: await siteLink("/store") }]],
         },
       });
       return Response.json({ ok: true, vip: true });
