@@ -10,6 +10,7 @@ import { arePaymentsEnabled, getStripeEnvironment } from "@/lib/stripe";
 import { createGuestTrackCheckout, startGuestTrack } from "@/lib/guest-track.functions";
 import { reconcileTrackUnlock } from "@/lib/payments.functions";
 import { downloadFile } from "@/lib/download-file";
+import { claimAudio } from "@/lib/audio-focus";
 import { shareTrack } from "@/lib/share-track";
 import type { WizardResult } from "@/components/library/CreateNowWizard";
 import { buildTrackPlan } from "@/lib/track-plan";
@@ -359,6 +360,7 @@ function GuestTrackPlayer({ song, title }: { song: GuestSong; title: string }) {
         el.src = data.url as string;
         el.load();
         try {
+          claimAudio(el);
           await el.play();
         } catch {
           /* autoplay blocked: the play button does it */
@@ -376,7 +378,10 @@ function GuestTrackPlayer({ song, title }: { song: GuestSong; title: string }) {
     const el = audioRef.current;
     if (!el?.src) return;
     if (playing) el.pause();
-    else await el.play().catch(() => toast.error("Tap play again to start the track"));
+    else {
+      claimAudio(el);
+      await el.play().catch(() => toast.error("Tap play again to start the track"));
+    }
   }
 
   async function fetchMaster() {
@@ -428,7 +433,11 @@ function GuestTrackPlayer({ song, title }: { song: GuestSong; title: string }) {
           type="button"
           onClick={() => void toggle()}
           aria-label={playing ? `Pause ${title}` : `Play ${title}`}
-          className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-destructive/40 bg-destructive/15 text-foreground"
+          className={`relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-destructive/40 bg-destructive/15 text-foreground ${
+            !loading && !playing
+              ? "shadow-glow-danger ring-2 ring-destructive motion-safe:animate-pulse"
+              : ""
+          }`}
         >
           {song.cover_url ? (
             <img
@@ -504,32 +513,30 @@ function GuestTrackPlayer({ song, title }: { song: GuestSong; title: string }) {
 
 function SaveToLibraryCard({ onSave }: { onSave: () => void }) {
   return (
-    <div className="rounded-2xl border border-amber-300/40 bg-amber-500/[0.06] p-4">
-      <p className="flex items-center gap-2 font-bold text-foreground">
-        <Save className="h-4 w-4 text-amber-300" /> Keep this track forever in your studio?
+    <div className="rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4 text-center">
+      <p className="flex items-center justify-center gap-2 font-bold text-amber-200">
+        <Save className="h-4 w-4" /> Want to keep this track forever?
       </p>
-      <p className="mt-1 text-sm text-foreground/80">
-        Sign up free to save it to your own library, get free daily coins and battle OG Bot.
+      <p className="mt-1 text-xs text-muted-foreground">
+        Save it to your permanent OG Bot library so you never lose it across devices.
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <button
+        type="button"
+        onClick={onSave}
+        className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-amber-400 px-4 text-xs font-black uppercase tracking-wide text-black transition hover:bg-amber-300"
+      >
+        Create free account &amp; save track
+      </button>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Already an OG?{" "}
         <button
           type="button"
           onClick={onSave}
-          className="inline-flex min-h-11 items-center rounded-xl bg-amber-400 px-4 text-sm font-black uppercase tracking-wide text-black"
+          className="font-bold text-foreground underline underline-offset-4"
         >
-          Sign up to save track
+          Sign in
         </button>
-        <span className="text-sm text-muted-foreground">
-          Already an OG?{" "}
-          <button
-            type="button"
-            onClick={onSave}
-            className="font-bold text-foreground underline underline-offset-4"
-          >
-            Sign in
-          </button>
-        </span>
-      </div>
+      </p>
     </div>
   );
 }

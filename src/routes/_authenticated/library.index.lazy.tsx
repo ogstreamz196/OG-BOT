@@ -66,7 +66,7 @@ import { buildTrackPlan } from "@/lib/track-plan";
 const PAID_TRACK_PENDING_KEY = "ogbot.paidTrackPending.v1";
 
 import { readInvokeError } from "@/lib/invoke-error";
-import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
+import { announceSampleCharge } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
 import { SongCard, type Song } from "@/components/SongCard";
 import { SongCardSkeleton } from "@/components/library/SongCardSkeleton";
@@ -790,7 +790,9 @@ function LibraryPage() {
       return;
     }
     // Paid up front (coins via prepay_track, or the £0.99 card path above).
-    if (!(await confirmGenerationAllowed())) return;
+    // No sample-fee pre-check: every track is paid before it cooks (pay step),
+    // so prepay_track/the card unlock cover it and start_generation_charge
+    // never charges a sample fee for it.
 
     let songTitle = (override?.title ?? title).trim();
     const songSubject = (override?.subjectName ?? subjectName).trim();
@@ -1770,7 +1772,7 @@ function LibraryPage() {
         open={wizardOpen}
         onOpenChange={setWizardOpen}
         initialDraft={wizardDraft}
-        submitLabel="Create now"
+        submitLabel="Cook Master Track"
         onComplete={startFromWizard}
       />
 
