@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bot,
@@ -5,11 +6,8 @@ import {
   Globe2,
   LayoutDashboard,
   Music2,
-  Radio,
-  Scale,
   Settings2,
   ShieldCheck,
-  Store,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,7 +26,7 @@ export const BOSS_AREAS = [
   },
   {
     to: "/admin/users",
-    label: "Users",
+    label: "Members",
     desc: "Find people, change coins, VIP and roles",
     icon: Users,
     group: "run",
@@ -42,49 +40,39 @@ export const BOSS_AREAS = [
   },
   {
     to: "/admin/coins",
-    label: "Coins",
-    desc: "Coins in circulation, grant coins, prices",
+    label: "Money",
+    desc: "Coins, prices, the OG Store, card payments and money checks",
     icon: Coins,
-    group: "run",
-  },
-  {
-    to: "/admin/store",
-    label: "Store",
-    desc: "Products, prices and stock",
-    icon: Store,
     group: "run",
   },
   {
     to: "/admin/bot",
     label: "OG Bot",
-    desc: "Persona, foul mouth, Telegram and alerts",
+    desc: "Persona, Telegram, alerts and live users",
     icon: Bot,
     group: "bot",
   },
   {
-    to: "/admin/audit",
-    label: "Audit",
-    desc: "Card payments, coin and referral checks, Boss actions",
-    icon: Scale,
-    group: "check",
-  },
-  {
     to: "/admin/system",
     label: "System",
-    desc: "API keys, setup checklist, tests and debugging",
+    desc: "API keys, diagnostics, free access and the Boss actions log",
     icon: Settings2,
-    group: "check",
-  },
-  {
-    to: "/developer",
-    label: "Live users",
-    desc: "Who is online right now",
-    icon: Radio,
     group: "check",
   },
 ] as const;
 
 export type BossArea = (typeof BOSS_AREAS)[number];
+
+/**
+ * Scrolls a horizontal tab strip so its active item is in view (phones only
+ * show the first few tabs). Moves only the strip, never the page.
+ */
+export function centerActiveChild(list: HTMLElement | null, selector: string) {
+  const el = list?.querySelector<HTMLElement>(selector);
+  if (!list || !el || list.scrollWidth <= list.clientWidth) return;
+  const left = el.offsetLeft - (list.clientWidth - el.offsetWidth) / 2;
+  list.scrollLeft = Math.max(0, left);
+}
 
 function isActive(pathname: string, to: string) {
   const path = pathname.replace(/\/$/, "") || "/";
@@ -94,11 +82,13 @@ function isActive(pathname: string, to: string) {
 
 /**
  * Boss header + tab bar shared by every admin page. Areas are grouped
- * (run the app · OG Bot · checks) with a divider between groups.
+ * (run the app · OG Bot · system) with a divider between groups.
  */
 export function BossNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const current = BOSS_AREAS.find((a) => isActive(pathname, a.to));
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => centerActiveChild(stripRef.current, "[data-boss-active]"), [pathname]);
 
   return (
     <div className="boss-ui mb-5 space-y-3">
@@ -127,7 +117,10 @@ export function BossNav() {
         aria-label="Boss areas"
         className="sticky top-16 z-10 rounded-xl border border-border bg-card/95 backdrop-blur"
       >
-        <div className="flex items-stretch overflow-x-auto whitespace-nowrap px-1 text-sm [scrollbar-width:none]">
+        <div
+          ref={stripRef}
+          className="relative flex items-stretch overflow-x-auto whitespace-nowrap px-1 text-sm [scrollbar-width:none]"
+        >
           {BOSS_AREAS.map(({ to, label, icon: Icon, group }, i) => {
             const active = isActive(pathname, to);
             const newGroup = i > 0 && BOSS_AREAS[i - 1].group !== group;
@@ -137,6 +130,7 @@ export function BossNav() {
                 <Link
                   to={to}
                   aria-current={active ? "page" : undefined}
+                  data-boss-active={active ? "" : undefined}
                   className={cn(
                     "inline-flex items-center gap-1.5 border-b-2 px-3 py-3 transition",
                     active

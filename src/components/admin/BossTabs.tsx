@@ -1,4 +1,5 @@
-import { useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { centerActiveChild } from "@/components/admin/BossNav";
 import { useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +26,8 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   });
   const [tab, setTab] = useState(initial);
   const current = tabs.find((t) => t.value === tab) ?? tabs[0];
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => centerActiveChild(listRef.current, '[data-state="active"]'), [tab]);
 
   function select(next: string) {
     setTab(next);
@@ -40,7 +43,10 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   return (
     <Tabs value={tab} onValueChange={select} className="w-full">
       {intro}
-      <TabsList className="mb-2 flex h-auto w-full justify-start gap-4 overflow-x-auto whitespace-nowrap rounded-none border-0 border-b border-border/60 bg-transparent p-0 [scrollbar-width:none]">
+      <TabsList
+        ref={listRef}
+        className="relative mb-2 flex h-auto w-full justify-start gap-4 overflow-x-auto whitespace-nowrap rounded-none border-0 border-b border-border/60 bg-transparent p-0 [scrollbar-width:none]"
+      >
         {tabs.map(({ value, label, Icon }) => (
           <TabsTrigger
             key={value}

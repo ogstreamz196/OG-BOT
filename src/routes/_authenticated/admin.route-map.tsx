@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/route-map")({
   beforeLoad: () => {
-    throw redirect({ to: "/admin/system" });
+    throw redirect({ to: "/admin/system", search: { tab: "tools" } });
   },
   component: () => null,
 });
@@ -40,6 +40,33 @@ const ROUTES: RouteEntry[] = [
   },
   { path: "/portal/$slug", file: "portal.$slug.tsx", guard: "public", hasParam: true },
   {
+    path: "/track/$songId",
+    file: "track.$songId.tsx",
+    guard: "public",
+    hasParam: true,
+    note: "Public share page",
+  },
+  { path: "/styles/rap", file: "styles.rap.tsx", guard: "public" },
+  { path: "/tg", file: "tg.tsx", guard: "public", note: "Telegram one-time sign-in" },
+  {
+    path: "/app-return",
+    file: "app-return.tsx",
+    guard: "public",
+    note: "Native app sign-in return",
+  },
+  { path: "/auth/callback", file: "auth_.callback.tsx", guard: "public" },
+  { path: "/sign-in-return", file: "sign-in-return.tsx", guard: "public" },
+  { path: "/reset-password", file: "reset-password.tsx", guard: "public" },
+  { path: "/delete-account", file: "delete-account.tsx", guard: "public" },
+  { path: "/policy", file: "policy.tsx", guard: "public" },
+  { path: "/terms", file: "terms.tsx", guard: "public" },
+  { path: "/sports-guide", file: "sports-guide.tsx", guard: "public", note: "Redirect" },
+  { path: "/dashboard", file: "dashboard.tsx", guard: "public", note: "Redirect" },
+  { path: "/home", file: "home.tsx", guard: "public", note: "Redirect" },
+  { path: "/login", file: "login.tsx", guard: "public", note: "Redirect" },
+  { path: "/signin", file: "signin.tsx", guard: "public", note: "Redirect" },
+  { path: "/signup", file: "signup.tsx", guard: "public", note: "Redirect" },
+  {
     path: "/api/public/payments/webhook",
     file: "api/public/payments/webhook.ts",
     guard: "public",
@@ -53,7 +80,7 @@ const ROUTES: RouteEntry[] = [
   },
 
   { path: "/", file: "_authenticated/index.tsx", guard: "auth" },
-  { path: "/library", file: "_authenticated/library.index.tsx", guard: "auth" },
+  { path: "/library", file: "_authenticated/library.index.lazy.tsx", guard: "auth" },
   {
     path: "/library/$songId",
     file: "_authenticated/library.$songId.tsx",
@@ -67,15 +94,47 @@ const ROUTES: RouteEntry[] = [
   { path: "/portals", file: "_authenticated/portals.tsx", guard: "auth" },
   { path: "/referrals", file: "_authenticated/referrals.tsx", guard: "auth" },
   { path: "/settings", file: "_authenticated/settings.tsx", guard: "auth" },
-  { path: "/developer", file: "_authenticated/developer.tsx", guard: "auth" },
+  { path: "/store", file: "_authenticated/store.tsx", guard: "auth" },
+  { path: "/sports", file: "_authenticated/sports.tsx", guard: "auth" },
+  { path: "/profile", file: "_authenticated/profile.tsx", guard: "auth" },
+  { path: "/purchase-history", file: "_authenticated/purchase-history.tsx", guard: "auth" },
+  { path: "/change-password", file: "_authenticated/change-password.tsx", guard: "auth" },
+  {
+    path: "/developer",
+    file: "_authenticated/developer.tsx",
+    guard: "admin",
+    note: "Redirects to /admin/bot (Live users)",
+  },
 
   { path: "/admin", file: "_authenticated/admin.index.tsx", guard: "admin" },
   { path: "/admin/music", file: "_authenticated/admin.music.tsx", guard: "admin" },
   { path: "/admin/coins", file: "_authenticated/admin.coins.tsx", guard: "admin" },
   { path: "/admin/bot", file: "_authenticated/admin.bot.tsx", guard: "admin" },
   { path: "/admin/system", file: "_authenticated/admin.system.tsx", guard: "admin" },
-  { path: "/admin/audit", file: "_authenticated/admin.audit.tsx", guard: "admin" },
-  { path: "/admin/store", file: "_authenticated/admin.store.tsx", guard: "admin" },
+  {
+    path: "/admin/audit",
+    file: "_authenticated/admin.audit.tsx",
+    guard: "admin",
+    note: "Redirects to Money / System",
+  },
+  {
+    path: "/admin/store",
+    file: "_authenticated/admin.store.tsx",
+    guard: "admin",
+    note: "Redirects to Money (Store)",
+  },
+  {
+    path: "/admin/coin-audit",
+    file: "_authenticated/admin.coin-audit.tsx",
+    guard: "admin",
+    note: "Redirects to Money (Coin check)",
+  },
+  {
+    path: "/admin/webhooks",
+    file: "_authenticated/admin.webhooks.tsx",
+    guard: "admin",
+    note: "Redirects to System (Payments webhook)",
+  },
   { path: "/admin/api-keys", file: "_authenticated/admin.api-keys.tsx", guard: "admin" },
   { path: "/admin/debug-context", file: "_authenticated/admin.debug-context.tsx", guard: "admin" },
   {
@@ -168,7 +227,6 @@ export function RouteMapPage() {
               <Map className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-black">Route map &amp; auth audit</h1>
               <p className="text-sm text-muted-foreground">
                 {total} routes — {counts.public} public, {counts.auth} signed-in, {counts.admin}{" "}
                 admin-only.

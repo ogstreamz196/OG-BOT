@@ -1,5 +1,13 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bug, ClipboardCheck, FlaskConical, KeyRound, Map, Truck, Webhook } from "lucide-react";
+import {
+  ClipboardCheck,
+  FlaskConical,
+  History,
+  KeyRound,
+  ToggleRight,
+  Webhook,
+  Wrench,
+} from "lucide-react";
 import { TransferReadiness } from "@/components/admin/TransferReadiness";
 import { ApiHub } from "@/components/admin/ApiHub";
 import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
@@ -10,6 +18,8 @@ import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
 import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
+import { BossAuditLog } from "@/components/admin/BossAuditLog";
+import { FreeAccessPanel } from "@/components/admin/FreeAccessPanel";
 import { WebhooksAdminPage } from "./admin.webhooks";
 import { RouteMapPage } from "./admin.route-map";
 import { DebugContextPage } from "./admin.debug-context";
@@ -30,6 +40,46 @@ function Diagnostics() {
       <FoulMouthSmokeTest />
       <HardwiredCapabilities />
     </>
+  );
+}
+
+/** Rarely needed tools, kept together so the tab bar stays short. */
+function MoreTools() {
+  return (
+    <div className="space-y-8">
+      <ToolSection title="Route map" desc="Every page in the app.">
+        <RouteMapPage />
+      </ToolSection>
+      <ToolSection title="Lyric debug" desc="The extra context sent with recent lyric requests.">
+        <DebugContextPage />
+      </ToolSection>
+      <ToolSection
+        title="Transfer readiness"
+        desc="Checklist for moving the project to another account."
+      >
+        <TransferReadiness />
+      </ToolSection>
+    </div>
+  );
+}
+
+function ToolSection({
+  title,
+  desc,
+  children,
+}: {
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="min-w-0 space-y-3">
+      <div>
+        <h2 className="text-lg leading-tight">{title}</h2>
+        <p className="text-xs text-muted-foreground">{desc}</p>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -63,25 +113,25 @@ const TABS: readonly BossTab[] = [
     Panel: WebhooksAdminPage,
   },
   {
-    value: "routes",
-    label: "Route map",
-    Icon: Map,
-    hint: "Every page in the app.",
-    Panel: RouteMapPage,
+    value: "access",
+    label: "Access",
+    Icon: ToggleRight,
+    hint: "Switch VIP features on for everyone for a while (free access).",
+    Panel: FreeAccessPanel,
   },
   {
-    value: "debug",
-    label: "Lyric debug",
-    Icon: Bug,
-    hint: "The extra context sent with recent lyric requests.",
-    Panel: DebugContextPage,
+    value: "actions",
+    label: "Boss actions",
+    Icon: History,
+    hint: "Everything done from Boss controls, newest first.",
+    Panel: BossAuditLog,
   },
   {
-    value: "transfer",
-    label: "Transfer readiness",
-    Icon: Truck,
-    hint: "Checklist for moving the project to another account.",
-    Panel: TransferReadiness,
+    value: "tools",
+    label: "More tools",
+    Icon: Wrench,
+    hint: "Route map, lyric debug and transfer readiness.",
+    Panel: MoreTools,
   },
 ];
 

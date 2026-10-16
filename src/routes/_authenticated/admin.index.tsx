@@ -53,7 +53,7 @@ function AdminDashboard() {
           <section className="space-y-3">
             <SectionHeading title="Quick actions" desc="The things you do most" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <QuickAction to="/admin/users" Icon={UserSearch} label="Find a user" />
+              <QuickAction to="/admin/users" Icon={UserSearch} label="Find a member" />
               <QuickAction to="/admin/coins" tab="grant" Icon={Gift} label="Grant coins" />
               <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG Bot persona" />
               <QuickAction
@@ -66,7 +66,7 @@ function AdminDashboard() {
           </section>
 
           <section className="space-y-3">
-            <SectionHeading title="Everything else" desc="Every Boss area in one place" />
+            <SectionHeading title="All Boss areas" desc="Each one has tabs inside" />
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {BOSS_AREAS.filter((a) => a.to !== "/admin").map(
                 ({ to, label, desc, icon: Icon }) => (

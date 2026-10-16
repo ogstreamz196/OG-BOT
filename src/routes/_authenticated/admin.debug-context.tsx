@@ -1,7 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Loader2, ShieldCheck, ShieldAlert, ArrowLeft, RefreshCw } from "lucide-react";
+import { Loader2, ShieldAlert, ArrowLeft, RefreshCw } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/admin/debug-context")({
   beforeLoad: () => {
-    throw redirect({ to: "/admin/system" });
+    throw redirect({ to: "/admin/system", search: { tab: "tools" } });
   },
   component: () => null,
 });
@@ -95,22 +95,11 @@ export function DebugContextPage() {
 
   return (
     <DashboardShell title="Lyric context debug">
-      <div className="mx-auto w-full max-w-5xl space-y-6 py-6">
+      <div className="w-full min-w-0 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Link
-              to="/admin"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3 w-3" /> Back to admin
-            </Link>
-            <h1 className="mt-2 flex items-center gap-2 font-display text-2xl font-black sm:text-3xl">
-              <ShieldCheck className="h-6 w-6 text-primary" /> Lyric context debug
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Admin-only. Shows the hidden lyric description users submitted with each song.
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            The hidden lyric description members submitted with each song.
+          </p>
           <Button
             variant="outline"
             size="sm"

@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/admin/webhooks")({
   beforeLoad: () => {
-    throw redirect({ to: "/admin/system" });
+    throw redirect({ to: "/admin/system", search: { tab: "webhooks" } });
   },
   component: () => null,
 });
@@ -56,11 +56,10 @@ export function WebhooksAdminPage() {
 
   return (
     <DashboardShell title="Webhook delivery">
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
+      <div className="w-full min-w-0 space-y-6">
         <header className="flex items-center gap-3">
-          <Activity className="h-6 w-6 text-primary" />
+          <Activity className="h-5 w-5 shrink-0 text-primary" />
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">Stripe webhook delivery</h1>
             <p className="text-sm text-muted-foreground">
               Live status of incoming Stripe events and the last successful credit.
             </p>
