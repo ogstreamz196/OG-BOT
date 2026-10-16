@@ -167,7 +167,8 @@ export const mergeAccounts = createServerFn({ method: "POST" })
     await reown("og_messages");
     await reown("community_messages");
     await reown("telegram_sign_in_events");
-    await reown("coin_transactions");
+    // Coin history stays with the account it happened on, so each ledger keeps
+    // adding up to its balance; the coins themselves move below.
     await reown("payment_refunds");
 
     // One-per-member access: move only if the main account doesn't have it.

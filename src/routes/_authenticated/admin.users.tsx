@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, Link, Outlet, useChildMatches } from "@tanstack/react-router";
+import { adjustCoinsAsBoss } from "@/lib/admin-coins";
 import { VipAcknowledgements } from "@/components/admin/VipAcknowledgements";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -945,15 +946,14 @@ function CoinsPopover({ userId, balance }: { userId: string; balance: number }) 
     mutationFn: async (delta: number) => {
       if (!Number.isFinite(delta) || delta === 0) throw new Error("Enter an amount");
       if (Math.abs(delta) > 100000) throw new Error("Max ±100,000");
-      const { data, error } = await supabase.rpc("mint_coins_admin", {
-        target_user_id: userId,
-        amount: delta,
-        admin_notes: "users_list_quick_grant",
-      });
-      if (error) throw new Error(error.message);
-      return data as number;
+      const { newBalance, applied } = await adjustCoinsAsBoss(
+        userId,
+        delta,
+        "users_list_quick_grant",
+      );
+      return { newBal: newBalance, delta: applied };
     },
-    onSuccess: (newBal, delta) => {
+    onSuccess: ({ newBal, delta }) => {
       toast.success(`${delta > 0 ? "+" : ""}${delta} coins · ${newBal}`);
       setAmount("");
       setOpen(false);

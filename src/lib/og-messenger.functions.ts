@@ -68,6 +68,16 @@ export const chatOgBot = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Trade signals: start pulling live prices now so they load alongside the
+    // user context below instead of after it.
+    const lastUserText = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const tradePromise: Promise<string> = import("@/lib/trade-signal-context.server")
+      .then((m) => m.buildTradeSignalContext(lastUserText))
+      .catch((e) => {
+        console.warn("trade signal context failed", e);
+        return "";
+      });
+
     // 1. Load user context in parallel (profile, role flags, foul pref, persona overrides, learned insults, free-access flag).
     const [profileRes, rolesRes, prefRes, siteRes, learnedRes, freeRes] = await Promise.all([
       supabaseAdmin
@@ -189,14 +199,8 @@ export const chatOgBot = createServerFn({ method: "POST" })
       console.warn("sports guide context failed", e);
     }
     // Trade signals: live prices and a computed plan, so levels are never guessed.
-    let tradeNote = "";
-    try {
-      const { buildTradeSignalContext } = await import("@/lib/trade-signal-context.server");
-      const block = await buildTradeSignalContext(latestUserMsg?.content ?? "");
-      if (block) tradeNote = `\n\n${block}`;
-    } catch (e) {
-      console.warn("trade signal context failed", e);
-    }
+    const tradeBlock = await tradePromise;
+    const tradeNote = tradeBlock ? `\n\n${tradeBlock}` : "";
     const cp = await import("@/lib/og-catchphrases.server");
     const phrases = await cp.pickCatchphrases(
       supabaseAdmin as never,
