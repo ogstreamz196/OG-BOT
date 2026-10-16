@@ -28,6 +28,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapTracksDotxmlRouteImport } from './routes/sitemap-tracks[.]xml'
 import { Route as SportsGuideRouteImport } from './routes/sports-guide'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TgRouteImport } from './routes/tg'
 import { Route as TrustRouteImport } from './routes/trust'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -171,6 +172,11 @@ const SportsGuideRoute = SportsGuideRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TgRoute = TgRouteImport.update({
+  id: '/tg',
+  path: '/tg',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrustRoute = TrustRouteImport.update({
@@ -505,6 +511,7 @@ export interface FileRoutesByFullPath {
   '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -579,6 +586,7 @@ export interface FileRoutesByTo {
   '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -656,6 +664,7 @@ export interface FileRoutesById {
   '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -734,6 +743,7 @@ export interface FileRouteTypes {
     | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
+    | '/tg'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -808,6 +818,7 @@ export interface FileRouteTypes {
     | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
+    | '/tg'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -884,6 +895,7 @@ export interface FileRouteTypes {
     | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
+    | '/tg'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -961,6 +973,7 @@ export interface RootRouteChildren {
   SitemapTracksDotxmlRoute: typeof SitemapTracksDotxmlRoute
   SportsGuideRoute: typeof SportsGuideRoute
   TermsRoute: typeof TermsRoute
+  TgRoute: typeof TgRoute
   TrustRoute: typeof TrustRoute
   WelcomeRoute: typeof WelcomeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -1103,6 +1116,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tg': {
+      id: '/tg'
+      path: '/tg'
+      fullPath: '/tg'
+      preLoaderRoute: typeof TgRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trust': {
@@ -1618,6 +1638,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapTracksDotxmlRoute: SitemapTracksDotxmlRoute,
   SportsGuideRoute: SportsGuideRoute,
   TermsRoute: TermsRoute,
+  TgRoute: TgRoute,
   TrustRoute: TrustRoute,
   WelcomeRoute: WelcomeRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,

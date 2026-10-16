@@ -10,6 +10,8 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 - VIP IDs are `OG` + uppercase username via the service-only function, synced on username change.
 - Boss account deletion: authenticated server function, server-checked role, protected targets.
 - Boss password reset (user settings): authenticated server function, server-checked role, protected targets; audit-logged without the password.
+- Boss account merge (user settings, src/lib/admin-merge-accounts.functions.ts): server-checked role, duplicate must not be privileged; coins move via mint_coins_admin as the Boss (debit duplicate, credit main, never deduct_coins, which pays referral cashback); content is re-owned; the emptied duplicate is left for the Boss to delete; audit-logged.
+- Telegram bot links to the site for a linked chat carry a one-time magic-link token (src/lib/telegram-signin.server.ts → /tg) so Telegram's in-app browser signs into the linked account instead of offering sign-up.
 - Referral cashback: 6% of a referee's coin spend, 13% only for genuinely VIP leaders (never the intro offer), accrued in hundredths via pay_referral_cashback; none on VIP upgrades or card payments.
 - Card-payment return checks (reconcileCoinSession, reconcileTrackUnlock) never pay referral rewards; reconcileCoinSession leaves `store:` sessions to the webhook, which credits store items once under its own reference.
 - Store coin purchases (Sports Guide, Vault pass) always confirm price and balance-after first; the old Telegram Sports Guide invite function stays switched off.
