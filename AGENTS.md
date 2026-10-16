@@ -32,6 +32,7 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 - Lyrics: free tiers, then GEMINI_FREE_* keys, then paid Gemini; `GEMINI_BACKUP_API_KEY` only for lyrics after the primary fails. Offline songwriter if all fail; key failures go to ai_key_failures.
 - Dictionary/intensity live in the songwriter prompt only; never reject lyrics for profanity density, and never auto-substitute words on moderation rejection.
 - Battle Zone learns slang via service-only `learn_battle_words`; OG Bot openers come from the service-only catchphrase bank.
+- Trade signals (messenger + Telegram): src/lib/trade-signal-context.server.ts detects a market + trade request, pulls live candles (Binance/Kraken for crypto and gold via PAXG, Yahoo for forex, indices, oil, $stocks) and computes indicators and the plan in code (src/lib/trade-signal.ts); every signal names the most likely direction with a confidence % (indicator agreement, never a win rate) and a UK-time "valid until" (scalp 1h, intraday 4h, swing 24h; Telegram signal replies self-destruct one 5-minute clean-up sweep before that); the model only presents those numbers and must say so when no data loads, never invent levels. Headlines via Perplexity, soft-fail.
 - OG Bot reads images only; errors via src/lib/og-error-message.ts; buildSystemPrompt limits Boss Controls talk to admin/boss.
 
 ## Tracks

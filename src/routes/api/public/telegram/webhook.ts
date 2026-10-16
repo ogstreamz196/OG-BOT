@@ -592,8 +592,8 @@ async function runChatAI(
     /\b(coin|coins|balance|vip|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
       userText,
     );
-  const [profileRes, prefRes, siteRes, historyRes, dossier, promo, sportsBlock] = await Promise.all(
-    [
+  const [profileRes, prefRes, siteRes, historyRes, dossier, promo, sportsBlock, tradeBlock] =
+    await Promise.all([
       admin
         .from("profiles")
         .select("display_name, email, coin_balance")
@@ -620,8 +620,13 @@ async function runChatAI(
         console.warn("[telegram] sports guide context failed", e);
         return "";
       }),
-    ],
-  );
+      import("@/lib/trade-signal-context.server")
+        .then((m) => m.buildTradeSignalContext(userText))
+        .catch((e) => {
+          console.warn("[telegram] trade signal context failed", e);
+          return "";
+        }),
+    ]);
   const profile = profileRes.data;
   if (!profile) {
     clearInterval(typingTimer);
@@ -665,7 +670,10 @@ async function runChatAI(
       songIntent: detectSongIntent(userText),
       dossier,
     }) +
-    catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth)));
+    catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth))) +
+    (tradeBlock
+      ? `\n\n${tradeBlock}\n\nOn Telegram this reply self-destructs at the valid-until time. Say so in a few words on the valid-until line.`
+      : "");
 
   const history = ((historyRes.data ?? []) as { role: string; content: string }[])
     .reverse()
@@ -682,7 +690,7 @@ async function runChatAI(
 
   try {
     let currentUserText = userText;
-    if (!sportsNote && needsLiveResearch(userText)) {
+    if (!sportsNote && !tradeBlock && needsLiveResearch(userText)) {
       const research = await getLiveResearchContext(userText).catch(() => null);
       if (research) {
         currentUserText = `CURRENT WEB SOURCES:\n${research}\n\nUSER QUESTION:\n${userText}\n\nCite source URLs for current claims.`;
@@ -721,6 +729,14 @@ async function runChatAI(
       replyText = ensureFoulFlavour(replyText);
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
+    // Trade signals: plain text for Telegram, and the reply self-destructs
+    // when the signal expires.
+    let replyTtlMs = DEFAULT_TTL_MS;
+    if (tradeBlock) {
+      const ts = await import("@/lib/trade-signal-context.server");
+      replyText = ts.plainForTelegram(replyText);
+      replyTtlMs = ts.tradeReplyTtlMs(userText);
+    }
 
     await admin.from("og_messages").insert({
       user_id: profileId,
@@ -744,7 +760,7 @@ async function runChatAI(
         text: c,
         disable_web_page_preview: true,
       });
-      await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
+      await scheduleDelete(chat_id, res, replyTtlMs);
     }
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);

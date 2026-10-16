@@ -179,17 +179,37 @@ export const chatOgBot = createServerFn({ method: "POST" })
     let sportsNote = "";
     try {
       const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
-      const block = await buildSportsGuideContext(supabaseAdmin, context.userId, latestUserMsg?.content ?? "");
+      const block = await buildSportsGuideContext(
+        supabaseAdmin,
+        context.userId,
+        latestUserMsg?.content ?? "",
+      );
       if (block) sportsNote = `\n\n${block}`;
     } catch (e) {
       console.warn("sports guide context failed", e);
     }
+    // Trade signals: live prices and a computed plan, so levels are never guessed.
+    let tradeNote = "";
+    try {
+      const { buildTradeSignalContext } = await import("@/lib/trade-signal-context.server");
+      const block = await buildTradeSignalContext(latestUserMsg?.content ?? "");
+      if (block) tradeNote = `\n\n${block}`;
+    } catch (e) {
+      console.warn("trade signal context failed", e);
+    }
     const cp = await import("@/lib/og-catchphrases.server");
-    const phrases = await cp.pickCatchphrases(supabaseAdmin as never, context.userId, cp.toneFor(data.mode, foulMouth));
+    const phrases = await cp.pickCatchphrases(
+      supabaseAdmin as never,
+      context.userId,
+      cp.toneFor(data.mode, foulMouth),
+    );
     const da = await import("@/lib/diss-ambush");
     // Decide on the raw history (markers show past ambushes), then strip markers before the AI sees it.
     const ambush = da.shouldAmbush(data.messages, Math.random());
-    const cleanHistory = data.messages.map((m) => ({ ...m, content: da.stripMarker(m.content) || "…" }));
+    const cleanHistory = data.messages.map((m) => ({
+      ...m,
+      content: da.stripMarker(m.content) || "…",
+    }));
     data.messages.splice(0, data.messages.length, ...cleanHistory);
     const bal = profile.coin_balance ?? 0;
     const dissNote =
@@ -198,7 +218,13 @@ export const chatOgBot = createServerFn({ method: "POST" })
         ? `\n\nAMBUSH NOW: End this reply with 1–2 lines asking if they want to hear a diss track made about them from what they've said. Mention it's ${da.DISS_TRACK_COST} coins (they have ${bal}) or ${da.DISS_TRACK_PRICE_GBP}, and that they can keep chatting for now. Buttons appear under your message — don't write links.`
         : "");
     const system =
-      baseSystem + intensityNote + promoNote + sportsNote + cp.catchphraseNote(phrases) + dissNote;
+      baseSystem +
+      intensityNote +
+      promoNote +
+      sportsNote +
+      cp.catchphraseNote(phrases) +
+      dissNote +
+      tradeNote;
 
     // 1b. Learn fresh insults from the latest user message (fire-and-forget upsert).
     let newlyLearned: string[] = [];
@@ -235,7 +261,7 @@ export const chatOgBot = createServerFn({ method: "POST" })
     // 3. Use Perplexity only when the message clearly needs current web facts.
     const outgoing = [...data.messages];
     const last = outgoing[outgoing.length - 1];
-    if (last?.role === "user" && needsLiveResearch(last.content)) {
+    if (last?.role === "user" && !tradeNote && needsLiveResearch(last.content)) {
       try {
         const research = await getLiveResearchContext(last.content);
         if (research) {
