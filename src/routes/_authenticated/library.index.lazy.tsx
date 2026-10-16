@@ -285,6 +285,7 @@ function LibraryPage() {
   const [personalDetails, setPersonalDetails] = useState("");
   const [improving, setImproving] = useState(false);
   const [improveError, setImproveError] = useState<string | null>(null);
+  const prepayTrackFn = useServerFn(prepayTrack);
   const improveDescription = useServerFn(improveLyricDescription);
   const listDrafts = useServerFn(listSongBriefDrafts);
   const deleteDraft = useServerFn(deleteSongBriefDraft);
