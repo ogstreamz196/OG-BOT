@@ -40,6 +40,8 @@ import {
   guestCreationAvailable,
   startGuestCreation,
 } from "@/components/welcome/GuestStudio";
+import { useServerFn } from "@tanstack/react-start";
+import { signInWithIdentifier } from "@/lib/identifier-signin.functions";
 import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import {
@@ -285,7 +287,7 @@ const PRIMARY_DEVICES: Device[] = [
   },
 ];
 
-function AuthButtons({ size = "lg" }: { size?: "lg" | "xl" }) {
+function AuthButtons({ size = "lg", initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab }) {
   const { signIn, pending } = useOAuthSignIn();
   const native = useIsNativeApp();
   const compact = size === "lg";
@@ -327,11 +329,11 @@ function AuthButtons({ size = "lg" }: { size?: "lg" | "xl" }) {
           </p>
           <OgBotLogo className="mx-auto mt-3 h-44 w-44 rounded-3xl shadow-glow sm:h-56 sm:w-56" />
           <h2 className="mt-3 text-lg font-semibold text-foreground sm:text-xl">
-            {native ? "Create your account" : "Sign in to your account"}
+            {native ? "Welcome to OG Streamz" : "Sign in or join"}
           </h2>
           <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">
             {native
-              ? "Choose a username and password to get started."
+              ? "Sign in, or create an account with a username and password."
               : "Continue with a connected account, or use your username and password."}
           </p>
         </div>
@@ -350,7 +352,7 @@ function AuthButtons({ size = "lg" }: { size?: "lg" | "xl" }) {
         )}
 
         <div>
-          <EmailAuthPanel disabled={pending !== null} />
+          <EmailAuthPanel disabled={pending !== null} initialTab={initialTab} />
         </div>
       </div>
     </div>
@@ -367,12 +369,27 @@ const normalizeHandle = (v: string) =>
 const toLoginEmail = (v: string) =>
   v.includes("@") ? v.trim() : `${normalizeHandle(v)}@${USERNAME_DOMAIN}`;
 
-function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
+type AuthTab = "signin" | "signup";
+
+function EmailAuthPanel({ disabled, initialTab }: { disabled?: boolean; initialTab?: AuthTab }) {
   const native = useIsNativeApp();
-  // One smart form: tries sign-in first, creates the account when it's new.
+  // Separate Sign in and Create account: signing in never creates an account,
+  // so a typo in a username or password can't leave someone with a duplicate.
+  const [tab, setTab] = useState<AuthTab>(initialTab ?? (native ? "signup" : "signin"));
   const [mode, setMode] = useState<"enter" | "reset">("enter");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const signInByName = useServerFn(signInWithIdentifier);
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
+  const switchTab = (next: AuthTab) => {
+    setTab(next);
+    // A mistyped sign-in password must never carry over into a new account.
+    setPassword("");
+    setConfirm("");
+  };
 
   const [busy, setBusy] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -426,49 +443,100 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
     }
     const handle = email.trim();
     const isEmail = handle.includes("@");
+    const usernameOff = native
+      ? "Username sign-in is unavailable right now. Please try again shortly."
+      : "Username sign-in is switched off right now — use Google or Apple, or try again shortly.";
+
+    if (tab === "signin") {
+      if (!handle) {
+        toast.error("Enter your username or email");
+        return;
+      }
+      if (!password) {
+        toast.error("Enter your password");
+        return;
+      }
+      setBusy(true);
+      try {
+        // 1) Email, or the username the account was created with.
+        const direct = await supabase.auth.signInWithPassword({
+          email: toLoginEmail(handle),
+          password,
+        });
+        if (!direct.error) {
+          toast.success("Welcome back!");
+          return;
+        }
+        const msg = (direct.error.message ?? "").toLowerCase();
+        if (msg.includes("disabled")) {
+          toast.error(usernameOff);
+          return;
+        }
+        const wrong = msg.includes("invalid login credentials") || msg.includes("user not found");
+        if (!wrong) throw direct.error;
+        // 2) A username they changed to, or their VIP ID: looked up on the server.
+        if (!isEmail) {
+          const res = await signInByName({ data: { identifier: handle, password } });
+          if (res.ok) {
+            const { error } = await supabase.auth.setSession({
+              access_token: res.access_token,
+              refresh_token: res.refresh_token,
+            });
+            if (error) throw error;
+            toast.success("Welcome back!");
+            return;
+          }
+          if (res.reason === "too_many") {
+            toast.error("Too many tries. Wait a few minutes, or reset your password.");
+            return;
+          }
+        }
+        toast.error("Wrong username or password. Check them and try again.", {
+          description: "New to OG Streamz? Create an account instead.",
+          action: { label: "Create account", onClick: () => switchTab("signup") },
+        });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Something went wrong");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Create account.
     if (!isEmail && normalizeHandle(handle).length < 3) {
       toast.error("Pick a username with at least 3 letters or numbers");
       return;
     }
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
-
+      return;
+    }
+    if (password !== confirm) {
+      toast.error("Passwords don't match");
       return;
     }
     const loginEmail = toLoginEmail(handle);
+    const taken = () =>
+      toast.error("That username is already taken.", {
+        description: "If it's yours, sign in instead.",
+        action: { label: "Sign in", onClick: () => switchTab("signin") },
+      });
 
     setBusy(true);
     try {
-      // 1) Existing account? Sign straight in.
-      const signIn = await supabase.auth.signInWithPassword({ email: loginEmail, password });
-      if (!signIn.error) {
-        toast.success("Welcome back!");
-        return;
-      }
-      const msg = (signIn.error.message ?? "").toLowerCase();
-      if (msg.includes("disabled")) {
-        toast.error(
-          native
-            ? "Username sign-up is unavailable right now. Please try again shortly."
-            : "Username sign-up is switched off right now — use Google or Apple, or try again shortly.",
-        );
-        return;
-      }
-      const unknownUser =
-        msg.includes("invalid login credentials") || msg.includes("user not found");
-      if (!unknownUser) throw signIn.error;
-
-      // 2) Device limit: max 2 accounts per device (blocks free-coin farming).
+      // Device limit: max 2 accounts per device (blocks free-coin farming).
       const deviceId = getDeviceId();
       if (deviceId) {
         const check = await checkDeviceAccountAllowed({ data: { deviceId } });
         if (!check.allowed) {
-          toast.error("This device already has 2 accounts — sign in to one of them.");
+          toast.error("This device already has 2 accounts — sign in to one of them.", {
+            action: { label: "Sign in", onClick: () => switchTab("signin") },
+          });
           return;
         }
       }
 
-      // 3) Otherwise create it — unless the name exists with another password.
       const signUp = await supabase.auth.signUp({
         email: loginEmail,
         password,
@@ -480,7 +548,7 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
       if (signUp.error) {
         const upMsg = (signUp.error.message ?? "").toLowerCase();
         if (upMsg.includes("already registered") || upMsg.includes("already been registered")) {
-          toast.error("That username is taken — check your password.");
+          taken();
           return;
         }
         if (upMsg.includes("password should be at least")) {
@@ -488,19 +556,13 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
           return;
         }
         if (upMsg.includes("disabled")) {
-          toast.error(
-            native
-              ? "Username sign-up is unavailable right now. Please try again shortly."
-              : "Username sign-up is switched off right now — use Google or Apple, or try again shortly.",
-          );
+          toast.error(usernameOff);
           return;
         }
-
         throw signUp.error;
       }
-
       if (signUp.data.user?.identities?.length === 0) {
-        toast.error("That username is taken — check your password.");
+        taken();
         return;
       }
       toast.success("Account created — welcome to OG Streamz!");
@@ -514,14 +576,52 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
   return (
     <div>
       <div className="mb-5 text-center">
-        <h3 className="font-auth-display text-3xl uppercase leading-none text-foreground">
-          {mode === "reset" ? "Reset password" : "Create account / Sign in"}
-        </h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {mode === "reset"
-            ? "Enter the email linked to your account."
-            : "New username? We’ll create your account automatically."}
-        </p>
+        {mode === "reset" ? (
+          <>
+            <h3 className="font-auth-display text-3xl uppercase leading-none text-foreground">
+              Reset password
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Enter the email linked to your account.
+            </p>
+          </>
+        ) : (
+          <>
+            <div
+              role="tablist"
+              aria-label="Sign in or create an account"
+              className="grid grid-cols-2 gap-1 rounded-xl border-2 border-border bg-secondary/60 p-1"
+            >
+              {(
+                [
+                  ["signin", "Sign in"],
+                  ["signup", "Create account"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => switchTab(key)}
+                  disabled={busy}
+                  className={`h-12 rounded-lg font-auth-body text-base font-bold transition-colors ${
+                    tab === key
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              {tab === "signin"
+                ? "Welcome back. Sign in with your username or email."
+                : "New here? Pick a username and password."}
+            </p>
+          </>
+        )}
       </div>
 
       <form onSubmit={submit} className="space-y-5" id="wc-auth-panel">
@@ -530,7 +630,11 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
             htmlFor="wc-email"
             className="ml-0.5 block text-left text-sm font-semibold text-foreground"
           >
-            {mode === "reset" ? "Email" : "Username"}
+            {mode === "reset"
+              ? "Email"
+              : tab === "signin"
+                ? "Username or email"
+                : "Choose a username"}
           </Label>
           <Input
             id="wc-email"
@@ -538,7 +642,13 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder={mode === "reset" ? "you@example.com" : "Enter your username"}
+            placeholder={
+              mode === "reset"
+                ? "you@example.com"
+                : tab === "signin"
+                  ? "Your username or email"
+                  : "e.g. kingbrian"
+            }
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
@@ -558,11 +668,32 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
             <Input
               id="wc-password"
               type="password"
-              autoComplete="current-password"
-              placeholder="Create/use existing password, must be 6 characters"
+              autoComplete={tab === "signin" ? "current-password" : "new-password"}
+              placeholder={tab === "signin" ? "Your password" : "At least 6 characters"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-[13px] placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
+              disabled={busy || disabled}
+              required
+            />
+          </div>
+        )}
+        {mode !== "reset" && tab === "signup" && (
+          <div className="space-y-2">
+            <Label
+              htmlFor="wc-password-confirm"
+              className="ml-0.5 block text-left text-sm font-semibold text-foreground"
+            >
+              Confirm password
+            </Label>
+            <Input
+              id="wc-password-confirm"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Type it again"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
               disabled={busy || disabled}
               required
             />
@@ -588,7 +719,9 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
               </span>
             </div>
             <Progress value={createProgress} className="h-1.5 bg-primary/20" />
-            <p className="text-xs text-muted-foreground">Setting up your OG Studio profile.</p>
+            <p className="text-xs text-muted-foreground">
+              {tab === "signin" ? "Opening your OG Studio." : "Setting up your OG Studio profile."}
+            </p>
             <div aria-live="polite" className="sr-only">
               Signing you in, {createProgress} percent complete.
             </div>
@@ -614,7 +747,7 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
           ) : (
             <>
               <Sparkles className="mr-2 h-5 w-5" aria-hidden />
-              Sign in or create account
+              {tab === "signin" ? "Sign in" : "Create account"}
             </>
           )}
         </Button>
@@ -792,10 +925,12 @@ function AuthModal() {
               </ul>
             </div>
           )}
-          <AuthButtons size="xl" />
+          <AuthButtons
+            size="xl"
+            initialTab={songTitle || savedTrack || fromBattle ? "signup" : "signin"}
+          />
           <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
-            Free to start — new or returning, one form does both. Your Battle Zone chat comes with
-            you.
+            Free to join. Your Battle Zone chat comes with you.
           </p>
         </div>
       </DialogContent>
