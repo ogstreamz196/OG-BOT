@@ -2696,6 +2696,10 @@ export type Database = {
         Args: { p_n?: number; p_tone: string; p_user: string }
         Returns: Json
       }
+      pick_trade_hold: {
+        Args: { p_tone: string; p_user: string }
+        Returns: Json
+      }
       prepay_track: { Args: { p_song: string; p_user: string }; Returns: Json }
       purchase_bot_token: {
         Args: { p_allowed_domain?: string }

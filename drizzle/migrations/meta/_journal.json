@@ -148,6 +148,13 @@
       "when": 1792196937581,
       "tag": "0020_guest_battle_reward_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792279184467,
+      "tag": "0021_trade_hold_catchphrases",
+      "breakpoints": true
     }
   ]
 }
