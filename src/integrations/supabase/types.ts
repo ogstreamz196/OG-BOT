@@ -558,6 +558,27 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_battle_claims: {
+        Row: {
+          claimed_at: string
+          credited_tenths: number
+          guest_id: string
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          credited_tenths?: number
+          guest_id: string
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          credited_tenths?: number
+          guest_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ledgerly_settings: {
         Row: {
           api_key: string | null
@@ -2505,6 +2526,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_guest_battle: {
+        Args: { _guest_id: string; _user_id: string }
+        Returns: Json
       }
       claim_presence_alert: {
         Args: { p_cooldown_minutes: number; p_kind: string; p_user: string }
