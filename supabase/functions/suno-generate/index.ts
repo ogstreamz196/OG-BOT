@@ -510,14 +510,19 @@ Deno.serve(async (req) => {
             "[Humming vocal interlude — voices only, no instruments]",
           )
         : effectiveLyrics;
-    // VIP members (role or active subscription) get clean tracks: no signature.
-    const { data: isVipRole } = await admin.rpc("has_role", { _user_id: user.id, _role: "vip" });
-    const { count: activeSubs } = await admin
-      .from("subscriptions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .in("status", ["active", "trialing"]);
-    const unsigned = isInstrumental || !!isVipRole || (activeSubs ?? 0) > 0;
+    // Only real VIPs get clean tracks with no spoken signature: the VIP role
+    // or a paid, active subscription. Free VIP (the free trial, a subscription
+    // still in its free trial, "free access for all") keeps the promo tag.
+    const [vipRole, subsRes] = await Promise.all([
+      admin.rpc("has_role", { _user_id: user.id, _role: "vip" }),
+      admin
+        .from("subscriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "active"),
+    ]);
+    const realVip = !!vipRole.data || (subsRes.count ?? 0) > 0;
+    const unsigned = isInstrumental || realVip;
     const signedLyrics = unsigned
       ? voiceOnlyLyrics
       : limitText(injectSignature(voiceOnlyLyrics, { acappella }), MAX_PROMPT_CHARS);
