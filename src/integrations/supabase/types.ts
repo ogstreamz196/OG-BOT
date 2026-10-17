@@ -1252,7 +1252,6 @@ export type Database = {
           foul_mouth: boolean
           generation_started_at: string | null
           id: string
-          is_nasheed: boolean
           is_public: boolean
           is_variation: boolean
           last_auto_retry_at: string | null
@@ -1279,8 +1278,6 @@ export type Database = {
           revealed: boolean
           sample_path: string | null
           status: string
-          stem_source_clip_id: string | null
-          stem_task_id: string | null
           stream_audio_url: string | null
           style: string | null
           suno_clip_id: string | null
@@ -1312,7 +1309,6 @@ export type Database = {
           foul_mouth?: boolean
           generation_started_at?: string | null
           id?: string
-          is_nasheed?: boolean
           is_public?: boolean
           is_variation?: boolean
           last_auto_retry_at?: string | null
@@ -1339,8 +1335,6 @@ export type Database = {
           revealed?: boolean
           sample_path?: string | null
           status?: string
-          stem_source_clip_id?: string | null
-          stem_task_id?: string | null
           stream_audio_url?: string | null
           style?: string | null
           suno_clip_id?: string | null
@@ -1372,7 +1366,6 @@ export type Database = {
           foul_mouth?: boolean
           generation_started_at?: string | null
           id?: string
-          is_nasheed?: boolean
           is_public?: boolean
           is_variation?: boolean
           last_auto_retry_at?: string | null
@@ -1399,8 +1392,6 @@ export type Database = {
           revealed?: boolean
           sample_path?: string | null
           status?: string
-          stem_source_clip_id?: string | null
-          stem_task_id?: string | null
           stream_audio_url?: string | null
           style?: string | null
           suno_clip_id?: string | null
