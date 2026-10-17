@@ -36,7 +36,7 @@ export function VipStatusCard() {
     try {
       const res = await openPortal({
         data: {
-          returnUrl: window.location.origin + "/settings",
+          returnUrl: window.location.origin + "/profile",
           environment: getStripeEnvironment(),
         },
       });

@@ -77,20 +77,16 @@ export function TelegramConnectCard() {
         </div>
       </div>
 
-      <ul className="relative mt-4 grid gap-2 sm:grid-cols-2">
-        {PERKS.map(({ icon: Icon, title, text }) => (
-          <li
-            key={title}
-            className="flex gap-2.5 rounded-xl border border-border bg-background/40 p-3"
-          >
-            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div>
-              <p className="text-sm font-semibold leading-tight">{title}</p>
-              <p className="text-xs text-muted-foreground">{text}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {!linked && (
+        <ul className="relative mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {PERKS.map(({ icon: Icon, title, text }) => (
+            <li key={title} title={text} className="flex items-center gap-2 text-xs font-medium">
+              <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+              {title}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="relative mt-4">
         {linked ? (

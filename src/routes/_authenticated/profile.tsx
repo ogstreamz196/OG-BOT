@@ -1,24 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { OgVipIdCard } from "@/components/vip/OgVipIdCard";
-import { VipRequestCard } from "@/components/vip/VipRequestCard";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Capacitor } from "@capacitor/core";
 import {
   Loader2,
   Crown,
   Coins,
-  Mail,
   UserRound,
   ArrowDownRight,
   ArrowUpRight,
   KeyRound,
   Receipt,
-  Send,
   Copy,
   Music2,
   LogOut,
   ShieldCheck,
   CalendarDays,
+  Gift,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,20 +26,30 @@ import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OgVipIdCard } from "@/components/vip/OgVipIdCard";
+import { VipRequestCard } from "@/components/vip/VipRequestCard";
+import { VipStatusCard } from "@/components/settings/VipStatusCard";
+import { Paywall } from "@/components/revenuecat/Paywall";
+import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
+import { SettingRow, SettingsCard } from "@/components/settings/SettingsCard";
 import { TelegramConnectCard } from "@/components/profile/TelegramConnectCard";
+import { DeleteMyAccount } from "@/components/DeleteMyAccount";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
       { title: "My Profile | OG BOT — AI Songs & Diss Tracks" },
-      { name: "description", content: "Manage your OG BOT username, email, coins and activity." },
+      {
+        name: "description",
+        content: "Your OG BOT profile and settings: username, email, VIP, coins and preferences.",
+      },
       { property: "og:title", content: "My Profile | OG BOT — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Manage your OG BOT username, email, coins and activity.",
+        content: "Your OG BOT profile and settings: username, email, VIP, coins and preferences.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -50,6 +59,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
 });
 
 const USERNAME_DOMAIN = "@ogstreamz.app";
+const BIO_MAX = 400;
 
 type Tx = {
   id: string;
@@ -99,18 +109,28 @@ function ProfilePage() {
   const hasBossRole = (roles as string[] | undefined)?.includes("boss") ?? false;
   const qc = useQueryClient();
 
+  const [native, setNative] = useState(false);
+  useEffect(() => setNative(Capacitor.isNativePlatform()), []);
+
   const [name, setName] = useState("");
-  const [dirty, setDirty] = useState(false);
+  const [nameDirty, setNameDirty] = useState(false);
+  const [bio, setBio] = useState("");
+  const [bioDirty, setBioDirty] = useState(false);
   const [email, setEmail] = useState("");
   const [filter, setFilter] = useState<"all" | "spent" | "earned">("all");
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(5);
 
+  const savedBio = (profile as { artist_bio?: string | null } | undefined)?.artist_bio ?? "";
   useEffect(() => {
-    if (profile && !dirty) setName(profile.display_name ?? "");
-  }, [profile?.display_name, dirty]);
+    if (profile && !nameDirty) setName(profile.display_name ?? "");
+  }, [profile?.display_name, nameDirty]);
+  useEffect(() => {
+    if (profile && !bioDirty) setBio(savedBio);
+  }, [savedBio, bioDirty]);
 
   const usernameAccount = !!user?.email?.toLowerCase().endsWith(USERNAME_DOMAIN);
   const pendingEmail = (user as { new_email?: string } | null)?.new_email;
+  const provider = user?.app_metadata?.provider as string | undefined;
 
   const extras = useQuery({
     queryKey: ["profile-extras", user?.id],
@@ -119,7 +139,7 @@ function ProfilePage() {
       const [p, songs] = await Promise.all([
         supabase
           .from("profiles")
-          .select("referral_code, telegram_username, telegram_linked_at, created_at, og_vip_id")
+          .select("referral_code, created_at, og_vip_id")
           .eq("id", user!.id)
           .maybeSingle(),
         supabase
@@ -130,8 +150,6 @@ function ProfilePage() {
       ]);
       return { ...(p.data ?? {}), trackCount: songs.count ?? 0 } as {
         referral_code?: string | null;
-        telegram_username?: string | null;
-        telegram_linked_at?: string | null;
         created_at?: string;
         og_vip_id?: string | null;
         trackCount: number;
@@ -181,7 +199,24 @@ function ProfilePage() {
     },
     onSuccess: () => {
       toast.success("Username updated");
-      setDirty(false);
+      setNameDirty(false);
+      qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveBio = useMutation({
+    mutationFn: async () => {
+      const v = bio.trim().slice(0, BIO_MAX);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ artist_bio: v || null } as never)
+        .eq("id", user!.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Bio saved. New songs can mention it.");
+      setBioDirty(false);
       qc.invalidateQueries({ queryKey: ["profile", user?.id] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -221,7 +256,7 @@ function ProfilePage() {
   return (
     <DashboardShell title="Profile">
       <div className="mx-auto max-w-2xl space-y-5 pb-10">
-        {/* Hero */}
+        {/* Who you are, at a glance */}
         <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="pointer-events-none absolute inset-0 bg-gradient-brand opacity-10" />
           <div className="relative flex items-center gap-4">
@@ -236,7 +271,7 @@ function ProfilePage() {
               <h1 className="truncate font-display text-xl font-bold">
                 {profile?.display_name || "OG Member"}
               </h1>
-              <div className="mt-1 flex flex-wrap gap-1.5">
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {hasVipRole && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold uppercase text-amber-300">
                     <Crown className="h-3 w-3" /> OG VIP
@@ -249,7 +284,7 @@ function ProfilePage() {
                 )}
                 {extras.data?.created_at && (
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <CalendarDays className="h-3 w-3" /> Since{" "}
+                    <CalendarDays className="h-3 w-3" /> Member since{" "}
                     {new Date(extras.data.created_at).toLocaleDateString(undefined, {
                       month: "short",
                       year: "numeric",
@@ -260,21 +295,16 @@ function ProfilePage() {
             </div>
           </div>
 
-          <div className="relative mt-4 grid grid-cols-3 gap-2">
+          <div className="relative mt-4 grid grid-cols-2 gap-2">
             <Stat
               icon={<Coins className="h-4 w-4 text-coin" />}
-              label="Balance"
+              label="Coins"
               value={profile?.coin_balance ?? 0}
             />
             <Stat
               icon={<Music2 className="h-4 w-4 text-primary" />}
               label="Tracks"
               value={extras.data?.trackCount ?? 0}
-            />
-            <Stat
-              icon={<ArrowDownRight className="h-4 w-4 text-destructive" />}
-              label="Spent"
-              value={totals.spent}
             />
           </div>
           <div className="relative mt-3 flex gap-2">
@@ -287,235 +317,285 @@ function ProfilePage() {
           </div>
         </section>
 
+        {/* VIP */}
         {extras.data?.og_vip_id && <OgVipIdCard id={extras.data.og_vip_id} />}
-        <VipRequestCard />
+        {native ? <Paywall /> : <VipStatusCard />}
+        {hasVipRole && <VipRequestCard />}
+
+        {/* Account */}
+        <SettingsCard
+          icon={<UserRound className="h-5 w-5" />}
+          title="Account"
+          hint={
+            provider && provider !== "email"
+              ? `You sign in with ${provider[0].toUpperCase()}${provider.slice(1)}.`
+              : "Your name, email and password."
+          }
+        >
+          <form
+            className="space-y-1.5"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              saveName.mutate();
+            }}
+          >
+            <Label htmlFor="username">Username</Label>
+            <div className="flex gap-2">
+              <Input
+                id="username"
+                value={name}
+                maxLength={30}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameDirty(true);
+                }}
+                placeholder="Your username"
+              />
+              <Button type="submit" disabled={!nameDirty || saveName.isPending}>
+                {saveName.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shown on your tracks and in chat. 2 to 30 characters.
+            </p>
+          </form>
+
+          <form
+            className="space-y-1.5"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              saveBio.mutate();
+            }}
+          >
+            <div className="flex items-end justify-between gap-2">
+              <Label htmlFor="artist-bio">
+                Artist bio <span className="font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <span className="text-[0.7rem] tabular-nums text-muted-foreground">
+                {bio.length}/{BIO_MAX}
+              </span>
+            </div>
+            <Textarea
+              id="artist-bio"
+              value={bio}
+              rows={2}
+              maxLength={BIO_MAX}
+              onChange={(e) => {
+                setBio(e.target.value.slice(0, BIO_MAX));
+                setBioDirty(true);
+              }}
+              placeholder="e.g. South London rapper, raised by my nan, never quits."
+            />
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                A line or two about you. Your songs can mention it. Leave it blank to keep it out.
+              </p>
+              {bioDirty && (
+                <Button type="submit" size="sm" disabled={saveBio.isPending}>
+                  {saveBio.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+                </Button>
+              )}
+            </div>
+          </form>
+
+          <form
+            className="space-y-1.5"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              saveEmail.mutate();
+            }}
+          >
+            <Label htmlFor="new-email">Recovery email</Label>
+            <p className="text-xs">
+              {displayEmail ? (
+                <span className="font-medium">{displayEmail}</span>
+              ) : (
+                <span className="text-amber-300">
+                  No email yet. Add one so you can reset your password if you forget it.
+                </span>
+              )}
+            </p>
+            {pendingEmail && (
+              <p className="text-xs text-muted-foreground">
+                Waiting for you to confirm <span className="font-medium">{pendingEmail}</span>.
+                Check your inbox.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Input
+                id="new-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={displayEmail ? "New email" : "you@example.com"}
+              />
+              <Button type="submit" disabled={!email || saveEmail.isPending}>
+                {saveEmail.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {displayEmail ? "Change" : "Add"}
+              </Button>
+            </div>
+          </form>
+
+          <SettingRow label="Password" hint="You'll need your current password.">
+            <Button asChild size="sm" variant="outline">
+              <Link to="/change-password">
+                <KeyRound className="mr-1.5 h-4 w-4" /> Change
+              </Link>
+            </Button>
+          </SettingRow>
+        </SettingsCard>
+
+        <PreferencesPanel />
 
         <TelegramConnectCard />
 
-        <Tabs defaultValue="account" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="account">Account</TabsTrigger>
-            <TabsTrigger value="coins">Coins</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="account" className="space-y-5">
-            {/* Username */}
-            <Card
-              icon={<UserRound className="h-5 w-5" />}
-              title="Username"
-              hint="Shown on your tracks and in chat."
-            >
-              <form
-                className="flex gap-2"
-                onSubmit={(e: FormEvent) => {
-                  e.preventDefault();
-                  saveName.mutate();
+        {referralLink && (
+          <SettingsCard
+            icon={<Gift className="h-5 w-5" />}
+            title="Invite friends"
+            hint="Share your link. You earn coins when friends join and spend."
+          >
+            <div className="flex gap-2">
+              <Input readOnly value={referralLink} aria-label="Invite link" />
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Copy invite link"
+                onClick={() => {
+                  navigator.clipboard.writeText(referralLink);
+                  toast.success("Invite link copied");
                 }}
               >
-                <Input
-                  aria-label="Username"
-                  value={name}
-                  maxLength={30}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setDirty(true);
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <Link
+              to="/referrals"
+              className="inline-block text-xs font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              See my earnings
+            </Link>
+          </SettingsCard>
+        )}
+
+        {/* Coin history */}
+        <SettingsCard
+          icon={<Coins className="h-5 w-5 text-coin" />}
+          title="Coin history"
+          hint={`+${totals.earned} in, -${totals.spent} spent`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-1.5" role="tablist">
+              {(["all", "spent", "earned"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === f}
+                  onClick={() => {
+                    setFilter(f);
+                    setLimit(5);
                   }}
-                  placeholder="Your username"
-                />
-                <Button type="submit" disabled={!dirty || saveName.isPending}>
-                  {saveName.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
-                </Button>
-              </form>
-            </Card>
-
-            {/* Email */}
-            <Card
-              icon={<Mail className="h-5 w-5" />}
-              title="Linked email"
-              hint="Used only to reset your password if you forget it."
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize transition ${
+                    filter === f
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <Link
+              to="/purchase-history"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary underline-offset-4 hover:underline"
             >
-              <p className="text-sm">
-                {displayEmail ? (
-                  <span className="font-medium">{displayEmail}</span>
-                ) : (
-                  <span className="text-amber-300">
-                    No recovery email yet — add one so you never lose your account.
-                  </span>
-                )}
-              </p>
-              {pendingEmail && (
-                <p className="text-xs text-muted-foreground">
-                  Waiting for you to confirm <span className="font-medium">{pendingEmail}</span> —
-                  check your inbox.
-                </p>
-              )}
-              <form
-                className="space-y-2"
-                onSubmit={(e: FormEvent) => {
-                  e.preventDefault();
-                  saveEmail.mutate();
-                }}
-              >
-                <Label htmlFor="new-email" className="text-xs text-muted-foreground">
-                  {displayEmail ? "Change email" : "Add email"}
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="new-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                  />
-                  <Button type="submit" disabled={!email || saveEmail.isPending}>
-                    {saveEmail.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send
-                    link
-                  </Button>
-                </div>
-              </form>
-            </Card>
-
-            {referralLink && (
-              <Card
-                icon={<Copy className="h-5 w-5" />}
-                title="Invite friends"
-                hint="Earn coins when friends join."
-              >
-                <div className="flex gap-2">
-                  <Input readOnly value={referralLink} aria-label="Invite link" />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Copy invite link"
-                    onClick={() => {
-                      navigator.clipboard.writeText(referralLink);
-                      toast.success("Invite link copied");
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="coins" className="space-y-5">
-            {/* Coin activity */}
-            <Card
-              icon={<Coins className="h-5 w-5 text-coin" />}
-              title="Coin activity"
-              hint="Where your coins came from and went."
-            >
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-border bg-background/40 p-3">
-                  <p className="text-xs uppercase text-muted-foreground">Earned & bought</p>
-                  <p className="text-lg font-bold text-emerald-400">+{totals.earned}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-background/40 p-3">
-                  <p className="text-xs uppercase text-muted-foreground">Spent</p>
-                  <p className="text-lg font-bold text-destructive">-{totals.spent}</p>
-                </div>
-              </div>
-              <div className="flex gap-1.5" role="tablist">
-                {(["all", "spent", "earned"] as const).map((f) => (
-                  <button
-                    key={f}
-                    role="tab"
-                    aria-selected={filter === f}
-                    onClick={() => setFilter(f)}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize transition ${
-                      filter === f
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border text-muted-foreground"
+              <Receipt className="h-3.5 w-3.5" /> Card receipts
+            </Link>
+          </div>
+          {txs.isLoading ? (
+            <div className="grid place-items-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">Nothing here yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {filtered.slice(0, limit).map((t) => (
+                <li key={t.id} className="flex items-center gap-3 py-2.5">
+                  <span
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+                      t.amount < 0
+                        ? "bg-destructive/15 text-destructive"
+                        : "bg-emerald-500/15 text-emerald-400"
                     }`}
                   >
-                    {f}
-                  </button>
-                ))}
-              </div>
-              {txs.isLoading ? (
-                <div className="grid place-items-center py-6">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : filtered.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Nothing here yet.</p>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {filtered.slice(0, limit).map((t) => (
-                    <li key={t.id} className="flex items-center gap-3 py-2.5">
-                      <span
-                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                          t.amount < 0
-                            ? "bg-destructive/15 text-destructive"
-                            : "bg-emerald-500/15 text-emerald-400"
-                        }`}
-                      >
-                        {t.amount < 0 ? (
-                          <ArrowDownRight className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpRight className="h-4 w-4" />
-                        )}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {txLabel(t.type, t.reference)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(t.created_at).toLocaleString(undefined, {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                      <span
-                        className={`text-sm font-bold ${t.amount < 0 ? "text-destructive" : "text-emerald-400"}`}
-                      >
-                        {t.amount > 0 ? "+" : ""}
-                        {t.amount}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {filtered.length > limit && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setLimit((l) => l + 20)}
-                >
-                  Show more
-                </Button>
-              )}
-            </Card>
-          </TabsContent>
+                    {t.amount < 0 ? (
+                      <ArrowDownRight className="h-4 w-4" />
+                    ) : (
+                      <ArrowUpRight className="h-4 w-4" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{txLabel(t.type, t.reference)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(t.created_at).toLocaleString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-sm font-bold ${t.amount < 0 ? "text-destructive" : "text-emerald-400"}`}
+                  >
+                    {t.amount > 0 ? "+" : ""}
+                    {t.amount}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {filtered.length > limit && (
+            <Button variant="outline" className="w-full" onClick={() => setLimit((l) => l + 20)}>
+              Show more
+            </Button>
+          )}
+        </SettingsCard>
 
-          <TabsContent value="security" className="space-y-5">
-            {/* Security */}
-            <Card icon={<KeyRound className="h-5 w-5" />} title="Account & security">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button asChild variant="outline">
-                  <Link to="/change-password">
-                    <KeyRound className="mr-2 h-4 w-4" /> Change password
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link to="/purchase-history">
-                    <Receipt className="mr-2 h-4 w-4" /> Purchase history
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link to="/settings">More settings</Link>
-                </Button>
-                <Button variant="outline" onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" /> Sign out
-                </Button>
-              </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Privacy, legal and sign out */}
+        <SettingsCard
+          icon={<FileText className="h-5 w-5" />}
+          title="Privacy & sign out"
+          hint="We only keep what's needed to run your account."
+        >
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+            <Link
+              to="/policy"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/terms"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              Terms of Use
+            </Link>
+            <Link
+              to="/delete-account"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              How account deletion works
+            </Link>
+          </div>
+          <Button variant="outline" className="w-full" onClick={signOut}>
+            <LogOut className="mr-2 h-4 w-4" /> Sign out of this device
+          </Button>
+        </SettingsCard>
+
+        <DeleteMyAccount />
       </div>
     </DashboardShell>
   );
@@ -528,32 +608,5 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
       <p className="mt-1 text-lg font-bold leading-none">{value}</p>
       <p className="mt-1 text-[0.7rem] uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
-  );
-}
-
-function Card({
-  icon,
-  title,
-  hint,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-card">
-      <header className="flex items-center gap-3">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <h2 className="font-semibold leading-tight">{title}</h2>
-          {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-        </div>
-      </header>
-      {children}
-    </section>
   );
 }

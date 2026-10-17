@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { adjustCoinsAsBoss } from "@/lib/admin-coins";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,9 +19,6 @@ import {
   Send,
   Copy,
   ExternalLink,
-  Bell,
-  HardDrive,
-  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,7 +54,7 @@ function SettingsPage() {
   const { user } = useAuth();
   const dev = useDevMode();
   const { data: profile, refetch } = useProfile();
-  const { isAdmin, hasVipRole } = useRole();
+  const { isAdmin, hasVipRole, isLoading: roleLoading } = useRole();
   const qc = useQueryClient();
 
   const [name, setName] = useState("");
@@ -184,6 +181,10 @@ function SettingsPage() {
     await supabase.auth.signOut();
     window.location.replace("/welcome");
   };
+
+  // Members have one page for everything: their profile. This page keeps the
+  // Boss-only coin and role controls.
+  if (!roleLoading && !isAdmin && !dev.isDev) return <Navigate to="/profile" replace />;
 
   return (
     <DashboardShell title="Settings">
@@ -416,8 +417,27 @@ function SettingsPage() {
         {/* Connect Telegram */}
         <TelegramConnectSection userId={user?.id ?? ""} />
 
-        {/* Privacy & permissions */}
-        <PrivacySection userId={user?.id ?? ""} />
+        {/* Legal — required in-app links for the app stores */}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 px-1 text-xs">
+          <Link
+            to="/policy"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            Terms of Use
+          </Link>
+          <Link
+            to="/delete-account"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            How account deletion works
+          </Link>
+        </div>
 
         {/* Security */}
         <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between sm:p-6">
@@ -616,169 +636,6 @@ function TelegramConnectSection({ userId }: { userId: string }) {
           </div>
         </>
       ) : null}
-    </section>
-  );
-}
-
-function PrivacySection({ userId }: { userId: string }) {
-  // Browser-level permission state (read-only mirror of the OS prompts).
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">(
-    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
-  );
-  const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (navigator.storage?.persisted) {
-          const v = await navigator.storage.persisted();
-          if (!cancelled) setStoragePersisted(v);
-        }
-      } catch {
-        /* noop */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function requestNotifications() {
-    if (typeof Notification === "undefined") return;
-    try {
-      const res = await Notification.requestPermission();
-      setNotifPerm(res);
-      toast.success(res === "granted" ? "Notifications on" : "Notifications kept off");
-    } catch {
-      /* noop */
-    }
-  }
-
-  async function requestPersistentStorage() {
-    try {
-      const v = (await navigator.storage?.persist?.()) ?? false;
-      setStoragePersisted(v);
-      toast.success(v ? "Offline storage enabled" : "Browser denied persistent storage");
-    } catch {
-      toast.error("Couldn't request persistent storage");
-    }
-  }
-
-  function resetPrompt() {
-    try {
-      localStorage.removeItem(`og:perms:asked:${userId}`);
-      toast.success("Permission prompt will show again on your next visit");
-    } catch {
-      /* noop */
-    }
-  }
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          <div>
-            <h2 className="font-semibold leading-tight">Privacy & permissions</h2>
-            <p className="text-xs text-muted-foreground">
-              Review what's on. Change anything anytime — nothing is shared without your say-so.
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={resetPrompt}
-          className="shrink-0 text-xs"
-          title="Show the initial permissions dialog again on next visit"
-        >
-          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-          Re-show prompt
-        </Button>
-      </header>
-
-      {/* Notifications */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Bell className="h-5 w-5 text-primary shrink-0" />
-          <div className="min-w-0">
-            <Label className="text-sm font-medium">Notifications</Label>
-            <p className="text-xs text-muted-foreground">
-              Song-ready pings & coin alerts.{" "}
-              <span className="font-medium">
-                {notifPerm === "granted"
-                  ? "On."
-                  : notifPerm === "denied"
-                    ? "Blocked in your browser."
-                    : notifPerm === "unsupported"
-                      ? "Not supported here."
-                      : "Off."}
-              </span>
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={requestNotifications}
-          disabled={
-            notifPerm === "granted" || notifPerm === "denied" || notifPerm === "unsupported"
-          }
-        >
-          {notifPerm === "granted" ? "Enabled" : "Enable"}
-        </Button>
-      </div>
-
-      {/* Offline storage */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <HardDrive className="h-5 w-5 text-primary shrink-0" />
-          <div className="min-w-0">
-            <Label className="text-sm font-medium">Offline storage</Label>
-            <p className="text-xs text-muted-foreground">
-              Keeps your library cached.{" "}
-              <span className="font-medium">
-                {storagePersisted === true
-                  ? "Persistent."
-                  : storagePersisted === false
-                    ? "Best-effort (may be evicted)."
-                    : "Unknown."}
-              </span>
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={requestPersistentStorage}
-          disabled={storagePersisted === true}
-        >
-          {storagePersisted === true ? "Enabled" : "Enable"}
-        </Button>
-      </div>
-
-      {/* Legal — required in-app links for the app stores */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1 text-xs">
-        <Link
-          to="/policy"
-          className="font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          Privacy Policy
-        </Link>
-        <Link to="/terms" className="font-semibold text-primary underline-offset-4 hover:underline">
-          Terms of Use
-        </Link>
-        <Link
-          to="/delete-account"
-          className="font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          How account deletion works
-        </Link>
-      </div>
     </section>
   );
 }

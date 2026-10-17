@@ -3,7 +3,6 @@ import {
   Home,
   Disc3,
   Coins,
-  Settings,
   Shield,
   LogOut,
   Gift,
@@ -82,12 +81,6 @@ const accountNav: NavItem[] = [
   { title: "Profile", url: "/profile", icon: UserRound, accent: "from-cyan-400/30 to-blue-500/30" },
   { title: "Earnings", url: "/referrals", icon: Gift, accent: "from-pink-500/30 to-rose-400/30" },
   { title: "OG Store", url: "/store", icon: Coins, accent: "from-amber-400/40 to-yellow-300/40" },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-    accent: "from-slate-400/25 to-zinc-400/25",
-  },
 ];
 
 export function AppSidebar() {
@@ -110,8 +103,7 @@ export function AppSidebar() {
   const isActive = (url: string) =>
     url === "/" ? pathname === "/" : pathname === url || pathname.startsWith(url + "/");
 
-  const visible = (items: NavItem[]) =>
-    items.filter((i) => (!i.adminOnly || isAdmin) && !(isAdmin && i.url === "/settings"));
+  const visible = (items: NavItem[]) => items.filter((i) => !i.adminOnly || isAdmin);
 
   const renderItems = (items: NavItem[]) =>
     visible(items).map((item) => {
@@ -345,7 +337,8 @@ function VipTrialCountdown({
         className="mx-2 mt-2 block rounded-xl border border-coin/40 bg-coin/10 px-3 py-2 text-left transition hover:bg-coin/15"
       >
         <span className="flex items-center gap-1.5 text-[0.7rem] font-black uppercase tracking-wider text-coin">
-          <Crown className="h-3.5 w-3.5" /> OG VIP {paidRenews ? "renews in" : paidEndsAt ? "ends in" : "active"}
+          <Crown className="h-3.5 w-3.5" /> OG VIP{" "}
+          {paidRenews ? "renews in" : paidEndsAt ? "ends in" : "active"}
         </span>
         <span className="mt-0.5 block font-mono text-sm font-black tabular-nums text-foreground">
           {paidEnd > 0 ? `${d}d ${h}h ${m}m` : "Lifetime perks on"}
