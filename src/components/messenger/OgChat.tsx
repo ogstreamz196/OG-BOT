@@ -18,7 +18,15 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
 import { getTradeHoldLine } from "@/lib/trade-hold.functions";
-import { detectTradeIntent, holdingMessage, isHoldingMessage } from "@/lib/trade-signal";
+import {
+  cleanTradeHistory,
+  detectTradeIntent,
+  holdingMessage,
+  isHoldingMessage,
+  signalExpiry,
+  stripSignalTag,
+  tagSignalExpiry,
+} from "@/lib/trade-signal";
 import { ogErrorMessage } from "@/lib/og-error-message";
 import { DISS_DONE, DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
 import { DissAmbushCard } from "@/components/messenger/DissAmbushCard";
@@ -350,6 +358,18 @@ export function OgChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSkeleton]);
 
+  // Re-render when the next live trade signal expires, so it collapses on time.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const upcoming = messages
+      .map((mm) => signalExpiry(mm.content)?.getTime() ?? 0)
+      .filter((t) => t > now);
+    if (!upcoming.length) return;
+    const wait = Math.min(Math.min(...upcoming) - Date.now() + 500, 2_000_000_000);
+    const t = setTimeout(() => setNow(Date.now()), Math.max(1000, wait));
+    return () => clearTimeout(t);
+  }, [messages, now]);
+
   const m = useMutation({
     mutationFn: async (args: { history: OgChatMessage[]; attachmentDataUrl?: string }) =>
       chat({
@@ -362,7 +382,9 @@ export function OgChat({
       }),
     onSuccess: (res) => {
       setMessages((cur) => {
-        const content = (res.reply || "…") + (res.ambush ? `\n\n${DISS_MARKER}` : "");
+        const base = (res.reply || "…") + (res.ambush ? `\n\n${DISS_MARKER}` : "");
+        // Trade signals carry a hidden expiry so the chat can retire them on time.
+        const content = res.signal_expires_at ? tagSignalExpiry(base, res.signal_expires_at) : base;
         const next = [...cur, { role: "assistant" as const, content }];
         selfSyncRef.current = true;
         window.dispatchEvent(new Event(SYNC_EVENT));
@@ -457,7 +479,7 @@ export function OgChat({
     setInput("");
     setAttachment(null);
     m.mutate({
-      history: next.filter((msg) => !isHoldingMessage(msg.content)),
+      history: cleanTradeHistory(next),
       attachmentDataUrl: att?.dataUrl,
     });
   }
@@ -768,6 +790,13 @@ export function OgChat({
           )}
           {messages.map((msg, i) => {
             const isUser = msg.role === "user";
+            const expiry = msg.role === "assistant" ? signalExpiry(msg.content) : null;
+            const expired = !!expiry && expiry.getTime() <= now;
+            // The "hold on" line goes once its signal has expired.
+            if (isHoldingMessage(msg.content)) {
+              const nextExp = signalExpiry(messages[i + 1]?.content);
+              if (nextExp && nextExp.getTime() <= now) return null;
+            }
             const initial = dev.isDev
               ? "D"
               : (profile?.display_name || user?.email || "Y").trim().charAt(0).toUpperCase();
@@ -829,9 +858,20 @@ export function OgChat({
                         : "w-full bg-transparent p-0 text-foreground shadow-none",
                     )}
                   >
-                    {msg.role === "assistant" ? (
+                    {expired ? (
+                      <ExpiredSignal
+                        at={expiry!}
+                        disabled={m.isPending}
+                        onFresh={() => {
+                          const ask = [...messages.slice(0, i)]
+                            .reverse()
+                            .find((mm) => mm.role === "user")?.content;
+                          if (ask) sendText(ask);
+                        }}
+                      />
+                    ) : msg.role === "assistant" ? (
                       <MessageResponse className="prose-sm max-w-none prose-p:my-0.5 prose-p:leading-snug prose-ul:my-0.5 prose-ol:my-0.5 prose-headings:my-0.5 prose-code:text-primary">
-                        {stripMarker(msg.content)}
+                        {stripMarker(stripSignalTag(msg.content))}
                       </MessageResponse>
                     ) : (
                       msg.content
@@ -1129,6 +1169,38 @@ function VipFoulPromo({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** What an app-chat trade signal turns into once its valid-until time passes. */
+function ExpiredSignal({
+  at,
+  disabled,
+  onFresh,
+}: {
+  at: Date;
+  disabled: boolean;
+  onFresh: () => void;
+}) {
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(at);
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+      <span className="min-w-0 flex-1">
+        ⌛ This signal expired at {time} UK time. Prices have moved, so it's been cleared.
+      </span>
+      <button
+        type="button"
+        onClick={onFresh}
+        disabled={disabled}
+        className="shrink-0 rounded-full border border-primary/50 px-3 py-1 font-bold text-foreground transition hover:bg-primary/15 disabled:opacity-50"
+      >
+        Get a fresh signal
+      </button>
     </div>
   );
 }
