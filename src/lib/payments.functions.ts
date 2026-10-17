@@ -439,13 +439,13 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
 
       const { data: song } = await supabase
         .from("songs")
-        .select("id, title, status, is_nasheed")
+        .select("id, title, status")
         .eq("id", data.songId)
         .maybeSingle();
       if (!song) return { error: "Track not found" };
       if (song.status !== "completed") return { error: "Track is not ready yet" };
-      const { trackCardQuantity } = await import("@/lib/nasheed");
-      const nasheed = !!(song as { is_nasheed?: boolean }).is_nasheed;
+      const { trackCardQuantity, songIsNasheed } = await import("@/lib/nasheed");
+      const nasheed = await songIsNasheed(supabase, data.songId);
 
       let email: string | undefined;
       try {

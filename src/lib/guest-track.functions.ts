@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
-import { trackCardQuantity } from "@/lib/nasheed";
+import { songIsNasheed, trackCardQuantity } from "@/lib/nasheed";
 
 /**
  * Pay-by-card track creation (website only): guests, and members who pick
@@ -32,7 +32,7 @@ export const createGuestTrackCheckout = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ clientSecret: string } | { error: string }> => {
     const { data: song } = await context.supabase
       .from("songs")
-      .select("id, title, status, user_id, is_nasheed")
+      .select("id, title, status, user_id")
       .eq("id", data.songId)
       .eq("user_id", context.userId)
       .maybeSingle();
@@ -43,7 +43,7 @@ export const createGuestTrackCheckout = createServerFn({ method: "POST" })
       const { TRACK_UNLOCK_PENCE, TRACK_UNLOCK_CURRENCY } =
         await import("@/lib/track-unlock.server");
       const stripe = createStripeClient(data.environment as StripeEnv);
-      const nasheed = !!(song as { is_nasheed?: boolean }).is_nasheed;
+      const nasheed = await songIsNasheed(context.supabase, data.songId);
       const meta = {
         userId: context.userId,
         kind: "track_unlock",
