@@ -38,6 +38,7 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 
 ## Tracks
 
+- Nasheed mode (songs.is_nasheed, set from the "Nasheed" style at insert by the songs_lock_nasheed trigger and immutable after): double price (prepay_track charges 2 × coins_per_full_unlock; card is 2 × 99p, and grantTrackUnlock refuses a Nasheed paid below £1.98). Once paid, the completion callback never saves the mix or Take 2: Take 1 goes to vocal separation (supabase/functions/_shared/nasheed-stems.ts, shared with src/lib/nasheed-stems.server.ts) and the stems callback (suno-callback ?stage=stems) saves the acapella as the only audio; the retry sweep, recover button and full-file backfill follow the same route. An unpaid Nasheed-style track is just a normal voice-only track.
 - Share pages serve only completed, public, revealed tracks via short-lived signed URLs.
 - Playlist controller pauses the previous audio when switching.
 - Creation stages a draft with an `orchestration` payload; suno-retry resumes drafts with bounded, database-claimed retries that recover existing provider tasks first.

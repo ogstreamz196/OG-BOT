@@ -114,9 +114,20 @@ Deno.serve(async (req) => {
           ? "duet, male and female vocals trading lines"
           : "mixed-voice mash-up with several clearly different singers, alternate male and female lead voices between sections, group vocals and layered harmonies in hooks, contrasting spoken and sung textures, do not use one lead voice for the whole track";
     const rawStyle = (body.style ?? "").toString().trim();
-    const isNasheed = rawStyle
-      .split(/\s*,\s*/)
-      .some((name: string) => /^nasheed$/i.test(name.trim()));
+    // Nasheed mode lives on the track row (set when it was created, priced
+    // double); the style name still switches on the voice-only prompt too.
+    let rowNasheed = false;
+    if (body.song_id) {
+      const { data: flagRow } = await createClient(SUPABASE_URL, SERVICE_ROLE)
+        .from("songs")
+        .select("is_nasheed, user_id")
+        .eq("id", String(body.song_id))
+        .maybeSingle();
+      rowNasheed = !!flagRow?.is_nasheed && flagRow.user_id === user.id;
+    }
+    const isNasheed =
+      rowNasheed ||
+      rawStyle.split(/\s*,\s*/).some((name: string) => /^nasheed$/i.test(name.trim()));
     const detailedStyle = expandGenreStyles(rawStyle);
     const vocalsOnly = isNasheed || !!body.vocals_only;
     const beatPath = isNasheed ? null : body.beat_path ? String(body.beat_path) : null;

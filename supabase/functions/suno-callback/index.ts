@@ -13,6 +13,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isModerationRejection, MODERATION_MESSAGE } from "../_shared/moderation-safe.ts";
 import { hostAllowed, materialiseClips } from "../_shared/suno-materialise.ts";
+import { extractVocalUrl, vocalRemovalFailed } from "../_shared/nasheed-stems.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -76,6 +77,76 @@ async function notifyTelegram(admin: any, song: any) {
   });
 }
 
+function background(task: Promise<unknown>) {
+  // @ts-expect-error Deno Edge Runtime
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+    // @ts-expect-error Deno global
+    EdgeRuntime.waitUntil(task);
+  } else {
+    task.catch(() => {});
+  }
+}
+
+/**
+ * Nasheed vocal separation finished: the acapella becomes the track's only
+ * audio (sample + full file), replacing nothing else; the mix was never saved.
+ */
+async function handleStems(admin: any, song: any, payload: any): Promise<Response> {
+  if (!song.is_nasheed) return new Response("ignored", { status: 200 });
+  const stemTask =
+    payload?.data?.task_id ?? payload?.data?.taskId ?? payload?.task_id ?? payload?.taskId ?? null;
+  if (song.stem_task_id && stemTask && String(stemTask) !== String(song.stem_task_id)) {
+    return new Response("stale", { status: 200 });
+  }
+  const vocalClipId = `${song.stem_source_clip_id ?? song.id}:vocals`;
+  if (song.status === "completed" && song.suno_clip_id === vocalClipId) {
+    return new Response("already", { status: 200 });
+  }
+  if (vocalRemovalFailed(payload)) {
+    console.error("Vocal separation failed", song.id, JSON.stringify(payload).slice(0, 400));
+    await admin
+      .from("songs")
+      .update({
+        status: "failed",
+        failure_class: "retryable",
+        next_retry_at: new Date(Date.now() + 2 * 60_000).toISOString(),
+        error_message: "Separating the vocals. Retrying automatically in a moment.",
+        stem_task_id: null,
+      })
+      .eq("id", song.id);
+    return new Response("stems-failed", { status: 200 });
+  }
+  const vocalUrl = extractVocalUrl(payload);
+  if (!vocalUrl) return new Response("waiting", { status: 200 });
+  if (!hostAllowed(vocalUrl)) {
+    console.error("Vocal file host not on the allow-list:", new URL(vocalUrl).hostname);
+    return new Response("host-rejected", { status: 200 });
+  }
+  const result = await materialiseClips(
+    admin,
+    // Fill the track itself with the acapella (never a sibling, never the mix).
+    { ...song, is_nasheed: false, sample_path: null, audio_path: null },
+    [
+      {
+        audioUrl: vocalUrl,
+        clipId: vocalClipId,
+        coverUrl: song.cover_url,
+        title: song.title,
+        duration: song.duration_seconds,
+      },
+    ],
+    { scheduleBackground: background },
+  );
+  if (result.parentCompleted) {
+    await admin
+      .from("songs")
+      .update({ failure_class: null, next_retry_at: null, stream_audio_url: null })
+      .eq("id", song.id);
+    await notifyTelegram(admin, song).catch((e) => console.warn("telegram notify failed", e));
+  }
+  return new Response(result.parentCompleted ? "ok" : "vocal-download-failed", { status: 200 });
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const songId = url.searchParams.get("song_id");
@@ -100,6 +171,11 @@ Deno.serve(async (req) => {
 
   const { data: parentSong } = await admin.from("songs").select("*").eq("id", songId).single();
   if (!parentSong) return new Response("Song not found", { status: 404 });
+
+  // Nasheed: the vocal-separation job for Take 1 has finished.
+  if (url.searchParams.get("stage") === "stems") {
+    return await handleStems(admin, parentSong, payload);
+  }
 
   // Failure callback
   const callbackType = payload?.data?.callbackType || payload?.callbackType;
@@ -171,7 +247,8 @@ Deno.serve(async (req) => {
   // while we wait for the "complete" callback to deliver the downloadable file.
   if (callbackType === "first" || callbackType === "text") {
     const firstStream = clipsRaw.find((c) => c.streamUrl && hostAllowed(c.streamUrl!));
-    if (firstStream?.streamUrl && !parentSong.stream_audio_url) {
+    // A Nasheed never previews the mix: only the separated vocals are played.
+    if (firstStream?.streamUrl && !parentSong.stream_audio_url && !parentSong.is_nasheed) {
       await admin
         .from("songs")
         .update({
@@ -193,7 +270,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const sunoKey = Deno.env.get("SUNO_API_KEY");
     const result = await materialiseClips(admin, parentSong, clips, {
+      nasheedStems: sunoKey
+        ? {
+            apiKey: sunoKey,
+            callbackUrl: `${SUPABASE_URL}/functions/v1/suno-callback?song_id=${songId}&token=${token}&stage=stems`,
+            taskId: parentSong.suno_task_id ?? callbackTaskId,
+          }
+        : undefined,
       scheduleBackground: (task) => {
         // @ts-expect-error Deno Edge Runtime
         if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {

@@ -51,6 +51,7 @@ import { useRole } from "@/hooks/use-role";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettings } from "@/hooks/use-settings";
 import { PayChoiceDialog } from "@/components/library/PayChoiceDialog";
+import { isNasheedStyle, trackCardLabel, trackCoinCost } from "@/lib/nasheed";
 import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
 import {
   guestCreationAvailable as cardCheckoutAvailable,
@@ -1412,6 +1413,8 @@ function LibraryPage() {
   const cardSongRef = useRef<string | null>(null);
   const coinCost = settings?.coins_per_full_unlock ?? 5;
   const cardAvailable = cardCheckoutAvailable();
+  // Nasheed costs double (pure-vocal isolation runs the music engine twice).
+  const payNasheed = !!payChoice && (payChoice.v.isNasheed || isNasheedStyle(payChoice.v.style));
 
   function startFromWizard(v: WizardResult, draft: WizardDraft) {
     setPayChoice({ v, draft });
@@ -1785,7 +1788,9 @@ function LibraryPage() {
           }
         }}
         title={payChoice?.v.title ?? ""}
-        coinCost={coinCost}
+        coinCost={trackCoinCost(coinCost, payNasheed)}
+        cardPriceLabel={trackCardLabel(payNasheed)}
+        nasheed={payNasheed}
         balance={balance}
         cardAvailable={cardAvailable}
         busy={payBusy}

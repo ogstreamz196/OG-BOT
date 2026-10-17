@@ -58,6 +58,7 @@ export function buildTrackPlan(v: WizardResult) {
       is_public: v.isPublic ?? true,
       foul_mouth: foulMouth,
       foul_intensity: intensity,
+      is_nasheed: !!v.isNasheed,
     },
     plan: {
       lyrics: {
