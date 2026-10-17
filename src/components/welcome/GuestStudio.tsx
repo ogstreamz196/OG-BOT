@@ -14,6 +14,7 @@ import { claimAudio } from "@/lib/audio-focus";
 import { shareTrack } from "@/lib/share-track";
 import type { WizardResult } from "@/components/library/CreateNowWizard";
 import { buildTrackPlan } from "@/lib/track-plan";
+import { isNasheedStyle, trackCardLabel } from "@/lib/nasheed";
 import {
   type GuestActiveTrack,
   readGuestActive,
@@ -22,7 +23,6 @@ import {
 } from "./guest-session";
 
 const OPEN_GUEST_STUDIO = "og:open-guest-studio";
-const PRICE_LABEL = "£0.99";
 let returnHandled = false;
 
 /** Guests can cook straight away on the website (the phone apps sign up first). */
@@ -195,6 +195,10 @@ export function GuestStudio({ onSave }: { onSave: (title: string) => void }) {
 
   if (!active) return null;
   const title = song?.title || active.title || "Your track";
+  // A Nasheed is 2 × 99p (pure-vocal isolation runs the music engine twice).
+  const PRICE_LABEL = trackCardLabel(
+    isNasheedStyle(String((active.plan?.suno as { style?: unknown } | undefined)?.style ?? "")),
+  );
   const done = song?.status === "completed";
   const failed = song?.status === "failed";
 

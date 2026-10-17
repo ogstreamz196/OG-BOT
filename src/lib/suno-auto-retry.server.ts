@@ -48,6 +48,8 @@ async function recoverExistingTask(song: RetrySong, apiKey: string): Promise<boo
   const clips = extractClips(payload);
   if (clips.some((clip) => !!clip.audioUrl)) {
     const result = await materialiseClips(supabaseAdmin as any, song, clips);
+    // Nasheed vocal separation still running: it has already rescheduled itself.
+    if (result.pending) return true;
     if (result.parentCompleted || result.completed > 0 || result.skipped > 0) {
       await (supabaseAdmin as any)
         .from("songs")

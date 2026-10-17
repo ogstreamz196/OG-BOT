@@ -97,6 +97,13 @@ export const recoverStuckSong = createServerFn({ method: "POST" })
 
     if (info.clips.length > 0) {
       const result = await materialiseClips(admin, song, info.clips);
+      if (result.pending) {
+        return {
+          outcome: "pending",
+          recovered: false,
+          message: "Separating the vocals for your Nasheed. Give it another minute.",
+        };
+      }
       if (result.completed > 0 || result.parentCompleted) {
         return {
           outcome: "completed",

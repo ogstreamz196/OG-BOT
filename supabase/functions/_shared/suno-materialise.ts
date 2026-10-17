@@ -1,3 +1,5 @@
+import { isPaidNasheed, requestVocalSeparation } from "./nasheed-stems.ts";
+
 // Shared Suno clip → song-row materialisation.
 //
 // Used by both the Suno completion webhook (suno-callback) and the on-demand
@@ -145,7 +147,11 @@ export async function materialiseClips(
   admin: any,
   parentSong: Record<string, any>,
   allClips: SunoClip[],
-  opts: { scheduleBackground?: (task: Promise<unknown>) => void } = {},
+  opts: {
+    scheduleBackground?: (task: Promise<unknown>) => void;
+    /** Nasheed: hand Take 1 to vocal separation instead of saving the mix. */
+    nasheedStems?: { apiKey: string; callbackUrl: string; taskId?: string | null };
+  } = {},
 ): Promise<MaterialiseResult> {
   const songId = String(parentSong.id);
   const userId = String(parentSong.user_id);
@@ -158,6 +164,14 @@ export async function materialiseClips(
 
   const usable = allClips.filter((c) => !!c.audioUrl && hostAllowed(c.audioUrl!));
   if (usable.length === 0) return result;
+
+  // Paid Nasheed: never save the mix or Take 2. Take 1 goes to vocal
+  // separation and its acapella becomes the track (see suno-callback stems).
+  if (opts.nasheedStems && (await isPaidNasheed(admin, parentSong))) {
+    await requestVocalSeparation(admin, parentSong, usable, opts.nasheedStems);
+    result.skipped = usable.map((c) => c.clipId ?? c.audioUrl ?? "");
+    return result;
+  }
 
   // Always keep at least 2 takes: the visible one plus a hidden alt-take the
   // user can unlock later as a discounted "remake".

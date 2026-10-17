@@ -59,19 +59,25 @@ const yahooChart = (b: ReturnType<typeof bars>) => ({
 
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 
-afterEach(() => vi.unstubAllGlobals());
+const realFetch = globalThis.fetch;
+/** Swaps in a fake fetch (works under both Vitest and Bun's test runner). */
+function stubFetch(fn: unknown) {
+  globalThis.fetch = fn as typeof fetch;
+}
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 describe("buildTradeSignalContext", () => {
   it("returns nothing for ordinary chat", async () => {
     const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
+    stubFetch(fetchSpy);
     expect(await buildTradeSignalContext("how are you mate")).toBe("");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("builds a signal card for crypto from Binance", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn(async (url: string) => {
         if (url.includes("binance") && url.includes("interval=1d"))
           return ok(binanceRows(bars(365, 40000, 100, 24 * HOUR)));
@@ -108,8 +114,7 @@ describe("buildTradeSignalContext", () => {
         last: 1,
       },
     });
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn(async (url: string) => {
         if (url.includes("binance")) return new Response("restricted", { status: 451 });
         if (url.includes("kraken") && url.includes("interval=1440"))
@@ -125,8 +130,7 @@ describe("buildTradeSignalContext", () => {
   });
 
   it("quotes forex in pips with 5 decimals from Yahoo", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn(async (url: string) => {
         if (url.includes("yahoo") && url.includes("interval=1d"))
           return ok(yahooChart(bars(260, 1.0, 0.001, 24 * HOUR)));
@@ -158,8 +162,7 @@ describe("buildTradeSignalContext", () => {
         last: 1,
       },
     });
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn(async (url: string) => {
         if (url.includes("binance")) {
           await new Promise((r) => setTimeout(r, 3000));
@@ -179,10 +182,7 @@ describe("buildTradeSignalContext", () => {
   });
 
   it("refuses to invent levels when no feed answers", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("down", { status: 503 })),
-    );
+    stubFetch(vi.fn(async () => new Response("down", { status: 503 })));
     const out = await buildTradeSignalContext("usdcad entry");
     expect(out).toContain("could not be loaded");
     expect(out).not.toContain("SIGNAL ENGINE");

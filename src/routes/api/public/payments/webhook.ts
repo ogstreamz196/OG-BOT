@@ -264,7 +264,12 @@ async function fulfilTrackUnlock(session: any, env: StripeEnv) {
     return;
   }
   const { grantTrackUnlock } = await import("@/lib/track-unlock.server");
-  const result = await grantTrackUnlock(userId, songId, `stripe:${env}:${session.id}`);
+  const result = await grantTrackUnlock(
+    userId,
+    songId,
+    `stripe:${env}:${session.id}`,
+    session?.amount_total ?? null,
+  );
   if (!result.ok) log("error", "track unlock failed", { userId, songId, err: result.error });
   else log("info", "track unlocked via card", { userId, songId, already: result.already });
 }

@@ -132,6 +132,8 @@ export type MaterialiseResult = {
   parentCompleted: boolean;
   broken: number;
   skipped: number;
+  /** Nasheed: vocal separation is still running; check back later. */
+  pending?: boolean;
 };
 
 /**
@@ -150,6 +152,10 @@ export async function materialiseClips(
 
   const usable = allClips.filter((c) => !!c.audioUrl && hostAllowed(c.audioUrl!));
   if (usable.length === 0) return out;
+
+  // Paid Nasheed: never save the mix or Take 2; deliver Take 1's acapella.
+  const { isPaidNasheed } = await import("./nasheed-stems.server");
+  if (await isPaidNasheed(admin, parentSong)) return materialiseNasheed(admin, parentSong, usable);
 
   // Keep at least 2 takes so the hidden alt-take stays available to unlock.
   const maxVariants = Math.max(2, await maxVariantsFor(admin));
@@ -275,10 +281,19 @@ export async function backfillFullAudio(
   clips: SunoClip[],
 ): Promise<boolean> {
   if (song.audio_path) return false;
-  const clip = clips.find((c) => c.clipId && c.clipId === song.suno_clip_id) ?? clips[0];
-  if (!clip?.audioUrl || !hostAllowed(clip.audioUrl)) return false;
+  let sourceUrl: string | null | undefined;
+  if (song.is_nasheed) {
+    // A Nasheed's full file is the separated acapella, never the mix.
+    const { checkVocalSeparation } = await import("./nasheed-stems.server");
+    const chk = await checkVocalSeparation(song);
+    sourceUrl = chk.state === "ready" ? chk.vocalUrl : null;
+  } else {
+    const clip = clips.find((c) => c.clipId && c.clipId === song.suno_clip_id) ?? clips[0];
+    sourceUrl = clip?.audioUrl;
+  }
+  if (!sourceUrl || !hostAllowed(sourceUrl)) return false;
   try {
-    const { res, buf } = await fetchBytes(clip.audioUrl, {}, FULL_TIMEOUT_MS);
+    const { res, buf } = await fetchBytes(sourceUrl, {}, FULL_TIMEOUT_MS);
     if (!res.ok || buf.byteLength === 0) return false;
     const fullPath = `${song.user_id}/${song.id}.mp3`;
     const { error } = await admin.storage
@@ -290,4 +305,57 @@ export async function backfillFullAudio(
   } catch {
     return false;
   }
+}
+
+/**
+ * Nasheed recovery: if Take 1's vocal separation has finished, save the
+ * acapella as the track; if it's still running, check back later; if it
+ * failed or never started, (re)start it on Take 1. Take 2 is never kept.
+ */
+async function materialiseNasheed(
+  admin: AnyClient,
+  song: Record<string, any>,
+  usable: SunoClip[],
+): Promise<MaterialiseResult> {
+  const waiting: MaterialiseResult = {
+    completed: 0,
+    parentCompleted: false,
+    broken: 0,
+    skipped: 0,
+    pending: true,
+  };
+  const { checkVocalSeparation, startVocalSeparation, markSeparating } = await import(
+    "./nasheed-stems.server"
+  );
+  let current = song;
+  if (current.stem_task_id) {
+    const chk = await checkVocalSeparation(current);
+    if (chk.state === "ready") {
+      if (!hostAllowed(chk.vocalUrl)) return waiting;
+      const result = await materialiseClips(
+        admin,
+        { ...current, is_nasheed: false, sample_path: null, audio_path: null },
+        [
+          {
+            audioUrl: chk.vocalUrl,
+            clipId: `${current.stem_source_clip_id ?? current.id}:vocals`,
+            coverUrl: current.cover_url,
+            title: current.title,
+            duration: current.duration_seconds,
+          },
+        ],
+      );
+      if (result.parentCompleted) {
+        await admin.from("songs").update({ stream_audio_url: null }).eq("id", current.id);
+      }
+      return { ...result, pending: !result.parentCompleted && result.skipped === 0 };
+    }
+    if (chk.state === "pending") {
+      await markSeparating(admin, String(current.id));
+      return waiting;
+    }
+    current = { ...current, stem_task_id: null };
+  }
+  await startVocalSeparation(admin, current, usable);
+  return waiting;
 }

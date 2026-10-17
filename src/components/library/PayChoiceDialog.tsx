@@ -11,6 +11,8 @@ export function PayChoiceDialog({
   onOpenChange,
   title,
   coinCost,
+  cardPriceLabel = "£0.99",
+  nasheed = false,
   balance,
   cardAvailable,
   busy,
@@ -21,6 +23,10 @@ export function PayChoiceDialog({
   onOpenChange: (v: boolean) => void;
   title: string;
   coinCost: number;
+  /** Card price, e.g. "£0.99" (or "£1.98" for a Nasheed). */
+  cardPriceLabel?: string;
+  /** Nasheed: pure-vocal isolation, priced double. */
+  nasheed?: boolean;
   balance: number;
   /** Card checkout (website only; app stores require their own billing). */
   cardAvailable: boolean;
@@ -39,6 +45,13 @@ export function PayChoiceDialog({
           <span className="font-bold text-foreground">{title || "Your track"}</span> — full-length
           track with real vocals. Pick how to pay, then it starts cooking.
         </DialogDescription>
+        {nasheed ? (
+          <p className="rounded-xl border border-primary/50 bg-background/90 px-3 py-2 text-xs text-foreground">
+            🎙️ <span className="font-bold">Nasheed Pure Vocal Isolation.</span> The beat and
+            instruments are stripped off with stem separation, so only the pure acapella vocals are
+            delivered. That takes two runs of the music engine, so it costs double.
+          </p>
+        ) : null}
 
         <div className="mt-2 grid gap-3">
           <button
@@ -85,7 +98,9 @@ export function PayChoiceDialog({
                 <CreditCard className="h-5 w-5 shrink-0 text-destructive" />
               )}
               <span className="min-w-0 flex-1">
-                <span className="block font-black uppercase tracking-wide">Pay £0.99 by card</span>
+                <span className="block font-black uppercase tracking-wide">
+                  Pay {cardPriceLabel} by card
+                </span>
                 <span className="block text-xs text-muted-foreground">
                   Card, Apple Pay or Google Pay. Coins stay untouched.
                 </span>

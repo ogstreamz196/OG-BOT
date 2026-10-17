@@ -39,6 +39,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { POOLS, isFreeStyle } from "@/lib/library-utils";
 import { useRole } from "@/hooks/use-role";
+import { useSettings } from "@/hooks/use-settings";
+import { trackCardLabel, trackCoinCost } from "@/lib/nasheed";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -76,6 +78,8 @@ export type WizardResult = {
   targetMinutes: number;
   /** Whether the finished track should appear in the global player. */
   isPublic: boolean;
+  /** Nasheed mode: vocals separated from the mix, pure acapella delivered (double price). */
+  isNasheed: boolean;
   /** Exact per-track lyric rating selected in this wizard run. */
   foulMouth: boolean;
   foulIntensity: number;
@@ -355,6 +359,7 @@ export function CreateNowWizard({
         beatPath: isNasheed ? "" : vocalsOnly ? beatPath : "",
         targetMinutes,
         isPublic,
+        isNasheed,
         foulMouth: !isNasheed && intensity > 0,
         foulIntensity: isNasheed ? 0 : intensity,
       },
@@ -610,6 +615,7 @@ export function CreateNowWizard({
                     );
                   })}
                 </div>
+                {isNasheed ? <NasheedNotice /> : null}
                 <button
                   type="button"
                   onClick={() => setShowAllStyles((v) => !v)}
@@ -1086,5 +1092,26 @@ export function CreateNowWizard({
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+  );
+}
+
+/** Shown under the styles when Nasheed is picked, before any payment. */
+function NasheedNotice() {
+  const { data: settings } = useSettings();
+  const coins = trackCoinCost(settings?.coins_per_full_unlock ?? 5, true);
+  return (
+    <div
+      role="note"
+      className="rounded-xl border border-primary/50 bg-background/90 p-3 text-sm text-foreground shadow-glow"
+    >
+      <p className="font-black">🎙️ Nasheed Pure Vocal Isolation</p>
+      <p className="mt-1 text-xs italic text-muted-foreground">
+        Instrumentals and beats will be stripped off using stem separation. Only the pure acapella
+        vocals will be delivered.
+      </p>
+      <p className="mt-2 text-xs font-black uppercase tracking-wide text-coin">
+        Cost: {coins} OG Coins or {trackCardLabel(true)}
+      </p>
+    </div>
   );
 }

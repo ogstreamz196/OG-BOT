@@ -439,11 +439,13 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
 
       const { data: song } = await supabase
         .from("songs")
-        .select("id, title, status")
+        .select("id, title, status, is_nasheed")
         .eq("id", data.songId)
         .maybeSingle();
       if (!song) return { error: "Track not found" };
       if (song.status !== "completed") return { error: "Track is not ready yet" };
+      const { trackCardQuantity } = await import("@/lib/nasheed");
+      const nasheed = !!(song as { is_nasheed?: boolean }).is_nasheed;
 
       let email: string | undefined;
       try {
@@ -466,9 +468,11 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
             price_data: {
               currency: TRACK_UNLOCK_CURRENCY,
               unit_amount: TRACK_UNLOCK_PENCE,
-              product_data: { name: "Full track unlock" },
+              product_data: {
+                name: nasheed ? "Nasheed full track unlock" : "Full track unlock",
+              },
             },
-            quantity: 1,
+            quantity: trackCardQuantity(nasheed),
           },
         ],
         mode: "payment",
@@ -536,6 +540,7 @@ export const reconcileTrackUnlock = createServerFn({ method: "POST" })
           userId,
           meta.songId,
           `stripe:${data.environment}:${session.id}`,
+          session.amount_total,
         );
         if (!result.ok) return { error: result.error };
         // No referral reward on card payments (owner rule; see AGENTS.md).

@@ -16,14 +16,27 @@ export async function grantTrackUnlock(
   userId: string,
   songId: string,
   reference: string,
+  /** What the card payment totalled (pence), when known. */
+  amountPaidPence?: number | null,
 ): Promise<GrantResult> {
   const { data: song, error: songErr } = await supabaseAdmin
     .from("songs")
-    .select("id, user_id")
+    .select("id, user_id, is_nasheed")
     .eq("id", songId)
     .maybeSingle();
   if (songErr) return { ok: false, error: songErr.message };
   if (!song) return { ok: false, error: "Track not found" };
+
+  // A Nasheed costs 2 × 99p; a single-price payment never unlocks one.
+  const { trackCardMinimumPence } = await import("@/lib/nasheed");
+  const nasheed = !!(song as { is_nasheed?: boolean }).is_nasheed;
+  if (
+    nasheed &&
+    typeof amountPaidPence === "number" &&
+    amountPaidPence < trackCardMinimumPence(true, TRACK_UNLOCK_PENCE)
+  ) {
+    return { ok: false, error: "This Nasheed needs the £1.98 price; the payment was too low." };
+  }
 
   const { data: existing } = await supabaseAdmin
     .from("unlocked_songs")
