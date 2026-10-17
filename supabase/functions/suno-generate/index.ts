@@ -510,14 +510,41 @@ Deno.serve(async (req) => {
             "[Humming vocal interlude — voices only, no instruments]",
           )
         : effectiveLyrics;
-    // VIP members (role or active subscription) get clean tracks: no signature.
-    const { data: isVipRole } = await admin.rpc("has_role", { _user_id: user.id, _role: "vip" });
-    const { count: activeSubs } = await admin
-      .from("subscriptions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .in("status", ["active", "trialing"]);
-    const unsigned = isInstrumental || !!isVipRole || (activeSubs ?? 0) > 0;
+    // VIP members get clean tracks with no spoken signature: the VIP role, a
+    // paid subscription, the free VIP trial, Boss accounts, and everyone while
+    // the Boss has "free access for all" switched on (same rules the app uses).
+    const [vipRole, adminRole, bossRole, subsRes, trialRes, freeRes] = await Promise.all([
+      admin.rpc("has_role", { _user_id: user.id, _role: "vip" }),
+      admin.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+      admin.rpc("has_role", { _user_id: user.id, _role: "boss" }),
+      admin
+        .from("subscriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .in("status", ["active", "trialing"]),
+      admin.from("profiles").select("vip_trial_ends_at").eq("id", user.id).maybeSingle(),
+      admin
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["free_access_all", "free_access_expires_at"]),
+    ]);
+    const settingsMap = new Map(
+      ((freeRes.data ?? []) as { key: string; value: unknown }[]).map((r) => [r.key, r.value]),
+    );
+    const freeExpiry = settingsMap.get("free_access_expires_at");
+    const freeAccess =
+      (settingsMap.get("free_access_all") === true || settingsMap.get("free_access_all") === "true") &&
+      !(typeof freeExpiry === "string" && freeExpiry && new Date(freeExpiry).getTime() <= Date.now());
+    const trialEnds = trialRes.data?.vip_trial_ends_at as string | null | undefined;
+    const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
+    const isVipNow =
+      !!vipRole.data ||
+      !!adminRole.data ||
+      !!bossRole.data ||
+      (subsRes.count ?? 0) > 0 ||
+      onTrial ||
+      freeAccess;
+    const unsigned = isInstrumental || isVipNow;
     const signedLyrics = unsigned
       ? voiceOnlyLyrics
       : limitText(injectSignature(voiceOnlyLyrics, { acappella }), MAX_PROMPT_CHARS);
