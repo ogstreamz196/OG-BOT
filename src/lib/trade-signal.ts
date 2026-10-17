@@ -552,3 +552,105 @@ export function holdingMessage(
 export function isHoldingMessage(content: string | null | undefined): boolean {
   return !!content && content.endsWith(HOLDING_TAG);
 }
+
+/* ── Fresh "hold on" lines from fragments ──────────────────────────────── */
+
+const HOLD_PARTS: Record<HoldingTone, [string[], string[], string[]]> = {
+  foul: [
+    [
+      "Hold up, you impatient sod.",
+      "Oi, chill.",
+      "Easy, you greedy git.",
+      "Sit tight, bellend.",
+      "Patience, you degen.",
+      "Calm your tits.",
+      "Bloody hell, one sec.",
+      "Hang about, you chancer.",
+    ],
+    [
+      "Pulling live {m} charts",
+      "Grilling the {m} chart",
+      "Scanning {m} on every timeframe",
+      "Checking {m} levels and the news",
+      "Crunching the {m} numbers",
+      "Reading {m} candle by candle",
+      "Digging through {m} price action",
+    ],
+    [
+      "and the no-bullshit signal is my next message.",
+      "so you get an honest call next.",
+      "and the real signal lands next.",
+      "before I give you the straight call.",
+      "and the honest read follows.",
+      "and your signal drops in a sec.",
+    ],
+  ],
+  cheeky: [
+    [
+      "Easy tiger.",
+      "Hold tight, chief.",
+      "Two secs.",
+      "Patience, legend.",
+      "Steady on.",
+      "Kettle on.",
+      "Give us a mo.",
+      "Slow your roll.",
+    ],
+    [
+      "Pulling live {m} charts",
+      "Checking {m} on every timeframe",
+      "Scanning {m} levels and the news",
+      "Crunching the {m} numbers",
+      "Reading the {m} chart properly",
+      "Grilling the {m} price action",
+    ],
+    [
+      "and your signal lands in my next message.",
+      "so the call you get next is honest.",
+      "and the real read follows.",
+      "and the signal's up next.",
+      "before I send the honest call.",
+    ],
+  ],
+  safe: [
+    [
+      "One moment.",
+      "On it.",
+      "Thanks for waiting.",
+      "Just a moment.",
+      "Bear with me.",
+      "Right away.",
+    ],
+    [
+      "I'm pulling live {m} prices",
+      "I'm checking {m} across timeframes",
+      "I'm analysing {m} trend and momentum",
+      "I'm reviewing {m} support and resistance",
+      "I'm scanning {m} data and headlines",
+    ],
+    [
+      "and your signal follows in my next message.",
+      "so the signal is honest. It's my next message.",
+      "and I'll send the signal next.",
+      "and the full signal is on its way.",
+    ],
+  ],
+};
+
+/** Brand-new "hold on" lines built from fragments, with {m} for the market. */
+export function freshHoldingLines(
+  tone: HoldingTone,
+  n: number,
+  rand: () => number = Math.random,
+): string[] {
+  const [a, b, c] = HOLD_PARTS[tone];
+  const pick = (xs: string[]) => xs[Math.floor(rand() * xs.length) % xs.length];
+  const out = new Set<string>();
+  for (let i = 0; i < n * 6 && out.size < n; i++) out.add(`⏳ ${pick(a)} ${pick(b)} ${pick(c)}`);
+  return [...out];
+}
+
+/** Fills the {m} placeholder in a stored line and tags it as a holding line. */
+export function renderHoldingLine(phrase: string, inst: Instrument): string {
+  return phrase.split("{m}").join(inst.label) + HOLDING_TAG;
+}

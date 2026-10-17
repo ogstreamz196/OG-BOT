@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
+import { getTradeHoldLine } from "@/lib/trade-hold.functions";
 import { detectTradeIntent, holdingMessage, isHoldingMessage } from "@/lib/trade-signal";
 import { ogErrorMessage } from "@/lib/og-error-message";
 import { DISS_DONE, DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
@@ -159,6 +160,7 @@ export function OgChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const selfSyncRef = useRef(false);
   const chat = useServerFn(chatOgBot);
+  const holdLine = useServerFn(getTradeHoldLine);
   const qc = useQueryClient();
   const { data: profile } = useProfile();
   const { foulMouth } = useFoulMouth();
@@ -431,17 +433,25 @@ export function OgChat({
     // Trade signal: an instant "hold on" line in OG Bot's voice, so the user
     // knows the next message is the analysis. It never goes into the history.
     const market = att ? null : detectTradeIntent(t);
-    setMessages(
-      market
-        ? [
-            ...next,
-            {
+    setMessages(next);
+    if (market) {
+      // A line from the shared bank this member hasn't seen before; slotted in
+      // straight after their message even if the analysis lands first.
+      const tone = foulMouth ? "foul" : "safe";
+      const at = next.length;
+      void holdLine({ data: { text: t, tone } })
+        .then((r) => r.line)
+        .catch(() => null)
+        .then((line) =>
+          setMessages((cur) => {
+            const msg = {
               role: "assistant" as const,
-              content: holdingMessage(market, foulMouth ? "foul" : "safe"),
-            },
-          ]
-        : next,
-    );
+              content: line ?? holdingMessage(market, tone),
+            };
+            return [...cur.slice(0, at), msg, ...cur.slice(at)];
+          }),
+        );
+    }
     selfSyncRef.current = true;
     window.dispatchEvent(new Event(SYNC_EVENT));
     setInput("");

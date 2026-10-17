@@ -7,7 +7,12 @@
 import { freeFallbackTargets, aiChatTargets } from "@/lib/ai-endpoint.server";
 
 export type CatchTone = "foul" | "cheeky" | "safe";
-type Admin = { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }> };
+type Admin = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: unknown }>;
+};
 
 const LOW_WATER = 2;
 const refilling = new Set<string>();
@@ -18,15 +23,25 @@ const TONE_BRIEF: Record<CatchTone, string> = {
   safe: "friendly, polite and clean",
 };
 
-type Kind = "opener" | "closer" | "roast";
+type Kind = "opener" | "closer" | "roast" | "trade_hold";
+const TRADE_HOLD_PROMPT = (tone: CatchTone) =>
+  `Write 12 brand-new, varied one-line messages OG Bot (a UK chat bot) sends instantly when a user asks for a trading signal, before the analysis arrives. Each must: start with ⏳, contain the exact token {m} once where the market name goes, tell the user to hold on while you check the charts, and say the honest signal is coming in the next message. Style: ${TONE_BRIEF[tone]}. Under 28 words each, all different structures, no numbering, no quotes, no prices or predictions. Output one per line, nothing else.`;
+
 async function generateBatch(kind: Kind, tone: CatchTone): Promise<string[]> {
-  const prompt = `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "ROASTS / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for OG Bot, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
+  const prompt =
+    kind === "trade_hold"
+      ? TRADE_HOLD_PROMPT(tone)
+      : `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "ROASTS / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for OG Bot, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
   for (const t of [...freeFallbackTargets(), ...aiChatTargets("catchphrases")]) {
     try {
       const res = await fetch(t.url, {
         method: "POST",
         headers: t.headers,
-        body: JSON.stringify({ model: t.model, messages: [{ role: "user", content: prompt }], temperature: 1.1 }),
+        body: JSON.stringify({
+          model: t.model,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 1.1,
+        }),
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) continue;
@@ -34,13 +49,23 @@ async function generateBatch(kind: Kind, tone: CatchTone): Promise<string[]> {
       const lines = (j.choices?.[0]?.message?.content ?? "")
         .split("\n")
         .map((l) => l.replace(/^[\s\-*\d.)"']+|["']+$/g, "").trim())
-        .filter((l) => l.length >= 3 && l.length <= 120 && !/impatient dickhead/i.test(l));
+        .filter((l) =>
+          kind === "trade_hold"
+            ? l.length <= 160 && (l.match(/\{m\}/g) ?? []).length === 1 && /next/i.test(l)
+            : l.length >= 3 && l.length <= 120 && !/impatient dickhead/i.test(l),
+        )
+        .map((l) => (kind === "trade_hold" && !l.startsWith("⏳") ? `⏳ ${l}` : l));
       if (lines.length) return lines.slice(0, 12);
     } catch {
       /* try next provider */
     }
   }
   return [];
+}
+
+/** Adds a fresh AI-written batch of lines of this kind to the shared bank (background). */
+export function refillCatchphrases(admin: Admin, kind: Kind, tone: CatchTone) {
+  refill(admin, kind, tone);
 }
 
 function refill(admin: Admin, kind: Kind, tone: CatchTone) {
@@ -50,7 +75,8 @@ function refill(admin: Admin, kind: Kind, tone: CatchTone) {
   void (async () => {
     try {
       const phrases = await generateBatch(kind, tone);
-      if (phrases.length) await admin.rpc("add_catchphrases", { p_kind: kind, p_tone: tone, p_phrases: phrases });
+      if (phrases.length)
+        await admin.rpc("add_catchphrases", { p_kind: kind, p_tone: tone, p_phrases: phrases });
     } catch (e) {
       console.warn("catchphrase refill failed", e);
     } finally {
@@ -75,7 +101,12 @@ export async function pickCatchphrases(
     const roasts = Array.isArray(r?.roasts) ? r!.roasts.filter(Boolean) : [];
     if (r && (r.left ?? 0) <= LOW_WATER) refill(admin, "roast", tone);
     if (error || !data) return { opener: null, closer: null, roasts };
-    const d = data as { opener: string | null; closer: string | null; openers_left: number; closers_left: number };
+    const d = data as {
+      opener: string | null;
+      closer: string | null;
+      openers_left: number;
+      closers_left: number;
+    };
     if ((d.openers_left ?? 0) <= LOW_WATER) refill(admin, "opener", tone);
     if ((d.closers_left ?? 0) <= LOW_WATER) refill(admin, "closer", tone);
     return { opener: d.opener, closer: d.closer, roasts };
@@ -88,11 +119,15 @@ export async function pickCatchphrases(
 export function catchphraseNote(p: Picked): string {
   const roasts = p.roasts ?? [];
   if (!p.opener && !p.closer && !roasts.length) return "";
-  const parts = ["\n\nBANTER INSPIRATION (optional — riff on these in your own words, don't paste them verbatim, don't force them as a fixed opener/closer):"];
+  const parts = [
+    "\n\nBANTER INSPIRATION (optional — riff on these in your own words, don't paste them verbatim, don't force them as a fixed opener/closer):",
+  ];
   if (p.opener) parts.push(`- "${p.opener}"`);
   if (p.closer) parts.push(`- "${p.closer}"`);
   for (const r of roasts) parts.push(`- roast: "${r}"`);
-  parts.push("- Spread the piss-taking naturally through the whole reply. Skip entirely if the user is upset or serious.");
+  parts.push(
+    "- Spread the piss-taking naturally through the whole reply. Skip entirely if the user is upset or serious.",
+  );
   return parts.join("\n");
 }
 
