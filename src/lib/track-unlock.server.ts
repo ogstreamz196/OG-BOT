@@ -21,15 +21,15 @@ export async function grantTrackUnlock(
 ): Promise<GrantResult> {
   const { data: song, error: songErr } = await supabaseAdmin
     .from("songs")
-    .select("id, user_id, is_nasheed")
+    .select("id, user_id")
     .eq("id", songId)
     .maybeSingle();
   if (songErr) return { ok: false, error: songErr.message };
   if (!song) return { ok: false, error: "Track not found" };
 
   // A Nasheed costs 2 × 99p; a single-price payment never unlocks one.
-  const { trackCardMinimumPence } = await import("@/lib/nasheed");
-  const nasheed = !!(song as { is_nasheed?: boolean }).is_nasheed;
+  const { trackCardMinimumPence, songIsNasheed } = await import("@/lib/nasheed");
+  const nasheed = await songIsNasheed(supabaseAdmin, songId);
   if (
     nasheed &&
     typeof amountPaidPence === "number" &&

@@ -30,3 +30,25 @@ export function trackCardLabel(nasheed: boolean): string {
 export function trackCardMinimumPence(nasheed: boolean, unitPence = BASE_CARD_PENCE): number {
   return unitPence * trackCardQuantity(nasheed);
 }
+
+/**
+ * Whether a track is a Nasheed, read on its own so a database that doesn't
+ * have the Nasheed columns yet (migration not applied) never breaks the
+ * caller's main query: any error simply means "not a Nasheed".
+ */
+export async function songIsNasheed(
+  client: { from: (t: string) => any },
+  songId: string,
+): Promise<boolean> {
+  try {
+    const { data, error } = await client
+      .from("songs")
+      .select("is_nasheed")
+      .eq("id", songId)
+      .maybeSingle();
+    if (error) return false;
+    return !!(data as { is_nasheed?: boolean } | null)?.is_nasheed;
+  } catch {
+    return false;
+  }
+}
