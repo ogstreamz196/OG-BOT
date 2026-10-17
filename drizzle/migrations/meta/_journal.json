@@ -141,6 +141,13 @@
       "when": 1792097762752,
       "tag": "0019_prepay_track_upfront",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792196937581,
+      "tag": "0020_guest_battle_reward_claims",
+      "breakpoints": true
     }
   ]
 }
