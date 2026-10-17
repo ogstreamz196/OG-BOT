@@ -168,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
                 {!roleLoading && isVip && (
                   <Link
-                    to="/settings"
+                    to="/profile"
                     title="VIP membership — manage subscription"
                     className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
                   >
@@ -247,7 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     )}
                     {!roleLoading && isVip && (
                       <DropdownMenuItem asChild>
-                        <Link to="/settings">
+                        <Link to="/profile">
                           <Crown className="mr-2 h-4 w-4" /> VIP membership
                         </Link>
                       </DropdownMenuItem>
@@ -256,7 +256,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <Link to="/buy-coins">Buy coins</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/settings">Settings</Link>
+                      <Link to="/profile">Profile & settings</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={handleSignOut}>
