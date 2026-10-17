@@ -47,9 +47,8 @@ export function PayChoiceDialog({
         </DialogDescription>
         {nasheed ? (
           <p className="rounded-xl border border-primary/50 bg-background/90 px-3 py-2 text-xs text-foreground">
-            🎙️ <span className="font-bold">Nasheed Pure Vocal Isolation.</span> The beat and
-            instruments are stripped off with stem separation, so only the pure acapella vocals are
-            delivered. That takes two runs of the music engine, so it costs double.
+            🎙️ <span className="font-bold">Nasheed: NO INSTRUMENTS or MUSIC.</span> Only the pure
+            vocals will be delivered.
           </p>
         ) : null}
 

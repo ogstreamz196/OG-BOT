@@ -1104,9 +1104,9 @@ function NasheedNotice() {
       role="note"
       className="rounded-xl border border-primary/50 bg-background/90 p-3 text-sm text-foreground shadow-glow"
     >
-      <p className="font-black">🎙️ Nasheed Pure Vocal Isolation</p>
-      <p className="mt-1 text-xs italic text-muted-foreground">
-        Instrumentals and beats will be stripped off using stem separation. Only the pure acapella
+      <p className="font-black">🎙️ Nasheed: pure vocals</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        <span className="font-black text-foreground">NO INSTRUMENTS or MUSIC.</span> Only the pure
         vocals will be delivered.
       </p>
       <p className="mt-2 text-xs font-black uppercase tracking-wide text-coin">
