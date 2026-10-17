@@ -58,9 +58,7 @@ export const createGuestTrackCheckout = createServerFn({ method: "POST" })
               currency: TRACK_UNLOCK_CURRENCY,
               unit_amount: TRACK_UNLOCK_PENCE,
               product_data: {
-                name: nasheed
-                  ? "Nasheed Full Track (Pure Acapella Vocal Extraction)"
-                  : "Full track",
+                name: nasheed ? "Nasheed Full Track (Pure Vocals)" : "Full track",
               },
             },
             // A Nasheed is two runs of the music engine: 2 × 99p.
