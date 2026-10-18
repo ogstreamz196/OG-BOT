@@ -4,7 +4,12 @@ import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
+import {
+  useFoulIntensity,
+  useFoulMouth,
+  useSetFoulIntensity,
+  useSetFoulMouth,
+} from "@/hooks/use-foul-mouth";
 import { useRole } from "@/hooks/use-role";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -21,10 +26,15 @@ import { Segmented, SettingRow, SettingsCard } from "./SettingsCard";
  * actually uses live here: OG Bot's language (saved to the account), alerts
  * (the device's own permission), and how the app looks (saved to the account).
  */
+/** Same scale as the song wizard's swearing slider (user_preferences.foul_intensity). */
+export const FOUL_LEVELS = ["Clean", "Mild", "Spicy", "Savage"] as const;
+
 export function PreferencesPanel() {
   const { user } = useAuth();
   const { foulMouth, isLoading } = useFoulMouth();
   const setFoulMouth = useSetFoulMouth();
+  const { intensity } = useFoulIntensity();
+  const setIntensity = useSetFoulIntensity();
   const { isVip } = useRole();
   const display = useDisplayPrefs();
   const setDisplay = useSetDisplayPrefs();
@@ -81,7 +91,7 @@ export function PreferencesPanel() {
       hint="Changes save as soon as you tap them."
     >
       <SettingRow
-        label="Foul Mouth"
+        label="OG Bot Foul Mouth"
         hint={
           isVip ? (
             "Let OG Bot swear and go fully savage in replies."
@@ -107,6 +117,13 @@ export function PreferencesPanel() {
           onCheckedChange={(v) => setFoulMouth.mutate(v)}
         />
       </SettingRow>
+
+      <Segmented<string>
+        label="Language in your songs"
+        value={String(intensity)}
+        onChange={(v) => setIntensity.mutate(Number(v))}
+        options={FOUL_LEVELS.map((label, i) => ({ value: String(i), label }))}
+      />
 
       <SettingRow
         label="Alerts on this device"

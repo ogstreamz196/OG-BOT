@@ -66,7 +66,7 @@ const routeTitles: Record<string, string> = {
   "/messenger": "OG Bot",
   "/buy-coins": "Buy Coins",
   "/settings": "Settings",
-  "/profile": "Profile",
+  "/profile": "Settings",
   "/admin": "Admin Controls",
 };
 
@@ -168,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
                 {!roleLoading && isVip && (
                   <Link
-                    to="/profile"
+                    to="/settings"
                     title="VIP membership — manage subscription"
                     className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
                   >
@@ -247,7 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     )}
                     {!roleLoading && isVip && (
                       <DropdownMenuItem asChild>
-                        <Link to="/profile">
+                        <Link to="/settings">
                           <Crown className="mr-2 h-4 w-4" /> VIP membership
                         </Link>
                       </DropdownMenuItem>
@@ -256,7 +256,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <Link to="/buy-coins">Buy coins</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/profile">Profile & settings</Link>
+                      <Link to="/settings">Settings</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={handleSignOut}>

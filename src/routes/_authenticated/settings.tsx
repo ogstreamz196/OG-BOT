@@ -1,94 +1,202 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { adjustCoinsAsBoss } from "@/lib/admin-coins";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import { Capacitor } from "@capacitor/core";
 import {
   Loader2,
   Crown,
-  Bot,
-  ShieldCheck,
   Coins,
-  Plus,
-  Minus,
-  LogOut,
-  UserCog,
-  Mail,
-  Fingerprint,
+  UserRound,
+  ArrowDownRight,
+  ArrowUpRight,
   KeyRound,
-  Send,
+  Receipt,
   Copy,
-  ExternalLink,
+  LogOut,
+  CalendarDays,
+  Gift,
+  Lock,
+  Mail,
 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useDevMode } from "@/hooks/use-dev-mode";
 import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
-import { DeleteMyAccount } from "@/components/DeleteMyAccount";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
-import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
+import { OgVipIdCard } from "@/components/vip/OgVipIdCard";
+import { OgVaultPassCard } from "@/components/vip/OgVaultPassCard";
+import { VipRequestCard } from "@/components/vip/VipRequestCard";
 import { VipStatusCard } from "@/components/settings/VipStatusCard";
 import { Paywall } from "@/components/revenuecat/Paywall";
-
-import {
-  getMyTelegramLinkToken,
-  rotateMyTelegramLinkToken,
-  getMyTelegramStatus,
-} from "@/lib/telegram-admin.functions";
-import { TelegramLinkStatus } from "@/components/dashboard/TelegramLinkStatus";
+import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
+import { BossControls } from "@/components/settings/BossControls";
+import { SettingRow, SettingsCard } from "@/components/settings/SettingsCard";
+import { TelegramConnectCard } from "@/components/profile/TelegramConnectCard";
+import { DeleteMyAccount } from "@/components/DeleteMyAccount";
 
 export const Route = createFileRoute("/_authenticated/settings")({
+  head: () => ({
+    meta: [
+      { title: "Settings | OG BOT — AI Songs & Diss Tracks" },
+      {
+        name: "description",
+        content: "Your OG BOT account: profile, VIP, Vault pass, coins and preferences.",
+      },
+      { property: "og:title", content: "Settings | OG BOT — AI Songs & Diss Tracks" },
+      {
+        property: "og:description",
+        content: "Your OG BOT account: profile, VIP, Vault pass, coins and preferences.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: SettingsPage,
 });
 
+const USERNAME_DOMAIN = "@ogstreamz.app";
+const BIO_MAX = 400;
+
+type Tx = {
+  id: string;
+  amount: number;
+  type: string;
+  reference: string | null;
+  created_at: string;
+};
+
+function txLabel(type: string, ref: string | null): string {
+  const t = `${type} ${ref ?? ""}`.toLowerCase();
+  if (t.includes("remake") || t.includes("variation") || t.includes("reveal"))
+    return "Remade track";
+  if (t.includes("unlock")) return "Unlocked a track";
+  if (t.includes("generat") || t.includes("song")) return "Created a track";
+  if (t.includes("refund")) return "Refund";
+  if (t.includes("daily")) return "Daily Drop";
+  if (t.includes("battle")) return "Battle Zone reward";
+  if (t.includes("welcome")) return "Welcome bonus";
+  if (
+    t.includes("referral") ||
+    t.includes("royalty") ||
+    t.includes("cashback") ||
+    t.includes("commission")
+  )
+    return "Earnings";
+  if (
+    t.includes("stripe") ||
+    t.includes("purchase") ||
+    t.includes("revenuecat") ||
+    t.includes("pack")
+  )
+    return "Bought coins";
+  if (t.includes("vip")) return "VIP";
+  if (t.includes("sports")) return "OG Sports Guide";
+  if (t.includes("vault")) return "OG Vault pass";
+  if (t.includes("download") || t.includes("community")) return "Community track download";
+  if (t.includes("mint") || t.includes("admin") || t.includes("boss"))
+    return "Adjustment by OG team";
+  return type.replace(/_/g, " ");
+}
+
 function SettingsPage() {
   const { user } = useAuth();
-  const dev = useDevMode();
-  const { data: profile, refetch } = useProfile();
-  const { isAdmin, hasVipRole, isLoading: roleLoading } = useRole();
+  const { data: profile } = useProfile();
+  const { hasVipRole, isAdmin } = useRole();
   const qc = useQueryClient();
+
+  const [native, setNative] = useState(false);
+  useEffect(() => setNative(Capacitor.isNativePlatform()), []);
 
   const [name, setName] = useState("");
   const [nameDirty, setNameDirty] = useState(false);
   const [bio, setBio] = useState("");
   const [bioDirty, setBioDirty] = useState(false);
-  const [balance, setBalance] = useState("");
-  const [balanceDirty, setBalanceDirty] = useState(false);
-  const [adjust, setAdjust] = useState("");
+  const [email, setEmail] = useState("");
+  const [showActivity, setShowActivity] = useState(false);
+  const [limit, setLimit] = useState(10);
 
+  const savedBio = (profile as { artist_bio?: string | null } | undefined)?.artist_bio ?? "";
   useEffect(() => {
-    if (profile && !nameDirty) setName(profile.display_name ?? (dev.isDev ? "Developer" : ""));
-  }, [profile?.display_name, nameDirty, dev.isDev]);
+    if (profile && !nameDirty) setName(profile.display_name ?? "");
+  }, [profile?.display_name, nameDirty]);
   useEffect(() => {
-    if (profile && !bioDirty) setBio((profile as { artist_bio?: string | null }).artist_bio ?? "");
-  }, [(profile as { artist_bio?: string | null } | undefined)?.artist_bio, bioDirty]);
-  useEffect(() => {
-    if (profile && !balanceDirty) setBalance(String(profile.coin_balance ?? 0));
-  }, [profile?.coin_balance, balanceDirty]);
+    if (profile && !bioDirty) setBio(savedBio);
+  }, [savedBio, bioDirty]);
+
+  const usernameAccount = !!user?.email?.toLowerCase().endsWith(USERNAME_DOMAIN);
+  const pendingEmail = (user as { new_email?: string } | null)?.new_email;
+  const provider = (user?.app_metadata?.provider as string | undefined) ?? "email";
+  const providerLabel =
+    provider === "google"
+      ? "Google"
+      : provider === "apple"
+        ? "Apple"
+        : usernameAccount
+          ? "Username"
+          : "Email";
+  const hasPassword = provider === "email";
+
+  const extras = useQuery({
+    queryKey: ["profile-extras", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("referral_code, created_at, og_vip_id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return (data ?? {}) as {
+        referral_code?: string | null;
+        created_at?: string;
+        og_vip_id?: string | null;
+      };
+    },
+  });
+
+  const txs = useQuery({
+    queryKey: ["my-coin-tx", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coin_transactions")
+        .select("id, amount, type, reference, created_at")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data ?? []).map((r) => ({ ...r, amount: Number(r.amount) })) as Tx[];
+    },
+  });
+
+  const totals = useMemo(() => {
+    let spent = 0;
+    let earned = 0;
+    for (const t of txs.data ?? []) {
+      if (t.amount < 0) spent += -t.amount;
+      else earned += t.amount;
+    }
+    return { spent, earned };
+  }, [txs.data]);
 
   const saveName = useMutation({
     mutationFn: async () => {
-      const trimmed = name.trim();
-      if (!trimmed) throw new Error("Display name required");
+      const v = name.trim();
+      if (v.length < 2) throw new Error("Username must be at least 2 characters");
+      if (v.length > 30) throw new Error("Username must be 30 characters or less");
       const { error } = await supabase
         .from("profiles")
-        .update({ display_name: trimmed })
+        .update({ display_name: v })
         .eq("id", user!.id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      toast.success("Display name updated");
+      toast.success("Username updated");
       setNameDirty(false);
-      refetch();
       qc.invalidateQueries({ queryKey: ["profile", user?.id] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -96,81 +204,34 @@ function SettingsPage() {
 
   const saveBio = useMutation({
     mutationFn: async () => {
-      const trimmed = bio.trim().slice(0, 400);
+      const v = bio.trim().slice(0, BIO_MAX);
       const { error } = await supabase
         .from("profiles")
-        .update({ artist_bio: trimmed || null } as never)
+        .update({ artist_bio: v || null } as never)
         .eq("id", user!.id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      toast.success("Artist bio saved — MusicHub will weave it into new lyrics");
+      toast.success("Bio saved. New songs can mention it.");
       setBioDirty(false);
-      refetch();
       qc.invalidateQueries({ queryKey: ["profile", user?.id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const saveBalance = useMutation({
+  const saveEmail = useMutation({
     mutationFn: async () => {
-      const n = Number.parseInt(balance, 10);
-      if (!Number.isFinite(n) || n < 0) throw new Error("Enter a valid balance");
-      const { data, error } = await supabase.rpc("set_balance_admin", {
-        target_user_id: user!.id,
-        new_balance: n,
-        admin_notes: "self_settings_set",
-      });
-      if (error) throw new Error(error.message);
-      return data as number;
-    },
-    onSuccess: () => {
-      toast.success("Balance set");
-      setBalanceDirty(false);
-      refetch();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const adjustCoins = useMutation({
-    mutationFn: async (delta: number) => {
-      if (!Number.isFinite(delta) || delta === 0) throw new Error("Enter a non-zero amount");
-      const { newBalance, applied } = await adjustCoinsAsBoss(
-        user!.id,
-        delta,
-        "self_settings_adjust",
+      const v = email.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) throw new Error("Enter a valid email address");
+      const { error } = await supabase.auth.updateUser(
+        { email: v },
+        { emailRedirectTo: `${window.location.origin}/settings` },
       );
-      return { newBal: newBalance, delta: applied };
-    },
-    onSuccess: ({ newBal, delta }) => {
-      toast.success(`${delta > 0 ? "+" : ""}${delta} coins · ${newBal}`);
-      setAdjust("");
-      refetch();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const toggleRole = useMutation({
-    mutationFn: async ({
-      rpc,
-      key,
-      value,
-    }: {
-      rpc: "set_vip_admin" | "set_og_bot_admin";
-      key: "make_vip" | "make_og";
-      value: boolean;
-    }) => {
-      const args: Record<string, unknown> = {
-        target_user_id: user!.id,
-        admin_notes: "self_settings_toggle",
-      };
-      args[key] = value;
-      const { error } = await supabase.rpc(rpc as never, args as never);
       if (error) throw new Error(error.message);
-      return value;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user-role", user?.id] });
+      toast.success("Check your inbox to confirm the new email.");
+      setEmail("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -182,460 +243,354 @@ function SettingsPage() {
     window.location.replace("/welcome");
   };
 
-  // Members have one page for everything: their profile. This page keeps the
-  // Boss-only coin and role controls.
-  if (!roleLoading && !isAdmin && !dev.isDev) return <Navigate to="/profile" replace />;
+  const displayEmail = usernameAccount ? null : user?.email;
+  const initial = (profile?.display_name || user?.email || "U")[0]?.toUpperCase();
+  const referralLink =
+    extras.data?.referral_code && typeof window !== "undefined"
+      ? `${window.location.origin}/r/${extras.data.referral_code}`
+      : null;
+  const activity = txs.data ?? [];
 
   return (
     <DashboardShell title="Settings">
-      <div className="mx-auto max-w-2xl space-y-6">
-        {/* Identity */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-          <header className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-brand">
-              <UserCog className="h-5 w-5 text-primary-foreground" />
+      <div className="mx-auto max-w-2xl space-y-6 pb-10">
+        {/* Who you are, at a glance */}
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-card">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-brand opacity-10" />
+          <div className="relative flex items-center gap-4">
+            <div
+              className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-brand text-2xl font-black text-primary-foreground ${
+                hasVipRole ? "ring-2 ring-amber-400" : ""
+              }`}
+            >
+              {initial}
             </div>
-            <div className="min-w-0">
-              <h2 className="font-semibold">Profile</h2>
-              <p className="truncate text-xs text-muted-foreground flex items-center gap-1.5">
-                <Mail className="h-3 w-3" /> {dev.isDev ? "developer@local" : user?.email}
-              </p>
-            </div>
-          </header>
-
-          <div className="space-y-2">
-            <Label htmlFor="display-name">Display name</Label>
-            <div className="flex gap-2">
-              <Input
-                id="display-name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setNameDirty(true);
-                }}
-                maxLength={80}
-                placeholder="Your name"
-              />
-              <Button onClick={() => saveName.mutate()} disabled={!nameDirty || saveName.isPending}>
-                {saveName.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-end justify-between gap-2">
-              <Label htmlFor="artist-bio" className="flex min-w-0 flex-col gap-1">
-                <span>Artist bio · woven into your lyrics</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  Your name and bio appear a couple of times per song. Leave blank to opt out.
-                </span>
-              </Label>
-              <span className="shrink-0 whitespace-nowrap text-[0.7rem] text-muted-foreground">
-                {bio.length}/400
-              </span>
-            </div>
-            <Textarea
-              id="artist-bio"
-              value={bio}
-              onChange={(e) => {
-                setBio(e.target.value.slice(0, 400));
-                setBioDirty(true);
-              }}
-              maxLength={400}
-              rows={3}
-              placeholder="e.g. South London rapper, ex-footballer, raised by my nan, never quits."
-            />
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                onClick={() => saveBio.mutate()}
-                disabled={!bioDirty || saveBio.isPending}
-              >
-                {saveBio.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save bio
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Fingerprint className="h-3.5 w-3.5" />
-              <span className="font-mono truncate max-w-[18ch]">{user?.id}</span>
-            </span>
-            {(() => {
-              const provider = user?.app_metadata?.provider as string | undefined;
-              if (!provider) return null;
-              return (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-2 py-0.5 capitalize">
-                  <KeyRound className="h-3 w-3" /> Signed in with {provider}
-                </span>
-              );
-            })()}
-          </div>
-        </section>
-
-        {/* Preferences — assistant, music, appearance */}
-        <VipStatusCard />
-        <Paywall />
-        <PreferencesPanel />
-
-        {/* Coins */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-          <header className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-coin" />
-              <h2 className="font-semibold">Coins</h2>
-            </div>
-            <span className="text-lg font-semibold">{profile?.coin_balance ?? 0}</span>
-          </header>
-
-          {isAdmin ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="set-bal">Set balance</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="set-bal"
-                    type="number"
-                    min={0}
-                    value={balance}
-                    onChange={(e) => {
-                      setBalance(e.target.value);
-                      setBalanceDirty(true);
-                    }}
-                  />
-                  <Button
-                    onClick={() => saveBalance.mutate()}
-                    disabled={!balanceDirty || saveBalance.isPending}
-                  >
-                    {saveBalance.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Set
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="adj-bal">Adjust by</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="adj-bal"
-                    type="number"
-                    min={1}
-                    value={adjust}
-                    onChange={(e) => setAdjust(e.target.value)}
-                    placeholder="0"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Add coins"
-                    onClick={() => adjustCoins.mutate(Number.parseInt(adjust, 10))}
-                    disabled={!adjust || adjustCoins.isPending}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Subtract coins"
-                    onClick={() => adjustCoins.mutate(-Number.parseInt(adjust, 10))}
-                    disabled={!adjust || adjustCoins.isPending}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Need more coins?{" "}
-              <Link to="/buy-coins" search={{}} className="text-primary underline">
-                Top up
-              </Link>
-              .
-            </p>
-          )}
-        </section>
-
-        {/* Roles (admin only) */}
-        {isAdmin && (
-          <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-5">
-            <header className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <div>
-                <h2 className="font-semibold leading-tight">Roles & access</h2>
-                <p className="text-xs text-muted-foreground">
-                  Toggle perks for yourself and mint tokens for others.
+            <div className="min-w-0 flex-1">
+              <h1 className="flex items-center gap-1.5 truncate font-display text-xl font-bold">
+                <span className="truncate">{profile?.display_name || "OG Member"}</span>
+                {hasVipRole && (
+                  <Crown className="h-4 w-4 shrink-0 fill-current text-coin" aria-label="VIP" />
+                )}
+              </h1>
+              {extras.data?.created_at && (
+                <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <CalendarDays className="h-3 w-3" /> Member since{" "}
+                  {new Date(extras.data.created_at).toLocaleDateString(undefined, {
+                    month: "short",
+                    year: "numeric",
+                  })}
                 </p>
-              </div>
-            </header>
+              )}
+            </div>
+          </div>
+          <div className="relative mt-4 flex items-center justify-between gap-3 rounded-2xl border border-coin/30 bg-background/50 px-4 py-2.5">
+            <span className="inline-flex items-center gap-2 font-bold">
+              <Coins className="h-5 w-5 text-coin" />
+              <span className="text-lg tabular-nums">{profile?.coin_balance ?? 0}</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                coins
+              </span>
+            </span>
+            <Button asChild size="sm">
+              <Link to="/store">Top up</Link>
+            </Button>
+          </div>
+        </section>
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Your roles
-              </p>
-              <RoleRow
-                icon={<Crown className="h-5 w-5 text-amber-500" />}
-                title="VIP"
-                description="Premium tiers and bonus features."
-                checked={hasVipRole}
-                pending={toggleRole.isPending}
-                onChange={(v) =>
-                  toggleRole.mutate({ rpc: "set_vip_admin", key: "make_vip", value: v })
-                }
+        {/* 1. Profile & identity */}
+        <Group title="Profile & identity">
+          <SettingsCard
+            icon={<UserRound className="h-5 w-5" />}
+            title="Your profile"
+            hint="How you show up on your tracks and in chat."
+          >
+            <form
+              className="space-y-1.5"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                saveName.mutate();
+              }}
+            >
+              <Label htmlFor="username">Display name</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="username"
+                  value={name}
+                  maxLength={30}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameDirty(true);
+                  }}
+                  placeholder="Your name"
+                />
+                <Button type="submit" disabled={!nameDirty || saveName.isPending}>
+                  {saveName.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">2 to 30 characters.</p>
+            </form>
+
+            <form
+              className="space-y-1.5"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                saveBio.mutate();
+              }}
+            >
+              <div className="flex items-end justify-between gap-2">
+                <Label htmlFor="artist-bio">
+                  Artist bio <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <span className="text-[0.7rem] tabular-nums text-muted-foreground">
+                  {bio.length}/{BIO_MAX}
+                </span>
+              </div>
+              <Textarea
+                id="artist-bio"
+                value={bio}
+                rows={2}
+                maxLength={BIO_MAX}
+                onChange={(e) => {
+                  setBio(e.target.value.slice(0, BIO_MAX));
+                  setBioDirty(true);
+                }}
+                placeholder="e.g. South London rapper, raised by my nan, never quits."
               />
-              <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-3 opacity-80">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                  <div>
-                    <Label className="text-sm font-medium">Boss</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Another Boss can change this from Users.
-                    </p>
-                  </div>
-                </div>
-                <Switch checked disabled />
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  A line or two about you. Your songs can mention it.
+                </p>
+                {bioDirty && (
+                  <Button type="submit" size="sm" disabled={saveBio.isPending}>
+                    {saveBio.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+                  </Button>
+                )}
+              </div>
+            </form>
+          </SettingsCard>
+          {extras.data?.og_vip_id && <OgVipIdCard id={extras.data.og_vip_id} />}
+          <OgVaultPassCard />
+        </Group>
+
+        {/* 2. Membership & integrations */}
+        <Group title="Membership & integrations">
+          {native ? <Paywall /> : <VipStatusCard />}
+          {hasVipRole && <VipRequestCard />}
+          <TelegramConnectCard />
+          {referralLink && (
+            <SettingsCard
+              icon={<Gift className="h-5 w-5" />}
+              title="Invite friends"
+              hint="You earn coins when friends join and spend."
+            >
+              <div className="flex gap-2">
+                <Input readOnly value={referralLink} aria-label="Invite link" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy invite link"
+                  onClick={() => {
+                    navigator.clipboard.writeText(referralLink);
+                    toast.success("Invite link copied");
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <Link
+                to="/referrals"
+                className="inline-block text-xs font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                See my earnings
+              </Link>
+            </SettingsCard>
+          )}
+        </Group>
+
+        {/* 3. Preferences & coins */}
+        <Group title="Preferences & coins">
+          <PreferencesPanel />
+          <SettingsCard
+            icon={<Coins className="h-5 w-5 text-coin" />}
+            title="Coin activity"
+            hint="Where your coins came from and went."
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-border bg-background/40 p-3">
+                <p className="text-xs uppercase text-muted-foreground">Earned & bought</p>
+                <p className="text-lg font-bold text-emerald-400">+{totals.earned}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-background/40 p-3">
+                <p className="text-xs uppercase text-muted-foreground">Spent</p>
+                <p className="text-lg font-bold text-destructive">-{totals.spent}</p>
               </div>
             </div>
+            {showActivity &&
+              (txs.isLoading ? (
+                <div className="grid place-items-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : activity.length === 0 ? (
+                <p className="py-2 text-center text-sm text-muted-foreground">Nothing here yet.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {activity.slice(0, limit).map((t) => (
+                    <li key={t.id} className="flex items-center gap-3 py-2.5">
+                      <span
+                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+                          t.amount < 0
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-emerald-500/15 text-emerald-400"
+                        }`}
+                      >
+                        {t.amount < 0 ? (
+                          <ArrowDownRight className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpRight className="h-4 w-4" />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {txLabel(t.type, t.reference)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(t.created_at).toLocaleString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-sm font-bold ${t.amount < 0 ? "text-destructive" : "text-emerald-400"}`}
+                      >
+                        {t.amount > 0 ? "+" : ""}
+                        {t.amount}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  showActivity && activity.length > limit
+                    ? setLimit((l) => l + 20)
+                    : setShowActivity((v) => !v)
+                }
+              >
+                {!showActivity
+                  ? "See full history"
+                  : activity.length > limit
+                    ? "Show more"
+                    : "Hide history"}
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/purchase-history">
+                  <Receipt className="mr-2 h-4 w-4" /> Card receipts
+                </Link>
+              </Button>
+            </div>
+          </SettingsCard>
+        </Group>
 
-            <Separator />
-            <div className="flex flex-wrap gap-2">
-              <Link to="/admin">
-                <Button variant="outline" size="sm">
-                  Admin home
+        {/* 4. Security & danger zone */}
+        <Group title="Security">
+          <SettingsCard
+            icon={<Lock className="h-5 w-5" />}
+            title="Sign-in & security"
+            hint={`You sign in with ${providerLabel}.`}
+          >
+            <form
+              className="space-y-1.5"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                saveEmail.mutate();
+              }}
+            >
+              <Label htmlFor="new-email" className="inline-flex items-center gap-1.5">
+                <Mail className="h-4 w-4" /> Recovery email
+              </Label>
+              <p className="text-xs">
+                {displayEmail ? (
+                  <span className="font-medium">{displayEmail}</span>
+                ) : (
+                  <span className="text-amber-300">
+                    No email yet. Add one so you can reset your password if you forget it.
+                  </span>
+                )}
+              </p>
+              {pendingEmail && (
+                <p className="text-xs text-muted-foreground">
+                  Waiting for you to confirm <span className="font-medium">{pendingEmail}</span>.
+                  Check your inbox.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={displayEmail ? "New email" : "you@example.com"}
+                />
+                <Button type="submit" disabled={!email || saveEmail.isPending}>
+                  {saveEmail.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {displayEmail ? "Change" : "Add"}
                 </Button>
+              </div>
+            </form>
+            {hasPassword && (
+              <SettingRow label="Password" hint="You'll need your current password.">
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/change-password">
+                    <KeyRound className="mr-1.5 h-4 w-4" /> Change
+                  </Link>
+                </Button>
+              </SettingRow>
+            )}
+            <Button variant="outline" className="w-full" onClick={signOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Sign out of this device
+            </Button>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+              <Link
+                to="/policy"
+                className="font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                Privacy Policy
               </Link>
-              <Link to="/admin/users">
-                <Button variant="outline" size="sm">
-                  Manage users
-                </Button>
+              <Link
+                to="/terms"
+                className="font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                Terms of Use
+              </Link>
+              <Link
+                to="/delete-account"
+                className="font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                How account deletion works
               </Link>
             </div>
-          </section>
-        )}
+          </SettingsCard>
+          <DeleteMyAccount />
+        </Group>
 
-        {/* Connect Telegram */}
-        <TelegramConnectSection userId={user?.id ?? ""} />
-
-        {/* Legal — required in-app links for the app stores */}
-        <div className="flex flex-wrap gap-x-4 gap-y-2 px-1 text-xs">
-          <Link
-            to="/policy"
-            className="font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Privacy Policy
-          </Link>
-          <Link
-            to="/terms"
-            className="font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Terms of Use
-          </Link>
-          <Link
-            to="/delete-account"
-            className="font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            How account deletion works
-          </Link>
-        </div>
-
-        {/* Security */}
-        <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between sm:p-6">
-          <div className="min-w-0">
-            <h2 className="font-semibold">Password</h2>
-            <p className="text-xs text-muted-foreground">
-              Change your password — current password required.
-            </p>
-          </div>
-          <Button asChild variant="outline" className="w-full min-[430px]:w-auto">
-            <Link to="/change-password">
-              <KeyRound className="mr-2 h-4 w-4" /> Change password
-            </Link>
-          </Button>
-        </section>
-
-        {/* Session */}
-
-        <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between sm:p-6">
-          <div className="min-w-0">
-            <h2 className="font-semibold">Session</h2>
-            <p className="text-xs text-muted-foreground">Sign out of this device.</p>
-          </div>
-          <Button variant="outline" onClick={signOut} className="w-full min-[430px]:w-auto">
-            <LogOut className="mr-2 h-4 w-4" /> Sign out
-          </Button>
-        </section>
-
-        <DeleteMyAccount />
+        {isAdmin && <BossControls />}
       </div>
     </DashboardShell>
   );
 }
 
-function RoleRow({
-  icon,
-  title,
-  description,
-  checked,
-  pending,
-  onChange,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  checked: boolean;
-  pending: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 p-3">
-      <div className="flex items-center gap-3">
-        {icon}
-        <div>
-          <Label className="text-sm font-medium">{title}</Label>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {pending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-        <Switch checked={checked} disabled={pending} onCheckedChange={onChange} />
-      </div>
-    </div>
-  );
-}
-
-const TELEGRAM_BOT_USERNAME = "OGStreamzBot";
-
-function TelegramConnectSection({ userId }: { userId: string }) {
-  const qc = useQueryClient();
-  const getTokenFn = useServerFn(getMyTelegramLinkToken);
-  const rotateTokenFn = useServerFn(rotateMyTelegramLinkToken);
-  const statusFn = useServerFn(getMyTelegramStatus);
-
-  const statusQuery = useQuery({
-    queryKey: ["my-telegram-status"],
-    queryFn: () => statusFn(),
-    enabled: !!userId,
-    staleTime: 30_000,
-  });
-  const isLinked = statusQuery.data?.state === "verified";
-
-  const tokenQuery = useQuery({
-    queryKey: ["my-telegram-link-token"],
-    queryFn: () => getTokenFn(),
-    enabled: !!userId && !isLinked,
-    staleTime: 60_000,
-  });
-  const token = tokenQuery.data?.token ?? "";
-  const link = token ? `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}` : "";
-
-  const rotate = useMutation({
-    mutationFn: () => rotateTokenFn(),
-    onSuccess: (res) => {
-      qc.setQueryData(["my-telegram-link-token"], res);
-      toast.success("Fresh Telegram link ready");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const copy = async () => {
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      toast.success("Link copied — paste it into Telegram");
-    } catch {
-      toast.error("Couldn't copy. Long-press to copy instead.");
-    }
-  };
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-          <Send className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-semibold">Telegram · OG Bot</h2>
-          <p className="text-xs text-muted-foreground">
-            {isLinked
-              ? "Your Telegram is linked. Use Reconnect only if OG Bot stops responding."
-              : "Connect once to chat with OG Bot about anything — lyrics, life, 3am thoughts."}
-          </p>
-        </div>
-      </div>
-
-      <TelegramLinkStatus />
-
-      {!isLinked ? (
-        <>
-          <div className="rounded-xl border border-dashed border-border bg-background/40 p-3">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Your personal connect link
-            </Label>
-            <div className="mt-1 flex items-center gap-2">
-              <Input readOnly value={link} className="font-mono text-xs" />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={copy}
-                title="Copy link"
-                aria-label="Copy connect link"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Always use this button/link — typing plain /start in Telegram cannot connect your
-              profile.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              type="button"
-              disabled={!link || tokenQuery.isLoading}
-              onClick={() => {
-                if (!link) return;
-                const w = window.open(link, "_blank", "noopener,noreferrer");
-                if (!w) window.location.href = link;
-              }}
-              className="bg-[#229ED9] font-semibold text-white hover:bg-[#229ED9]/90"
-            >
-              {tokenQuery.isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}{" "}
-              Connect Telegram
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => rotate.mutate()}
-              disabled={rotate.isPending}
-            >
-              {rotate.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <KeyRound className="mr-2 h-4 w-4" />
-              )}
-              Fresh link
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const url = `https://t.me/${TELEGRAM_BOT_USERNAME}`;
-                const w = window.open(url, "_blank", "noopener,noreferrer");
-                if (!w) window.location.href = url;
-              }}
-            >
-              <ExternalLink className="mr-2 h-4 w-4" /> Find @{TELEGRAM_BOT_USERNAME}
-            </Button>
-          </div>
-        </>
-      ) : null}
+    <section className="space-y-3">
+      <h2 className="px-1 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+        {title}
+      </h2>
+      {children}
     </section>
   );
 }

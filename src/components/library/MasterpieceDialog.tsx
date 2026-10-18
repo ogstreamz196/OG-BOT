@@ -39,9 +39,6 @@ export function MasterpieceDialog({
         <FreshTrackCard
           song={song}
           sampleSeconds={sampleSeconds}
-          unlockCost={unlockCost}
-          balance={balance}
-          autoUnlockPrompt={autoUnlockPrompt}
           onDismiss={() => onOpenChange(false)}
         />
       </DialogContent>
