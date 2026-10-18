@@ -121,7 +121,7 @@ const GENDERS = ["Mix voice", "Female vocal", "Male vocal", "Duo"];
 const TOTAL_STEPS = 3;
 
 /** Four exact lyric-rating levels: 0 is fully clean, 3 is maximum profanity. */
-const INTENSITY_LABELS = ["Clean", "Mild", "Strong", "Savage"] as const;
+const INTENSITY_LABELS = ["Clean", "Mild", "Spicy", "Savage"] as const;
 
 /** Track length options. Creation and rendering are free. */
 export const MIN_LENGTH = 3;

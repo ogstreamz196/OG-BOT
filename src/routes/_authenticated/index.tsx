@@ -217,7 +217,7 @@ function DashboardHome() {
           </div>
           {hasVipRole ? (
             <Link
-              to="/profile"
+              to="/settings"
               aria-label="You are an OG VIP member"
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/60 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-black shadow-[0_0_16px_rgba(251,191,36,0.45)] sm:px-3.5 sm:text-xs"
             >
@@ -464,7 +464,7 @@ function DashboardHome() {
                 <ChecklistItem
                   done={profileDone}
                   label="Complete your profile (username, email & Telegram)"
-                  to="/profile"
+                  to="/settings"
                 />
                 <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
                 <ChecklistItem done={saidHi} label="Say hi in OG Bot" to="/messenger" />
@@ -846,7 +846,7 @@ function ChecklistItem({
 }: {
   done: boolean;
   label: string;
-  to: "/library" | "/messenger" | "/profile" | "/buy-coins";
+  to: "/library" | "/messenger" | "/settings" | "/buy-coins";
 }) {
   return (
     <Link

@@ -103,9 +103,9 @@ function ChangePasswordPage() {
       setNext("");
       setConfirm("");
       toast.success("Password updated", {
-        description: "Your new password is active. Taking you back to your profile…",
+        description: "Your new password is active. Taking you back to settings…",
       });
-      setTimeout(() => navigate({ to: "/profile" }), 1800);
+      setTimeout(() => navigate({ to: "/settings" }), 1800);
     } catch (err) {
       toast.error("Couldn't update your password", {
         description: err instanceof Error ? err.message : "Something went wrong. Please try again.",
@@ -136,7 +136,7 @@ function ChangePasswordPage() {
             <p className="font-display text-lg font-black uppercase tracking-wide text-foreground">
               Password updated
             </p>
-            <p className="text-sm text-muted-foreground">Taking you back to your profile…</p>
+            <p className="text-sm text-muted-foreground">Taking you back to settings…</p>
           </div>
         ) : !hasPasswordIdentity ? (
           <div className="space-y-3 text-center">
@@ -145,7 +145,7 @@ function ChangePasswordPage() {
               it with your provider instead.
             </p>
             <Button asChild variant="secondary" className="w-full">
-              <Link to="/profile">Back to profile</Link>
+              <Link to="/settings">Back to settings</Link>
             </Button>
           </div>
         ) : (
@@ -219,10 +219,10 @@ function ChangePasswordPage() {
       </section>
 
       <Link
-        to="/profile"
+        to="/settings"
         className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to profile
+        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to settings
       </Link>
     </main>
   );

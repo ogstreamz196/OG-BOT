@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
 import { Capacitor } from "@capacitor/core";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
-import { Music2, Sparkles, Loader2, Headphones, Wand2, Pencil } from "lucide-react";
+import { Music2, Sparkles, Loader2, Headphones, Wand2, Pencil, Eye, EyeOff } from "lucide-react";
 import { EditableContent } from "@/components/admin/EditableContent";
 import {
   AdminEditModeProvider,
@@ -14,7 +14,7 @@ import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 import { lovable } from "@/integrations/lovable";
 import { getDeviceId } from "@/lib/device-id";
@@ -287,74 +287,78 @@ const PRIMARY_DEVICES: Device[] = [
   },
 ];
 
-function AuthButtons({ size = "lg", initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab }) {
+function AuthButtons({ initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab }) {
   const { signIn, pending } = useOAuthSignIn();
   const native = useIsNativeApp();
-  const compact = size === "lg";
-
-  const renderTile = (d: Device) => {
-    const isPending = pending === d.provider;
-    return (
-      <Button
-        key={d.key}
-        type="button"
-        variant="outline"
-        onClick={() => signIn(d.provider)}
-        disabled={pending !== null}
-        aria-label={d.label}
-        className="h-14 min-w-0 justify-center gap-2.5 rounded-lg border-border/80 bg-secondary/75 px-3 font-auth-body text-base font-semibold text-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary/60 hover:bg-secondary focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        {isPending ? (
-          <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
-        ) : d.provider === "google" ? (
-          <GoogleIcon className="h-6 w-6 shrink-0" />
-        ) : (
-          <AppleIcon className="h-6 w-6 shrink-0 text-foreground" />
-        )}
-        <span className="truncate">{d.provider === "google" ? "Google" : "Apple"}</span>
-      </Button>
-    );
-  };
+  // Separate Sign in and Create account: signing in never creates an account,
+  // so a typo in a username or password can't leave someone with a duplicate.
+  const [tab, setTab] = useState<AuthTab>(initialTab ?? (native ? "signup" : "signin"));
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
+  const [busy, setBusy] = useState(false);
 
   return (
-    <div className={`mx-auto w-full font-auth-body ${compact ? "max-w-md" : "max-w-lg"}`}>
-      <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card/95 px-5 py-6 shadow-[0_24px_70px_-24px_hsl(var(--primary)/0.65)] backdrop-blur-xl sm:px-7 sm:py-7">
-        <div
-          className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-destructive via-primary to-destructive"
-          aria-hidden
-        />
-        <div className="text-center">
-          <p className="font-display text-sm font-black uppercase tracking-[0.3em] text-foreground sm:text-base">
-            OG Streamz Presentz
-          </p>
-          <OgBotLogo className="mx-auto mt-3 h-44 w-44 rounded-3xl shadow-glow sm:h-56 sm:w-56" />
-          <h2 className="mt-3 text-lg font-semibold text-foreground sm:text-xl">
-            {native ? "Welcome to OG Streamz" : "Sign in or join"}
-          </h2>
-          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">
-            {native
-              ? "Sign in, or create an account with a username and password."
-              : "Continue with a connected account, or use your username and password."}
-          </p>
-        </div>
-
-        {!native && (
-          <>
-            <div className="mt-6 grid grid-cols-2 gap-3">{PRIMARY_DEVICES.map(renderTile)}</div>
-            <div className="my-5 flex items-center gap-3" aria-hidden>
-              <span className="h-px flex-1 bg-border" />
-              <span className="font-auth-display text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
-                or with username
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
-          </>
-        )}
-
-        <div>
-          <EmailAuthPanel disabled={pending !== null} initialTab={initialTab} />
-        </div>
+    <div className="mx-auto w-full max-w-md font-auth-body">
+      <div className="flex items-center gap-3">
+        <OgBotLogo className="h-9 w-9 shrink-0 rounded-xl shadow-glow" />
+        <h2 className="font-auth-display text-2xl uppercase leading-none text-foreground">
+          {tab === "signin" ? "Welcome back" : "Join the crew"}
+        </h2>
       </div>
+
+      {!native && (
+        <>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            {PRIMARY_DEVICES.map((d) => (
+              <Button
+                key={d.key}
+                type="button"
+                variant="outline"
+                onClick={() => signIn(d.provider)}
+                disabled={pending !== null || busy}
+                aria-label={d.label}
+                className="h-11 min-w-0 justify-center gap-2 rounded-lg border-border/80 bg-secondary/75 px-3 text-sm font-semibold text-foreground hover:border-primary/60 hover:bg-secondary"
+              >
+                {pending === d.provider ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : d.provider === "google" ? (
+                  <GoogleIcon className="h-5 w-5 shrink-0" />
+                ) : (
+                  <AppleIcon className="h-5 w-5 shrink-0 text-foreground" />
+                )}
+                <span className="truncate">{d.provider === "google" ? "Google" : "Apple"}</span>
+              </Button>
+            ))}
+          </div>
+          <div className="relative">
+            <Separator className="my-2.5" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              or
+            </span>
+          </div>
+        </>
+      )}
+
+      <EmailAuthPanel
+        tab={tab}
+        disabled={pending !== null}
+        busy={busy}
+        setBusy={setBusy}
+        onSwitch={setTab}
+      />
+
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        {tab === "signin" ? "Don't have an account? " : "Already have an account? "}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setTab(tab === "signin" ? "signup" : "signin")}
+          className="min-h-0 py-1 font-bold text-foreground underline-offset-4 hover:underline"
+        >
+          {tab === "signin" ? "Create one" : "Sign in"}
+        </button>
+      </p>
     </div>
   );
 }
@@ -371,76 +375,38 @@ const toLoginEmail = (v: string) =>
 
 type AuthTab = "signin" | "signup";
 
-function EmailAuthPanel({ disabled, initialTab }: { disabled?: boolean; initialTab?: AuthTab }) {
+const AUTH_INPUT =
+  "h-11 rounded-lg border-2 border-border bg-surface px-3 font-auth-body text-base text-foreground placeholder:text-sm placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35";
+
+function EmailAuthPanel({
+  tab,
+  disabled,
+  busy,
+  setBusy,
+  onSwitch,
+}: {
+  tab: AuthTab;
+  disabled?: boolean;
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  onSwitch: (tab: AuthTab) => void;
+}) {
   const native = useIsNativeApp();
-  // Separate Sign in and Create account: signing in never creates an account,
-  // so a typo in a username or password can't leave someone with a duplicate.
-  const [tab, setTab] = useState<AuthTab>(initialTab ?? (native ? "signup" : "signin"));
-  const [mode, setMode] = useState<"enter" | "reset">("enter");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const signInByName = useServerFn(signInWithIdentifier);
+  // A mistyped sign-in password must never carry over into a new account.
   useEffect(() => {
-    if (initialTab) setTab(initialTab);
-  }, [initialTab]);
-  const switchTab = (next: AuthTab) => {
-    setTab(next);
-    // A mistyped sign-in password must never carry over into a new account.
     setPassword("");
     setConfirm("");
-  };
-
-  const [busy, setBusy] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [createProgress, setCreateProgress] = useState(0);
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const isCreating = busy && mode === "enter";
-
-  useEffect(() => {
-    if (isCreating) {
-      setCreateProgress(0);
-      progressIntervalRef.current = setInterval(() => {
-        setCreateProgress((prev) => {
-          if (prev >= 88) return prev;
-          return prev + Math.max(1, Math.floor((90 - prev) / 6));
-        });
-      }, 180);
-    } else {
-      setCreateProgress(0);
-    }
-    return () => {
-      if (progressIntervalRef.current !== null) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-    };
-  }, [isCreating]);
+  }, [tab]);
+  const switchTab = onSwitch;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "reset") {
-      if (!email) {
-        toast.error("Enter the email you signed up with");
-        return;
-      }
-      setBusy(true);
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-        setResetSent(true);
-        toast.success("Reset link sent — check your inbox.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not send the reset email");
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
     const handle = email.trim();
     const isEmail = handle.includes("@");
     const usernameOff = native
@@ -575,66 +541,13 @@ function EmailAuthPanel({ disabled, initialTab }: { disabled?: boolean; initialT
 
   return (
     <div>
-      <div className="mb-5 text-center">
-        {mode === "reset" ? (
-          <>
-            <h3 className="font-auth-display text-3xl uppercase leading-none text-foreground">
-              Reset password
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Enter the email linked to your account.
-            </p>
-          </>
-        ) : (
-          <>
-            <div
-              role="tablist"
-              aria-label="Sign in or create an account"
-              className="grid grid-cols-2 gap-1 rounded-xl border-2 border-border bg-secondary/60 p-1"
-            >
-              {(
-                [
-                  ["signin", "Sign in"],
-                  ["signup", "Create account"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === key}
-                  onClick={() => switchTab(key)}
-                  disabled={busy}
-                  className={`h-12 rounded-lg font-auth-body text-base font-bold transition-colors ${
-                    tab === key
-                      ? "bg-primary text-primary-foreground shadow"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              {tab === "signin"
-                ? "Welcome back. Sign in with your username or email."
-                : "New here? Pick a username and password."}
-            </p>
-          </>
-        )}
-      </div>
-
-      <form onSubmit={submit} className="space-y-5" id="wc-auth-panel">
-        <div className="space-y-2">
+      <form onSubmit={submit} className="space-y-2.5" id="wc-auth-panel">
+        <div className="space-y-1">
           <Label
             htmlFor="wc-email"
-            className="ml-0.5 block text-left text-sm font-semibold text-foreground"
+            className="block text-left text-sm font-semibold text-foreground"
           >
-            {mode === "reset"
-              ? "Email"
-              : tab === "signin"
-                ? "Username or email"
-                : "Choose a username"}
+            {tab === "signin" ? "Username, email or VIP ID" : "Choose a username"}
           </Label>
           <Input
             id="wc-email"
@@ -642,140 +555,95 @@ function EmailAuthPanel({ disabled, initialTab }: { disabled?: boolean; initialT
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder={
-              mode === "reset"
-                ? "you@example.com"
-                : tab === "signin"
-                  ? "Your username or email"
-                  : "e.g. kingbrian"
-            }
+            placeholder={tab === "signin" ? "e.g. kingbrian or OGKINGBRIAN" : "e.g. kingbrian"}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
+            className={AUTH_INPUT}
             disabled={busy || disabled}
             required
           />
         </div>
-        {mode !== "reset" && (
-          <div className="space-y-2">
-            <Label
-              htmlFor="wc-password"
-              className="ml-0.5 block text-left text-sm font-semibold text-foreground"
-            >
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="wc-password" className="text-sm font-semibold text-foreground">
               Password
             </Label>
-
+            {tab === "signin" && (
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Forgot?
+              </button>
+            )}
+          </div>
+          <div className="relative">
             <Input
               id="wc-password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete={tab === "signin" ? "current-password" : "new-password"}
               placeholder={tab === "signin" ? "Your password" : "At least 6 characters"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-[13px] placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
+              className={`${AUTH_INPUT} pr-11`}
               disabled={busy || disabled}
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 grid w-11 place-items-center text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
-        )}
-        {mode !== "reset" && tab === "signup" && (
-          <div className="space-y-2">
+        </div>
+        {tab === "signup" && (
+          <div className="space-y-1">
             <Label
               htmlFor="wc-password-confirm"
-              className="ml-0.5 block text-left text-sm font-semibold text-foreground"
+              className="block text-left text-sm font-semibold text-foreground"
             >
               Confirm password
             </Label>
             <Input
               id="wc-password-confirm"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               placeholder="Type it again"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
+              className={AUTH_INPUT}
               disabled={busy || disabled}
               required
             />
-          </div>
-        )}
-
-        {mode === "reset" && (
-          <p className="text-sm text-muted-foreground">
-            {resetSent
-              ? "We sent a reset link. Open it on this device to set a new password — it expires shortly."
-              : "We'll email you a secure link to set a new password."}
-          </p>
-        )}
-
-        {isCreating && (
-          <div className="space-y-1.5 rounded-xl border border-primary/40 bg-primary/10 p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-xs font-black uppercase tracking-wider text-primary-foreground">
-                Getting you in
-              </span>
-              <span className="text-xs font-bold tabular-nums text-primary-foreground">
-                {createProgress}%
-              </span>
-            </div>
-            <Progress value={createProgress} className="h-1.5 bg-primary/20" />
-            <p className="text-xs text-muted-foreground">
-              {tab === "signin" ? "Opening your OG Studio." : "Setting up your OG Studio profile."}
-            </p>
-            <div aria-live="polite" className="sr-only">
-              Signing you in, {createProgress} percent complete.
-            </div>
           </div>
         )}
 
         <Button
           type="submit"
           disabled={busy || disabled}
-          className="h-14 w-full rounded-lg font-auth-body text-base font-bold shadow-[0_12px_28px_-12px_hsl(var(--primary))] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+          className="h-12 w-full rounded-lg font-auth-body text-base font-black uppercase tracking-wider shadow-[0_12px_28px_-12px_hsl(var(--primary))]"
         >
           {busy ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
-              {mode === "reset" ? "Sending..." : "One sec..."}
+              {tab === "signin" ? "Signing in…" : "Creating your account…"}
             </>
-          ) : mode === "reset" ? (
-            resetSent ? (
-              "Resend reset link"
-            ) : (
-              "Send reset link"
-            )
+          ) : tab === "signin" ? (
+            "Sign in"
           ) : (
-            <>
-              <Sparkles className="mr-2 h-5 w-5" aria-hidden />
-              {tab === "signin" ? "Sign in" : "Create account"}
-            </>
+            "Create account"
           )}
         </Button>
+        <div aria-live="polite" className="sr-only">
+          {busy ? "Signing you in" : ""}
+        </div>
       </form>
-
-      {mode !== "reset" && (
-        <button
-          type="button"
-          onClick={() => setForgotOpen(true)}
-          className="mt-4 h-12 w-full rounded-lg border-2 border-border bg-secondary/60 text-center text-base font-semibold text-foreground transition-colors hover:border-primary/60"
-        >
-          Forgot password?
-        </button>
-      )}
       <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
-
-      {mode === "reset" && (
-        <button
-          type="button"
-          onClick={() => {
-            setResetSent(false);
-            setMode("enter");
-          }}
-          className="mt-5 w-full text-center text-sm font-semibold text-foreground/80 underline underline-offset-4 hover:text-foreground"
-        >
-          Back
-        </button>
-      )}
     </div>
   );
 }
@@ -881,7 +749,7 @@ function AuthModal() {
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto bg-card p-5">
         <DialogTitle className="sr-only">Sign in or join OG Streamz</DialogTitle>
         <div id="sign-in">
           {songTitle && (
@@ -929,9 +797,6 @@ function AuthModal() {
             size="xl"
             initialTab={songTitle || savedTrack || fromBattle ? "signup" : "signin"}
           />
-          <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
-            Free to join. Your Battle Zone chat comes with you.
-          </p>
         </div>
       </DialogContent>
     </Dialog>

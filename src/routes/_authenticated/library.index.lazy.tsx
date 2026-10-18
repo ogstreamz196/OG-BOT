@@ -1971,9 +1971,6 @@ function LibraryPage() {
           key={freshTrack.id}
           song={freshTrack}
           sampleSeconds={sampleSeconds}
-          unlockCost={unlockCost}
-          balance={profile?.coin_balance ?? 0}
-          autoUnlockPrompt={autoUnlockPrompt}
           onDismiss={() => {
             setFreshTrack(null);
             setAutoUnlockPrompt(false);
