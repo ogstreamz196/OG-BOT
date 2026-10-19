@@ -251,7 +251,7 @@ function SettingsPage() {
   const initial = (profile?.display_name || user?.email || "U")[0]?.toUpperCase();
   const referralLink =
     extras.data?.referral_code && typeof window !== "undefined"
-      ? `${window.location.origin}/r/${extras.data.referral_code}`
+      ? `https://ogbot.co.uk/r/${extras.data.referral_code}`
       : null;
   const activity = txs.data ?? [];
 
