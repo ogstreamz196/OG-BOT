@@ -181,6 +181,49 @@ describe("buildTradeSignalContext", () => {
     expect(Date.now() - started).toBeLessThan(2500);
   });
 
+  it("adds the top Yahoo Finance headlines, and carries on without them", async () => {
+    const feed = (withNews: boolean) =>
+      vi.fn(async (url: string) => {
+        if (url.includes("finance/search")) {
+          return withNews
+            ? ok({
+                news: [
+                  {
+                    title: "Gold climbs as dollar slips",
+                    publisher: "Reuters",
+                    providerPublishTime: 1767225600,
+                  },
+                  { title: "Fed speakers in focus", publisher: "Bloomberg" },
+                ],
+              })
+            : new Response("blocked", { status: 403 });
+        }
+        if (url.includes("interval=1d"))
+          return ok(
+            url.includes("binance")
+              ? binanceRows(bars(365, 2000, 2, 24 * HOUR))
+              : yahooChart(bars(365, 2000, 2, 24 * HOUR)),
+          );
+        if (url.includes("interval=1h"))
+          return ok(
+            url.includes("binance")
+              ? binanceRows(bars(1000, 2600, 0.2, HOUR))
+              : yahooChart(bars(1000, 2600, 0.2, HOUR)),
+          );
+        return new Response("nope", { status: 404 });
+      });
+    stubFetch(feed(true));
+    const out = await buildTradeSignalContext("xauusd signal");
+    expect(out).toContain("MARKET HEADLINES (Yahoo Finance");
+    expect(out).toContain("1. Gold climbs as dollar slips, Reuters (2026-01-01 00:00 UTC)");
+    expect(out).toContain("2. Fed speakers in focus, Bloomberg");
+
+    stubFetch(feed(false));
+    const quiet = await buildTradeSignalContext("xagusd signal");
+    expect(quiet).toContain("Direction:");
+    expect(quiet).not.toContain("MARKET HEADLINES");
+  });
+
   it("refuses to invent levels when no feed answers", async () => {
     stubFetch(vi.fn(async () => new Response("down", { status: 503 })));
     const out = await buildTradeSignalContext("usdcad entry");

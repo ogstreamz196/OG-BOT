@@ -93,7 +93,6 @@ export function needsProAnswer(body: Record<string, unknown>): boolean {
   );
 }
 
-
 // OpenAI removed from the system by owner request — Gemini is the only paid tier.
 export function aiChatTargets(_affinity = "default"): AiChatTarget[] {
   const gemini = geminiTarget();
@@ -133,7 +132,6 @@ function shouldFallThrough(status: number): boolean {
   return status === 429 || status === 402 || status === 401 || status === 403 || status >= 500;
 }
 
-
 function hasMedia(body: Record<string, unknown>): boolean {
   const messages = Array.isArray(body.messages) ? (body.messages as Msg[]) : [];
   return messages.some(
@@ -168,6 +166,9 @@ export function logAiUsage(entry: {
   })();
 }
 
+const FREE_TIMEOUT_MS = 15_000;
+export const FOUL_FREE_TIMEOUT_MS = 10_000;
+
 export async function fetchAiChat(
   body: Record<string, unknown>,
   affinity = "default",
@@ -182,6 +183,9 @@ export async function fetchAiChat(
     ? [...aiChatTargets(affinity), ...free]
     : [...free, ...aiChatTargets(affinity)];
   let last: { response: Response; provider: AiChatTarget["provider"] } | null = null;
+  // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
+  // tier never leaves the user hanging.
+  const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
 
   for (let index = 0; index < targets.length; index += 1) {
     const target = targets[index];
@@ -191,10 +195,16 @@ export async function fetchAiChat(
         method: "POST",
         headers: target.headers,
         body: JSON.stringify({ ...(target.free ? freeBody(body) : body), model: target.model }),
-        signal: AbortSignal.timeout(target.free ? 15_000 : 45_000),
+        signal: AbortSignal.timeout(target.free ? freeTimeout : 45_000),
       });
     } catch (e) {
       console.warn(`AI ${target.provider}/${target.model} network error`, e);
+      // A free model that timed out on one key is just as slow on the next.
+      if (target.free) {
+        for (let j = index + 1; j < targets.length; j += 1) {
+          if (targets[j].free && targets[j].model === target.model) targets.splice(j--, 1);
+        }
+      }
       continue;
     }
     let fallThrough = target.free ? !response.ok : shouldFallThrough(response.status);
@@ -231,39 +241,125 @@ export async function fetchAiChat(
 }
 
 export function needsLiveResearch(text: string): boolean {
-  return /(?:^\s*(?:\/research|research:)|\b(?:search the web|look (?:it|this|that) up|latest|today'?s|current news|breaking news|live score|current price|right now)\b)/i.test(
-    text,
+  // Clear asks for fresh facts on their own...
+  if (
+    /(?:^\s*(?:\/research|research:)|\b(?:search the web|google (?:it|this|that)|look (?:it|this|that) up|latest|current news|breaking news|live scores?|final score|who won|who scored|current price|right now)\b)/i.test(
+      text,
+    )
+  )
+    return true;
+  // ...or a time word next to something that changes day to day. Plain
+  // "how are you today" stays offline, so the paid search isn't wasted.
+  return (
+    /\b(?:today|tonight|yesterday|this (?:week|weekend|morning|season))'?s?\b/i.test(text) &&
+    /\b(?:match|game|fixture|score|result|won|win|beat|lost|lose|draw|news|price|weather|race|fight|election|transfer|happened|kick[- ]?off|odds)\w*\b/i.test(
+      text,
+    )
   );
 }
 
+const SEARCH_TIMEOUT_MS = 8_000;
+
+type GroundedReply = {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+    groundingMetadata?: { groundingChunks?: { web?: { uri?: string; title?: string } }[] };
+  }[];
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+};
+
+/**
+ * Live facts for OG Bot: Gemini answers with Google Search grounding turned on
+ * and we hand its summary (plus the sites it read) to the chat model. Uses the
+ * Boss's existing Gemini key. Returns null on any failure so chat carries on.
+ */
 export async function getLiveResearchContext(query: string): Promise<string | null> {
-  const key = process.env.PERPLEXITY_API_KEY;
+  const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const cleaned = query
     .replace(/^\s*(?:\/research|research:)\s*/i, "")
     .trim()
     .slice(0, 500);
   if (!cleaned) return null;
-  const response = await fetch("https://api.perplexity.ai/search", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: cleaned, max_results: 5 }),
+  const model = process.env.GEMINI_SEARCH_MODEL || process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const today = new Date().toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
-  if (!response.ok) {
-    console.warn("Perplexity search failed", response.status);
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Today is ${today} (UK time). Search the web and give concise factual bullet points (scores, prices, dates, names) for: ${cleaned}`,
+                },
+              ],
+            },
+          ],
+          tools: [{ googleSearch: {} }],
+          generationConfig: { temperature: 0 },
+        }),
+        signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      },
+    );
+  } catch (e) {
+    console.warn("Live search failed", (e as Error).message);
     return null;
   }
-  const json = (await response.json().catch(() => ({}))) as {
-    results?: { title?: string; url?: string; snippet?: string; date?: string }[];
-  };
-  const results = json.results ?? [];
-  if (!results.length) return null;
-  return results
-    .map(
-      (item, index) =>
-        `${index + 1}. ${item.title ?? "Source"}${item.date ? ` (${item.date})` : ""}\n${item.snippet ?? ""}\n${item.url ?? ""}`,
-    )
-    .join("\n\n");
+  if (!res.ok) {
+    console.warn("Live search failed", res.status);
+    return null;
+  }
+  const json = (await res.json().catch(() => ({}))) as GroundedReply;
+  logAiUsage({
+    feature: "live_search",
+    provider: "gemini",
+    model,
+    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+    completionTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+  });
+  const cand = json.candidates?.[0];
+  const summary = (cand?.content?.parts ?? [])
+    .map((p) => p?.text ?? "")
+    .join("")
+    .trim();
+  if (!summary) return null;
+  const seen = new Set<string>();
+  const sources = (cand?.groundingMetadata?.groundingChunks ?? [])
+    .map((c) => c.web?.title?.trim())
+    .filter((t): t is string => !!t && !seen.has(t) && !!seen.add(t))
+    .slice(0, 5);
+  return sources.length ? `${summary}\n\nSources: ${sources.join(", ")}` : summary;
+}
+
+/**
+ * Wraps the user's question with live facts. OG Bot keeps its full persona
+ * (same voice, slang and Foul Mouth setting); only the facts are pinned down.
+ */
+export function liveFactsMessage(research: string, question: string): string {
+  return `CURRENT WEB SOURCES (live Google search, ${new Date().toISOString().slice(0, 10)}):
+${research}
+
+USER QUESTION:
+${question}
+
+Answer in your normal OG Bot voice: same persona, slang and attitude as always (have a laugh at the losing team or the coin that dumped). Use only the relevant facts above and keep every score, price, date and name exactly as given. Mention a source by name if it helps. If the sources don't answer the question, say so instead of guessing.`;
 }
 
 /** Transcribe audio bytes with the Boss's own Gemini key. */

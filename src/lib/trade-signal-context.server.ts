@@ -188,39 +188,34 @@ async function candles(
 const newsCache = new Map<string, { exp: number; value: string | null }>();
 
 async function marketNews(inst: Instrument): Promise<string | null> {
-  const key = process.env.PERPLEXITY_API_KEY;
-  if (!key) return null;
+  if (!inst.yahoo) return null;
   const hit = newsCache.get(inst.code);
   if (hit && hit.exp > Date.now()) return hit.value;
-  const value = await fetchNews(inst, key);
+  const value = await fetchNews(inst.yahoo);
   newsCache.set(inst.code, { exp: Date.now() + (value ? 10 : 2) * 60_000, value });
   return value;
 }
 
-async function fetchNews(inst: Instrument, key: string): Promise<string | null> {
+/** Top 3 Yahoo Finance headlines for the market. Soft-fails to null. */
+async function fetchNews(symbol: string): Promise<string | null> {
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), NEWS_TIMEOUT_MS);
-    const res = await fetch("https://api.perplexity.ai/search", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `${inst.label} price news today market drivers economic calendar`,
-        max_results: 3,
-      }),
-      signal: ctrl.signal,
-    }).finally(() => clearTimeout(timer));
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=3&quotesCount=0`,
+      { headers: UA, signal: AbortSignal.timeout(NEWS_TIMEOUT_MS) },
+    );
     if (!res.ok) return null;
     const json = (await res.json().catch(() => ({}))) as {
-      results?: { title?: string; url?: string; snippet?: string; date?: string }[];
+      news?: { title?: string; publisher?: string; providerPublishTime?: number }[];
     };
-    const items = (json.results ?? []).slice(0, 3);
+    const items = (json.news ?? []).filter((n) => n.title).slice(0, 3);
     if (!items.length) return null;
     return items
-      .map(
-        (n, i) =>
-          `${i + 1}. ${n.title ?? "Source"}${n.date ? ` (${n.date})` : ""}: ${(n.snippet ?? "").slice(0, 280)} ${n.url ?? ""}`,
-      )
+      .map((n, i) => {
+        const when = n.providerPublishTime
+          ? ` (${new Date(n.providerPublishTime * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC)`
+          : "";
+        return `${i + 1}. ${n.title}${n.publisher ? `, ${n.publisher}` : ""}${when}`;
+      })
       .join("\n");
   } catch {
     return null;
@@ -380,11 +375,7 @@ export async function buildTradeSignal(
     `Reasons: ${plan.reasons.join("; ")}`,
   );
   if (news)
-    lines.push(
-      "",
-      "MARKET HEADLINES (for context and news risk; cite the URL if you use one):",
-      news,
-    );
+    lines.push("", "MARKET HEADLINES (Yahoo Finance; for context and news risk only):", news);
 
   const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
   const expiresAt = valid.until.toISOString();

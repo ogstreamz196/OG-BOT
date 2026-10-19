@@ -39,8 +39,7 @@ export const runTransferReadiness = createServerFn({ method: "POST" })
     secret("Music", "SUNO_API_KEY", "Suno song generation");
     secret("Telegram", "OG_BOT_TOKEN", "OG Bot Telegram token");
     secret("Telegram", "TELEGRAM_API_KEY", "Telegram connector (workspace-linked)");
-    secret("AI", "GEMINI_API_KEY", "Paid Gemini fallback", false);
-    secret("AI", "PERPLEXITY_API_KEY", "Live web search");
+    secret("AI", "GEMINI_API_KEY", "Paid Gemini fallback and live web search", false);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

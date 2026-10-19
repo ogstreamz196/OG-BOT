@@ -63,8 +63,14 @@ export const chatOgBot = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }): Promise<ChatReply> => {
-    const { aiChatTarget, fetchAiChat, getLiveResearchContext, needsLiveResearch } =
-      await import("@/lib/ai-endpoint.server");
+    const {
+      aiChatTarget,
+      fetchAiChat,
+      getLiveResearchContext,
+      liveFactsMessage,
+      needsLiveResearch,
+    } = await import("@/lib/ai-endpoint.server");
+    const { detectTradeIntent } = await import("@/lib/trade-signal");
     const ai = aiChatTarget(context.userId);
     if (!ai) throw new Error("AI not configured");
 
@@ -88,6 +94,15 @@ export const chatOgBot = createServerFn({ method: "POST" })
           console.warn("trade signal context failed", e);
           return { block: "", expiresAt: null };
         });
+
+    // Live web facts: start the search now so it runs alongside everything else.
+    const researchPromise: Promise<string | null> =
+      needsLiveResearch(lastUserText) && !detectTradeIntent(lastUserText)
+        ? getLiveResearchContext(lastUserText).catch((e) => {
+            console.warn("Live search failed (soft):", (e as Error).message);
+            return null;
+          })
+        : Promise.resolve(null);
 
     // 1. Load user context in parallel (profile, role flags, foul pref, persona overrides, learned insults, free-access flag).
     const [profileRes, rolesRes, prefRes, siteRes, learnedRes, freeRes] = await Promise.all([
@@ -273,20 +288,17 @@ export const chatOgBot = createServerFn({ method: "POST" })
     // 2. Private mode is free — no coins are charged.
     const newBalance: number | null = profile.coin_balance ?? 0;
 
-    // 3. Use Perplexity only when the message clearly needs current web facts.
+    // 3. Live facts (Google Search through Gemini), started earlier alongside
+    // the user context; trade signals already carry their own live data.
     const outgoing = [...data.messages];
     const last = outgoing[outgoing.length - 1];
-    if (last?.role === "user" && !tradeNote && needsLiveResearch(last.content)) {
-      try {
-        const research = await getLiveResearchContext(last.content);
-        if (research) {
-          outgoing[outgoing.length - 1] = {
-            role: "user",
-            content: `CURRENT WEB SOURCES:\n${research}\n\nUSER QUESTION:\n${last.content}\n\nUse only relevant facts above and cite source URLs when making current claims.`,
-          };
-        }
-      } catch (e) {
-        console.warn("Perplexity research failed (soft):", (e as Error).message);
+    if (last?.role === "user" && !tradeNote) {
+      const research = await researchPromise;
+      if (research) {
+        outgoing[outgoing.length - 1] = {
+          role: "user",
+          content: liveFactsMessage(research, last.content),
+        };
       }
     }
 
