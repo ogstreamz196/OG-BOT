@@ -72,7 +72,6 @@ const STEPS: Step[] = [
   { key: "payments_live_webhook", label: "Stripe live webhook secret", group: "Payments" },
   { key: "payments_sandbox_webhook", label: "Stripe sandbox webhook secret", group: "Payments" },
   { key: "gemini", label: "Gemini API key", group: "AI providers" },
-  { key: "perplexity", label: "Perplexity API key", group: "AI providers" },
   { key: "suno", label: "Suno API key", group: "AI providers" },
   { key: "og_bot_host", label: "OG Bot host reachable", group: "OG Bot" },
   { key: "og_bot_token", label: "OG_BOT_TOKEN present", group: "OG Bot" },
@@ -304,9 +303,7 @@ export function OnboardingWizard() {
               </Link>{" "}
               and check Stripe events are arriving.
             </li>
-            <li>
-              Plain key rows (Gemini / Perplexity / Suno / OG_BOT_*) → Project Settings → Secrets.
-            </li>
+            <li>Plain key rows (Gemini / Suno / OG_BOT_*) → Project Settings → Secrets.</li>
             <li>
               Full reference list:{" "}
               <a

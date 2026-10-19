@@ -177,56 +177,6 @@ async function checkSuno(): Promise<Partial_> {
   }
 }
 
-async function checkPerplexity(): Promise<Partial_> {
-  const key = process.env["PERPLEXITY_API_KEY"];
-  if (!key) return missing("PERPLEXITY_API_KEY");
-  try {
-    const { result, latencyMs } = await timed(() =>
-      fetch("https://api.perplexity.ai/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "sonar",
-          max_tokens: 1,
-          messages: [{ role: "user", content: "ping" }],
-        }),
-      }),
-    );
-    if (result.status === 401 || result.status === 403) {
-      return {
-        status: "invalid",
-        detail: `Perplexity rejected the key (HTTP ${result.status}).`,
-        fix: "Issue a new key at perplexity.ai/settings/api and update PERPLEXITY_API_KEY.",
-        latencyMs,
-      };
-    }
-    if (result.status === 429) {
-      return {
-        status: "degraded",
-        detail: "Key valid but currently rate-limited (HTTP 429).",
-        fix: "Wait for the limit window to reset or raise the plan limit.",
-        latencyMs,
-      };
-    }
-    if (!result.ok) {
-      const text = await result.text().catch(() => "");
-      return {
-        status: "unreachable",
-        detail: `Perplexity returned HTTP ${result.status}: ${text.slice(0, 120)}`,
-        fix: "Retry shortly; if it persists check the Perplexity status page.",
-        latencyMs,
-      };
-    }
-    return { status: "ok", detail: "Key valid · completions endpoint responding.", latencyMs };
-  } catch (e) {
-    return {
-      status: "unreachable",
-      detail: `Could not reach Perplexity: ${e instanceof Error ? e.message : "network error"}`,
-      fix: "Retry shortly — network or provider outage.",
-    };
-  }
-}
-
 async function checkOgBotToken(): Promise<Partial_> {
   const token = process.env["OG_BOT_TOKEN"];
   if (!token) {
@@ -441,7 +391,6 @@ const SPECS: Spec[] = [
     run: () => checkChatKey("POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
   { key: "pollinations_backup", label: "Pollinations backup", secret: "POLLINATIONS_BACKUP_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
     run: () => checkChatKey("POLLINATIONS_BACKUP_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
-  { key: "perplexity", label: "Perplexity (live web & sports search)", secret: "PERPLEXITY_API_KEY", help: "perplexity.ai/settings/api", group: "AI chat & lyrics", required: true, run: checkPerplexity },
   { key: "suno", label: "Suno (song generation)", secret: "SUNO_API_KEY", help: "sunoapi.org", group: "Music", required: true, run: checkSuno },
   { key: "stripe", label: "Stripe (card checkout)", secret: "STRIPE_SECRET_KEY", help: "dashboard.stripe.com/apikeys", group: "Payments", required: true, run: checkStripe },
   { key: "ledgerly", label: "Ledgerly bookkeeping", group: "Payments", required: false, run: checkLedgerly },

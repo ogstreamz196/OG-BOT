@@ -140,8 +140,6 @@ async function runOne(key: string): Promise<CheckResult> {
       return present("GEMINI_API_KEY") ?? { ok: true, detail: "Key present." };
     case "openai":
       return present("OPENAI_API_KEY") ?? { ok: true, detail: "Key present." };
-    case "perplexity":
-      return present("PERPLEXITY_API_KEY") ?? { ok: true, detail: "Key present." };
     case "suno":
       return present("SUNO_API_KEY") ?? { ok: true, detail: "Key present." };
     case "og_bot_host": {

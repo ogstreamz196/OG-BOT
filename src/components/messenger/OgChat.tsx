@@ -217,8 +217,7 @@ export function OgChat({
     composer.style.height = `${Math.min(Math.max(composer.scrollHeight, 40), 128)}px`;
   }, [input]);
 
-  // Anti-flicker skeleton: stays visible at least 600ms once shown so quick
-  // replies don't pop in and out (matches Suno-style "cooking" feel).
+  // "Cooking" skeleton while OG Bot is replying (drives the auto-scroll below).
   const [showSkeleton, setShowSkeleton] = useState(false);
 
   useEffect(() => {
@@ -399,17 +398,11 @@ export function OgChat({
     },
   });
 
-  // Skeleton stays visible at least 600ms once shown — kills flicker on
-  // very fast replies and gives a Suno-style "still cooking" feel.
+  // The skeleton shows only while the reply is on its way: a fast answer
+  // appears the moment it lands, with no minimum wait.
   useEffect(() => {
-    if (m.isPending) {
-      setShowSkeleton(true);
-      return;
-    }
-    if (!showSkeleton) return;
-    const t = setTimeout(() => setShowSkeleton(false), 600);
-    return () => clearTimeout(t);
-  }, [m.isPending, showSkeleton]);
+    setShowSkeleton(m.isPending);
+  }, [m.isPending]);
 
   function sendText(text: string, opts?: { forcePrivate?: boolean }) {
     const t = text.trim();
@@ -890,7 +883,7 @@ export function OgChat({
               </div>
             );
           })}
-          {(showSkeleton || m.isPending) && (
+          {m.isPending && (
             <div
               className="flex items-end gap-3"
               role="status"
