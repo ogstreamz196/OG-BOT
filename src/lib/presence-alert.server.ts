@@ -2,7 +2,7 @@
 // name and the kind of activity (app opened / Battle Zone) — no pages, location
 // or device data. A database cooldown stops repeat alerts. Members never get
 // these: Battle Zone alerts to every linked member were too noisy.
-const COOLDOWN_MIN = { app: 24 * 60, battle: 3 * 60 } as const;
+const COOLDOWN_MIN = { app: 24 * 60, battle: 30 } as const;
 
 function esc(s: string) {
   return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
