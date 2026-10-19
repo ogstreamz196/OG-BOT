@@ -25,7 +25,7 @@ function formatDate(iso: string | null): string {
   }
 }
 
-export function VipStatusCard() {
+export function VipStatusCard({ className }: { className?: string } = {}) {
   const { isVip, isLoading: roleLoading } = useRole();
   const { data: sub, isLoading: subLoading } = useVipSubscription();
   const openPortal = useServerFn(createBillingPortalSession);
@@ -55,7 +55,7 @@ export function VipStatusCard() {
   const loading = roleLoading || subLoading;
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Crown className="h-4 w-4 text-primary" /> OG VIP membership

@@ -60,7 +60,7 @@ export function OgVaultPassCard() {
 
   const ready = !!username && !!password;
   return (
-    <div className="rounded-2xl border border-coin/40 bg-card/60 p-4 shadow-glow backdrop-blur-md">
+    <div className="rounded-2xl border border-zinc-300/40 border-l-4 border-l-zinc-300 bg-gradient-to-br from-zinc-400/[0.18] via-card/70 to-card/60 p-4 shadow-glow backdrop-blur-md">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-coin">
           🔐 OG Vault Access Pass
