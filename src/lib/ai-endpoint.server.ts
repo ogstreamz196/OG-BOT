@@ -241,18 +241,27 @@ export function logAiUsage(entry: {
 
 const FREE_TIMEOUT_MS = 15_000;
 export const FOUL_FREE_TIMEOUT_MS = 10_000;
+/**
+ * Foul Mouth: if the swearing model hasn't answered by now, Gemini starts as
+ * a backup and whichever lands first is used. The voice is the same prompt
+ * either way; this only cuts the long waits.
+ */
+export const aiTiming = { foulHedgeMs: 5_000 };
 
-export async function fetchAiChat(
+export type AiChatOpts = {
+  foulMouth?: boolean;
+  /** OG Bot chat: judge how hard the latest message is before picking a model. */
+  smart?: boolean;
+  /** Background jobs (memory notes): free tiers first, whatever the length. */
+  cheap?: boolean;
+};
+
+/** Which models to try, in order, and whether the paid tier goes first. */
+async function chatPlan(
   body: Record<string, unknown>,
-  affinity = "default",
-  opts: {
-    foulMouth?: boolean;
-    /** OG Bot chat: judge how hard the latest message is before picking a model. */
-    smart?: boolean;
-    /** Background jobs (memory notes): free tiers first, whatever the length. */
-    cheap?: boolean;
-  } = {},
-): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
+  affinity: string,
+  opts: AiChatOpts,
+): Promise<{ free: AiChatTarget[]; paid: AiChatTarget[]; pro: boolean }> {
   // Free AIs answer ordinary chat; paid Gemini goes first only for media or
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
@@ -265,25 +274,34 @@ export async function fetchAiChat(
     const tier = messageTier(text);
     pro = tier === "complex" || (tier === "unsure" && (await needsThinking(text)));
   }
-  const targets = pro
-    ? [...aiChatTargets(affinity), ...free]
-    : [...free, ...aiChatTargets(affinity)];
-  let last: { response: Response; provider: AiChatTarget["provider"] } | null = null;
-  // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
-  // tier never leaves the user hanging.
-  const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
+  return { free, paid: aiChatTargets(affinity), pro };
+}
 
+type Attempt = { response: Response; provider: AiChatTarget["provider"]; ok: boolean };
+
+/** Tries each target in turn; the last one is returned even when it fails. */
+async function tryTargets(
+  list: AiChatTarget[],
+  body: Record<string, unknown>,
+  freeTimeout: number,
+  outer?: AbortSignal,
+): Promise<Attempt | null> {
+  const targets = [...list];
+  let last: Attempt | null = null;
   for (let index = 0; index < targets.length; index += 1) {
+    if (outer?.aborted) return last;
     const target = targets[index];
     let response: Response;
     try {
+      const timeout = AbortSignal.timeout(target.free ? freeTimeout : 45_000);
       response = await fetch(target.url, {
         method: "POST",
         headers: target.headers,
         body: JSON.stringify({ ...(target.free ? freeBody(body) : body), model: target.model }),
-        signal: AbortSignal.timeout(target.free ? freeTimeout : 45_000),
+        signal: outer ? AbortSignal.any([timeout, outer]) : timeout,
       });
     } catch (e) {
+      if (outer?.aborted) return last;
       console.warn(`AI ${target.provider}/${target.model} network error`, e);
       // A free model that timed out on one key is just as slow on the next.
       if (target.free) {
@@ -296,7 +314,7 @@ export async function fetchAiChat(
     let fallThrough = target.free ? !response.ok : shouldFallThrough(response.status);
     // Free tiers sometimes return 200 with an empty/refused body — treat as a failure
     // so the next free provider gets a go instead of the user seeing "…".
-    if (!fallThrough && target.free && !body.stream && index < targets.length - 1) {
+    if (!fallThrough && target.free && !body.stream) {
       try {
         const text = await response.clone().text();
         const j = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
@@ -305,24 +323,239 @@ export async function fetchAiChat(
         fallThrough = true;
       }
     }
-    if (!fallThrough || index === targets.length - 1) {
+    if (!fallThrough) {
       // Chat responses are streamed back to the caller, so token counts aren't
       // available here — log the call itself (provider + model) instead.
       logAiUsage({ feature: "chat", provider: target.provider, model: target.model });
-      return { response, provider: target.provider };
+      return { response, provider: target.provider, ok: true };
     }
+    last = { response, provider: target.provider, ok: false };
+    if (index === targets.length - 1) break;
     console.warn(`AI ${target.provider}/${target.model} returned ${response.status}, falling back`);
-    // Don't hammer the same provider: skip its other models after a 429.
+    // Don't hammer the same provider: skip its other models after a 429, and
+    // give it a breath. Other failures move on straight away.
     if (response.status === 429) {
       for (let j = index + 1; j < targets.length; j += 1) {
         if (targets[j].provider === target.provider && targets[j].free) targets.splice(j--, 1);
       }
+      await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 200)));
     }
-    last = { response, provider: target.provider };
-    await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 200)));
   }
+  return last;
+}
 
-  if (last) return last;
+/** Runs `primary`; if it hasn't succeeded within `ms`, starts `backup` too. First success wins. */
+async function hedged(
+  primary: (signal: AbortSignal) => Promise<Attempt | null>,
+  backup: (signal: AbortSignal) => Promise<Attempt | null>,
+  ms: number,
+): Promise<Attempt | null> {
+  const a = new AbortController();
+  const b = new AbortController();
+  let backupRun: Promise<Attempt | null> | null = null;
+  const startBackup = () => (backupRun ??= backup(b.signal));
+  const p = primary(a.signal);
+  const timer = new Promise<"hedge">((resolve) => setTimeout(() => resolve("hedge"), ms));
+  const first = await Promise.race([p, timer]);
+  if (first !== "hedge" && first?.ok) return first;
+  const bRun = startBackup();
+  const pOk = p.then((r) => (r?.ok ? { r, loser: b } : Promise.reject(r)));
+  const bOk = bRun.then((r) => (r?.ok ? { r, loser: a } : Promise.reject(r)));
+  try {
+    const win = await Promise.any([pOk, bOk]);
+    win.loser.abort();
+    return win.r;
+  } catch {
+    // Neither worked: hand back the backup's answer (the paid tier's error), else the primary's.
+    return (await bRun) ?? (await p);
+  }
+}
+
+export async function fetchAiChat(
+  body: Record<string, unknown>,
+  affinity = "default",
+  opts: AiChatOpts = {},
+): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
+  const { free, paid, pro } = await chatPlan(body, affinity, opts);
+  // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
+  // tier never leaves the user hanging.
+  const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
+  let result: Attempt | null;
+  if (opts.foulMouth && !pro && free.length && paid.length && !body.stream) {
+    result = await hedged(
+      (signal) => tryTargets(free, body, freeTimeout, signal),
+      (signal) => tryTargets(paid, body, freeTimeout, signal),
+      aiTiming.foulHedgeMs,
+    );
+  } else {
+    result = await tryTargets(pro ? [...paid, ...free] : [...free, ...paid], body, freeTimeout);
+  }
+  if (result) return { response: result.response, provider: result.provider };
+  throw new Error("All AI providers are busy — try again in a moment.");
+}
+
+type StreamRun = {
+  provider: AiChatTarget["provider"];
+  model: string;
+  /** Resolves true once the first words arrive, false if it fails first. */
+  first: Promise<boolean>;
+  /** The full text when the stream ends ("" on failure), and the HTTP status. */
+  done: Promise<{ text: string; status: number }>;
+  /** Start forwarding words (including any already received). */
+  attach: (fn: (delta: string) => void) => void;
+  abort: () => void;
+};
+
+/** Opens one streamed reply. Times out only while waiting for the first words. */
+function openStream(
+  target: AiChatTarget,
+  body: Record<string, unknown>,
+  firstWordsMs: number,
+): StreamRun {
+  const ctrl = new AbortController();
+  const firstTimer = setTimeout(() => ctrl.abort(), firstWordsMs);
+  // Hard stop for a stream that stalls halfway.
+  const capTimer = setTimeout(() => ctrl.abort(), 120_000);
+  const sink: { fn: ((d: string) => void) | null } = { fn: null };
+  const buffered: string[] = [];
+  let text = "";
+  let markFirst!: (v: boolean) => void;
+  const first = new Promise<boolean>((resolve) => (markFirst = resolve));
+  const done = (async () => {
+    let status = 0;
+    try {
+      const res = await fetch(target.url, {
+        method: "POST",
+        headers: target.headers,
+        body: JSON.stringify({
+          ...(target.free ? freeBody(body) : body),
+          model: target.model,
+          stream: true,
+        }),
+        signal: ctrl.signal,
+      });
+      status = res.status;
+      if (!res.ok || !res.body) return { text: "", status };
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done: end } = await reader.read();
+        if (end) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let delta = "";
+          try {
+            const j = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+            delta = j.choices?.[0]?.delta?.content ?? "";
+          } catch {
+            continue;
+          }
+          if (!delta) continue;
+          if (!text) {
+            clearTimeout(firstTimer);
+            markFirst(true);
+          }
+          text += delta;
+          if (sink.fn) sink.fn(delta);
+          else buffered.push(delta);
+        }
+      }
+      return { text, status };
+    } catch {
+      return { text, status };
+    } finally {
+      clearTimeout(firstTimer);
+      clearTimeout(capTimer);
+      markFirst(!!text);
+    }
+  })();
+  return {
+    provider: target.provider,
+    model: target.model,
+    first,
+    done,
+    attach: (fn) => {
+      for (const d of buffered) fn(d);
+      buffered.length = 0;
+      sink.fn = fn;
+    },
+    abort: () => ctrl.abort(),
+  };
+}
+
+/**
+ * Same routing as fetchAiChat, but streams the reply: `onDelta` gets each new
+ * piece of text as it's written. Falls over to the next model only before the
+ * first words arrive. Returns the full text.
+ */
+export async function streamAiChat(
+  body: Record<string, unknown>,
+  affinity: string,
+  opts: AiChatOpts,
+  onDelta: (delta: string) => void,
+): Promise<{ text: string; provider: AiChatTarget["provider"] }> {
+  const { free, paid, pro } = await chatPlan(body, affinity, opts);
+  const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
+  const targets = pro ? [...paid, ...free] : [...free, ...paid];
+  const waitFor = (t: AiChatTarget) => (t.free ? freeTimeout : 45_000);
+  let lastStatus = 0;
+
+  const finish = async (run: StreamRun) => {
+    run.attach(onDelta);
+    const { text } = await run.done;
+    logAiUsage({ feature: "chat", provider: run.provider, model: run.model });
+    return { text, provider: run.provider };
+  };
+
+  for (let i = 0; i < targets.length; i += 1) {
+    const target = targets[i];
+    const run = openStream(target, body, waitFor(target));
+    // Foul Mouth: a slow swearing model gets Gemini running alongside it.
+    const hedgeTarget =
+      opts.foulMouth && target.free && !pro ? targets.slice(i + 1).find((t) => !t.free) : undefined;
+    if (hedgeTarget) {
+      const hedge = await Promise.race([
+        run.first.then((ok) => (ok ? "primary" : "primary-failed")),
+        new Promise<"hedge">((resolve) => setTimeout(() => resolve("hedge"), aiTiming.foulHedgeMs)),
+      ]);
+      if (hedge === "primary") return finish(run);
+      if (hedge === "hedge") {
+        const backup = openStream(hedgeTarget, body, waitFor(hedgeTarget));
+        const winner = await Promise.any([
+          run.first.then((ok) => (ok ? run : Promise.reject())),
+          backup.first.then((ok) => (ok ? backup : Promise.reject())),
+        ]).catch(() => null);
+        if (winner) {
+          (winner === run ? backup : run).abort();
+          return finish(winner);
+        }
+        lastStatus = (await backup.done).status || lastStatus;
+        // Both failed: carry on with whatever is left after the backup.
+        const rest = targets.filter((t, j) => j > i && t !== hedgeTarget);
+        targets.splice(i + 1, targets.length, ...rest);
+        continue;
+      }
+    } else if (await run.first) {
+      return finish(run);
+    }
+    const { status } = await run.done;
+    lastStatus = status || lastStatus;
+    console.warn(`AI stream ${target.provider}/${target.model} failed (${status}), falling back`);
+    if (status === 429) {
+      for (let j = i + 1; j < targets.length; j += 1) {
+        if (targets[j].provider === target.provider && targets[j].free) targets.splice(j--, 1);
+      }
+    }
+  }
+  if (lastStatus === 429 || lastStatus === 402)
+    throw new Error("OG Bot is rate-limited, try again soon.");
   throw new Error("All AI providers are busy — try again in a moment.");
 }
 

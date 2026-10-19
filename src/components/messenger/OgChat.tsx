@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
+import { StreamUnavailable, streamOgChat } from "@/lib/og-chat-stream";
 import { getTradeHoldLine } from "@/lib/trade-hold.functions";
 import {
   cleanTradeHistory,
@@ -369,16 +370,26 @@ export function OgChat({
     return () => clearTimeout(t);
   }, [messages, now]);
 
+  // The reply as it's being written (streamed); replaced by the final reply.
+  const [draft, setDraft] = useState("");
   const m = useMutation({
-    mutationFn: async (args: { history: OgChatMessage[]; attachmentDataUrl?: string }) =>
-      chat({
-        data: {
-          messages: args.history,
-          mode,
-          attachmentDataUrl: args.attachmentDataUrl,
-          language,
-        },
-      }),
+    mutationFn: async (args: { history: OgChatMessage[]; attachmentDataUrl?: string }) => {
+      const input = {
+        messages: args.history,
+        mode: mode as "og" | "safe",
+        attachmentDataUrl: args.attachmentDataUrl,
+        language,
+      };
+      setDraft("");
+      try {
+        return await streamOgChat(input, (d) => setDraft((cur) => cur + d));
+      } catch (e) {
+        // No stream (older server, flaky network): fall back to the normal call.
+        if (!(e instanceof StreamUnavailable)) throw e;
+        return chat({ data: input });
+      }
+    },
+    onSettled: () => setDraft(""),
     onSuccess: (res) => {
       setMessages((cur) => {
         const base = (res.reply || "…") + (res.ambush ? `\n\n${DISS_MARKER}` : "");
@@ -883,7 +894,25 @@ export function OgChat({
               </div>
             );
           })}
-          {m.isPending && (
+          {m.isPending && draft && (
+            <div className="flex items-end gap-1.5 sm:gap-2" aria-live="polite">
+              <OgAvatar size={28} className="shrink-0 sm:h-8 sm:w-8" />
+              <Message
+                from="assistant"
+                className="min-w-0 flex-1 max-w-[calc(100%-2rem)] items-start gap-0.5 sm:max-w-[82%] lg:max-w-[74%]"
+              >
+                <span className="inline-flex items-center gap-1 px-1.5 text-[0.7rem] font-bold uppercase text-foreground/70">
+                  OG Bot
+                </span>
+                <MessageContent className="w-full break-words bg-transparent p-0 text-[13px] leading-[1.38] text-foreground shadow-none sm:text-sm">
+                  <MessageResponse className="prose-sm max-w-none prose-p:my-0.5 prose-p:leading-snug prose-ul:my-0.5 prose-ol:my-0.5 prose-headings:my-0.5 prose-code:text-primary">
+                    {draft}
+                  </MessageResponse>
+                </MessageContent>
+              </Message>
+            </div>
+          )}
+          {m.isPending && !draft && (
             <div
               className="flex items-end gap-3"
               role="status"

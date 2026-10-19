@@ -551,7 +551,8 @@ async function runChatAI(
   userText: string,
   roles: string[],
 ) {
-  const { aiChatTarget, fetchAiChat, liveFactsMessage } = await import("@/lib/ai-endpoint.server");
+  const { aiChatTarget, fetchAiChat, liveFactsMessage, streamAiChat } =
+    await import("@/lib/ai-endpoint.server");
   const ai = aiChatTarget(profileId);
   if (!ai) {
     await reply(chat_id, "AI not configured.");
@@ -559,10 +560,7 @@ async function runChatAI(
   }
 
   // Show "typing…" straight away and keep it alive every 4s (Telegram drops
-  // it after ~5s) until the reply is sent. Replies go out as soon as they're
-  // cooked — with a 2s minimum typing beat so it feels human, and no max wait.
-  const MIN_TYPING_MS = 2_000;
-  const typingStartedAt = Date.now();
+  // it after ~5s) until the first words of the reply are on screen.
   void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
   const typingTimer = setInterval(() => {
     void tg("sendChatAction", { chat_id, action: "typing" }).catch(() => {});
@@ -727,27 +725,24 @@ async function runChatAI(
       { role: "user", content: currentUserText },
     ];
     const aiOpts = { foulMouth, smart: true };
-    const { response: res, provider } = await fetchAiChat(
+    // The reply streams in: first words go out straight away and the message
+    // grows as OG Bot writes; it's set to the final text at the end.
+    const { createLiveReply } = await import("@/lib/telegram-live-reply");
+    const live = createLiveReply({
+      send: (text) => tg("sendMessage", { chat_id, text, disable_web_page_preview: true }),
+      edit: (message_id, text) =>
+        tg("editMessageText", { chat_id, message_id, text, disable_web_page_preview: true }),
+      // The holding line (if any) must land before the analysis.
+      beforeFirst: () => holdingSent,
+      onFirst: () => clearInterval(typingTimer),
+    });
+    const { text: streamed } = await streamAiChat(
       { temperature: foulMouth ? 0.9 : 0.75, messages: chatMessages },
       profileId,
       aiOpts,
+      (d) => live.push(d),
     );
-
-    if (!res.ok) {
-      if (res.status === 429) {
-        await reply(chat_id, "⏱️ OG Bot is rate-limited, try again soon.");
-      } else if (res.status === 402) {
-        await reply(chat_id, `💳 AI quota is exhausted (${provider}).`);
-      } else {
-        await reply(chat_id, `OG Bot couldn't respond right now (HTTP ${res.status}).`);
-      }
-      return;
-    }
-
-    const json = (await res.json().catch(() => ({}))) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    let replyText = (json.choices?.[0]?.message?.content ?? "").trim() || "…";
+    let replyText = streamed.trim() || "…";
     // Self-check: replies built on live data must only quote figures from it.
     if (tradeBlock || footballBlock || research) {
       replyText = await checkFigures(
@@ -798,25 +793,22 @@ async function runChatAI(
       content: replyText,
     });
 
-    // Send as soon as it's ready, but keep at least 2s of "typing…" so fast
-    // replies don't feel like canned copy-paste. No upper cap — slow cooks
-    // are fine, the typing heartbeat stays alive.
-    const remainingBeat = MIN_TYPING_MS - (Date.now() - typingStartedAt);
-    if (remainingBeat > 0) {
-      await new Promise((resolve) => setTimeout(resolve, remainingBeat));
-    }
-
-    // The holding line (if any) must land before the analysis.
-    await holdingSent;
-    // Telegram caps messages at ~4096 chars
-    const chunks = replyText.match(/[\s\S]{1,3800}/g) ?? [replyText];
-    for (const c of chunks) {
-      const res = await tg("sendMessage", {
-        chat_id,
-        text: c,
-        disable_web_page_preview: true,
-      });
-      await scheduleDelete(chat_id, res, replyTtlMs);
+    // Show the final text in the live message (and any overflow after it).
+    const sentLive = await live.finish(replyText);
+    for (const res of sentLive) await scheduleDelete(chat_id, res, replyTtlMs);
+    if (!sentLive.length) {
+      // Nothing went out live: send it the normal way.
+      await holdingSent;
+      // Telegram caps messages at ~4096 chars
+      const chunks = replyText.match(/[\s\S]{1,3800}/g) ?? [replyText];
+      for (const c of chunks) {
+        const res = await tg("sendMessage", {
+          chat_id,
+          text: c,
+          disable_web_page_preview: true,
+        });
+        await scheduleDelete(chat_id, res, replyTtlMs);
+      }
     }
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);
