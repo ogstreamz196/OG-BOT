@@ -82,8 +82,9 @@ export const ensureCurrentUserBootstrap = createServerFn({ method: "POST" })
         display_name: displayName || "User",
         coin_balance: 0,
       });
-      if (error) throw error;
-      ensuredProfile = true;
+      // A parallel bootstrap (two tabs, quick reload) may have created it first.
+      if (error && error.code !== "23505") throw error;
+      ensuredProfile = !error;
     }
 
     // Only the trusted, device-aware path can issue the one-time welcome reward.
