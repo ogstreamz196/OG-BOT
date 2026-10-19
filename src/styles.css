@@ -2179,3 +2179,37 @@ html[data-kb="1"] nav.safe-bottom.fixed {
 }
 .og-vip-teaser__btn:hover { filter: brightness(1.06); }
 .og-vip-teaser__btn:focus-visible { outline: 2px solid var(--vt-gold-light); outline-offset: 2px; }
+
+/*
+ * Stacked panels get their own tint and a coloured left stripe so neighbouring
+ * boxes never blur into one block of text (Boss pages, store history, etc.).
+ * Opt in with .og-panel; Boss pages also tint their shadcn cards. Colours are
+ * borders and backgrounds only, never text. Cycle: violet, teal, orange,
+ * green, rose, gold.
+ */
+.og-panel,
+main:has(.boss-ui) [data-slot="card"] {
+  --panel-tint: oklch(0.66 0.19 300);
+  border-color: color-mix(in oklch, var(--panel-tint) 38%, transparent);
+  border-left: 4px solid var(--panel-tint);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--panel-tint) 17%, transparent),
+    transparent 55%
+  );
+}
+:is(.og-panel, main:has(.boss-ui) [data-slot="card"]):nth-child(6n + 2 of .og-panel, [data-slot="card"]) {
+  --panel-tint: oklch(0.74 0.12 185);
+}
+:is(.og-panel, main:has(.boss-ui) [data-slot="card"]):nth-child(6n + 3 of .og-panel, [data-slot="card"]) {
+  --panel-tint: oklch(0.75 0.16 55);
+}
+:is(.og-panel, main:has(.boss-ui) [data-slot="card"]):nth-child(6n + 4 of .og-panel, [data-slot="card"]) {
+  --panel-tint: oklch(0.74 0.15 155);
+}
+:is(.og-panel, main:has(.boss-ui) [data-slot="card"]):nth-child(6n + 5 of .og-panel, [data-slot="card"]) {
+  --panel-tint: oklch(0.68 0.2 12);
+}
+:is(.og-panel, main:has(.boss-ui) [data-slot="card"]):nth-child(6n of .og-panel, [data-slot="card"]) {
+  --panel-tint: oklch(0.82 0.15 85);
+}

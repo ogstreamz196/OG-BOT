@@ -107,7 +107,7 @@ export function BossMergeCard({ userId }: { userId: string }) {
   });
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+    <section className="og-panel rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
       <header className="flex items-start gap-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-muted">
           <Merge className="h-4 w-4" />

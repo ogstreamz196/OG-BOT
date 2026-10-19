@@ -106,7 +106,7 @@ export function VipAcknowledgements() {
   };
 
   return (
-    <section className="mb-5 rounded-xl border border-border bg-card p-3 sm:p-4">
+    <section className="og-panel mb-5 rounded-xl border border-border bg-card p-3 sm:p-4">
       <h2 className="flex items-center gap-2 text-lg">
         <Crown className="h-5 w-5 text-coin" /> Yearly VIPs to acknowledge
         {pending.length > 0 && (

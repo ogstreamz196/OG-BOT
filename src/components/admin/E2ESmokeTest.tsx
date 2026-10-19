@@ -31,7 +31,7 @@ export function E2ESmokeTest() {
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-card/60 p-5 backdrop-blur">
+    <div className="og-panel rounded-xl border border-white/10 bg-card/60 p-5 backdrop-blur">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-bold">End-to-end smoke test</h3>

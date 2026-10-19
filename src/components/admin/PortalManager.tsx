@@ -117,7 +117,7 @@ export function PortalManager() {
   });
 
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card">
+    <div className="og-panel mb-6 rounded-2xl border border-border bg-card p-5 shadow-card">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />

@@ -15,6 +15,7 @@ import {
   CreditCard,
   Landmark,
   Smartphone,
+  ChevronDown,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -73,7 +74,7 @@ function ReceiptLink({ row }: { row: PurchaseRow }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 text-xs font-bold text-primary underline-offset-2 hover:underline"
+        className="inline-flex items-center gap-1 text-xs font-bold text-coin underline-offset-2 hover:underline"
       >
         <Receipt className="h-3 w-3" />
         Certificate &amp; receipt
@@ -470,10 +471,10 @@ function RefundsPanel() {
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : null;
 
   return (
-    <section className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-card">
+    <section className="og-panel mx-auto mt-6 w-full max-w-3xl rounded-2xl border bg-card p-6 shadow-card">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Undo2 className="h-5 w-5 text-primary" />
+          <Undo2 className="h-5 w-5 text-coin" />
           <h3 className="text-lg font-bold">Refund status</h3>
         </div>
         <div className="flex items-center gap-3">
@@ -490,7 +491,7 @@ function RefundsPanel() {
             className={
               "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition " +
               (emailNotify
-                ? "border-primary bg-primary/15 text-primary"
+                ? "border-primary bg-primary/15 text-foreground"
                 : "border-border bg-background text-muted-foreground hover:text-foreground")
             }
           >
@@ -565,7 +566,11 @@ function RefundsPanel() {
   );
 }
 
-export function PurchaseHistory() {
+/**
+ * Card purchases and refunds. With `collapsible` (the Store) it starts as one
+ * short summary line and opens on tap, so the page isn't overwhelming.
+ */
+export function PurchaseHistory({ collapsible = false }: { collapsible?: boolean } = {}) {
   const fetcher = useServerFn(getCoinPurchaseHistory);
   const { isVip } = useRole();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -575,13 +580,61 @@ export function PurchaseHistory() {
   });
 
   const [range, setRange] = useState<RangeKey>("30d");
+  const [open, setOpen] = useState(!collapsible);
+  const purchases = (data ?? []).filter((r) => r.type === "stripe_purchase" && r.amount > 0);
+  const latest = purchases.reduce<string | null>(
+    (acc, r) => (!acc || r.created_at > acc ? r.created_at : acc),
+    null,
+  );
+  const summary = isLoading
+    ? "Loading…"
+    : purchases.length === 0
+      ? "Nothing bought by card yet."
+      : `${purchases.length} card ${purchases.length === 1 ? "purchase" : "purchases"} · last on ${new Date(latest!).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
+
+  if (collapsible && !open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-expanded={false}
+        className="og-panel flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-card transition hover:brightness-110"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-coin">
+          <Receipt className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold">Purchase history &amp; refunds</span>
+          <span className="block truncate text-xs text-muted-foreground">{summary}</span>
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
+          Show <ChevronDown className="h-4 w-4" />
+        </span>
+      </button>
+    );
+  }
 
   return (
     <>
-      <section className="mx-auto mt-10 w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-card">
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-expanded
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-1 text-left text-sm font-bold"
+        >
+          <span>Purchase history &amp; refunds</span>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+            Hide <ChevronDown className="h-4 w-4 rotate-180" />
+          </span>
+        </button>
+      )}
+      <section
+        className={`og-panel mx-auto w-full max-w-3xl rounded-2xl border bg-card p-6 shadow-card ${collapsible ? "mt-3" : "mt-10"}`}
+      >
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-primary" />
+            <Receipt className="h-5 w-5 text-coin" />
             <h3 className="text-lg font-bold">Purchase history</h3>
           </div>
           <button
@@ -604,7 +657,7 @@ export function PurchaseHistory() {
                 className={
                   "rounded-full border px-3 py-1 text-xs font-semibold transition " +
                   (active
-                    ? "border-primary bg-primary/15 text-primary"
+                    ? "border-primary bg-primary/15 text-foreground"
                     : "border-border bg-background text-muted-foreground hover:text-foreground")
                 }
               >

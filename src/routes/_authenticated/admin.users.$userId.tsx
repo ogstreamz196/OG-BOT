@@ -253,7 +253,7 @@ function UserSettingsPage() {
   return (
     <DashboardShell title="User settings">
       <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="og-panel flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-brand">
             <UserCog className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -295,7 +295,7 @@ function UserSettingsPage() {
         </section>
 
         {/* Identity */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+        <section className="og-panel rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
           <header>
             <h3 className="font-semibold">Identity</h3>
             <p className="text-sm text-muted-foreground">Display label shown across the app.</p>
@@ -340,7 +340,7 @@ function UserSettingsPage() {
         {isBoss ? <BossMergeCard userId={userId} /> : null}
 
         {/* Roles & access */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+        <section className="og-panel rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
           <header>
             <h3 className="font-semibold">Roles & access</h3>
             <p className="text-sm text-muted-foreground">
@@ -417,7 +417,7 @@ function UserSettingsPage() {
         </section>
 
         {/* Coins */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+        <section className="og-panel rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
           <header>
             <h3 className="font-semibold">Coin balance</h3>
             <p className="text-sm text-muted-foreground">
@@ -612,7 +612,7 @@ function TelegramDmCard({
   };
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+    <section className="og-panel rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
       <header className="flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
           <MessageCircle className="h-5 w-5" />

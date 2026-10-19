@@ -25,7 +25,7 @@ export function MemberActivityCard({ userId }: { userId: string }) {
   });
 
   return (
-    <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-card">
+    <section className="og-panel space-y-4 rounded-2xl border border-border bg-card p-6 shadow-card">
       <header className="flex items-center gap-2">
         <Activity className="h-4 w-4 text-primary" />
         <div>

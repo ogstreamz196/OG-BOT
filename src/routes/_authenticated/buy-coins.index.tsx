@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { createPortal } from "react-dom";
 import {
+  ChevronDown,
   Coins,
   Check,
   ArrowLeft,
@@ -878,8 +879,14 @@ export function CoinStore({
                 </div>
               )}
 
-              {/* Free vs VIP */}
-              <div className="overflow-hidden rounded-xl border border-border">
+              {/* Free vs VIP: tucked away so the plans stay front and centre */}
+              <details className="group overflow-hidden rounded-xl border border-border">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Crown className="og-st-purple h-4 w-4" /> Everything VIP unlocks
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+                </summary>
                 <div className="grid grid-cols-[minmax(0,1fr)_56px_64px] bg-muted/40 px-3 py-2 text-[0.7rem] font-bold uppercase tracking-wider text-muted-foreground">
                   <span>Feature</span>
                   <span className="text-center">Free</span>
@@ -908,7 +915,7 @@ export function CoinStore({
                     </div>
                   ))}
                 </div>
-              </div>
+              </details>
             </div>
           </div>
         </section>
@@ -930,7 +937,7 @@ export function CoinStore({
           />
           <div className="space-y-4">
             <ReferralReminder className="border-border bg-background/45 shadow-none" />
-            <PurchaseHistory />
+            <PurchaseHistory collapsible />
           </div>
         </section>
       </div>

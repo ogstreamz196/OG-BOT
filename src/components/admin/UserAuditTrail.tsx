@@ -32,7 +32,7 @@ export function UserAuditTrail({ userId, email }: { userId: string; email?: stri
   const latestTx = q.data?.[0];
 
   return (
-    <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-card">
+    <div className="og-panel mt-6 rounded-2xl border border-border bg-card p-5 shadow-card">
       <div className="mb-3 flex items-center gap-2">
         <History className="h-4 w-4 text-primary" />
         <h3 className="font-semibold">Audit trail · {email ?? userId.slice(0, 8)}</h3>

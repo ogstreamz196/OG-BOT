@@ -38,7 +38,7 @@ export function FoulMouthSmokeTest() {
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-card/60 p-5 backdrop-blur">
+    <div className="og-panel rounded-xl border border-white/10 bg-card/60 p-5 backdrop-blur">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-lg font-bold">

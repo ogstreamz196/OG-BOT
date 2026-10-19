@@ -136,7 +136,7 @@ export function PricingControls() {
   return (
     <div className="min-w-0 space-y-5">
       {SECTIONS.map((section) => (
-        <section key={section.title} className="rounded-xl border border-border bg-card/60 p-4">
+        <section key={section.title} className="og-panel rounded-xl border border-border bg-card/60 p-4">
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">
             {section.title}
           </h3>
