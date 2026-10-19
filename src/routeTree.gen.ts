@@ -45,6 +45,7 @@ import { Route as AuthenticatedReferralsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSportsRouteImport } from './routes/_authenticated/sports'
 import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
+import { Route as ApiOgChatRouteImport } from './routes/api/og-chat'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as PortalSlugRouteImport } from './routes/portal.$slug'
 import { Route as RCodeRouteImport } from './routes/r.$code'
@@ -262,6 +263,11 @@ const AuthenticatedStoreRoute = AuthenticatedStoreRouteImport.update({
   id: '/store',
   path: '/store',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiOgChatRoute = ApiOgChatRouteImport.update({
+  id: '/api/og-chat',
+  path: '/api/og-chat',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth_/callback',
@@ -527,6 +533,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
+  '/api/og-chat': typeof ApiOgChatRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
@@ -602,6 +609,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
+  '/api/og-chat': typeof ApiOgChatRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
@@ -680,6 +688,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/sports': typeof AuthenticatedSportsRoute
   '/_authenticated/store': typeof AuthenticatedStoreRoute
+  '/api/og-chat': typeof ApiOgChatRoute
   '/auth_/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
@@ -759,6 +768,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sports'
     | '/store'
+    | '/api/og-chat'
     | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
@@ -834,6 +844,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sports'
     | '/store'
+    | '/api/og-chat'
     | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
@@ -911,6 +922,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/sports'
     | '/_authenticated/store'
+    | '/api/og-chat'
     | '/auth_/callback'
     | '/portal/$slug'
     | '/r/$code'
@@ -978,6 +990,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiOgChatRoute: typeof ApiOgChatRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   PortalSlugRoute: typeof PortalSlugRoute
   RCodeRoute: typeof RCodeRoute
@@ -1236,6 +1249,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/store'
       preLoaderRoute: typeof AuthenticatedStoreRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/og-chat': {
+      id: '/api/og-chat'
+      path: '/api/og-chat'
+      fullPath: '/api/og-chat'
+      preLoaderRoute: typeof ApiOgChatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auth_/callback': {
       id: '/auth_/callback'
@@ -1644,6 +1664,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiOgChatRoute: ApiOgChatRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   PortalSlugRoute: PortalSlugRoute,
   RCodeRoute: RCodeRoute,

@@ -300,46 +300,74 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const useFoul = data.foulMouth !== false;
 
-    // Lookup display name (mask dev identity for consistency w/ messenger)
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("display_name, email")
-      .eq("id", context.userId)
-      .maybeSingle();
+    // Everything the clapback needs loads at once: the poster's name, the
+    // room's recent lines, the slang bank and the poster's battle record.
+    const lex = await import("@/lib/battle-lexicon.server");
+    const [{ data: profile }, { data: recentBefore }, slangBank, { data: mine }, { data: rec }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("profiles")
+          .select("display_name, email")
+          .eq("id", context.userId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("community_messages")
+          .select("role, content, display_name")
+          .order("created_at", { ascending: false })
+          .limit(11),
+        useFoul ? lex.learnedSlangBlock(supabaseAdmin as never) : Promise.resolve(""),
+        supabaseAdmin
+          .from("og_learned_insults")
+          .select("phrase")
+          .eq("user_id", context.userId)
+          .order("uses", { ascending: false })
+          .limit(12),
+        supabaseAdmin
+          .from("battle_tallies")
+          .select("rounds, streak_days, total_awarded_coins")
+          .eq("user_id", context.userId)
+          .maybeSingle(),
+      ]);
     const { maskDevIdentity } = await import("@/lib/dev-identity");
     const masked = maskDevIdentity(profile) ?? profile;
     const displayName =
       masked?.display_name || (masked?.email ? String(masked.email).split("@")[0] : "OG member");
 
-    // 1. Insert the user message
-    const { data: userRow, error: insertErr } = await supabaseAdmin
-      .from("community_messages")
-      .insert({
-        user_id: context.userId,
-        role: "user",
-        content: data.content,
-        display_name: displayName,
-      })
-      .select("id, user_id, role, content, display_name, created_at")
-      .single();
-    if (insertErr) throw new Error(insertErr.message);
+    // 1. Insert the user message (the clapback is written while it saves)
+    const insertUser = Promise.resolve(
+      supabaseAdmin
+        .from("community_messages")
+        .insert({
+          user_id: context.userId,
+          role: "user",
+          content: data.content,
+          display_name: displayName,
+        })
+        .select("id, user_id, role, content, display_name, created_at")
+        .single()
+        .then(({ data: row, error }) => {
+          if (error) throw new Error(error.message);
+          return row;
+        }),
+    );
+    // Handled below; this just stops an early failure being reported twice.
+    insertUser.catch(() => {});
     {
       const { alertBossPresence } = await import("@/lib/presence-alert.server");
       void alertBossPresence(context.userId, "battle");
     }
 
     // 2. Build short context: last ~12 messages including the one just posted
-    const { data: recent } = await supabaseAdmin
-      .from("community_messages")
-      .select("role, content, display_name")
-      .order("created_at", { ascending: false })
-      .limit(12);
-    const history = (recent ?? []).reverse() as {
-      role: "user" | "bot";
-      content: string;
-      display_name: string | null;
-    }[];
+    const history = [
+      ...((recentBefore ?? []).reverse() as {
+        role: "user" | "bot";
+        content: string;
+        display_name: string | null;
+      }[]),
+      { role: "user" as const, content: data.content, display_name: displayName },
+    ];
 
     // 3. Call the AI provider for a short reply (fire-and-forget; if it fails, just no reply)
     const { aiChatTarget, fetchAiChat } = await import("@/lib/ai-endpoint.server");
@@ -355,10 +383,8 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       // Live chat = foul mouth by default for everyone.
       // VIPs still get it (and can toggle off via their preference), but the
       // group room always leans savage unless the client explicitly opts out.
-      const useFoul = data.foulMouth !== false;
-      const lex = await import("@/lib/battle-lexicon.server");
       void lex.learnBattleWords(supabaseAdmin as never, data.content);
-      let slang = useFoul ? await lex.learnedSlangBlock(supabaseAdmin as never) : "";
+      let slang = slangBank;
       // Personal memory: remember this player's own insults + battle record.
       try {
         const { extractInsults } = await import("@/lib/insult-learner.server");
@@ -368,19 +394,6 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             p_phrase: phrase,
           });
         }
-        const [{ data: mine }, { data: rec }] = await Promise.all([
-          supabaseAdmin
-            .from("og_learned_insults")
-            .select("phrase")
-            .eq("user_id", context.userId)
-            .order("uses", { ascending: false })
-            .limit(12),
-          supabaseAdmin
-            .from("battle_tallies")
-            .select("rounds, streak_days, total_awarded_coins")
-            .eq("user_id", context.userId)
-            .maybeSingle(),
-        ]);
         const lines: string[] = [];
         if (rec?.rounds)
           lines.push(
@@ -424,6 +437,8 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
           const reply = (json.choices?.[0]?.message?.content ?? "").trim();
           if (reply) {
             botReply = reply;
+            // The member's line always lands in the room before the clapback.
+            await insertUser;
             await supabaseAdmin.from("community_messages").insert({
               user_id: null,
               role: "bot",
@@ -436,6 +451,8 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
         console.warn("community bot reply failed:", (err as Error).message);
       }
     }
+
+    const userRow = await insertUser;
 
     // 4. Judge the roast and bank the reward (tenths of a coin, max 10 per message)
     let earnedTenths = 0;
