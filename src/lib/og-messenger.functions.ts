@@ -355,7 +355,7 @@ export const chatOgBot = createServerFn({ method: "POST" })
           async (note) => {
             const { response } = await fetchAiChat(
               {
-                temperature: 0.4,
+                temperature,
                 messages: [
                   ...chatMessages,
                   { role: "assistant", content: reply },

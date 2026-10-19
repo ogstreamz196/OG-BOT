@@ -258,7 +258,9 @@ export async function fetchAiChat(
   // Foul Mouth ON only uses free models that passed the live swearing test.
   const free = freeFallbackTargets(!!opts.foulMouth);
   let pro = !opts.cheap && (hasMedia(body) || needsProAnswer(body));
-  if (!pro && opts.smart) {
+  // Foul Mouth keeps its tested routing (the swearing model first) so OG Bot's
+  // voice never softens; smart routing only re-routes clean chat.
+  if (!pro && opts.smart && !opts.foulMouth) {
     const text = lastUserText(body);
     const tier = messageTier(text);
     pro = tier === "complex" || (tier === "unsure" && (await needsThinking(text)));

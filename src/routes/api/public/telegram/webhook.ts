@@ -756,7 +756,7 @@ async function runChatAI(
         async (note) => {
           const { response } = await fetchAiChat(
             {
-              temperature: 0.4,
+              temperature: foulMouth ? 0.9 : 0.75,
               messages: [
                 ...chatMessages,
                 { role: "assistant", content: replyText },

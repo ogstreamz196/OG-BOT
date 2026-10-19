@@ -212,3 +212,34 @@ describe("smart routing", () => {
     expect(hits).toEqual(["groq"]);
   });
 });
+
+describe("OG Bot's voice", () => {
+  it("keeps Foul Mouth on the swearing model, with no extra routing", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        hits.push(
+          body.max_tokens === 3
+            ? "router"
+            : url.includes("openrouter")
+              ? "openrouter"
+              : url.includes("groq")
+                ? "groq"
+                : "gemini",
+        );
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi you melt" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "should I pay off my car loan or save first?" }] },
+      "u",
+      { foulMouth: true, smart: true },
+    );
+    expect(provider).toBe("openrouter");
+    expect(hits).toEqual(["openrouter"]);
+  });
+});
