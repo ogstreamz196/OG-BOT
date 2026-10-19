@@ -789,6 +789,30 @@ export type Database = {
         }
         Relationships: []
       }
+      og_memories: {
+        Row: {
+          created_at: string
+          fact: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fact: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fact?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       og_messages: {
         Row: {
           content: string
@@ -2076,6 +2100,7 @@ export type Database = {
           foul_intensity: number
           foul_mouth: boolean
           messenger_mode: string
+          og_memory: boolean
           text_scale: number
           updated_at: string
           user_id: string
@@ -2086,6 +2111,7 @@ export type Database = {
           foul_intensity?: number
           foul_mouth?: boolean
           messenger_mode?: string
+          og_memory?: boolean
           text_scale?: number
           updated_at?: string
           user_id: string
@@ -2096,6 +2122,7 @@ export type Database = {
           foul_intensity?: number
           foul_mouth?: boolean
           messenger_mode?: string
+          og_memory?: boolean
           text_scale?: number
           updated_at?: string
           user_id?: string
