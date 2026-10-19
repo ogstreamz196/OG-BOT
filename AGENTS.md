@@ -49,6 +49,7 @@ Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it b
 ## Other
 
 - Boss console has six areas (src/components/admin/BossNav.tsx): Dashboard, Members, Music, Money (coins, prices, store, card payments, coin check, referrals), OG Bot (incl. Live users) and System (incl. free access and the Boss actions log). Old Boss URLs redirect to the matching tab; add new tools as a tab, not a new page.
+- Presence alerts (src/lib/presence-alert.server.ts) go to Boss/admin on Telegram only (app opened once a day, Battle Zone once every 30 minutes per member); members never get Battle Zone pings.
 - Sports Guide posts mirror the Telegram group into a table readable only by item owners.
 - /welcome is browser-only; its pendingComponent (src/components/seo/WelcomeSeoFallback.tsx) is crawler copy matching the landing page. Canonicals in src/lib/seo.ts; /sitemap-tracks.xml lists only completed, public, revealed tracks.
 - The landing page's first screen is the master logo (src/assets/og-bot-master-logo.webp, a compressed copy of app-background.png that also serves as the site wallpaper), the headline, and the Battle Zone and Music Hub cards; keep both cards above the fold on phones. Card buttons stretch over the whole card, so they opt out of the global button press scale (active:transform-none) and avoid filter effects, either of which shrinks the tap area to the button.
