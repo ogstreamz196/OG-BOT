@@ -35,6 +35,7 @@ import { VipStatusCard } from "@/components/settings/VipStatusCard";
 import { Paywall } from "@/components/revenuecat/Paywall";
 import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
 import { BossControls } from "@/components/settings/BossControls";
+import { MemoryCard } from "@/components/settings/MemoryCard";
 import { SettingRow, SettingsCard } from "@/components/settings/SettingsCard";
 import { TelegramConnectCard } from "@/components/profile/TelegramConnectCard";
 import { DeleteMyAccount } from "@/components/DeleteMyAccount";
@@ -410,6 +411,7 @@ function SettingsPage() {
         {/* 3. Preferences & coins */}
         <Group title="Preferences & coins">
           <PreferencesPanel />
+          <MemoryCard />
           <SettingsCard
             icon={<Coins className="h-5 w-5 text-coin" />}
             title="Coin activity"

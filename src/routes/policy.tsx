@@ -117,6 +117,13 @@ function PolicyPage() {
               assistant and Battle Zone, and messages you send through the Telegram bot if you
               connect it.
             </p>
+            <p>
+              <strong className="text-foreground">OG Bot&apos;s memory:</strong> short notes OG Bot
+              keeps from your private chats so it remembers you (for example the team you support
+              or your rap name). It never keeps health, religion, sexuality, political views,
+              addresses, contact details or payment details. You can see, delete or switch off
+              these notes any time in Settings, and they are deleted with your account.
+            </p>
           </Section>
 
           <Section icon={Share2} title="3. How we use information &amp; who we share it with">

@@ -134,3 +134,81 @@ describe("when OG Bot searches the web", () => {
       expect(needsLiveResearch(q), q).toBe(false);
   });
 });
+
+describe("smart routing", () => {
+  it("sorts messages into banter, hard, or worth a quick check", async () => {
+    const { messageTier } = await import("./ai-endpoint.server");
+    expect(messageTier("oi you melt")).toBe("banter");
+    expect(messageTier("lol")).toBe("banter");
+    expect(messageTier("explain how compound interest works on a mortgage")).toBe("complex");
+    expect(messageTier("can you help me sort out my CV for a warehouse job?")).toBe("unsure");
+  });
+
+  it("sends a message the router calls THINK to Gemini first", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (url.includes("groq") && body.max_tokens === 3) {
+          hits.push("router");
+          return new Response(JSON.stringify({ choices: [{ message: { content: "THINK" } }] }));
+        }
+        hits.push(url.includes("groq") ? "groq" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "should I pay off my car loan or save first?" }] },
+      "u",
+      { smart: true },
+    );
+    expect(provider).toBe("gemini");
+    expect(hits).toEqual(["router", "gemini"]);
+  });
+
+  it("keeps banter on the free models with no router call, and falls back safely", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (body.max_tokens === 3) {
+          hits.push("router");
+          throw new Error("router down");
+        }
+        hits.push(url.includes("groq") ? "groq" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      }),
+    );
+    await fetchAiChat({ messages: [{ role: "user", content: "oi dickhead" }] }, "u", {
+      smart: true,
+    });
+    expect(hits).toEqual(["groq"]);
+    hits.length = 0;
+    await fetchAiChat(
+      { messages: [{ role: "user", content: "what do you reckon about the new album?" }] },
+      "u",
+      { smart: true },
+    );
+    expect(hits).toEqual(["router", "groq"]);
+  });
+
+  it("never sends background memory jobs to the paid model first", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        hits.push(url.includes("groq") ? "groq" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }));
+      }),
+    );
+    await fetchAiChat({ messages: [{ role: "user", content: "x".repeat(2000) }] }, "memory", {
+      cheap: true,
+    });
+    expect(hits).toEqual(["groq"]);
+  });
+});
