@@ -41,6 +41,7 @@ export function MemoryCard() {
     <SettingsCard
       icon={<Brain className="h-5 w-5" />}
       title="OG Bot's memory"
+      tone="teal"
       hint="Things you've told OG Bot in private chat, so it remembers you on any device."
     >
       <SettingRow

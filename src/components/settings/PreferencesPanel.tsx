@@ -87,8 +87,9 @@ export function PreferencesPanel() {
   return (
     <SettingsCard
       icon={<SlidersHorizontal className="h-5 w-5" />}
-      title="Settings"
-      hint="Changes save as soon as you tap them."
+      title="App preferences"
+      hint="How OG Bot talks and how the app looks. Changes save as soon as you tap them."
+      tone="orange"
     >
       <SettingRow
         label="OG Bot Foul Mouth"

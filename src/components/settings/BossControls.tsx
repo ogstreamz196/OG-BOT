@@ -87,7 +87,7 @@ export function BossControls() {
       icon={<ShieldCheck className="h-5 w-5" />}
       title="Boss controls"
       hint="Only you can see this. Your own coins and roles."
-      className="border-primary/40"
+      tone="violet"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">

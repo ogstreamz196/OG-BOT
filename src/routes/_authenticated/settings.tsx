@@ -17,6 +17,9 @@ import {
   Gift,
   Lock,
   Mail,
+  ShieldCheck,
+  Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -298,11 +301,26 @@ function SettingsPage() {
           </div>
         </section>
 
+        {/* Quick jump to each section */}
+        <nav aria-label="Settings sections" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {SECTIONS.filter((x) => x.id !== "boss" || isAdmin).map((x) => (
+            <a
+              key={x.id}
+              href={`#${x.id}`}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold text-foreground transition hover:brightness-125 ${x.chip}`}
+            >
+              {x.icon}
+              {x.short}
+            </a>
+          ))}
+        </nav>
+
         {/* 1. Profile & identity */}
-        <Group title="Profile & identity">
+        <Group section="profile">
           <SettingsCard
             icon={<UserRound className="h-5 w-5" />}
             title="Your profile"
+            tone="violet"
             hint="How you show up on your tracks and in chat."
           >
             <form
@@ -374,14 +392,19 @@ function SettingsPage() {
         </Group>
 
         {/* 2. Membership & integrations */}
-        <Group title="Membership & integrations">
-          {native ? <Paywall /> : <VipStatusCard />}
+        <Group section="membership">
+          {native ? (
+            <Paywall />
+          ) : (
+            <VipStatusCard className="border-rose-400/40 border-l-4 border-l-rose-400 bg-gradient-to-br from-rose-500/[0.2] via-card to-card" />
+          )}
           {hasVipRole && <VipRequestCard />}
           <TelegramConnectCard />
           {referralLink && (
             <SettingsCard
               icon={<Gift className="h-5 w-5" />}
               title="Invite friends"
+              tone="emerald"
               hint="You earn coins when friends join and spend."
             >
               <div className="flex gap-2">
@@ -409,12 +432,13 @@ function SettingsPage() {
         </Group>
 
         {/* 3. Preferences & coins */}
-        <Group title="Preferences & coins">
+        <Group section="preferences">
           <PreferencesPanel />
           <MemoryCard />
           <SettingsCard
             icon={<Coins className="h-5 w-5 text-coin" />}
             title="Coin activity"
+            tone="gold"
             hint="Where your coins came from and went."
           >
             <div className="grid grid-cols-2 gap-2">
@@ -499,10 +523,11 @@ function SettingsPage() {
         </Group>
 
         {/* 4. Security & danger zone */}
-        <Group title="Security">
+        <Group section="security">
           <SettingsCard
             icon={<Lock className="h-5 w-5" />}
             title="Sign-in & security"
+            tone="slate"
             hint={`You sign in with ${providerLabel}.`}
           >
             <form
@@ -580,18 +605,86 @@ function SettingsPage() {
           <DeleteMyAccount />
         </Group>
 
-        {isAdmin && <BossControls />}
+        {isAdmin && (
+          <Group section="boss">
+            <BossControls />
+          </Group>
+        )}
       </div>
     </DashboardShell>
   );
 }
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
+type SectionId = "profile" | "membership" | "preferences" | "security" | "boss";
+
+/** The page's sections, in order: jump-bar label, heading, plain explanation. */
+const SECTIONS: {
+  id: SectionId;
+  short: string;
+  title: string;
+  about: string;
+  icon: ReactNode;
+  chip: string;
+}[] = [
+  {
+    id: "profile",
+    short: "Profile",
+    title: "Profile & identity",
+    about: "How you show up, plus your VIP ID and Vault login.",
+    icon: <UserRound className="h-3.5 w-3.5" />,
+    chip: "border-violet-400/40 bg-violet-500/15",
+  },
+  {
+    id: "membership",
+    short: "Membership",
+    title: "Membership & integrations",
+    about: "Your VIP plan, Telegram and your invite link.",
+    icon: <Crown className="h-3.5 w-3.5" />,
+    chip: "border-rose-400/40 bg-rose-500/15",
+  },
+  {
+    id: "preferences",
+    short: "Preferences",
+    title: "Preferences & coins",
+    about: "How OG Bot talks, what it remembers, how the app looks, and your coins.",
+    icon: <SlidersHorizontal className="h-3.5 w-3.5" />,
+    chip: "border-orange-400/40 bg-orange-500/15",
+  },
+  {
+    id: "security",
+    short: "Security",
+    title: "Security",
+    about: "Sign-in, recovery email, signing out and deleting your account.",
+    icon: <ShieldCheck className="h-3.5 w-3.5" />,
+    chip: "border-zinc-300/40 bg-zinc-400/15",
+  },
+  {
+    id: "boss",
+    short: "Boss",
+    title: "Boss only",
+    about: "Only you can see this.",
+    icon: <Sparkles className="h-3.5 w-3.5" />,
+    chip: "border-violet-400/40 bg-violet-500/15",
+  },
+];
+
+function Group({ section, children }: { section: SectionId; children: ReactNode }) {
+  const s = SECTIONS.find((x) => x.id === section)!;
   return (
-    <section className="space-y-3">
-      <h2 className="px-1 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
-        {title}
-      </h2>
+    <section id={section} className="scroll-mt-24 space-y-3">
+      <header className="flex items-start gap-2.5 px-1">
+        <span
+          className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg border text-foreground ${s.chip}`}
+        >
+          {s.icon}
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-black uppercase tracking-[0.14em] text-foreground">
+            {s.title}
+          </h2>
+          <p className="text-xs text-muted-foreground">{s.about}</p>
+        </div>
+      </header>
       {children}
     </section>
   );
