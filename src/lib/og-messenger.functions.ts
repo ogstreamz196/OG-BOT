@@ -63,13 +63,8 @@ export const chatOgBot = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }): Promise<ChatReply> => {
-    const {
-      aiChatTarget,
-      fetchAiChat,
-      getLiveResearchContext,
-      liveFactsMessage,
-      needsLiveResearch,
-    } = await import("@/lib/ai-endpoint.server");
+    const { aiChatTarget, fetchAiChat, liveFactsMessage } =
+      await import("@/lib/ai-endpoint.server");
     const { detectTradeIntent } = await import("@/lib/trade-signal");
     const ai = aiChatTarget(context.userId);
     if (!ai) throw new Error("AI not configured");
@@ -95,14 +90,15 @@ export const chatOgBot = createServerFn({ method: "POST" })
           return { block: "", expiresAt: null };
         });
 
-    // Live web facts: start the search now so it runs alongside everything else.
-    const researchPromise: Promise<string | null> =
-      needsLiveResearch(lastUserText) && !detectTradeIntent(lastUserText)
-        ? getLiveResearchContext(lastUserText).catch((e) => {
-            console.warn("Live search failed (soft):", (e as Error).message);
-            return null;
-          })
-        : Promise.resolve(null);
+    // Memory, football data and live web facts: all started now so they load
+    // alongside everything else (see og-smarts.server.ts).
+    const { startGrounding, checkFigures } = await import("@/lib/og-smarts.server");
+    const grounding = startGrounding(
+      supabaseAdmin as never,
+      context.userId,
+      lastUserText,
+      !!detectTradeIntent(lastUserText),
+    );
 
     // 1. Load user context in parallel (profile, role flags, foul pref, persona overrides, learned insults, free-access flag).
     const [profileRes, rolesRes, prefRes, siteRes, learnedRes, freeRes] = await Promise.all([
@@ -247,14 +243,22 @@ export const chatOgBot = createServerFn({ method: "POST" })
       (ambush
         ? `\n\nAMBUSH NOW: End this reply with 1–2 lines asking if they want to hear a diss track made about them from what they've said. Mention it's ${da.DISS_TRACK_COST} coins (they have ${bal}) or ${da.DISS_TRACK_PRICE_GBP}, and that they can keep chatting for now. Buttons appear under your message — don't write links.`
         : "");
+    const { memoryNote } = await import("@/lib/og-memory");
+    const [memories, footballBlock] = await Promise.all([
+      grounding.memories,
+      tradeNote ? Promise.resolve("") : grounding.football,
+    ]);
+    const footballNote = footballBlock ? `\n\n${footballBlock}` : "";
     const system =
       baseSystem +
       intensityNote +
       promoNote +
       sportsNote +
+      memoryNote(memories) +
       cp.catchphraseNote(phrases) +
       dissNote +
-      tradeNote;
+      tradeNote +
+      footballNote;
 
     // 1b. Learn fresh insults from the latest user message (fire-and-forget upsert).
     let newlyLearned: string[] = [];
@@ -292,8 +296,9 @@ export const chatOgBot = createServerFn({ method: "POST" })
     // the user context; trade signals already carry their own live data.
     const outgoing = [...data.messages];
     const last = outgoing[outgoing.length - 1];
+    let research: string | null = null;
     if (last?.role === "user" && !tradeNote) {
-      const research = await researchPromise;
+      research = await grounding.research;
       if (research) {
         outgoing[outgoing.length - 1] = {
           role: "user",
@@ -302,29 +307,29 @@ export const chatOgBot = createServerFn({ method: "POST" })
       }
     }
 
-    // 4. Call Gemini or ChatGPT, with one retryable cross-provider fallback.
+    // 4. Free models for banter, Gemini when the message needs real thinking.
     {
+      const temperature = data.mode === "og" && foulMouth ? 0.9 : data.mode === "og" ? 0.75 : 0.6;
+      const chatMessages = [
+        { role: "system", content: system },
+        ...outgoing.slice(0, -1),
+        // Last user message: if an image attachment was sent, build a
+        // multimodal content array so Gemini can actually see the image.
+        data.attachmentDataUrl && outgoing.at(-1)?.role === "user"
+          ? {
+              role: "user" as const,
+              content: [
+                { type: "text", text: outgoing.at(-1)!.content || "What's in this image?" },
+                { type: "image_url", image_url: { url: data.attachmentDataUrl } },
+              ],
+            }
+          : outgoing.at(-1)!,
+      ];
+      const aiOpts = { foulMouth: data.mode === "og" && !!foulMouth, smart: true };
       const { response: res, provider } = await fetchAiChat(
-        {
-          temperature: data.mode === "og" && foulMouth ? 0.9 : data.mode === "og" ? 0.75 : 0.6,
-          messages: [
-            { role: "system", content: system },
-            ...outgoing.slice(0, -1),
-            // Last user message: if an image attachment was sent, build a
-            // multimodal content array so Gemini can actually see the image.
-            data.attachmentDataUrl && outgoing.at(-1)?.role === "user"
-              ? {
-                  role: "user" as const,
-                  content: [
-                    { type: "text", text: outgoing.at(-1)!.content || "What's in this image?" },
-                    { type: "image_url", image_url: { url: data.attachmentDataUrl } },
-                  ],
-                }
-              : outgoing.at(-1)!,
-          ],
-        },
+        { temperature, messages: chatMessages },
         context.userId,
-        { foulMouth: data.mode === "og" && !!foulMouth },
+        aiOpts,
       );
 
       if (!res.ok) {
@@ -342,6 +347,36 @@ export const chatOgBot = createServerFn({ method: "POST" })
         choices?: { message?: { content?: string } }[];
       };
       let reply = (json.choices?.[0]?.message?.content ?? "").trim() || "…";
+      // Self-check: replies built on live data must only quote figures from it.
+      if (tradeNote || footballNote || research) {
+        reply = await checkFigures(
+          reply,
+          [system, research ?? "", ...data.messages.map((m) => m.content)],
+          async (note) => {
+            const { response } = await fetchAiChat(
+              {
+                temperature,
+                messages: [
+                  ...chatMessages,
+                  { role: "assistant", content: reply },
+                  { role: "user", content: note },
+                ],
+              },
+              context.userId,
+              aiOpts,
+            );
+            if (!response.ok) return null;
+            const j = (await response.json().catch(() => ({}))) as {
+              choices?: { message?: { content?: string } }[];
+            };
+            return (j.choices?.[0]?.message?.content ?? "").trim() || null;
+          },
+        );
+      }
+      // Remember anything lasting the member just told us (never blocks the reply).
+      void import("@/lib/og-memory.server").then((m) =>
+        m.learnFromMessage(supabaseAdmin as never, context.userId, lastUserText, memories),
+      );
       if (data.mode === "og" && foulMouth && (!data.language || /^english$/i.test(data.language))) {
         const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
         reply = ensureFoulFlavour(reply);

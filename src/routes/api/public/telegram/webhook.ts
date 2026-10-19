@@ -551,8 +551,7 @@ async function runChatAI(
   userText: string,
   roles: string[],
 ) {
-  const { aiChatTarget, fetchAiChat, getLiveResearchContext, needsLiveResearch } =
-    await import("@/lib/ai-endpoint.server");
+  const { aiChatTarget, fetchAiChat, liveFactsMessage } = await import("@/lib/ai-endpoint.server");
   const ai = aiChatTarget(profileId);
   if (!ai) {
     await reply(chat_id, "AI not configured.");
@@ -603,6 +602,10 @@ async function runChatAI(
       })().catch((e) => console.warn("[telegram] holding message failed", e));
     }
   }
+  // Memory, football data and live web facts start now, alongside everything else.
+  const { startGrounding, checkFigures } = await import("@/lib/og-smarts.server");
+  const isTrade = !!(await import("@/lib/trade-signal")).detectTradeIntent(userText);
+  const grounding = startGrounding(admin as never, profileId, userText, isTrade);
   const vp = await import("@/lib/vip-promo.server");
   const { loadUserDossier } = await import("@/lib/og-user-dossier.server");
   const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
@@ -672,6 +675,11 @@ async function runChatAI(
 
   const promoNote = promo ? vp.promoPromptNote(promo) : "";
   const sportsNote = sportsBlock ? `${sportsBlock}\n\n` : "";
+  const { memoryNote } = await import("@/lib/og-memory");
+  const [memories, footballBlock] = await Promise.all([
+    grounding.memories,
+    tradeBlock ? Promise.resolve("") : grounding.football,
+  ]);
 
   const system =
     sportsNote +
@@ -690,9 +698,11 @@ async function runChatAI(
       dossier,
     }) +
     catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth))) +
+    memoryNote(memories) +
     (tradeBlock
       ? `\n\n${tradeBlock}\n\nOn Telegram this reply self-destructs at the valid-until time. Say so in a few words on the valid-until line.`
-      : "");
+      : "") +
+    (footballBlock ? `\n\n${footballBlock}` : "");
 
   const history = ((historyRes.data ?? []) as { role: string; content: string }[])
     .reverse()
@@ -709,23 +719,18 @@ async function runChatAI(
 
   try {
     let currentUserText = userText;
-    if (!sportsNote && !tradeBlock && needsLiveResearch(userText)) {
-      const research = await getLiveResearchContext(userText).catch(() => null);
-      if (research) {
-        currentUserText = `CURRENT WEB SOURCES:\n${research}\n\nUSER QUESTION:\n${userText}\n\nCite source URLs for current claims.`;
-      }
-    }
+    const research = !sportsNote && !tradeBlock ? await grounding.research : null;
+    if (research) currentUserText = liveFactsMessage(research, userText);
+    const chatMessages = [
+      { role: "system", content: system },
+      ...history,
+      { role: "user", content: currentUserText },
+    ];
+    const aiOpts = { foulMouth, smart: true };
     const { response: res, provider } = await fetchAiChat(
-      {
-        temperature: foulMouth ? 0.9 : 0.75,
-        messages: [
-          { role: "system", content: system },
-          ...history,
-          { role: "user", content: currentUserText },
-        ],
-      },
+      { temperature: foulMouth ? 0.9 : 0.75, messages: chatMessages },
       profileId,
-      { foulMouth },
+      aiOpts,
     );
 
     if (!res.ok) {
@@ -743,6 +748,36 @@ async function runChatAI(
       choices?: { message?: { content?: string } }[];
     };
     let replyText = (json.choices?.[0]?.message?.content ?? "").trim() || "…";
+    // Self-check: replies built on live data must only quote figures from it.
+    if (tradeBlock || footballBlock || research) {
+      replyText = await checkFigures(
+        replyText,
+        [system, research ?? "", userText, ...history.map((m) => m.content)],
+        async (note) => {
+          const { response } = await fetchAiChat(
+            {
+              temperature: foulMouth ? 0.9 : 0.75,
+              messages: [
+                ...chatMessages,
+                { role: "assistant", content: replyText },
+                { role: "user", content: note },
+              ],
+            },
+            profileId,
+            aiOpts,
+          );
+          if (!response.ok) return null;
+          const j = (await response.json().catch(() => ({}))) as {
+            choices?: { message?: { content?: string } }[];
+          };
+          return (j.choices?.[0]?.message?.content ?? "").trim() || null;
+        },
+      );
+    }
+    // Remember anything lasting the member just told us (never blocks the reply).
+    void import("@/lib/og-memory.server").then((m) =>
+      m.learnFromMessage(admin as never, profileId, userText, memories),
+    );
     if (foulMouth) {
       const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
       replyText = ensureFoulFlavour(replyText);

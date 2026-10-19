@@ -93,6 +93,62 @@ export function needsProAnswer(body: Record<string, unknown>): boolean {
   );
 }
 
+export type MessageTier = "banter" | "complex" | "unsure";
+
+/** Fast first read of the latest message: obvious banter, clearly hard, or unsure. */
+export function messageTier(text: string): MessageTier {
+  const t = text.trim();
+  if (needsProAnswer({ messages: [{ role: "user", content: t }] })) return "complex";
+  if (t.length > 400 || /```|\n.*\n.*\n/.test(t) || (t.match(/\?/g) ?? []).length >= 3)
+    return "complex";
+  const asks =
+    /\?|^(how|why|what|which|should|could|would|can|is|are|do|does|explain|help|tell me)\b/i.test(
+      t,
+    );
+  if (asks && t.length >= 25) return "unsure";
+  return "banter";
+}
+
+const ROUTER_TIMEOUT_MS = 1_500;
+
+/**
+ * For messages that might need real thinking, ask a tiny free model to judge.
+ * Any failure counts as banter, so routing is never worse than before.
+ */
+export async function needsThinking(text: string): Promise<boolean> {
+  const key = process.env.GROQ_API_KEY || process.env.GROQ_BACKUP_API_KEY;
+  if (!key) return false;
+  try {
+    const res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant",
+        temperature: 0,
+        max_tokens: 3,
+        messages: [
+          {
+            role: "user",
+            content: `Route this chat message. Reply with one word only.
+BANTER = chit-chat, jokes, roasts, greetings, opinions, or a simple one-line fact.
+THINK = needs reasoning or care: explanations, advice, maths, planning, comparisons, writing something long, money, health, legal or technical help.
+
+Message: """${text.slice(0, 1200)}"""`,
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(ROUTER_TIMEOUT_MS),
+    });
+    if (!res.ok) return false;
+    const j = (await res.json().catch(() => ({}))) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return /THINK/i.test(j.choices?.[0]?.message?.content ?? "");
+  } catch {
+    return false;
+  }
+}
+
 // OpenAI removed from the system by owner request — Gemini is the only paid tier.
 export function aiChatTargets(_affinity = "default"): AiChatTarget[] {
   const gemini = geminiTarget();
@@ -130,6 +186,23 @@ function freeBody(body: Record<string, unknown>): Record<string, unknown> {
 
 function shouldFallThrough(status: number): boolean {
   return status === 429 || status === 402 || status === 401 || status === 403 || status >= 500;
+}
+
+/** The latest user message as plain text (the wrapped live-facts form keeps the question at the end). */
+function lastUserText(body: Record<string, unknown>): string {
+  const messages = Array.isArray(body.messages) ? (body.messages as Msg[]) : [];
+  const last = [...messages].reverse().find((m) => m.role === "user");
+  if (!last) return "";
+  const text =
+    typeof last.content === "string"
+      ? last.content
+      : Array.isArray(last.content)
+        ? (last.content as { type?: string; text?: string }[])
+            .map((p) => (p.type === "text" ? (p.text ?? "") : ""))
+            .join(" ")
+        : "";
+  const q = text.match(/USER QUESTION:\n([\s\S]*?)\n\n/);
+  return (q?.[1] ?? text).trim();
 }
 
 function hasMedia(body: Record<string, unknown>): boolean {
@@ -172,13 +245,26 @@ export const FOUL_FREE_TIMEOUT_MS = 10_000;
 export async function fetchAiChat(
   body: Record<string, unknown>,
   affinity = "default",
-  opts: { foulMouth?: boolean } = {},
+  opts: {
+    foulMouth?: boolean;
+    /** OG Bot chat: judge how hard the latest message is before picking a model. */
+    smart?: boolean;
+    /** Background jobs (memory notes): free tiers first, whatever the length. */
+    cheap?: boolean;
+  } = {},
 ): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
   // Free AIs answer ordinary chat; paid Gemini goes first only for media or
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
   const free = freeFallbackTargets(!!opts.foulMouth);
-  const pro = hasMedia(body) || needsProAnswer(body);
+  let pro = !opts.cheap && (hasMedia(body) || needsProAnswer(body));
+  // Foul Mouth keeps its tested routing (the swearing model first) so OG Bot's
+  // voice never softens; smart routing only re-routes clean chat.
+  if (!pro && opts.smart && !opts.foulMouth) {
+    const text = lastUserText(body);
+    const tier = messageTier(text);
+    pro = tier === "complex" || (tier === "unsure" && (await needsThinking(text)));
+  }
   const targets = pro
     ? [...aiChatTargets(affinity), ...free]
     : [...free, ...aiChatTargets(affinity)];
