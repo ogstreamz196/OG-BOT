@@ -223,7 +223,7 @@ function AdminUsersPage() {
           </div>
 
           {/* Toolbar */}
-          <div className="space-y-3 rounded-2xl border border-border bg-card p-3">
+          <div className="og-panel space-y-3 rounded-2xl border border-border bg-card p-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full sm:max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -286,7 +286,7 @@ function AdminUsersPage() {
           </div>
 
           {/* List */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+          <div className="og-panel overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             {usersQ.isLoading ? (
               <div className="grid place-items-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -408,7 +408,7 @@ function AdminUsersPage() {
           </div>
 
           {/* Bulk tools (collapsible, kept out of the way under the list) */}
-          <div className="rounded-2xl border border-border bg-card">
+          <div className="og-panel rounded-2xl border border-border bg-card">
             <button
               type="button"
               onClick={() => setShowBulk((s) => !s)}

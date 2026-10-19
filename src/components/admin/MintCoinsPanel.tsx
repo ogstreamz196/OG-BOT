@@ -167,7 +167,7 @@ export function MintCoinsPanel() {
   );
 
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card">
+    <div className="og-panel mb-6 rounded-2xl border border-border bg-card p-5 shadow-card">
       <div className="mb-3 flex items-center gap-2">
         <Coins className="h-4 w-4 text-coin" />
         <h3 className="font-semibold">Award &amp; Mint coins</h3>

@@ -119,7 +119,7 @@ export function ReferralsAuditPage() {
   return (
     <DashboardShell title="Referral audit">
       <div className="space-y-6">
-        <section className="rounded-2xl border border-white/10 bg-card/60 p-4">
+        <section className="og-panel rounded-2xl border border-white/10 bg-card/60 p-4">
           <form
             className="flex flex-col gap-2 sm:flex-row"
             onSubmit={(e) => {
@@ -154,7 +154,7 @@ export function ReferralsAuditPage() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-card/60">
+        <section className="og-panel rounded-2xl border border-white/10 bg-card/60">
           <div className="flex items-center justify-between border-b border-white/5 p-4">
             <h2 className="font-display text-lg font-bold">Users · referral codes & bindings</h2>
             <span className="text-xs text-muted-foreground">{users.length} shown</span>
@@ -243,7 +243,7 @@ export function ReferralsAuditPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-card/60">
+        <section className="og-panel rounded-2xl border border-white/10 bg-card/60">
           <div className="flex items-center justify-between border-b border-white/5 p-4">
             <h2 className="font-display text-lg font-bold">
               Top OG Leaders · total payouts (6% free · 13% VIP)
@@ -290,7 +290,7 @@ export function ReferralsAuditPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-card/60">
+        <section className="og-panel rounded-2xl border border-white/10 bg-card/60">
           <div className="flex items-center justify-between border-b border-white/5 p-4">
             <h2 className="font-display text-lg font-bold">Recent referral cashback ledger</h2>
             <span className="text-xs text-muted-foreground">Last 100</span>
@@ -332,7 +332,7 @@ export function ReferralsAuditPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-card/60">
+        <section className="og-panel rounded-2xl border border-white/10 bg-card/60">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 p-4">
             <div className="flex items-center gap-2">
               <Scale className="h-4 w-4 text-primary" />

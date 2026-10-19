@@ -45,7 +45,7 @@ export function TelegramSmokeTest() {
   return (
     <section
       aria-label="Telegram webhook smoke test"
-      className="rounded-2xl border-2 border-border/40 bg-card/60 p-4 backdrop-blur-md"
+      className="og-panel rounded-2xl border-2 border-border/40 bg-card/60 p-4 backdrop-blur-md"
     >
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">

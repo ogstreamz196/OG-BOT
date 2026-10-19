@@ -69,7 +69,7 @@ export function TransferReadiness() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border bg-card p-4">
+      <section className="og-panel rounded-2xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-black">Transfer readiness</h2>
@@ -101,7 +101,7 @@ export function TransferReadiness() {
         ))}
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-4">
+      <section className="og-panel rounded-2xl border border-border bg-card p-4">
         <h2 className="font-display text-lg font-black">
           Move checklist ({ticked}/{CHECKLIST.length})
         </h2>

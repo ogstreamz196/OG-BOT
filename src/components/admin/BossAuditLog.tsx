@@ -62,7 +62,7 @@ export function BossAuditLog() {
   }, [qc]);
 
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card">
+    <div className="og-panel mb-6 rounded-2xl border border-border bg-card p-5 shadow-card">
       <div className="mb-4 flex items-center gap-2">
         <ScrollText className="h-4 w-4 text-primary" />
         <h3 className="font-semibold">Boss audit log</h3>

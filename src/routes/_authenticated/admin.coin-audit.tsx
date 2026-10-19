@@ -90,7 +90,7 @@ export function CoinAuditPage() {
   return (
     <DashboardShell title="Coin Balance Audit">
       <div className="w-full min-w-0 space-y-6">
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+        <div className="og-panel rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="mb-4 flex items-center gap-2">
             <Scale className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-bold">Balances against the ledger</h2>
@@ -129,7 +129,7 @@ export function CoinAuditPage() {
         </div>
 
         {rows && (
-          <div className="rounded-2xl border border-border bg-card shadow-card">
+          <div className="og-panel rounded-2xl border border-border bg-card shadow-card">
             <div className="flex items-center gap-2 border-b border-border px-6 py-4">
               {rows.length === 0 ? (
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />

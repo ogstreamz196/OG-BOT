@@ -37,7 +37,7 @@ const CAPABILITIES = [
 
 export function HardwiredCapabilities() {
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-card/70 shadow-card">
+    <div className="og-panel mb-6 rounded-2xl border border-border bg-card/70 shadow-card">
       <Accordion type="single" collapsible>
         <AccordionItem value="caps" className="border-none">
           <AccordionTrigger className="px-5 py-4 hover:no-underline">
