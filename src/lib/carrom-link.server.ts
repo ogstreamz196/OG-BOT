@@ -29,7 +29,16 @@ async function hmac(data: string): Promise<string> {
   return b64url(new Uint8Array(sig));
 }
 
-export type CarromPass = { userId: string; name: string };
+/**
+ * `challenge` is set only for the OG CARROM phone app: the hash of a secret
+ * the app keeps to itself, so a pass caught on its way back to the app is
+ * useless to anyone else.
+ */
+export type CarromPass = { userId: string; name: string; challenge?: string };
+
+/** A base64url SHA-256 hash, as the app sends it. */
+export const isChallenge = (c: unknown): c is string =>
+  typeof c === "string" && /^[A-Za-z0-9_-]{43}$/.test(c);
 
 export async function signCarromPass(pass: CarromPass, now = Date.now()): Promise<string> {
   const payload = b64url(
@@ -38,6 +47,7 @@ export async function signCarromPass(pass: CarromPass, now = Date.now()): Promis
         u: pass.userId,
         n: pass.name.slice(0, 60),
         e: Math.floor(now / 1000) + TTL_SECONDS,
+        ...(pass.challenge ? { c: pass.challenge } : {}),
       }),
     ),
   );
@@ -63,10 +73,15 @@ export async function verifyCarromPass(
       u?: unknown;
       n?: unknown;
       e?: unknown;
+      c?: unknown;
     };
     if (typeof p.u !== "string" || typeof p.e !== "number") return null;
     if (p.e * 1000 < now) return null;
-    return { userId: p.u, name: typeof p.n === "string" ? p.n : "" };
+    return {
+      userId: p.u,
+      name: typeof p.n === "string" ? p.n : "",
+      ...(isChallenge(p.c) ? { challenge: p.c } : {}),
+    };
   } catch {
     return null;
   }

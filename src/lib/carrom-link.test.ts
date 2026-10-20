@@ -42,4 +42,12 @@ describe("OG Carrom pass", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "a-different-key";
     expect(await verifyCarromPass(token)).toBeNull();
   });
+
+  it("carries the phone app's challenge, and only a well-formed one", async () => {
+    const challenge = "A".repeat(42) + "_";
+    const token = await signCarromPass({ userId: uid, name: "Imran", challenge });
+    expect(await verifyCarromPass(token)).toEqual({ userId: uid, name: "Imran", challenge });
+    const bad = await signCarromPass({ userId: uid, name: "Imran", challenge: "short" });
+    expect(await verifyCarromPass(bad)).toEqual({ userId: uid, name: "Imran" });
+  });
 });
