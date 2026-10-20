@@ -29,19 +29,26 @@ export const getCarromLink = createServerFn({ method: "POST" })
   });
 
 /**
- * "Sign in with OG BOT" from the OG CARROM phone app: a pass locked to the
- * app's challenge, handed back to the app through its ogcarrom:// link.
+ * "Sign in with OG BOT" from OG CARROM: a pass locked to the device's
+ * challenge, handed back to the carrom website (#og-signin=) or the app
+ * (its ogcarrom:// link).
  */
 export const getCarromAppLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw: unknown) => {
     const challenge = (raw as { challenge?: unknown } | null)?.challenge;
     if (!/^[A-Za-z0-9_-]{43}$/.test(String(challenge ?? ""))) throw new Error("Invalid request");
-    return { challenge: challenge as string };
+    // From the carrom website the player goes back there; from the app, into the app.
+    const web = (raw as { to?: unknown }).to === "web";
+    return { challenge: challenge as string, web };
   })
   .handler(async ({ data, context }): Promise<{ url: string }> => {
     const claims = context.claims as { is_anonymous?: boolean } | undefined;
     if (claims?.is_anonymous) throw new Error("Sign in to OG BOT first");
     const token = await passFor(context.userId, data.challenge);
-    return { url: `${CARROM_APP_LINK}?og=${encodeURIComponent(token)}` };
+    return {
+      url: data.web
+        ? `${CARROM_URL}#og-signin=${encodeURIComponent(token)}`
+        : `${CARROM_APP_LINK}?og=${encodeURIComponent(token)}`,
+    };
   });

@@ -8,14 +8,16 @@ import { getCarromAppLink } from "@/lib/carrom-link.functions";
 import ogCarromArt from "@/assets/og-carrom.webp";
 
 /**
- * "Sign in with OG BOT" from the OG CARROM phone app lands here in the
- * phone's browser. After the member taps Allow, the app opens again with a
- * pass that only that app can use (`c` is its challenge).
+ * "Sign in with OG BOT" from OG CARROM lands here (from the app, in the
+ * phone's browser). After the member taps Allow, they go back to carrom with
+ * a pass only that device can use (`c` is its challenge): into the app, or to
+ * the carrom website when `to=web`.
  */
 export const Route = createFileRoute("/carrom-connect")({
   ssr: false,
   validateSearch: (s: Record<string, unknown>) => ({
     c: typeof s.c === "string" && /^[A-Za-z0-9_-]{43}$/.test(s.c) ? s.c : "",
+    to: s.to === "web" ? ("web" as const) : undefined,
   }),
   beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getSession();
@@ -34,7 +36,7 @@ export const Route = createFileRoute("/carrom-connect")({
 const FRESH_MS = 3 * 60_000;
 
 function CarromConnect() {
-  const { c } = Route.useSearch();
+  const { c, to } = Route.useSearch();
   const linkFn = useServerFn(getCarromAppLink);
   const [link, setLink] = useState<{ url: string; at: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +46,12 @@ function CarromConnect() {
     if (!c) return;
     setError(null);
     try {
-      const { url } = await linkFn({ data: { challenge: c } });
+      const { url } = await linkFn({ data: { challenge: c, to } });
       setLink({ url, at: Date.now() });
     } catch {
       setError("Couldn't get that ready. Check your connection and try again.");
     }
-  }, [c, linkFn]);
+  }, [c, to, linkFn]);
 
   useEffect(() => {
     void load();
@@ -66,8 +68,8 @@ function CarromConnect() {
     return (
       <Shell title="Open this from OG CARROM">
         <p className="text-muted-foreground">
-          This page connects the OG CARROM app to your OG BOT account. Open the app, go to your
-          profile and tap "Sign in with OG BOT".
+          This page connects OG CARROM to your OG BOT account. Open OG CARROM (the app or
+          carrom.ogbot.co.uk) and tap "Sign in with OG BOT".
         </p>
         <Button asChild variant="outline" className="w-full">
           <Link to="/">Go to OG BOT</Link>
