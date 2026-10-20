@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Music2,
@@ -53,7 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
-import { OG_CARROM_SOON } from "@/components/welcome/og-carrom";
+import { openCarrom, watchCarromCard } from "@/components/welcome/og-carrom";
 import ogCarromArt from "@/assets/og-carrom.webp";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
@@ -361,17 +360,18 @@ function DashboardHome() {
             />
             <ModeCard
               compact
+              onShown={watchCarromCard}
               tone="gold"
               className="og-rise"
               style={{ animationDelay: "0.3s" }}
               image={ogCarromArt}
               imageAlt="OG Carrom badge"
-              eyebrow="Coming soon"
+              eyebrow="New game"
               badge="New"
               title="OG Carrom"
-              description="Strike. Pocket. Win. Carrom the OG way."
-              cta="Coming soon"
-              onClick={() => toast(OG_CARROM_SOON)}
+              description="Strike. Pocket. Win. Online, vs the computer or with mates."
+              cta="Play OG Carrom"
+              onClick={openCarrom}
             />
           </div>
         </div>

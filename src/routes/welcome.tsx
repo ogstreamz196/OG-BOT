@@ -28,7 +28,7 @@ import createTrackArt from "@/assets/og-bot-create-track.webp";
 import masterLogo from "@/assets/og-bot-master-logo.webp";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
-import { OG_CARROM_SOON } from "@/components/welcome/og-carrom";
+import { openCarrom, watchCarromCard } from "@/components/welcome/og-carrom";
 import ogCarromArt from "@/assets/og-carrom.webp";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { SHARE_IMAGE } from "@/lib/seo";
@@ -1025,25 +1025,23 @@ function Hero() {
             onClick={openSportsGuide}
           />
           <ModeCard
+            onShown={watchCarromCard}
             tone="gold"
             className="og-rise"
             style={{ animationDelay: "0.3s" }}
             image={ogCarromArt}
             imageAlt="OG Carrom badge"
-            eyebrow="Coming soon"
+            eyebrow="New game"
             title="OG Carrom"
-            description="Strike. Pocket. Win. Carrom the OG way."
-            cta="Coming soon"
-            onClick={carromSoon}
+            description="Strike. Pocket. Win. Online, vs the computer or with mates."
+            cta="Play OG Carrom"
+            onClick={openCarrom}
           />
         </div>
       </div>
     </section>
   );
 }
-
-/** OG Carrom isn't open yet; the card says so when tapped. */
-const carromSoon = () => toast(OG_CARROM_SOON);
 
 const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 

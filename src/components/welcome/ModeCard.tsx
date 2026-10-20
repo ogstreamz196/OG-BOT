@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,10 @@ export function ModeCard({
   style,
   compact = false,
   badge,
+  onShown,
 }: {
+  /** Called with the card's element once it's on the page; return a clean-up. */
+  onShown?: (el: HTMLElement) => () => void;
   /** Shorter artwork and tighter text, for the members' first screen. */
   compact?: boolean;
   /** Small chip over the artwork, e.g. "Free entry". */
@@ -69,8 +73,11 @@ export function ModeCard({
   style?: React.CSSProperties;
 }) {
   const t = TONES[tone];
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => (onShown && ref.current ? onShown(ref.current) : undefined), [onShown]);
   return (
     <article
+      ref={ref}
       style={style}
       className={cn(
         "group relative flex h-full min-w-0 flex-col overflow-hidden lg:flex-row rounded-2xl border border-white/12 bg-card/90 text-left shadow-card backdrop-blur-xl transition duration-300 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-background motion-safe:hover:-translate-y-1 sm:rounded-3xl",

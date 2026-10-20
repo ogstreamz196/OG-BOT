@@ -51,7 +51,7 @@ export function WelcomeSeoFallback() {
           <p className="text-muted-foreground">Daily fixtures, fight cards and TV listings.</p>
           <h3 className="mt-3 font-semibold">OG Carrom</h3>
           <p className="text-muted-foreground">
-            Strike. Pocket. Win. Carrom the OG way. Coming soon.
+            Strike. Pocket. Win. Online, vs the computer or with mates.
           </p>
         </section>
 
