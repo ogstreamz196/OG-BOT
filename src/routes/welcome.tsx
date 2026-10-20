@@ -28,7 +28,9 @@ import createTrackArt from "@/assets/og-bot-create-track.webp";
 import masterLogo from "@/assets/og-bot-master-logo.webp";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
-import { SectionHeading, SportsGuideFeature } from "@/components/welcome/SportsGuideFeature";
+import { OG_CARROM_SOON } from "@/components/welcome/og-carrom";
+import ogCarromArt from "@/assets/og-carrom.webp";
+import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { SHARE_IMAGE } from "@/lib/seo";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
@@ -815,7 +817,6 @@ function WelcomePage() {
         <WelcomeBackdrop />
         <TopNav />
         <Hero />
-        <MoreFromOgBot />
         <Superpowers />
         <CommunityShowcase />
         <ClosingCta />
@@ -1011,23 +1012,38 @@ function Hero() {
             cta="Create a Track"
             onClick={openWizard}
           />
+          <ModeCard
+            tone="silver"
+            className="og-rise"
+            style={{ animationDelay: "0.2s" }}
+            image={sportsGuideArt}
+            imageAlt="OG Bot Sports Guide badge"
+            eyebrow="Members only"
+            title="Sports Guide"
+            description="Daily fixtures, fight cards and TV listings."
+            cta="Open Sports Guide"
+            onClick={openSportsGuide}
+          />
+          <ModeCard
+            tone="gold"
+            className="og-rise"
+            style={{ animationDelay: "0.3s" }}
+            image={ogCarromArt}
+            imageAlt="OG Carrom badge"
+            eyebrow="Coming soon"
+            title="OG Carrom"
+            description="Strike. Pocket. Win. Carrom the OG way."
+            cta="Coming soon"
+            onClick={carromSoon}
+          />
         </div>
       </div>
     </section>
   );
 }
 
-/** Supporting features under the two main modes. */
-function MoreFromOgBot() {
-  return (
-    <section aria-labelledby="more-title" className="relative border-t border-border/40">
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-8 sm:py-16">
-        <SectionHeading id="more-title" eyebrow="More from OG Bot" title="Never miss a game" />
-        <SportsGuideFeature onOpen={openSportsGuide} />
-      </div>
-    </section>
-  );
-}
+/** OG Carrom isn't open yet; the card says so when tapped. */
+const carromSoon = () => toast(OG_CARROM_SOON);
 
 const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 

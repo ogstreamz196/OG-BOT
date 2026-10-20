@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tone = "blue" | "crimson";
+type Tone = "blue" | "crimson" | "silver" | "gold";
 
 const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: string }> = {
   blue: {
@@ -16,10 +16,23 @@ const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: st
     cta: "bg-destructive text-destructive-foreground shadow-glow-danger",
     glow: "from-destructive/35",
   },
+  silver: {
+    ring: "hover:border-accent/70 focus-within:ring-accent",
+    eyebrow: "text-foreground/80",
+    cta: "bg-accent text-accent-foreground",
+    glow: "from-accent/30",
+  },
+  gold: {
+    ring: "hover:border-amber-300/70 focus-within:ring-amber-300",
+    eyebrow: "text-amber-300",
+    cta: "bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 text-black shadow-[0_0_16px_rgba(251,191,36,0.45)]",
+    glow: "from-amber-500/30",
+  },
 };
 
 /**
- * One of the two main modes on the landing page. Both cards share the same
+ * One of the modes on the landing page and members' home (Battle Zone, Music
+ * Hub, Sports Guide, OG Carrom). Both cards share the same
  * square artwork, spacing and button placement; the button's stretched hit
  * area makes the whole card one tap target.
  */
