@@ -1,7 +1,8 @@
+import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tone = "blue" | "crimson";
+type Tone = "blue" | "crimson" | "silver" | "gold";
 
 const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: string }> = {
   blue: {
@@ -16,10 +17,23 @@ const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: st
     cta: "bg-destructive text-destructive-foreground shadow-glow-danger",
     glow: "from-destructive/35",
   },
+  silver: {
+    ring: "hover:border-accent/70 focus-within:ring-accent",
+    eyebrow: "text-foreground/80",
+    cta: "bg-accent text-accent-foreground",
+    glow: "from-accent/30",
+  },
+  gold: {
+    ring: "hover:border-amber-300/70 focus-within:ring-amber-300",
+    eyebrow: "text-amber-300",
+    cta: "bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 text-black shadow-[0_0_16px_rgba(251,191,36,0.45)]",
+    glow: "from-amber-500/30",
+  },
 };
 
 /**
- * One of the two main modes on the landing page. Both cards share the same
+ * One of the modes on the landing page and members' home (Battle Zone, Music
+ * Hub, Sports Guide, OG Carrom). Both cards share the same
  * square artwork, spacing and button placement; the button's stretched hit
  * area makes the whole card one tap target.
  */
@@ -37,7 +51,10 @@ export function ModeCard({
   style,
   compact = false,
   badge,
+  onShown,
 }: {
+  /** Called with the card's element once it's on the page; return a clean-up. */
+  onShown?: (el: HTMLElement) => () => void;
   /** Shorter artwork and tighter text, for the members' first screen. */
   compact?: boolean;
   /** Small chip over the artwork, e.g. "Free entry". */
@@ -56,8 +73,11 @@ export function ModeCard({
   style?: React.CSSProperties;
 }) {
   const t = TONES[tone];
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => (onShown && ref.current ? onShown(ref.current) : undefined), [onShown]);
   return (
     <article
+      ref={ref}
       style={style}
       className={cn(
         "group relative flex h-full min-w-0 flex-col overflow-hidden lg:flex-row rounded-2xl border border-white/12 bg-card/90 text-left shadow-card backdrop-blur-xl transition duration-300 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-background motion-safe:hover:-translate-y-1 sm:rounded-3xl",

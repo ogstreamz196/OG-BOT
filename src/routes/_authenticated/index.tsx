@@ -52,7 +52,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
-import { SectionHeading, SportsGuideFeature } from "@/components/welcome/SportsGuideFeature";
+import { openCarrom, watchCarromCard } from "@/components/welcome/og-carrom";
+import ogCarromArt from "@/assets/og-carrom.webp";
+import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { VipYearlyTeaser } from "@/components/home/VipYearlyTeaser";
 import { useQuery } from "@tanstack/react-query";
@@ -342,6 +344,35 @@ function DashboardHome() {
               cta="Create a Track"
               onClick={() => navigate({ to: "/library" })}
             />
+            <ModeCard
+              compact
+              tone="silver"
+              className="og-rise"
+              style={{ animationDelay: "0.2s" }}
+              image={sportsGuideArt}
+              imageAlt="OG Bot Sports Guide badge"
+              eyebrow="Members"
+              badge="Daily"
+              title="Sports Guide"
+              description="Daily fixtures, fight cards and TV listings."
+              cta="Open Sports Guide"
+              onClick={() => navigate({ to: "/sports" })}
+            />
+            <ModeCard
+              compact
+              onShown={watchCarromCard}
+              tone="gold"
+              className="og-rise"
+              style={{ animationDelay: "0.3s" }}
+              image={ogCarromArt}
+              imageAlt="OG Carrom badge"
+              eyebrow="New game"
+              badge="New"
+              title="OG Carrom"
+              description="Strike. Pocket. Win. Online, vs the computer or with mates."
+              cta="Play OG Carrom"
+              onClick={openCarrom}
+            />
           </div>
         </div>
 
@@ -433,11 +464,6 @@ function DashboardHome() {
               tone="emerald"
             />
           </div>
-        </section>
-
-        <section aria-labelledby="more-title">
-          <SectionHeading id="more-title" eyebrow="More from OG Bot" title="Never miss a game" />
-          <SportsGuideFeature tag="Members" onOpen={() => navigate({ to: "/sports" })} />
         </section>
 
         <OgPowers

@@ -47,13 +47,11 @@ export function WelcomeSeoFallback() {
           <p className="text-muted-foreground">Roast OG Bot. Bank coins for every hit.</p>
           <h3 className="mt-3 font-semibold">Music Hub</h3>
           <p className="text-muted-foreground">Your idea. Real vocals. Cover art. Done.</p>
-        </section>
-
-        <section className="mt-8">
-          <h2 className="text-xl font-bold">More from OG Bot: never miss a game</h2>
           <h3 className="mt-3 font-semibold">Sports Guide</h3>
+          <p className="text-muted-foreground">Daily fixtures, fight cards and TV listings.</p>
+          <h3 className="mt-3 font-semibold">OG Carrom</h3>
           <p className="text-muted-foreground">
-            Daily fixtures, fight cards and TV listings. Search any team in seconds.
+            Strike. Pocket. Win. Online, vs the computer or with mates.
           </p>
         </section>
 
