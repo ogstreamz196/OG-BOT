@@ -79,6 +79,7 @@ import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/n
 import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
+import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -460,6 +461,11 @@ const AuthenticatedAdminUsersUserIdRoute =
     path: '/$userId',
     getParentRoute: () => AuthenticatedAdminUsersRoute,
   } as any)
+const ApiPublicCarromVerifyRoute = ApiPublicCarromVerifyRouteImport.update({
+  id: '/api/public/carrom/verify',
+  path: '/api/public/carrom/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -568,6 +574,7 @@ export interface FileRoutesByFullPath {
   '/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/library/': typeof AuthenticatedLibraryIndexLazyRoute
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -645,6 +652,7 @@ export interface FileRoutesByTo {
   '/buy-coins': typeof AuthenticatedBuyCoinsIndexRoute
   '/library': typeof AuthenticatedLibraryIndexLazyRoute
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -724,6 +732,7 @@ export interface FileRoutesById {
   '/_authenticated/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/_authenticated/library/': typeof AuthenticatedLibraryIndexLazyRoute
   '/_authenticated/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -803,6 +812,7 @@ export interface FileRouteTypes {
     | '/buy-coins/'
     | '/library/'
     | '/admin/users/$userId'
+    | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
     | '/lovable/email/auth/preview'
@@ -880,6 +890,7 @@ export interface FileRouteTypes {
     | '/buy-coins'
     | '/library'
     | '/admin/users/$userId'
+    | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
     | '/lovable/email/auth/preview'
@@ -958,6 +969,7 @@ export interface FileRouteTypes {
     | '/_authenticated/buy-coins/'
     | '/_authenticated/library/'
     | '/_authenticated/admin/users/$userId'
+    | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
     | '/lovable/email/auth/preview'
@@ -1001,6 +1013,7 @@ export interface RootRouteChildren {
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
+  ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -1495,6 +1508,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersUserIdRouteImport
       parentRoute: typeof AuthenticatedAdminUsersRoute
     }
+    '/api/public/carrom/verify': {
+      id: '/api/public/carrom/verify'
+      path: '/api/public/carrom/verify'
+      fullPath: '/api/public/carrom/verify'
+      preLoaderRoute: typeof ApiPublicCarromVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -1675,6 +1695,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
+  ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

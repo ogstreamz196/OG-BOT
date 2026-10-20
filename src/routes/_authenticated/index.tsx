@@ -52,7 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
-import { openCarrom, watchCarromCard } from "@/components/welcome/og-carrom";
+import { useCarromLink } from "@/hooks/use-carrom-link";
 import ogCarromArt from "@/assets/og-carrom.webp";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
@@ -131,6 +131,7 @@ function DashboardHome() {
   const { data: profile } = useProfile();
   const { isVip, hasVipRole, isTrial } = useRole();
   const navigate = useNavigate();
+  const carrom = useCarromLink();
   const { data: recentSongs = [], isLoading: recentLoading } = useRecentSongs(user?.id);
 
   const displayName =
@@ -360,7 +361,7 @@ function DashboardHome() {
             />
             <ModeCard
               compact
-              onShown={watchCarromCard}
+              onShown={carrom.onShown}
               tone="gold"
               className="og-rise"
               style={{ animationDelay: "0.3s" }}
@@ -371,7 +372,7 @@ function DashboardHome() {
               title="OG Carrom"
               description="Strike. Pocket. Win. Online, vs the computer or with mates."
               cta="Play OG Carrom"
-              onClick={openCarrom}
+              onClick={() => void carrom.open()}
             />
           </div>
         </div>
