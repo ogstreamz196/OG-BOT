@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 
 // carrom.ogbot.co.uk asks here whether an OG Carrom pass is genuine (only
 // this server can check its signature). Answers with the account id and
-// display name, nothing else.
+// display name (plus the app's challenge, for passes made for the OG CARROM
+// phone app), nothing else.
 export const Route = createFileRoute("/api/public/carrom/verify")({
   server: {
     handlers: {
@@ -12,7 +13,12 @@ export const Route = createFileRoute("/api/public/carrom/verify")({
         const { verifyCarromPass } = await import("@/lib/carrom-link.server");
         const pass = token ? await verifyCarromPass(token) : null;
         if (!pass) return Response.json({ ok: false }, { status: 401 });
-        return Response.json({ ok: true, userId: pass.userId, name: pass.name });
+        return Response.json({
+          ok: true,
+          userId: pass.userId,
+          name: pass.name,
+          ...(pass.challenge ? { challenge: pass.challenge } : {}),
+        });
       },
     },
   },

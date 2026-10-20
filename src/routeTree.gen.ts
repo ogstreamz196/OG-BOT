@@ -14,6 +14,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AppReturnRouteImport } from './routes/app-return'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CarromConnectRouteImport } from './routes/carrom-connect'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as HomeRouteImport } from './routes/home'
@@ -104,6 +105,11 @@ const AppReturnRoute = AppReturnRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarromConnectRoute = CarromConnectRouteImport.update({
+  id: '/carrom-connect',
+  path: '/carrom-connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -509,6 +515,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/carrom-connect': typeof CarromConnectRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -586,6 +593,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/carrom-connect': typeof CarromConnectRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -666,6 +674,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/carrom-connect': typeof CarromConnectRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -747,6 +756,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app-return'
     | '/auth'
+    | '/carrom-connect'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -824,6 +834,7 @@ export interface FileRouteTypes {
   to:
     | '/app-return'
     | '/auth'
+    | '/carrom-connect'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -903,6 +914,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/app-return'
     | '/auth'
+    | '/carrom-connect'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -983,6 +995,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppReturnRoute: typeof AppReturnRoute
   AuthRoute: typeof AuthRoute
+  CarromConnectRoute: typeof CarromConnectRoute
   DashboardRoute: typeof DashboardRoute
   DeleteAccountRoute: typeof DeleteAccountRoute
   HomeRoute: typeof HomeRoute
@@ -1044,6 +1057,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carrom-connect': {
+      id: '/carrom-connect'
+      path: '/carrom-connect'
+      fullPath: '/carrom-connect'
+      preLoaderRoute: typeof CarromConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1664,6 +1684,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppReturnRoute: AppReturnRoute,
   AuthRoute: AuthRoute,
+  CarromConnectRoute: CarromConnectRoute,
   DashboardRoute: DashboardRoute,
   DeleteAccountRoute: DeleteAccountRoute,
   HomeRoute: HomeRoute,
