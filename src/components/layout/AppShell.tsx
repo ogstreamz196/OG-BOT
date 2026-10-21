@@ -35,7 +35,7 @@ import { GlobalMiniPlayer } from "@/components/GlobalMiniPlayer";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
 
 import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
-import ogBotLogo from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 function BrandLockup({ compact = false }: { compact?: boolean }) {
   return (
@@ -52,7 +52,7 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
         Powered by
       </span>
       <img
-        src={ogBotLogo.url}
+        src={ogBotLogo.small}
         alt="OG Bot"
         className={`${compact ? "h-6 w-6" : "h-7 w-7"} rounded-full object-cover ring-1 ring-primary/40`}
       />

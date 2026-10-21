@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 import { DODGE_QUERIES, shouldDodgeCursor } from "./dodgy-logo-detect";
 
 type Props = {
@@ -120,7 +120,7 @@ export function DodgyLogo({
         style={{ width: "100%", height: "100%", transition: isFine ? undefined : "transform 0.3s" }}
       >
         <img
-          src={src ?? ogBotAsset.url}
+          src={src ?? ogBotLogo.large}
           alt={alt}
           width={512}
           height={512}

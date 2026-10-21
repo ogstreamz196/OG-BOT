@@ -35,17 +35,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
-import musicHubHero from "@/assets/musichub-hero.jpg";
-import battleZoneArt from "@/assets/og-bot-battle-zone.webp";
-import createTrackArt from "@/assets/og-bot-create-track.webp";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
 import { useRecentSongs, type RecentSong } from "@/hooks/use-recent-songs";
-import welcomeLogo from "@/assets/og-streamz-presentz-ogbot.png.asset.json";
+// 160px WebP of og-streamz-presentz-ogbot.png (2.3MB original), shown at 44–64px.
+import { modeArt } from "@/assets/mode-art";
+import welcomeLogo from "@/assets/og-streamz-presentz-160.webp";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,8 +51,6 @@ import { cn } from "@/lib/utils";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
 import { useCarromLink } from "@/hooks/use-carrom-link";
-import ogCarromArt from "@/assets/og-carrom.webp";
-import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { VipYearlyTeaser } from "@/components/home/VipYearlyTeaser";
 import { useQuery } from "@tanstack/react-query";
@@ -200,7 +196,7 @@ function DashboardHome() {
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-background/60 p-2.5 backdrop-blur-md sm:p-3.5">
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
             <img
-              src={welcomeLogo.url}
+              src={welcomeLogo}
               alt="OG Streamz Presentz OG Bot"
               width={300}
               height={300}
@@ -313,7 +309,7 @@ function DashboardHome() {
               compact
               tone="crimson"
               className="og-rise"
-              image={battleZoneArt}
+              image={modeArt.battleZone}
               imageAlt="OG Bot Battle Zone badge"
               eyebrow="Live now"
               live
@@ -332,7 +328,7 @@ function DashboardHome() {
               tone="blue"
               className="og-rise"
               style={{ animationDelay: "0.1s" }}
-              image={createTrackArt}
+              image={modeArt.createTrack}
               imageAlt="OG Bot Make a Track badge"
               eyebrow="AI studio"
               badge="Instant"
@@ -350,7 +346,7 @@ function DashboardHome() {
               tone="silver"
               className="og-rise"
               style={{ animationDelay: "0.2s" }}
-              image={sportsGuideArt}
+              image={modeArt.sportsGuide}
               imageAlt="OG Bot Sports Guide badge"
               eyebrow="Members"
               badge="Daily"
@@ -365,7 +361,7 @@ function DashboardHome() {
               tone="gold"
               className="og-rise"
               style={{ animationDelay: "0.3s" }}
-              image={ogCarromArt}
+              image={modeArt.carrom}
               imageAlt="OG Carrom badge"
               eyebrow="New game"
               badge="New"

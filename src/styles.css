@@ -587,6 +587,11 @@
     background-position: center;
     background-repeat: no-repeat;
   }
+  /* Phones get a 900px copy (about a third of the bytes); it covers the
+     screen behind the smoky tint just as well. */
+  @media (max-width: 767px) {
+    body::before { background-image: url("./assets/og-bot-master-logo-900.webp"); }
+  }
   /* Smoky tint for legibility over the wallpaper */
   /* Smoky tint + carbon-fibre micro-weave for legibility + premium texture */
   /* Red-aura intensity multiplier — controlled via <html data-aura="..."> */

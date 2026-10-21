@@ -1,3 +1,4 @@
+import type { ModeArt } from "@/assets/mode-art";
 import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ export function ModeCard({
   badge?: string;
   /** Show a pulsing "live" dot before the eyebrow. */
   live?: boolean;
-  image: string;
+  image: string | ModeArt;
   imageAlt: string;
   eyebrow: string;
   title: string;
@@ -97,7 +98,10 @@ export function ModeCard({
           </span>
         ) : null}
         <img
-          src={image}
+          src={typeof image === "string" ? image : image.src}
+          srcSet={typeof image === "string" ? undefined : image.srcSet}
+          // Two columns on phones, a fixed 160px tile on large screens.
+          sizes="(min-width: 1024px) 160px, (min-width: 640px) 33vw, 50vw"
           alt={imageAlt}
           width={960}
           height={960}
