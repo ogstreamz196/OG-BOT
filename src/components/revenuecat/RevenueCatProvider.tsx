@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import type { CustomerInfo, Offerings, Package } from "@revenuecat/purchases-js";
 import {
   configureRevenueCat,
@@ -16,6 +17,8 @@ interface RevenueCatContextType {
   loading: boolean;
   purchasePackage: (pkg: Package) => Promise<boolean>;
   refreshInfo: () => Promise<void>;
+  /** Load and configure the SDK (done on first use, see useRevenueCat). */
+  activate: () => void;
 }
 
 const RevenueCatContext = createContext<RevenueCatContextType | undefined>(undefined);
@@ -32,9 +35,13 @@ export function RevenueCatProvider({
   const [offerings, setOfferings] = useState<Offerings | null>(null);
   const [isVip, setIsVip] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Nothing is downloaded until a purchase screen asks for it.
+  const [wanted, setWanted] = useState(false);
+  const activate = useCallback(() => setWanted(true), []);
 
   useEffect(() => {
-    // Configure RC when the component mounts or userId changes
+    // Configure RC on first use, and again if the signed-in user changes.
+    if (!wanted) return;
     let cancelled = false;
     (async () => {
       await configureRevenueCat(userId);
@@ -45,7 +52,7 @@ export function RevenueCatProvider({
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [wanted, userId]);
 
   const refreshInfo = async () => {
     setLoading(true);
@@ -84,21 +91,20 @@ export function RevenueCatProvider({
     }
   };
 
-  return (
-    <RevenueCatContext.Provider
-      value={{
-        isConfigured,
-        isVip,
-        customerInfo,
-        offerings,
-        loading,
-        purchasePackage,
-        refreshInfo,
-      }}
-    >
-      {children}
-    </RevenueCatContext.Provider>
+  const value = useMemo(
+    () => ({
+      isConfigured,
+      isVip,
+      customerInfo,
+      offerings,
+      loading,
+      purchasePackage,
+      refreshInfo,
+      activate,
+    }),
+    [isConfigured, isVip, customerInfo, offerings, loading, activate],
   );
+  return <RevenueCatContext.Provider value={value}>{children}</RevenueCatContext.Provider>;
 }
 
 // Safe default while the provider is still loading (server render / before hydration).
@@ -110,8 +116,19 @@ const LOADING_CONTEXT: RevenueCatContextType = {
   loading: true,
   purchasePackage: async () => false,
   refreshInfo: async () => {},
+  activate: () => {},
 };
 
-export function useRevenueCat() {
-  return useContext(RevenueCatContext) ?? LOADING_CONTEXT;
+/**
+ * RevenueCat for in-app purchases in the phone apps. On the website coins
+ * and VIP are sold through Stripe, so the SDK (~950KB) is never loaded
+ * there. `enabled` lets a closed sheet wait until it opens.
+ */
+export function useRevenueCat(enabled = true) {
+  const ctx = useContext(RevenueCatContext);
+  const activate = ctx?.activate;
+  useEffect(() => {
+    if (enabled && activate && Capacitor.isNativePlatform()) activate();
+  }, [enabled, activate]);
+  return ctx ?? LOADING_CONTEXT;
 }
