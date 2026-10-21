@@ -59,7 +59,7 @@ import {
 } from "@/lib/track-title.functions";
 
 /** Song designed on the welcome page before sign-up, picked up after login. */
-export const GUEST_PENDING_SONG_KEY = "ogbot.guestPendingSong.v1";
+export { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
 
 export type WizardResult = {
   title: string;
