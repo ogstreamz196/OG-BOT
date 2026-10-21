@@ -12,10 +12,13 @@ import { RoyaltyCelebration } from "@/components/celebration/RoyaltyCelebration"
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
+    // The saved session (no network call): this runs on every navigation and
+    // link hover. Every server function still verifies the token itself.
+    const { data, error } = await supabase.auth.getSession();
+    const user = data.session?.user;
     // Guest (anonymous) sessions stay on the landing page's guest studio.
-    if (error || !data.user || data.user.is_anonymous) throw redirect({ to: "/welcome" });
-    return { user: data.user };
+    if (error || !user || user.is_anonymous) throw redirect({ to: "/welcome" });
+    return { user };
   },
   component: function AuthedLayout() {
     const { user } = Route.useRouteContext();

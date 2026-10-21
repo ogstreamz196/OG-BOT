@@ -292,8 +292,17 @@ function RootComponent() {
     bootstrap();
     // Also run right after an in-page sign-in / sign-up (no reload happens),
     // so welcome coins and pending referrals are claimed immediately.
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") setTimeout(() => void bootstrap(), 0);
+    // Supabase also sends SIGNED_IN every time the tab comes back into view;
+    // only a different account counts.
+    let lastUid: string | null | undefined;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (lastUid === undefined) lastUid = data.session?.user.id ?? null;
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const uid = session?.user.id ?? null;
+      const changed = uid !== lastUid;
+      lastUid = uid;
+      if (event === "SIGNED_IN" && changed) setTimeout(() => void bootstrap(), 0);
     });
     return () => {
       active = false;
@@ -302,7 +311,18 @@ function RootComponent() {
   }, [bootstrapUser, queryClient, router]);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    // Refresh everything only when the account really changed (sign in, sign
+    // out, switch, profile update), not on the SIGNED_IN that Supabase sends
+    // each time the tab is shown again.
+    let lastUid: string | null | undefined;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (lastUid === undefined) lastUid = data.session?.user.id ?? null;
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const uid = session?.user.id ?? null;
+      const changed = uid !== lastUid;
+      lastUid = uid;
+      if (event === "SIGNED_IN" && !changed) return;
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
