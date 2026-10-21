@@ -1,6 +1,7 @@
 // The OG Bot private chat itself: builds the prompt, calls the AI and
 // post-processes the reply. Used by chatOgBot and the streaming route
 // (/api/og/chat). Server only.
+import { cached } from "@/lib/server-cache";
 import type { ChatReply, OgChatInput } from "@/lib/og-chat-input";
 import type { UserContextSummary } from "@/lib/og-persona-public";
 
@@ -75,20 +76,31 @@ export async function runOgChat(
       .select("foul_mouth, foul_intensity")
       .eq("user_id", context.userId)
       .maybeSingle(),
-    supabaseAdmin
-      .from("site_content")
-      .select("key, value")
-      .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
+    // Persona text and the free-access flag change rarely: cached briefly.
+    cached(
+      "og-persona-content",
+      60_000,
+      async () =>
+        await supabaseAdmin
+          .from("site_content")
+          .select("key, value")
+          .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
+    ),
     supabaseAdmin
       .from("og_learned_insults")
       .select("phrase, uses")
       .eq("user_id", context.userId)
       .order("last_seen_at", { ascending: false })
       .limit(40),
-    supabaseAdmin
-      .from("app_settings")
-      .select("key, value")
-      .in("key", ["free_access_all", "free_access_expires_at"]),
+    cached(
+      "free-access-settings",
+      30_000,
+      async () =>
+        await supabaseAdmin
+          .from("app_settings")
+          .select("key, value")
+          .in("key", ["free_access_all", "free_access_expires_at"]),
+    ),
   ]);
 
   if (profileRes.error) throw new Error(profileRes.error.message);
