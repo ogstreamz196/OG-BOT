@@ -168,11 +168,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           rel: "preload",
           as: "style",
-          href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Unbounded:wght@400;500;600;700;800&family=Luckiest+Guy&family=Cabin+Sketch:wght@400;700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Luckiest+Guy&family=Inter:wght@400..800&display=swap",
         },
         {
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Unbounded:wght@400;500;600;700;800&family=Luckiest+Guy&family=Cabin+Sketch:wght@400;700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Archivo+Black&family=Barlow:wght@400;500;600;700&family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Bitcount+Grid+Double:wght@400;700;900&family=Bowlby+One&family=Bungee&family=Lilita+One&family=Luckiest+Guy&family=Inter:wght@400..800&display=swap",
         },
 
         // Preload the most critical glyph subsets (Latin woff2) so the display
@@ -183,27 +183,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           as: "font",
           type: "font/woff2",
           href: "https://fonts.gstatic.com/s/lilitaone/v17/i7dPIFZ9Zz-WBtRtedDbYEF8RXi4EwQ.woff2",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "preload",
-          as: "font",
-          type: "font/woff2",
-          href: "https://fonts.gstatic.com/s/luckiestguy/v25/_gP_1RrxsjcxVyin9l9n_j2hTd52ijl7aQ.woff2",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "preload",
-          as: "font",
-          type: "font/woff2",
-          href: "https://fonts.gstatic.com/s/cabinsketch/v23/QGYpz_kZZAGCONcK2A4bGOj8mNhNy_r-Kw.woff2",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "preload",
-          as: "font",
-          type: "font/woff2",
-          href: "https://fonts.gstatic.com/s/bitcountgriddouble/v3/WBK7rFjbakJVFOargiWSKQysDITG_S0VtG0x3HD2FYHVdlZI-rLlahmEAPp8wjYMvkPq48MVQo5RQf2svjnxa5Anx8-Y-pHdkVb0ByRHaxzbXaLbA9wfZNtjSZYdig.woff2",
           crossOrigin: "anonymous",
         },
       ],
