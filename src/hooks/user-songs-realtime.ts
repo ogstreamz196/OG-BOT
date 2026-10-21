@@ -24,3 +24,23 @@ export function useUserSongsRealtime(
     listener,
   );
 }
+
+/**
+ * Updates to one song row (the song page, its workspace, lyrics progress
+ * and the lyric video all watch the same row). One shared channel.
+ */
+export function useSongRealtime(
+  songId: string | null | undefined,
+  listener: (change: SongChange) => void,
+): void {
+  useSharedChannel<SongChange>(
+    songId ? `song:${songId}` : null,
+    (ch, emit) =>
+      ch.on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${songId}` },
+        emit,
+      ),
+    listener,
+  );
+}

@@ -1,3 +1,4 @@
+import { useSongRealtime } from "@/hooks/user-songs-realtime";
 import { useServerFn } from "@tanstack/react-start";
 import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -358,9 +359,9 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
     setCooking(true);
   }
 
-  // Realtime + polling fallback: while the song is generating, listen for the row
-  // flipping to completed/failed and ask the parent to refetch so the UI moves
-  // from "Sample" → "Full ready" automatically.
+  // While the song is generating, the song page's realtime channel and poll
+  // refetch the row; when the status here flips to completed/failed, say so
+  // and refresh the coin balance.
   const lastStatus = useRef(song.status);
   useEffect(() => {
     if (!isPending) {
@@ -375,28 +376,12 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
     }
     lastStatus.current = song.status;
 
-    const channel = supabase
-      .channel(`song-${song.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${song.id}` },
-        (payload) => {
-          const next = (payload.new as { status?: string })?.status;
-          if (next && next !== lastStatus.current) onSaved?.();
-        },
-      )
-      .subscribe();
-
-    // Tight 2s polling fallback in case Realtime drops a message.
-    const poll = setInterval(() => onSaved?.(), 2000);
-    // Refresh the coin balance every 5s while a job is in flight — belt & braces
-    // for the realtime profile subscription, so users see refunds/deductions
-    // land even if the socket blips.
-    const coinPoll = setInterval(refreshCoinBalance, 5000);
+    // Refresh the coin balance every 15s while a job is in flight — belt &
+    // braces for the realtime profile subscription, so users see
+    // refunds/deductions land even if the socket blips.
+    const coinPoll = setInterval(refreshCoinBalance, 15_000);
 
     return () => {
-      supabase.removeChannel(channel);
-      clearInterval(poll);
       clearInterval(coinPoll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1407,29 +1392,15 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
   }, []);
 
   // Realtime: snap to actual backend progress on every songs row update.
-  useEffect(() => {
-    if (!songId) return;
-    const channel = supabase
-      .channel(`lyrics-progress:${songId}:${Math.random().toString(36).slice(2, 8)}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${songId}` },
-        (payload) => {
-          const row = payload.new as {
-            lyrics_progress?: number | null;
-            lyrics_stage?: string | null;
-          };
-          if (typeof row.lyrics_progress === "number")
-            setProgress((p) => Math.max(p, row.lyrics_progress!));
-          if (typeof row.lyrics_stage === "string" && row.lyrics_stage)
-            setStageLabel(row.lyrics_stage);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
+  useSongRealtime(songId, (payload) => {
+    const row = payload.new as {
+      lyrics_progress?: number | null;
+      lyrics_stage?: string | null;
     };
-  }, [songId]);
+    if (typeof row.lyrics_progress === "number")
+      setProgress((p) => Math.max(p, row.lyrics_progress!));
+    if (typeof row.lyrics_stage === "string" && row.lyrics_stage) setStageLabel(row.lyrics_stage);
+  });
 
   // ETA = linear extrapolation from elapsed wall-clock against real progress.
   const elapsedS = (Date.now() - startedAt.current) / 1000;

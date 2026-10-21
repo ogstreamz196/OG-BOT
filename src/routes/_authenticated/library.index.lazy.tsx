@@ -156,6 +156,19 @@ export const Route = createLazyFileRoute("/_authenticated/library/")({
 });
 
 /** Playlist context wraps the page so rows and the media bar share one queue. */
+
+/**
+ * The freshly polled newest page first, then the rest of the catalogue
+ * without repeats (offset paging shifts as songs are added, and the newest
+ * copy of a row wins).
+ */
+function mergeCommunityPages(head: Song[] | undefined, pages: Song[][] | undefined): Song[] {
+  const all = pages?.flat() ?? [];
+  if (!head?.length) return all;
+  const seen = new Set(head.map((s) => s.id));
+  return [...head, ...all.filter((s) => !seen.has(s.id))];
+}
+
 function LibraryRoute() {
   return (
     <PlaylistProvider>
@@ -689,7 +702,9 @@ function LibraryPage() {
   useEffect(() => {
     if (pipeline.stage === "idle" || pipeline.stage === "error") return;
     setPipelineNow(Date.now());
-    const id = window.setInterval(() => setPipelineNow(Date.now()), 250);
+    // The countdown and percentage only show whole seconds, so tick once a
+    // second (this re-renders the whole page).
+    const id = window.setInterval(() => setPipelineNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [pipeline.stage, pipeline.stageStartedAt]);
 
@@ -796,7 +811,7 @@ function LibraryPage() {
     // so prepay_track/the card unlock cover it and start_generation_charge
     // never charges a sample fee for it.
 
-    let songTitle = (override?.title ?? title).trim();
+    const songTitle = (override?.title ?? title).trim();
     const songSubject = (override?.subjectName ?? subjectName).trim();
     const songStyle = (override?.style ?? styleText).trim();
     const songLanguage = (override?.language ?? selections.language ?? "English").trim();
@@ -848,7 +863,7 @@ function LibraryPage() {
 
     // Stage the job in the database before any provider call so a failure
     // anywhere below always leaves a traceable record.
-    let attemptStage = "lyrics";
+    const attemptStage = "lyrics";
     let attemptSongId: string | null = null;
     let savedDraft: WizardDraft | null = null;
     try {
@@ -1096,7 +1111,8 @@ function LibraryPage() {
     const id = peekFullTrackPlay();
     if (!id || !playlist) return;
     const row = (library.data ?? []).find((s) => s.id === id) as
-      (Song & { unlocked?: boolean | null }) | undefined;
+      | (Song & { unlocked?: boolean | null })
+      | undefined;
     if (!row || !row.unlocked) {
       const t = window.setTimeout(() => void library.refetch(), 1500);
       return () => window.clearTimeout(t);
@@ -1187,53 +1203,66 @@ function LibraryPage() {
   }, [activeJobs]);
 
   const COMMUNITY_PAGE_SIZE = 50;
+  const fetchCommunityPage = async (page: number): Promise<Song[]> => {
+    const offset = page * COMMUNITY_PAGE_SIZE;
+    // Uses a SECURITY DEFINER RPC that returns only safe public fields
+    // (no prompts, lyrics, or generation metadata).
+    const { data, error } = await supabase.rpc("list_community_songs", {
+      p_offset: offset,
+      p_limit: COMMUNITY_PAGE_SIZE,
+    });
+    if (error) throw error;
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const ids = rows.map((s) => String(s.id));
+    const unlockedIds = new Set<string>();
+    if (ids.length > 0) {
+      const { data: unlocks, error: unlockError } = await supabase
+        .from("unlocked_songs")
+        .select("song_id")
+        .in("song_id", ids);
+      if (unlockError) throw unlockError;
+      for (const unlock of unlocks ?? []) unlockedIds.add(unlock.song_id);
+    }
+    // Merge the listener's unlock ledger into the safe public track fields.
+    // artistUnlocked mirrors the creator's unlock: once the artist unlocks a
+    // track, everyone can listen free — only download/share still costs coins.
+    return rows.map((s) => ({
+      prompt: "",
+      ...s,
+      artistUnlocked: !!s.unlocked,
+      // Your own Community tracks follow your own unlock state.
+      unlocked: unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
+    })) as unknown as Song[];
+  };
+  // The whole catalogue, page by page (the player queues all of it). It
+  // refreshes when the app comes back into view; refetching an infinite
+  // query reloads every page, so it is not polled.
   const community = useInfiniteQuery({
     queryKey: ["library-community", user?.id],
     enabled: !!user,
     initialPageParam: 0,
-    queryFn: async ({ pageParam }): Promise<Song[]> => {
-      const offset = (pageParam as number) * COMMUNITY_PAGE_SIZE;
-      // Uses a SECURITY DEFINER RPC that returns only safe public fields
-      // (no prompts, lyrics, or generation metadata).
-      const { data, error } = await supabase.rpc("list_community_songs", {
-        p_offset: offset,
-        p_limit: COMMUNITY_PAGE_SIZE,
-      });
-      if (error) throw error;
-      const rows = (data ?? []) as Record<string, unknown>[];
-      const ids = rows.map((s) => String(s.id));
-      const unlockedIds = new Set<string>();
-      if (ids.length > 0) {
-        const { data: unlocks, error: unlockError } = await supabase
-          .from("unlocked_songs")
-          .select("song_id")
-          .in("song_id", ids);
-        if (unlockError) throw unlockError;
-        for (const unlock of unlocks ?? []) unlockedIds.add(unlock.song_id);
-      }
-      // Merge the listener's unlock ledger into the safe public track fields.
-      // artistUnlocked mirrors the creator's unlock: once the artist unlocks a
-      // track, everyone can listen free — only download/share still costs coins.
-      return rows.map((s) => ({
-        prompt: "",
-        ...s,
-        artistUnlocked: !!s.unlocked,
-        // Your own Community tracks follow your own unlock state.
-        unlocked: unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
-      })) as unknown as Song[];
-    },
+    queryFn: ({ pageParam }) => fetchCommunityPage(pageParam as number),
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length < COMMUNITY_PAGE_SIZE ? undefined : allPages.length,
-    // Keep the global feed in sync for every user on web, Android and iOS:
-    // other users' songs can't stream via realtime (private rows), so poll
-    // and refresh whenever the app/tab comes back into view.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+  // Keep the global feed in sync for every user on web, Android and iOS:
+  // other users' songs can't stream via realtime (private rows), so poll just
+  // the newest page and show it ahead of the rest.
+  const communityHead = useQuery({
+    queryKey: ["library-community-head", user?.id],
+    enabled: !!user && !!community.data,
+    queryFn: () => fetchCommunityPage(0),
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchOnMount: "always",
   });
-  const communityTracks = useMemo(() => community.data?.pages.flat() ?? [], [community.data]);
+  const communityTracks = useMemo(
+    () => mergeCommunityPages(communityHead.data, community.data?.pages),
+    [communityHead.data, community.data],
+  );
   const communityStyles = useMemo(
     () =>
       POOLS.genre.filter((genre) =>
@@ -1266,6 +1295,7 @@ function LibraryPage() {
    * the indicator the instant the backend marks it completed or failed.
    * Falls back to a slow poll in case a realtime event is missed.
    * ------------------------------------------------------------------ */
+  const settleTrackedRef = useRef<((row: Song) => void) | null>(null);
   useEffect(() => {
     if (!trackedSongId) return;
     let cancelled = false;
@@ -1322,16 +1352,12 @@ function LibraryPage() {
       }
     };
 
-    const ch = supabase
-      .channel(`song-status-${trackedSongId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${trackedSongId}` },
-        (payload) => settle(payload.new as Song),
-      )
-      .subscribe();
+    // Realtime arrives through the member's shared songs channel (below).
+    settleTrackedRef.current = settle;
 
     const poll = window.setInterval(async () => {
+      // A hidden tab catches up through realtime or the next visible tick.
+      if (document.visibilityState === "hidden") return;
       const { data } = await supabase
         .from("songs")
         .select("*")
@@ -1343,10 +1369,16 @@ function LibraryPage() {
     return () => {
       cancelled = true;
       window.clearInterval(poll);
-      supabase.removeChannel(ch);
+      if (settleTrackedRef.current === settle) settleTrackedRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedSongId]);
+  useUserSongsRealtime(user?.id, (change) => {
+    const row = change.new as Song | undefined;
+    if (change.eventType === "UPDATE" && row?.id && row.id === trackedSongId) {
+      settleTrackedRef.current?.(row);
+    }
+  });
 
   // Detect songs that just finished (pending → completed) and surface the
   // "Track completed" toast + the inline finished-track card.

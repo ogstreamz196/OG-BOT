@@ -1,3 +1,4 @@
+import { useSongRealtime } from "@/hooks/user-songs-realtime";
 import { useServerFn } from "@tanstack/react-start";
 import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -69,35 +70,23 @@ function SongDetailPage() {
       if (error) throw error;
       return (data ?? null) as FullSong | null;
     },
-    // While the song is still queued/generating (draft/pending/processing),
-    // poll every 3s as a safety net in case realtime drops an UPDATE.
+    // Realtime (below) moves the page along; while the song is still
+    // queued/generating, a 5s poll is the safety net in case an UPDATE is
+    // missed. Paused while the tab is hidden; it catches up on return.
     refetchInterval: (q) => {
       const s = q.state.data as FullSong | null | undefined;
-      if (!s) return 3000;
+      if (!s) return 5000;
       return s.status === "draft" || s.status === "pending" || s.status === "processing"
-        ? 3000
+        ? 5000
         : false;
     },
-    refetchIntervalInBackground: true,
   });
 
   // Shared with SongWorkspace: true while an edit is re-cooking this track.
   const [cookingEdit] = useSessionRunState<boolean>(`edit-cook:${songId}`, false, true);
 
-  // Realtime subscription scoped to this single row.
-  useEffect(() => {
-    const channel = supabase
-      .channel(`song-detail:${songId}:${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${songId}` },
-        () => qc.invalidateQueries({ queryKey: ["song", songId] }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [songId, qc]);
+  // Realtime for this single row (shared with the workspace's panels).
+  useSongRealtime(songId, () => void qc.invalidateQueries({ queryKey: ["song", songId] }));
 
   return (
     <DashboardShell title="Song workspace">
