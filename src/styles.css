@@ -12,7 +12,8 @@
 @theme inline {
   /* Robust fallback stacks — if the webfont fails, UI still reads cleanly.
      Order: requested face → similar webfont siblings → system equivalents → generic. */
-  --font-sans: "Unbounded", "Cabin Sketch", "Inter", "Segoe UI", Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  /* Inter for all reading text: clear at small sizes, on TVs and car screens. */
+  --font-sans: "Inter", "Segoe UI", Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Lilita One", "Unbounded", "Arial Black", "Impact", "Helvetica Neue", ui-rounded, system-ui, sans-serif;
   --font-graffiti: "Luckiest Guy", "Lilita One", "Bangers", "Arial Black", "Impact", system-ui, sans-serif;
   --font-sketch: "Cabin Sketch", "Comic Sans MS", "Marker Felt", "Lilita One", cursive, system-ui, sans-serif;
@@ -215,6 +216,20 @@
     overflow-x: clip;
     overscroll-behavior-x: none;
   }
+  /* TVs and big monitors: text grows with the screen so it reads from the sofa. */
+  @media (min-width: 1600px) {
+    :root { font-size: calc(clamp(17px, 0.5vw + 9px, 22px) * var(--text-scale, 1)); }
+  }
+  /* Car screens and phones on their side: wide but short, so keep text compact. */
+  @media (orientation: landscape) and (max-height: 520px) and (min-width: 640px) {
+    :root { font-size: calc(15px * var(--text-scale, 1)); }
+  }
+  /* TV remotes and keyboards move focus around: always show where it is.
+     :where() keeps this weaker than any component's own focus style. */
+  :where(a, button, [role="button"], input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-ring);
+    outline-offset: 2px;
+  }
   /* Safari < 16 has no `overflow: clip` — fall back so phones never pan sideways. */
   @supports not (overflow: clip) {
     html, body { overflow-x: hidden; }
@@ -238,7 +253,7 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    /* Fredoka reads cleanest at 450–500 weight on dark surfaces — bumps AA contrast vs 400. */
+    /* Inter (variable) at 450 reads a touch stronger on the dark wallpaper. */
     font-weight: 450;
     font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
@@ -248,10 +263,10 @@
        phantom scroll gap at the bottom of every page. */
     min-height: 100vh;
     min-height: 100dvh;
-    line-height: 1.65;
-    letter-spacing: 0.01em;
+    line-height: 1.6;
+    letter-spacing: 0;
   }
-  /* Buttons, labels, inputs, badges — keep on Fredoka with stronger weight for legibility. */
+  /* Buttons, labels, inputs, badges — same face, stronger weight for legibility. */
   button, [role="button"], label, input, textarea, select,
   .badge, [data-slot="badge"], [data-slot="button"] {
     font-family: var(--font-sans);
