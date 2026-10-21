@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import sportsGuideLogo from "@/assets/og-bot-sports-guide.png.asset.json";
+// WebP copies of the 2.7MB sports guide logo: the locked-screen card and the icon.
+import sportsGuideLogo from "@/assets/og-bot-sports-guide-900.webp";
+import sportsGuideIcon from "@/assets/og-bot-sports-guide-160.webp";
 import { getSportsGuideHub, syncSportsGuide, type SportsGuidePost } from "@/lib/sports-guide.functions";
 import { purchaseSportsGuideAccess } from "@/lib/store.functions";
 
@@ -130,7 +132,7 @@ function SportsGuidePage() {
       <div className="mx-auto max-w-xl space-y-5 px-4 pb-24 pt-4">
         <div className="overflow-hidden rounded-3xl border-2 border-primary/40 bg-card shadow-glow">
           <div className="relative">
-            <img src={sportsGuideLogo.url} alt="OG Sports Guide" className="aspect-[4/3] w-full object-cover" />
+            <img src={sportsGuideLogo} alt="OG Sports Guide" className="aspect-[4/3] w-full object-cover" />
             <div className="absolute inset-0 grid place-items-center bg-background/55 backdrop-blur-[2px]">
               <div className="grid h-16 w-16 place-items-center rounded-full border-2 border-primary bg-background/80">
                 <Lock className="h-8 w-8 text-primary" />
@@ -192,7 +194,7 @@ function SportsGuidePage() {
         />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/50 to-background/90" />
         <div className="relative flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-          <img src={sportsGuideLogo.url} alt="" className="h-16 w-16 shrink-0 rounded-2xl border-2 border-coin object-cover shadow-lg sm:h-20 sm:w-20" />
+          <img src={sportsGuideIcon} alt="" className="h-16 w-16 shrink-0 rounded-2xl border-2 border-coin object-cover shadow-lg sm:h-20 sm:w-20" />
           <div className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-0.5 text-[0.7rem] font-black uppercase tracking-widest text-destructive-foreground shadow">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive-foreground" /> Live
