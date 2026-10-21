@@ -2,7 +2,16 @@ import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
 import { Capacitor } from "@capacitor/core";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactElement,
+} from "react";
 import { Music2, Sparkles, Loader2, Headphones, Wand2, Pencil, Eye, EyeOff } from "lucide-react";
 import { EditableContent } from "@/components/admin/EditableContent";
 import {
@@ -42,12 +51,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { signInWithIdentifier } from "@/lib/identifier-signin.functions";
 import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
-import {
-  CreateNowWizard,
-  GUEST_PENDING_SONG_KEY,
-  type WizardDraft,
-  type WizardResult,
-} from "@/components/library/CreateNowWizard";
+import type { WizardDraft, WizardResult } from "@/components/library/CreateNowWizard";
+import { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
+
+// The song wizard is a pop-up: it loads once the page is idle (or on first
+// open), not before the landing page can paint.
+const loadWizard = () => import("@/components/library/CreateNowWizard");
+const CreateNowWizard = lazy(() => loadWizard().then((m) => ({ default: m.CreateNowWizard })));
 
 function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -681,10 +691,29 @@ const openSportsGuide = () => {
 /** Signed-out song wizard: nothing generates until the visitor signs in. */
 function GuestWizard() {
   const [open, setOpen] = useState(false);
+  // Stays mounted after the first open so closing still animates.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const on = () => setOpen(true);
+    const on = () => {
+      setMounted(true);
+      setOpen(true);
+    };
     window.addEventListener(OPEN_WIZARD, on);
     return () => window.removeEventListener(OPEN_WIZARD, on);
+  }, []);
+  // Fetch the wizard in idle time so it opens instantly when tapped.
+  useEffect(() => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const warm = () => void loadWizard().catch(() => {});
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(warm, { timeout: 5000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(warm, 2500);
+    return () => window.clearTimeout(t);
   }, []);
   // Website guests cook straight away (silent guest account + 99p); the phone
   // apps, or a backend with guest sign-ins off, fall back to signing up first.
@@ -702,14 +731,17 @@ function GuestWizard() {
     window.history.replaceState(null, "", url.toString());
     setTimeout(() => openSongAuth(result.title), 200);
   };
+  if (!mounted) return null;
   return (
-    <CreateNowWizard
-      open={open}
-      onOpenChange={setOpen}
-      onComplete={(result, draft) => void done(result, draft)}
-      guestMode
-      submitLabel={guestCook ? "Cook Master Track" : "Create my song"}
-    />
+    <Suspense fallback={null}>
+      <CreateNowWizard
+        open={open}
+        onOpenChange={setOpen}
+        onComplete={(result, draft) => void done(result, draft)}
+        guestMode
+        submitLabel={guestCook ? "Cook Master Track" : "Create my song"}
+      />
+    </Suspense>
   );
 }
 
