@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useSharedChannel } from "@/lib/shared-realtime";
+import { userPrefsChannel, type UserPrefsPayload } from "./user-prefs-realtime";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -33,30 +34,16 @@ export function useFoulMouth() {
     },
   });
 
-  useEffect(() => {
-    if (!uid) return;
-    // Unique channel name per mount avoids "cannot add postgres_changes callbacks
-    // after subscribe()" when React StrictMode / fast-refresh re-runs the effect
-    // and the previous channel is still in the teardown queue.
-    const channel = supabase.channel(
-      `user-prefs:${uid}:${Math.random().toString(36).slice(2, 10)}`,
-    );
-    channel
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_preferences", filter: `user_id=eq.${uid}` },
-        (payload) => {
-          const row = (payload.new ?? payload.old) as { foul_mouth?: boolean } | null;
-          if (row && typeof row.foul_mouth === "boolean") {
-            qc.setQueryData(foulMouthQueryKey(uid), row.foul_mouth);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [uid, qc]);
+  useSharedChannel<UserPrefsPayload>(
+    userPrefsChannel.key(uid),
+    userPrefsChannel.bind(uid),
+    (payload) => {
+      const row = (payload.new ?? payload.old) as { foul_mouth?: boolean } | null;
+      if (row && typeof row.foul_mouth === "boolean") {
+        qc.setQueryData(foulMouthQueryKey(uid), row.foul_mouth);
+      }
+    },
+  );
 
   return {
     foulMouth: query.data ?? true,

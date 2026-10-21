@@ -1,16 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSharedChannel } from "@/lib/shared-realtime";
 import { maskDevIdentity } from "@/lib/dev-identity";
 import { useAuth } from "./use-auth";
 
 export function useProfile() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["profile", user?.id],
     enabled: !!user,
     staleTime: 10_000,
-    refetchOnMount: "always",
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -23,23 +23,16 @@ export function useProfile() {
     },
   });
 
-  // Realtime subscription so the coin balance updates instantly after generation/purchase.
-  useEffect(() => {
-    if (!user) return;
-    const channelName = `profile:${user.id}:${Math.random().toString(36).slice(2)}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
-        () => query.refetch(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  // Realtime so the coin balance updates instantly after generation/purchase.
+  // One channel and one refetch per change, however many components use this.
+  const uid = user?.id ?? null;
+  useSharedChannel(uid ? `profile:${uid}` : null, (ch) =>
+    ch.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
+      () => void qc.invalidateQueries({ queryKey: ["profile", uid] }),
+    ),
+  );
 
   return query;
 }
