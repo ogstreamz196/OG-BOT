@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Capacitor } from "@capacitor/core";
-import { CoinStore } from "./buy-coins.index";
+import { CoinStore } from "@/components/store/CoinStore";
 import { Paywall } from "@/components/revenuecat/Paywall";
 
 export const Route = createFileRoute("/_authenticated/store")({

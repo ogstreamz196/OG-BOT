@@ -20,10 +20,10 @@ import { BossNav } from "@/components/admin/BossNav";
 import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { BossAuditLog } from "@/components/admin/BossAuditLog";
 import { FreeAccessPanel } from "@/components/admin/FreeAccessPanel";
-import { WebhooksAdminPage } from "./admin.webhooks";
-import { RouteMapPage } from "./admin.route-map";
-import { DebugContextPage } from "./admin.debug-context";
-import { OnboardingWizard } from "./admin.onboarding";
+import { WebhooksAdminPage } from "@/components/admin/WebhooksAdminPage";
+import { RouteMapPage } from "@/components/admin/RouteMapPage";
+import { DebugContextPage } from "@/components/admin/DebugContextPage";
+import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 
 export const Route = createFileRoute("/_authenticated/admin/system")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>

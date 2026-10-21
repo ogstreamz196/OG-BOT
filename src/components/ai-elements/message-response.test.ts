@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { neededPlugins } from "./message-response";
 
 describe("chat reply plugins", () => {

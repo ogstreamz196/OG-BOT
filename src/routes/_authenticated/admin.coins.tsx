@@ -8,9 +8,9 @@ import { OgCoinsPanel } from "@/components/admin/OgCoinsPanel";
 import { MintCoinsPanel } from "@/components/admin/MintCoinsPanel";
 import { PricingControls } from "@/components/admin/PricingControls";
 import { AccountantLogPanel } from "@/components/admin/AccountantLogPanel";
-import { StoreAdminPanel } from "./admin.store";
-import { CoinAuditPage } from "./admin.coin-audit";
-import { ReferralsAuditPage } from "./admin.referrals-audit";
+import { StoreAdminPanel } from "@/components/admin/StoreAdminPanel";
+import { CoinAuditPage } from "@/components/admin/CoinAuditPage";
+import { ReferralsAuditPage } from "@/components/admin/ReferralsAuditPage";
 
 export const Route = createFileRoute("/_authenticated/admin/coins")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
