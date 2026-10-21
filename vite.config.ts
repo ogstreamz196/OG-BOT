@@ -46,10 +46,15 @@ export default defineConfig({
         injectRegister: null,
         manifest: false,
         filename: "sw.js",
+        // The published site is .output/public (nitro). Writing the worker to
+        // Vite's default dist/ meant /sw.js was never deployed.
+        outDir: ".output/public",
         devOptions: { enabled: false },
         workbox: {
-          // Only hashed, same-origin build assets are precached.
-          globPatterns: ["assets/**/*.{js,css,woff2,png,svg,jpg,webp}"],
+          // Nothing is downloaded up front: the build has ~500 files (~20MB,
+          // mostly code-highlighting languages that load on demand). Built
+          // assets are cached as they're used (og-assets below) instead.
+          globPatterns: ["favicon.png"],
           navigateFallback: null,
           // Opens the track page when a "track ready" notification is tapped.
           importScripts: ["/sw-notify.js"],
