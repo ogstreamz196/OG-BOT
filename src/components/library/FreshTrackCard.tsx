@@ -1,3 +1,5 @@
+import { useUserSongsRealtime } from "@/hooks/user-songs-realtime";
+import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Download, Loader2, Pause, Play, Share2, Sparkles } from "lucide-react";
@@ -38,12 +40,19 @@ export function FreshTrackCard({
   useEffect(() => {
     if (propUnlocked) setUnlocked(true);
   }, [propUnlocked]);
-  // The card may hold a stale snapshot: re-check paid status from the database
-  // on mount, on window focus, and every few seconds until unlocked.
+  // The card may hold a stale snapshot: the member's songs feed flips it the
+  // moment the track is paid for; as a fallback re-check on mount, on window
+  // focus, and every 15s while visible until unlocked.
+  const { user } = useAuth();
+  useUserSongsRealtime(unlocked ? null : user?.id, (change) => {
+    const row = change.new as { id?: string; unlocked?: boolean | null } | undefined;
+    if (row?.id === song.id && row.unlocked) setUnlocked(true);
+  });
   useEffect(() => {
     if (unlocked) return;
     let cancelled = false;
     const check = async () => {
+      if (document.visibilityState === "hidden") return;
       const [{ data: s }, { data: u }] = await Promise.all([
         supabase.from("songs").select("unlocked").eq("id", song.id).maybeSingle(),
         supabase.from("unlocked_songs").select("id").eq("song_id", song.id).limit(1),
@@ -51,7 +60,7 @@ export function FreshTrackCard({
       if (!cancelled && (s?.unlocked || (u && u.length > 0))) setUnlocked(true);
     };
     void check();
-    const t = setInterval(check, 5000);
+    const t = setInterval(check, 15_000);
     window.addEventListener("focus", check);
     return () => {
       cancelled = true;

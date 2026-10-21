@@ -61,7 +61,10 @@ type Summary = {
     id: string;
     amount: number;
     type?:
-      "referral_cashback" | "referral_payment" | "referral_payment_reversal" | "referral_backpay";
+      | "referral_cashback"
+      | "referral_payment"
+      | "referral_payment_reversal"
+      | "referral_backpay";
     reference: string | null;
     created_at: string;
     referee_id: string | null;
@@ -145,7 +148,9 @@ function ReferralsPage() {
   const summaryQ = useQuery({
     queryKey: ["referral-summary", user?.id],
     enabled: !!user,
-    refetchInterval: 15_000,
+    // Earnings arrive instantly over realtime (below); this slower poll picks
+    // up new sign-ups, which don't create a coin transaction.
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<Summary> => {
       const { data, error } = await supabase.rpc("get_referral_summary");

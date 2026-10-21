@@ -1,3 +1,4 @@
+import { useSongRealtime } from "@/hooks/user-songs-realtime";
 import { useEffect, useRef, useState } from "react";
 import {
   Film,
@@ -75,31 +76,18 @@ export function LyricVideoSection({ songId, songTitle, mp3Unlocked, onBalanceCha
     };
   }, [songId, mp3Unlocked]);
 
-  // Realtime subscription to song row → drives status/progress UI.
-  useEffect(() => {
-    if (!mp3Unlocked) return;
-    const channel = supabase
-      .channel(`lyric-video:${songId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${songId}` },
-        (payload) => {
-          const row = payload.new as RealtimeRow;
-          if (row.lyric_video_status) setStatus(row.lyric_video_status);
-          if (typeof row.lyric_video_progress === "number") setProgress(row.lyric_video_progress);
-          if (row.lyric_video_stage) setStage(row.lyric_video_stage);
-          if (typeof row.lyric_video_unlocked === "boolean")
-            setVideoUnlocked(row.lyric_video_unlocked);
-          setHasPreview(!!row.lyric_video_preview_path);
-          setHasFull(!!row.lyric_video_full_path);
-          setError(row.lyric_video_error ?? null);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [songId, mp3Unlocked]);
+  // Realtime on the song row (shared with the rest of the song page) → drives
+  // status/progress UI.
+  useSongRealtime(mp3Unlocked ? songId : null, (payload) => {
+    const row = payload.new as RealtimeRow;
+    if (row.lyric_video_status) setStatus(row.lyric_video_status);
+    if (typeof row.lyric_video_progress === "number") setProgress(row.lyric_video_progress);
+    if (row.lyric_video_stage) setStage(row.lyric_video_stage);
+    if (typeof row.lyric_video_unlocked === "boolean") setVideoUnlocked(row.lyric_video_unlocked);
+    setHasPreview(!!row.lyric_video_preview_path);
+    setHasFull(!!row.lyric_video_full_path);
+    setError(row.lyric_video_error ?? null);
+  });
 
   // Fetch signed URLs whenever a new path becomes available.
   useEffect(() => {
