@@ -2,6 +2,8 @@
 // name and the kind of activity (app opened / Battle Zone) — no pages, location
 // or device data. A database cooldown stops repeat alerts. Members never get
 // these: Battle Zone alerts to every linked member were too noisy.
+import { cached } from "@/lib/server-cache";
+
 const COOLDOWN_MIN = { app: 24 * 60, battle: 30 } as const;
 
 function esc(s: string) {
@@ -11,11 +13,15 @@ function esc(s: string) {
 export async function alertBossPresence(userId: string, kind: "app" | "battle") {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roleRows } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .in("role", ["admin", "boss"] as never);
-    const bossIds = [...new Set((roleRows ?? []).map((r: { user_id: string }) => r.user_id))];
+    // Who the bosses are changes rarely; this runs on every battle post.
+    const bossIds = await cached("boss-user-ids", 5 * 60_000, async () => {
+      const { data: roleRows, error } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["admin", "boss"] as never);
+      if (error) throw new Error(error.message);
+      return [...new Set((roleRows ?? []).map((r: { user_id: string }) => r.user_id))];
+    });
     if (!bossIds.length || bossIds.includes(userId)) return; // don't alert about yourself
 
     const { data: claimed } = await supabaseAdmin.rpc(

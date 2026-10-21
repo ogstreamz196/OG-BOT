@@ -326,7 +326,9 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
           .limit(12),
         supabaseAdmin
           .from("battle_tallies")
-          .select("rounds, streak_days, total_awarded_coins")
+          .select(
+            "rounds, streak_days, total_awarded_coins, pending_tenths, last_battle_date, streak_bonus_date",
+          )
           .eq("user_id", context.userId)
           .maybeSingle(),
       ]);
@@ -378,6 +380,24 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     const judgePromise: Promise<number> = apiKey
       ? scoreRoast(apiKey, data.content, null)
       : Promise.resolve(0);
+    // Today's banked scores (for the hidden daily ceiling) load meanwhile too.
+    const todayRowsPromise = Promise.resolve(
+      supabaseAdmin
+        .from("community_messages")
+        .select("score_tenths")
+        .eq("user_id", context.userId)
+        .eq("role", "user")
+        .gte("created_at", `${todayISO()}T00:00:00Z`)
+        .not("score_tenths", "is", null),
+    );
+    todayRowsPromise.catch(() => {});
+    // So does the crew memory for the clapback.
+    const crewMemoryPromise = ai
+      ? crewMemory(supabaseAdmin, history).catch((e) => {
+          console.warn("battle crew memory failed", (e as Error).message);
+          return "";
+        })
+      : Promise.resolve("");
     let botReply: string | null = null;
     if (ai) {
       // Live chat = foul mouth by default for everyone.
@@ -405,7 +425,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             `${displayName}'s signature insults (they've thrown these before — at most one per reply, flip it back on them to show you remember): ${phrases.join("; ")}`,
           );
         if (lines.length) slang += `\n\nPLAYER MEMORY:\n${lines.join("\n")}`;
-        slang += await crewMemory(supabaseAdmin, history);
+        slang += await crewMemoryPromise;
       } catch (e) {
         console.warn("battle memory failed", (e as Error).message);
       }
@@ -462,11 +482,9 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     let streakBonusTenths = 0;
     let capHit = false;
     try {
-      const { data: tally } = await supabaseAdmin
-        .from("battle_tallies")
-        .select("pending_tenths, rounds, streak_days, last_battle_date, streak_bonus_date")
-        .eq("user_id", context.userId)
-        .maybeSingle();
+      // Read with the poster's record at the start (the reward RPC below is
+      // the atomic part; this only shapes the award).
+      const tally = rec;
       pendingTenths = tally?.pending_tenths ?? 0;
       rounds = tally?.rounds ?? 0;
       const avgTenths = rounds > 0 ? pendingTenths / rounds : 0;
@@ -486,13 +504,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       const bonusPaidToday = (tally?.streak_bonus_date ?? null) === todayISO();
       streakBonusTenths = bonusPaidToday ? 0 : streakBonus(streak.days);
       // Hidden daily ceiling: today's banked scores live on the user's own lines.
-      const { data: todayRows } = await supabaseAdmin
-        .from("community_messages")
-        .select("score_tenths")
-        .eq("user_id", context.userId)
-        .eq("role", "user")
-        .gte("created_at", `${todayISO()}T00:00:00Z`)
-        .not("score_tenths", "is", null);
+      const { data: todayRows } = await todayRowsPromise;
       const dailySoFar = ((todayRows ?? []) as { score_tenths: number | null }[]).reduce(
         (s, r) => s + Number(r.score_tenths ?? 0),
         0,
@@ -521,22 +533,23 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       if (earnedTenths <= 0) streakBonusTenths = 0;
       capHit = earnedTenths > 0 && dailySoFar + earnedTenths >= BATTLE_DAILY_CAP_TENTHS;
 
-      await supabaseAdmin
-        .from("battle_tallies")
-        .update({
-          streak_days: streakDays,
-          last_battle_date: todayISO(),
-          ...(streakBonusTenths > 0 ? { streak_bonus_date: todayISO() } : {}),
-        })
-        .eq("user_id", context.userId);
-
-      // Remember the score so the Battle Zone can crown a roast of the day.
-      if (earnedTenths > 0) {
-        await supabaseAdmin
-          .from("community_messages")
-          .update({ score_tenths: earnedTenths })
-          .eq("id", (userRow as { id: string }).id);
-      }
+      await Promise.all([
+        supabaseAdmin
+          .from("battle_tallies")
+          .update({
+            streak_days: streakDays,
+            last_battle_date: todayISO(),
+            ...(streakBonusTenths > 0 ? { streak_bonus_date: todayISO() } : {}),
+          })
+          .eq("user_id", context.userId),
+        // Remember the score so the Battle Zone can crown a roast of the day.
+        earnedTenths > 0
+          ? supabaseAdmin
+              .from("community_messages")
+              .update({ score_tenths: earnedTenths })
+              .eq("id", (userRow as { id: string }).id)
+          : null,
+      ]);
     } catch (err) {
       console.warn("battle scoring failed:", (err as Error).message);
     }
@@ -846,7 +859,11 @@ export const postGuestBattleMessage = createServerFn({ method: "POST" })
       .not("guest_id", "is", null)
       .gte("created_at", minuteAgo);
     if ((recentGuests ?? 0) > 40) {
-      return { ok: false as const, reason: "busy" as const, remaining: GUEST_MESSAGE_LIMIT - (count ?? 0) };
+      return {
+        ok: false as const,
+        reason: "busy" as const,
+        remaining: GUEST_MESSAGE_LIMIT - (count ?? 0),
+      };
     }
     const displayName = guestBattleName(data.guestId);
     const { data: last } = await supabaseAdmin
@@ -986,7 +1003,9 @@ async function replyAsBot(
     .select("role, content, display_name")
     .order("created_at", { ascending: false })
     .limit(20);
-  const history = ((recent ?? []) as { role: string; content: string; display_name: string | null }[]).reverse();
+  const history = (
+    (recent ?? []) as { role: string; content: string; display_name: string | null }[]
+  ).reverse();
   const { fetchAiChat } = await import("@/lib/ai-endpoint.server");
   const lex = await import("@/lib/battle-lexicon.server");
   void lex.learnBattleWords(admin as never, opts.content);
@@ -1001,10 +1020,14 @@ async function replyAsBot(
       {
         temperature: opts.useFoul ? 1.05 : 0.85,
         messages: [
-          { role: "system", content: (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) + extra },
+          {
+            role: "system",
+            content: (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) + extra,
+          },
           ...history.map((m) => ({
             role: m.role === "bot" ? ("assistant" as const) : ("user" as const),
-            content: m.role === "user" && m.display_name ? `${m.display_name}: ${m.content}` : m.content,
+            content:
+              m.role === "user" && m.display_name ? `${m.display_name}: ${m.content}` : m.content,
           })),
         ],
       },

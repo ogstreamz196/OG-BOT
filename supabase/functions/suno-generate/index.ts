@@ -116,14 +116,29 @@ Deno.serve(async (req) => {
     const rawStyle = (body.style ?? "").toString().trim();
     // Nasheed mode lives on the track row (set when it was created, priced
     // double); the style name still switches on the voice-only prompt too.
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    // Only real VIPs get clean tracks (checked further down); start the
+    // lookups now so they're ready by then.
+    const vipChecks = Promise.all([
+      admin.rpc("has_role", { _user_id: user.id, _role: "vip" }),
+      admin
+        .from("subscriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "active"),
+    ]);
+    vipChecks.catch(() => {});
     let rowNasheed = false;
+    // The saved prompt is kept for later (re-cooks never erase the idea).
+    let savedPrompt = "";
     if (body.song_id) {
-      const { data: flagRow } = await createClient(SUPABASE_URL, SERVICE_ROLE)
+      const { data: flagRow } = await admin
         .from("songs")
-        .select("is_nasheed, user_id")
+        .select("is_nasheed, user_id, prompt")
         .eq("id", String(body.song_id))
         .maybeSingle();
       rowNasheed = !!flagRow?.is_nasheed && flagRow.user_id === user.id;
+      savedPrompt = (flagRow?.prompt as string | null) ?? "";
     }
     const isNasheed =
       rowNasheed ||
@@ -206,7 +221,16 @@ Deno.serve(async (req) => {
 
     if (!prompt && !lyrics) return json({ error: "Provide a prompt or lyrics" }, 400);
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    // The portal (if any) loads alongside the capacity check.
+    const portalLookup = portalId
+      ? admin
+          .from("portals")
+          .select("language, status, coin_cost_per_generation")
+          .eq("id", portalId)
+          .maybeSingle()
+          .then((r: { data: unknown }) => r)
+      : null;
+    portalLookup?.catch(() => {});
 
     // Capacity gate: global + per-user concurrent caps (peak mode aware).
     {
@@ -232,12 +256,10 @@ Deno.serve(async (req) => {
 
     // If this generation came from a portal, force the hardcoded language into the Suno prompt
     let portalLanguage: string | null = null;
-    if (portalId) {
-      const { data: p } = await admin
-        .from("portals")
-        .select("language, status, coin_cost_per_generation")
-        .eq("id", portalId)
-        .maybeSingle();
+    if (portalId && portalLookup) {
+      const { data: p } = (await portalLookup) as {
+        data: { language: string | null; status: string } | null;
+      };
       if (!p) return json({ error: "Portal not found" }, 404);
       if (p.status === "maintenance") return json({ error: "Portal is in maintenance mode" }, 423);
       portalLanguage = p.language ?? null;
@@ -347,12 +369,7 @@ Deno.serve(async (req) => {
     let song: { id: string } | null = null;
     if (existing) {
       // Never erase the user's saved "— Idea:" from the wizard.
-      const { data: prev } = await admin
-        .from("songs")
-        .select("prompt")
-        .eq("id", existing.id)
-        .maybeSingle();
-      const prevPrompt = ((prev as { prompt?: string | null } | null)?.prompt ?? "") as string;
+      const prevPrompt = savedPrompt;
       const keepPrompt =
         prevPrompt.includes("— Idea:") && !effectivePrompt.includes("— Idea:")
           ? prevPrompt
@@ -513,14 +530,7 @@ Deno.serve(async (req) => {
     // Only real VIPs get clean tracks with no spoken signature: the VIP role
     // or a paid, active subscription. Free VIP (the free trial, a subscription
     // still in its free trial, "free access for all") keeps the promo tag.
-    const [vipRole, subsRes] = await Promise.all([
-      admin.rpc("has_role", { _user_id: user.id, _role: "vip" }),
-      admin
-        .from("subscriptions")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "active"),
-    ]);
+    const [vipRole, subsRes] = await vipChecks;
     const realVip = !!vipRole.data || (subsRes.count ?? 0) > 0;
     const unsigned = isInstrumental || realVip;
     const signedLyrics = unsigned

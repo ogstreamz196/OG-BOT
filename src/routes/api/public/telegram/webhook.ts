@@ -1,3 +1,4 @@
+import { cached } from "@/lib/server-cache";
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "crypto";
 import { buildSystemPrompt, detectSongIntent } from "@/lib/og-persona.server";
@@ -620,10 +621,15 @@ async function runChatAI(
         .eq("id", profileId)
         .maybeSingle(),
       admin.from("user_preferences").select("foul_mouth").eq("user_id", profileId).maybeSingle(),
-      admin
-        .from("site_content")
-        .select("key, value")
-        .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
+      cached(
+        "og-persona-content",
+        60_000,
+        async () =>
+          await admin
+            .from("site_content")
+            .select("key, value")
+            .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
+      ),
       admin
         .from("og_messages")
         .select("role, content")
@@ -674,9 +680,10 @@ async function runChatAI(
   const promoNote = promo ? vp.promoPromptNote(promo) : "";
   const sportsNote = sportsBlock ? `${sportsBlock}\n\n` : "";
   const { memoryNote } = await import("@/lib/og-memory");
-  const [memories, footballBlock] = await Promise.all([
+  const [memories, footballBlock, catchphrases] = await Promise.all([
     grounding.memories,
     tradeBlock ? Promise.resolve("") : grounding.football,
+    pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth)),
   ]);
 
   const system =
@@ -695,7 +702,7 @@ async function runChatAI(
       songIntent: detectSongIntent(userText),
       dossier,
     }) +
-    catchphraseNote(await pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth))) +
+    catchphraseNote(catchphrases) +
     memoryNote(memories) +
     (tradeBlock
       ? `\n\n${tradeBlock}\n\nOn Telegram this reply self-destructs at the valid-until time. Say so in a few words on the valid-until line.`
@@ -787,11 +794,14 @@ async function runChatAI(
       replyTtlMs = ts.tradeReplyTtlMs(userText);
     }
 
-    await admin.from("og_messages").insert({
-      user_id: profileId,
-      role: "assistant",
-      content: replyText,
-    });
+    // Save the reply while it goes out, rather than before.
+    const saved = admin
+      .from("og_messages")
+      .insert({ user_id: profileId, role: "assistant", content: replyText })
+      .then(
+        () => {},
+        (e: unknown) => console.warn("[telegram] saving reply failed", e),
+      );
 
     // Show the final text in the live message (and any overflow after it).
     const sentLive = await live.finish(replyText);
@@ -810,6 +820,7 @@ async function runChatAI(
         await scheduleDelete(chat_id, res, replyTtlMs);
       }
     }
+    await saved;
   } catch (err) {
     await reply(chat_id, `❌ ${(err as Error).message}`);
   } finally {
