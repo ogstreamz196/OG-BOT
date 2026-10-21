@@ -9,6 +9,7 @@ import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import { loadEnv } from "vite";
 import path from "node:path";
 import { VitePWA } from "vite-plugin-pwa";
+import { legacyCssPlugin } from "./vite-legacy-css";
 
 const serverEnv = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 Object.assign(process.env, serverEnv);
@@ -38,6 +39,7 @@ export default defineConfig({
     },
     plugins: [
       mcpPlugin(),
+      legacyCssPlugin(),
       VitePWA({
         strategies: "generateSW",
         registerType: "autoUpdate",

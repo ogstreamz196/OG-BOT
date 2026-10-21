@@ -11,6 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { LEGACY_CSS_LOADER } from "@/lib/legacy-css-loader";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -206,9 +207,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           crossOrigin: "anonymous",
         },
       ],
-      scripts: siteJsonLd(
-        "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
-      ).map((data) => ({ type: "application/ld+json", children: JSON.stringify(data) })),
+      scripts: [
+        // Styles for older TVs, car screens and phones (no CSS layers).
+        { children: LEGACY_CSS_LOADER },
+        ...siteJsonLd(
+          "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+        ).map((data) => ({ type: "application/ld+json", children: JSON.stringify(data) })),
+      ],
     };
   },
   shellComponent: RootShell,
