@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useSharedChannel } from "@/lib/shared-realtime";
+import { userPrefsChannel, type UserPrefsPayload } from "./user-prefs-realtime";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,32 +37,16 @@ export function useMessengerMode() {
     },
   });
 
-  useEffect(() => {
-    if (!uid) return;
-    let cancelled = false;
-    const channel = supabase.channel(
-      `user-prefs-mode:${uid}:${Math.random().toString(36).slice(2, 10)}`,
-    );
-    channel
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_preferences", filter: `user_id=eq.${uid}` },
-        (payload) => {
-          if (cancelled) return;
-          const row = (payload.new ?? payload.old) as { messenger_mode?: MessengerMode } | null;
-          if (row && (row.messenger_mode === "loner" || row.messenger_mode === "community")) {
-            qc.setQueryData(messengerModeQueryKey(uid), row.messenger_mode);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      cancelled = true;
-      // Always remove the channel on unmount OR when uid changes (logout sets uid -> null
-      // which triggers this cleanup before the early-return on the next run).
-      void supabase.removeChannel(channel);
-    };
-  }, [uid, qc]);
+  useSharedChannel<UserPrefsPayload>(
+    userPrefsChannel.key(uid),
+    userPrefsChannel.bind(uid),
+    (payload) => {
+      const row = (payload.new ?? payload.old) as { messenger_mode?: MessengerMode } | null;
+      if (row && (row.messenger_mode === "loner" || row.messenger_mode === "community")) {
+        qc.setQueryData(messengerModeQueryKey(uid), row.messenger_mode);
+      }
+    },
+  );
 
   const effectiveMode: MessengerMode = query.data ?? "community";
 

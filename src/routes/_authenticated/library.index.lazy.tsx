@@ -1,3 +1,4 @@
+import { useUserSongsRealtime } from "@/hooks/user-songs-realtime";
 import { runQueuedSong } from "@/lib/song-queue.functions";
 import { prepayTrack } from "@/lib/track-unlock.functions";
 import { startAttempt, updateAttempt, describeError } from "@/lib/generation-attempts";
@@ -1256,21 +1257,9 @@ function LibraryPage() {
     }
   }, [community.hasNextPage, community.isFetchingNextPage, community.data?.pages.length]);
 
-  useEffect(() => {
-    if (!user) return;
-    const ch = supabase
-      .channel("songs-library")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "songs", filter: `user_id=eq.${user.id}` },
-        () => library.refetch(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  useUserSongsRealtime(user?.id, () => {
+    void library.refetch();
+  });
 
   /* ------------------------------------------------------------------
    * Realtime generation status: watch the song we just submitted and flip

@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { useSharedChannel } from "@/lib/shared-realtime";
+import { userPrefsChannel, type UserPrefsPayload } from "./user-prefs-realtime";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -65,33 +67,20 @@ export function useDisplayPrefs() {
     else applyToDocument(DEFAULTS);
   }, [query.data]);
 
-  // Realtime sync across tabs / devices.
-  useEffect(() => {
-    if (!uid) return;
-    const channel = supabase.channel(
-      `user-prefs-display:${uid}:${Math.random().toString(36).slice(2, 10)}`,
-    );
-    channel
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_preferences", filter: `user_id=eq.${uid}` },
-        (payload) => {
-          const row = (payload.new ?? payload.old) as {
-            text_scale?: number;
-            density?: Density;
-          } | null;
-          if (!row) return;
-          qc.setQueryData<DisplayPrefs>(displayPrefsKey(uid), {
-            textScale: clampScale(Number(row.text_scale ?? 1)),
-            density: (row.density as Density) ?? "comfortable",
-          });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [uid, qc]);
+  // Realtime sync across tabs / devices (one channel shared with the other
+  // user_preferences hooks).
+  useSharedChannel<UserPrefsPayload>(
+    userPrefsChannel.key(uid),
+    userPrefsChannel.bind(uid),
+    (payload) => {
+      const row = (payload.new ?? payload.old) as { text_scale?: number; density?: Density } | null;
+      if (!row) return;
+      qc.setQueryData<DisplayPrefs>(displayPrefsKey(uid), {
+        textScale: clampScale(Number(row.text_scale ?? 1)),
+        density: (row.density as Density) ?? "comfortable",
+      });
+    },
+  );
 
   return {
     textScale: query.data?.textScale ?? DEFAULTS.textScale,

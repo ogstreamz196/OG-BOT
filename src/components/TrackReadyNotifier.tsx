@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useUserSongsRealtime } from "@/hooks/user-songs-realtime";
+import { useRef, useState } from "react";
 import { Bell, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
@@ -17,12 +17,22 @@ async function showReady(title: string, songId: string) {
   const body = `"${title}" is ready — tap to listen.`;
   const url = `/library/${songId}`;
   try {
-    const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    const reg =
+      "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : null;
     if (reg) {
-      await reg.showNotification("🎵 Your track is ready!", { body, icon: "/favicon.ico", tag: songId, data: { url } });
+      await reg.showNotification("🎵 Your track is ready!", {
+        body,
+        icon: "/favicon.ico",
+        tag: songId,
+        data: { url },
+      });
       return;
     }
-    const n = new Notification("🎵 Your track is ready!", { body, icon: "/favicon.ico", tag: songId });
+    const n = new Notification("🎵 Your track is ready!", {
+      body,
+      icon: "/favicon.ico",
+      tag: songId,
+    });
     n.onclick = () => {
       window.focus();
       window.location.href = url;
@@ -38,36 +48,25 @@ export function TrackReadyNotifier() {
   const [ask, setAsk] = useState(false);
   const pending = useRef(new Set<string>());
 
-  useEffect(() => {
-    if (!user || !supported()) return;
-    const ch = supabase
-      .channel(`track-ready-${user.id}-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "songs", filter: `user_id=eq.${user.id}` },
-        (p) => {
-          const row = p.new as { id?: string; status?: string; title?: string; is_variation?: boolean };
-          if (!row?.id || row.is_variation) return;
-          if (row.status === "pending" || row.status === "processing") {
-            pending.current.add(row.id);
-            if (Notification.permission === "default" && !localStorage.getItem(DISMISS_KEY)) setAsk(true);
-          } else if (row.status === "completed" && pending.current.has(row.id)) {
-            pending.current.delete(row.id);
-            if (Notification.permission === "granted") void showReady(row.title || "Your track", row.id);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(ch);
-    };
-  }, [user]);
+  useUserSongsRealtime(user && supported() ? user.id : null, (p) => {
+    const row = p.new as { id?: string; status?: string; title?: string; is_variation?: boolean };
+    if (!row?.id || row.is_variation) return;
+    if (row.status === "pending" || row.status === "processing") {
+      pending.current.add(row.id);
+      if (Notification.permission === "default" && !localStorage.getItem(DISMISS_KEY)) setAsk(true);
+    } else if (row.status === "completed" && pending.current.has(row.id)) {
+      pending.current.delete(row.id);
+      if (Notification.permission === "granted") void showReady(row.title || "Your track", row.id);
+    }
+  });
 
   if (!ask) return null;
   return (
     <div className="fixed inset-x-3 bottom-20 z-50 mx-auto flex max-w-md items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-lg">
       <Bell className="h-5 w-5 shrink-0 text-primary" />
-      <p className="flex-1 text-sm">Want a notification on this device when your track is finished?</p>
+      <p className="flex-1 text-sm">
+        Want a notification on this device when your track is finished?
+      </p>
       <Button
         size="sm"
         onClick={async () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicAppSettings } from "@/lib/public-settings.functions";
+import { FREE_ACCESS_KEY, useAppSettingsRealtime } from "./app-settings-realtime";
 import { toast } from "sonner";
 
 /**
@@ -12,7 +13,7 @@ import { toast } from "sonner";
  * Optionally an expiry timestamp (`free_access_expires_at`, ISO string)
  * automatically reverts access back to VIP-only after the set time.
  */
-export const FREE_ACCESS_KEY = ["app-setting", "free_access_all"] as const;
+export { FREE_ACCESS_KEY };
 
 type FreeAccessRow = {
   rawEnabled: boolean;
@@ -20,7 +21,6 @@ type FreeAccessRow = {
 };
 
 export function useFreeAccess() {
-  const qc = useQueryClient();
   const query = useQuery({
     queryKey: FREE_ACCESS_KEY,
     staleTime: 30_000,
@@ -35,40 +35,19 @@ export function useFreeAccess() {
     },
   });
 
-  // Tick every 30s so the expiry flips the UI without a manual refresh.
-  const [, setNowTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setNowTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase.channel(
-      `app-settings-free:${Math.random().toString(36).slice(2, 10)}`,
-    );
-    channel
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings", filter: "key=eq.free_access_all" },
-        () => qc.invalidateQueries({ queryKey: FREE_ACCESS_KEY }),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "app_settings",
-          filter: "key=eq.free_access_expires_at",
-        },
-        () => qc.invalidateQueries({ queryKey: FREE_ACCESS_KEY }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [qc]);
+  useAppSettingsRealtime();
 
   const row = query.data ?? { rawEnabled: false, expiresAt: null };
+
+  // Re-render the moment free access expires (one timer, not a 30s tick).
+  const [, setExpiredTick] = useState(0);
+  useEffect(() => {
+    if (!row.expiresAt) return;
+    const ms = new Date(row.expiresAt).getTime() - Date.now();
+    if (!(ms > 0)) return;
+    const id = setTimeout(() => setExpiredTick((n) => n + 1), Math.min(ms + 250, 2 ** 31 - 1));
+    return () => clearTimeout(id);
+  }, [row.expiresAt]);
   const expired = !!row.expiresAt && new Date(row.expiresAt).getTime() <= Date.now();
   const enabled = row.rawEnabled && !expired;
 

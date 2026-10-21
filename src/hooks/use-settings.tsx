@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { SETTINGS_QUERY_KEY, useAppSettingsRealtime } from "./app-settings-realtime";
 import { getPublicAppSettings } from "@/lib/public-settings.functions";
 
 export type AppSettings = {
@@ -28,24 +28,10 @@ const DEFAULTS: AppSettings = {
   signup_credits: 25,
 };
 
-const SETTINGS_QUERY_KEY = ["app-settings"] as const;
-
 export function useSettings() {
-  const qc = useQueryClient();
-
   // Live-sync: when boss edits app_settings (e.g. sample_seconds), refetch so
   // MusicHUB previews immediately respect the new cap without a page reload.
-  useEffect(() => {
-    const channel = supabase
-      .channel(`app-settings-sync:${Math.random().toString(36).slice(2, 10)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, () => {
-        qc.invalidateQueries({ queryKey: SETTINGS_QUERY_KEY });
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [qc]);
+  useAppSettingsRealtime();
 
   return useQuery({
     queryKey: SETTINGS_QUERY_KEY,
