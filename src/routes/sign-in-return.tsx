@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppReturn } from "./app-return";
+import { AppReturn } from "@/components/auth/AppReturn";
 
 export const Route = createFileRoute("/sign-in-return")({
   ssr: false,

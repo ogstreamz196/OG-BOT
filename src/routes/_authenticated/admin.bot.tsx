@@ -8,8 +8,8 @@ import { GeminiUsagePanel } from "@/components/admin/GeminiUsagePanel";
 import { OgBotPing } from "@/components/admin/OgBotPing";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
 import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
-import { OgPersonaPanel } from "./admin.og-persona";
-import { LiveUsersPanel } from "./developer";
+import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
+import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
