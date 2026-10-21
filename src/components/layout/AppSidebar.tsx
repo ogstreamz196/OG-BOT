@@ -34,7 +34,7 @@ import { useRole } from "@/hooks/use-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 type AppRoute =
   | "/"
@@ -71,7 +71,7 @@ const primaryNav: NavItem[] = [
   {
     title: "OG Bot",
     url: "/messenger",
-    image: ogBotAsset.url,
+    image: ogBotLogo.small,
     badge: "Live",
     accent: "from-primary/40 to-cyan-400/40",
   },
@@ -197,7 +197,7 @@ export function AppSidebar() {
               <span className="inline-flex items-center gap-1 text-[0.7rem] uppercase tracking-[0.16em] text-muted-foreground">
                 Powered by
                 <img
-                  src={ogBotAsset.url}
+                  src={ogBotLogo.small}
                   alt="OG Bot"
                   draggable={false}
                   className="h-3.5 w-3.5 rounded-full object-cover pointer-events-none select-none"

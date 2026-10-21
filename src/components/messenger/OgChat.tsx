@@ -57,12 +57,12 @@ const TELEGRAM_FONT_STYLE: React.CSSProperties = {
   WebkitFontSmoothing: "antialiased",
   MozOsxFontSmoothing: "grayscale",
 };
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 function OgAvatar({ size = 36, className = "" }: { size?: number; className?: string }) {
   return (
     <img
-      src={ogBotAsset.url}
+      src={size > 48 ? ogBotLogo.large : ogBotLogo.small}
       alt="OG Bot"
       width={size}
       height={size}
@@ -747,7 +747,7 @@ export function OgChat({
                     }}
                   />
                   <img
-                    src={ogBotAsset.url}
+                    src={ogBotLogo.large}
                     alt="OG Bot"
                     className="relative h-full w-full rounded-full object-cover ring-4 ring-primary/40 shadow-[0_0_60px_-10px_hsl(var(--primary)/0.9)] animate-[bob_3s_ease-in-out_infinite]"
                   />

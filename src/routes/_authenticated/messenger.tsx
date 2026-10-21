@@ -31,7 +31,7 @@ import {
   shouldGreet,
 } from "@/components/messenger/MessengerWelcomeDialog";
 
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 export const Route = createFileRoute("/_authenticated/messenger")({
   component: MessengerPage,
@@ -113,11 +113,7 @@ function MessengerPage() {
     setPendingMode(null);
   }
 
-  const {
-    ref: fillRef,
-    height: fillHeight,
-    pin: kbPin,
-  } = useFillViewport<HTMLDivElement>(0);
+  const { ref: fillRef, height: fillHeight, pin: kbPin } = useFillViewport<HTMLDivElement>(0);
 
   // While pinned above the keyboard, ancestors with transform/filter would
   // trap position:fixed inside them — neutralise those for the duration.
@@ -135,7 +131,13 @@ function MessengerPage() {
         /paint|layout|strict|content/.test(cs.contain) ||
         /transform|filter/.test(cs.willChange)
       ) {
-        touched.push([el, el.style.transform, el.style.filter, el.style.animation, el.style.contain]);
+        touched.push([
+          el,
+          el.style.transform,
+          el.style.filter,
+          el.style.animation,
+          el.style.contain,
+        ]);
         el.style.animation = "none";
         el.style.transform = "none";
         el.style.filter = "none";
@@ -235,7 +237,7 @@ function MessengerPage() {
                 </span>
               ) : (
                 <img
-                  src={ogBotAsset.url}
+                  src={ogBotLogo.small}
                   alt="OG Bot"
                   className="relative h-8 w-8 rounded-full object-cover ring-1 ring-primary/60 sm:h-9 sm:w-9"
                 />

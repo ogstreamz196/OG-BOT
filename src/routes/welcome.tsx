@@ -21,16 +21,12 @@ import { getDeviceId } from "@/lib/device-id";
 import { checkDeviceAccountAllowed } from "@/lib/device-limit.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
-import musicHubHero from "@/assets/musichub-hero.jpg";
-import battleZoneArt from "@/assets/og-bot-battle-zone.webp";
-import createTrackArt from "@/assets/og-bot-create-track.webp";
+import { ogBotLogo } from "@/assets/ogbot-logo";
+import { modeArt } from "@/assets/mode-art";
 import masterLogo from "@/assets/og-bot-master-logo.webp";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
 import { openCarrom, watchCarromCard } from "@/components/welcome/og-carrom";
-import ogCarromArt from "@/assets/og-carrom.webp";
-import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import { SHARE_IMAGE } from "@/lib/seo";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
@@ -56,7 +52,7 @@ import {
 function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <img
-      src={ogBotAsset.url}
+      src={ogBotLogo.small}
       alt="OG Bot"
       width={512}
       height={512}
@@ -991,7 +987,7 @@ function Hero() {
           <ModeCard
             tone="crimson"
             className="og-rise"
-            image={battleZoneArt}
+            image={modeArt.battleZone}
             imageAlt="OG Bot Battle Zone badge"
             eyebrow="Live now"
             live
@@ -1004,7 +1000,7 @@ function Hero() {
             tone="blue"
             className="og-rise"
             style={{ animationDelay: "0.1s" }}
-            image={createTrackArt}
+            image={modeArt.createTrack}
             imageAlt="OG Bot Create a Track badge"
             eyebrow="AI studio"
             title="Music Hub"
@@ -1016,7 +1012,7 @@ function Hero() {
             tone="silver"
             className="og-rise"
             style={{ animationDelay: "0.2s" }}
-            image={sportsGuideArt}
+            image={modeArt.sportsGuide}
             imageAlt="OG Bot Sports Guide badge"
             eyebrow="Members only"
             title="Sports Guide"
@@ -1029,7 +1025,7 @@ function Hero() {
             tone="gold"
             className="og-rise"
             style={{ animationDelay: "0.3s" }}
-            image={ogCarromArt}
+            image={modeArt.carrom}
             imageAlt="OG Carrom badge"
             eyebrow="New game"
             title="OG Carrom"

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Headphones, Home, Pause, Play, Volume2 } from "lucide-react";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 import { Button } from "@/components/ui/button";
 import { getPublicSharedTrack } from "@/lib/public-track.functions";
 
@@ -62,7 +62,7 @@ function SharedTrackPage() {
     <main className="min-h-dvh bg-background px-4 py-10 text-foreground sm:py-14">
       <section className="mx-auto w-full max-w-2xl text-center">
         <img
-          src={ogBotAsset.url}
+          src={ogBotLogo.large}
           alt="OG BOT"
           width={512}
           height={512}

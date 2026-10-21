@@ -1,4 +1,4 @@
-import ogBotLogo from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 import { cn } from "@/lib/utils";
 
 interface PoweredByOgBotProps {
@@ -21,7 +21,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
         aria-label="Powered by OG Bot"
       >
         <img
-          src={ogBotLogo.url}
+          src={ogBotLogo.small}
           alt=""
           aria-hidden="true"
           className="h-4 w-4 rounded-full object-cover ring-1 ring-primary/50"
@@ -39,7 +39,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
       aria-label="Powered by OG Bot"
     >
       <img
-        src={ogBotLogo.url}
+        src={ogBotLogo.small}
         alt=""
         aria-hidden="true"
         className="h-6 w-6 rounded-full object-cover ring-1 ring-primary/50"

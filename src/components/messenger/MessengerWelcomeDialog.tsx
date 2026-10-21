@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { MessengerMode } from "@/hooks/use-messenger-mode";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 export function greetKey(uid: string | null | undefined) {
   return `og:messenger-greeting:${uid ?? "anon"}`;
@@ -81,7 +81,7 @@ export function MessengerWelcomeDialog({
       >
         <DialogHeader className="items-center !text-center">
           <img
-            src={ogBotAsset.url}
+            src={ogBotLogo.large}
             alt="OG Bot"
             className="mb-0.5 h-11 w-11 rounded-full object-cover ring-2 ring-primary/50 ring-offset-2 ring-offset-card sm:h-14 sm:w-14"
           />

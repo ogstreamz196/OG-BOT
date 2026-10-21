@@ -14,8 +14,8 @@ import {
   X,
 } from "lucide-react";
 
-import ratingPgImg from "@/assets/rating-pg.png";
-import rating18Img from "@/assets/rating-18.png";
+import ratingPgImg from "@/assets/rating-pg.webp";
+import rating18Img from "@/assets/rating-18.webp";
 import {
   Dialog,
   DialogContent,
