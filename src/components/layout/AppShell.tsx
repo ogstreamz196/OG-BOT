@@ -34,7 +34,8 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { GlobalMiniPlayer } from "@/components/GlobalMiniPlayer";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
 
-import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
+// 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
+import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
 import { ogBotLogo } from "@/assets/ogbot-logo";
 
 function BrandLockup({ compact = false }: { compact?: boolean }) {
@@ -44,7 +45,7 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
       aria-label="OG Streamz powered by OG Bot"
     >
       <img
-        src={ogStreamzLogo.url}
+        src={ogStreamzLogo}
         alt="OG Streamz"
         className={`${compact ? "h-6" : "h-7"} w-auto rounded-md object-contain`}
       />

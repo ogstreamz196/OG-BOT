@@ -33,7 +33,8 @@ import { useVipSubscription } from "@/hooks/use-vip-subscription";
 import { useRole } from "@/hooks/use-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
-import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
+// 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
+import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
 import { ogBotLogo } from "@/assets/ogbot-logo";
 
 type AppRoute =
@@ -183,7 +184,7 @@ export function AppSidebar() {
       >
         <div className="flex flex-col items-center gap-1 px-2 pb-3 text-center">
           <img
-            src={ogStreamzLogo.url}
+            src={ogStreamzLogo}
             alt="OG Streamz"
             draggable={false}
             onContextMenu={(e) => e.preventDefault()}
