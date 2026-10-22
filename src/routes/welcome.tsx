@@ -1,6 +1,7 @@
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
+// 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
+import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
 import { Capacitor } from "@capacitor/core";
 import {
   Suspense,
@@ -889,7 +890,7 @@ function TopNav() {
           className="group flex min-w-0 items-center gap-3"
         >
           <img
-            src={ogStreamzLogo.url}
+            src={ogStreamzLogo}
             alt=""
             aria-hidden
             className="h-12 w-12 shrink-0 rounded-2xl object-cover shadow-glow ring-1 ring-white/15 sm:h-14 sm:w-14"
