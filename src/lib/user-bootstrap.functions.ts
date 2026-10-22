@@ -14,7 +14,7 @@ const BOSS_EMAIL = "ogstreamz196@gmail.com";
 
 export const ensureCurrentUserBootstrap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) =>
+  .validator((data) =>
     z.object({ deviceId: z.string().min(8).max(128).optional() }).parse(data ?? {}),
   )
   .handler(async ({ data, context }): Promise<BootstrapResult> => {

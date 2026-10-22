@@ -12,7 +12,7 @@ export type { OgChatMessage } from "@/lib/og-chat-input";
  */
 export const chatOgBot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(parseOgChatInput)
+  .validator(parseOgChatInput)
   .handler(async ({ data, context }): Promise<ChatReply> => {
     const { runOgChat } = await import("@/lib/og-chat.server");
     return runOgChat(data, context);

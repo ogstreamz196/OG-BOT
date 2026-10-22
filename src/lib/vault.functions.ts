@@ -30,7 +30,7 @@ export const listVaultCredentials = createServerFn({ method: "POST" })
 
 export const addVaultCredential = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { username: string; password: string; note?: string }) => {
+  .validator((d: { username: string; password: string; note?: string }) => {
     const username = String(d.username ?? "").trim();
     const password = String(d.password ?? "").trim();
     if (!username || username.length > 120) throw new Error("Enter a username (max 120)");
@@ -52,7 +52,7 @@ export const addVaultCredential = createServerFn({ method: "POST" })
 
 export const setVaultCredentialActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; active: boolean }) => ({ id: String(d.id), active: !!d.active }))
+  .validator((d: { id: string; active: boolean }) => ({ id: String(d.id), active: !!d.active }))
   .handler(async ({ data, context }) => {
     const db = await assertBoss(context);
     const { data: row, error } = await db
@@ -69,7 +69,7 @@ export const setVaultCredentialActive = createServerFn({ method: "POST" })
 
 export const deleteVaultCredential = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => ({ id: String(d.id) }))
+  .validator((d: { id: string }) => ({ id: String(d.id) }))
   .handler(async ({ data, context }) => {
     const db = await assertBoss(context);
     const { data: row } = await db.from("vip_pass_credentials").select("username").eq("id", data.id).maybeSingle();
@@ -114,7 +114,7 @@ export const getVaultWebhookSettings = createServerFn({ method: "POST" })
 
 export const saveVaultWebhookSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { enabled: boolean; targetUrl: string; regenerateSecret?: boolean }) => {
+  .validator((d: { enabled: boolean; targetUrl: string; regenerateSecret?: boolean }) => {
     const url = String(d.targetUrl ?? "").trim();
     if (url && (!/^https:\/\/\S+$/i.test(url) || url.length > 500)) throw new Error("Use a full https:// URL");
     return { enabled: !!d.enabled, targetUrl: url, regenerateSecret: !!d.regenerateSecret };

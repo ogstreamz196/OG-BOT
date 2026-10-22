@@ -134,7 +134,7 @@ export type MemberActivity = {
 /** Recent sign-ins (device type only, never location), tracks and coin moves. */
 export const getMemberActivity = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
+  .validator((d) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }): Promise<MemberActivity> => {
     await assertBoss(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

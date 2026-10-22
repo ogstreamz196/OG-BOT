@@ -9,7 +9,7 @@ function esc(s: string) {
 /** VIP-only: send a style / language / feature request straight to the Boss on Telegram. */
 export const sendVipRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         kind: z.enum(["style", "language", "other"]),

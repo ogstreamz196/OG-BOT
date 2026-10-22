@@ -24,7 +24,7 @@ export const listMyMemories = createServerFn({ method: "GET" })
 /** Forget one memory, or all of them when no id is given. */
 export const forgetMemories = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id?: string }) => {
+  .validator((data: { id?: string }) => {
     if (data?.id !== undefined && !/^[0-9a-f-]{36}$/i.test(String(data.id)))
       throw new Error("Invalid memory");
     return { id: data?.id };
@@ -42,7 +42,7 @@ export const forgetMemories = createServerFn({ method: "POST" })
 /** Switch OG Bot's memory on or off. Switching off also clears what it knew. */
 export const setMemoryEnabled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { enabled: boolean }) => ({ enabled: !!data?.enabled }))
+  .validator((data: { enabled: boolean }) => ({ enabled: !!data?.enabled }))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as { from: (t: string) => any };

@@ -20,7 +20,7 @@ const isAnonymous = (claims: Record<string, unknown> | undefined) => claims?.is_
 
 export const createGuestTrackCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         songId: z.string().uuid(),
@@ -93,7 +93,7 @@ const planSchema = z.object({
  */
 export const startGuestTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ songId: z.string().uuid(), plan: planSchema }).parse(d))
+  .validator((d) => z.object({ songId: z.string().uuid(), plan: planSchema }).parse(d))
   .handler(async ({ data, context }) => {
     if (JSON.stringify(data.plan).length > 30_000) return { ok: false as const, reason: "too_big" };
 
@@ -145,7 +145,7 @@ export const startGuestTrack = createServerFn({ method: "POST" })
  */
 export const claimGuestTracks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ refreshToken: z.string().min(8).max(4096) }).parse(d))
+  .validator((d) => z.object({ refreshToken: z.string().min(8).max(4096) }).parse(d))
   .handler(async ({ data, context }) => {
     if (isAnonymous(context.claims as Record<string, unknown>)) {
       return { ok: false as const, moved: 0, reason: "still_guest" };

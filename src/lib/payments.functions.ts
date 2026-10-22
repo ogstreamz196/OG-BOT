@@ -56,7 +56,7 @@ async function resolveOrCreateCustomer(
 
 export const createCoinCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
     if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
     const pack = findCoinPackByPriceId(data.priceId);
     if (!pack) throw new Error("Unknown coin pack");
@@ -162,7 +162,7 @@ export const createCoinCheckoutSession = createServerFn({ method: "POST" })
 
 export const createVipCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (data: {
       returnUrl: string;
       environment: StripeEnv;
@@ -233,7 +233,7 @@ export const createVipCheckoutSession = createServerFn({ method: "POST" })
 
 export const createCustomCoinCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { units: number; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { units: number; returnUrl: string; environment: StripeEnv }) => {
     if (!Number.isInteger(data.units)) throw new Error("Invalid units");
     if (data.units < CUSTOM_COIN_UNIT.minUnits || data.units > CUSTOM_COIN_UNIT.maxUnits) {
       throw new Error(
@@ -329,7 +329,7 @@ type ReconcileResult =
 
 export const reconcileCoinSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -422,7 +422,7 @@ const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 
 export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { songId: string; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { songId: string; returnUrl: string; environment: StripeEnv }) => {
     if (!UUID_RE.test(data.songId)) throw new Error("Invalid songId");
     if (data.environment !== "sandbox" && data.environment !== "live") {
       throw new Error("Invalid environment");
@@ -500,7 +500,7 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
 
 export const reconcileTrackUnlock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -757,7 +757,7 @@ type ReceiptResult = { url: string } | { error: string };
 
 export const getStripeReceiptUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -795,7 +795,7 @@ type RefundResult =
 
 export const refundCoinPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -893,7 +893,7 @@ type PortalResult = { url: string } | { error: string };
 
 export const createBillingPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { returnUrl: string; environment: StripeEnv }) => {
     if (data.environment !== "sandbox" && data.environment !== "live") {
       throw new Error("Invalid environment");
     }
@@ -976,7 +976,7 @@ export type RefundRow = {
 
 export const getMyRefunds = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { refresh?: boolean } | undefined) => data ?? {})
+  .validator((data: { refresh?: boolean } | undefined) => data ?? {})
   .handler(async ({ data, context }): Promise<RefundRow[]> => {
     const { supabase, userId } = context;
 

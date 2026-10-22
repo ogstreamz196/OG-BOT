@@ -96,7 +96,7 @@ async function sendTelegramDirect(
 
 export const recordSignIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(() => ({}))
+  .validator(() => ({}))
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prof } = await supabaseAdmin
@@ -237,7 +237,7 @@ export const getBossNotifPrefs = createServerFn({ method: "GET" })
 export const updateBossNotifPrefs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   // Only these columns, nothing else (e.g. never user_id).
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         notify_on_signup: z.boolean().optional(),
@@ -278,7 +278,7 @@ export const updateBossNotifPrefs = createServerFn({ method: "POST" })
 
 export const getUserSignInHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; limit?: number }) => ({
+  .validator((d: { userId: string; limit?: number }) => ({
     userId: d.userId,
     limit: Math.min(Math.max(d.limit ?? 20, 1), 100),
   }))
@@ -313,7 +313,7 @@ export const getUserSignInHistory = createServerFn({ method: "GET" })
 
 export const listUsersPro = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string }) => ({ search: (d?.search ?? "").trim().slice(0, 100) }))
+  .validator((d: { search?: string }) => ({ search: (d?.search ?? "").trim().slice(0, 100) }))
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as any;
     const { data: ok } = await supabase.rpc("has_role", {

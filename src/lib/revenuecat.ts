@@ -20,10 +20,31 @@ type PurchasesWebInstance = Awaited<ReturnType<RCWebModule["Purchases"]["configu
 const loadNative = () => import("@revenuecat/purchases-capacitor").then((m) => m.Purchases);
 const loadWeb = (): Promise<RCWebModule> => import("@revenuecat/purchases-js");
 
-// RevenueCat Keys
-const RC_WEB_API_KEY = "test_UFDSOGyDTSPOjElYUXAqieTfcny";
-const RC_ANDROID_API_KEY = "goog_dIqlVeXWmOVtTicDbLnkWOkNUTb"; // Android public SDK key from RevenueCat
-const RC_IOS_API_KEY = "test_UFDSOGyDTSPOjElYUXAqieTfcny"; // TODO: Replace with iOS API Key from RevenueCat Dashboard
+// RevenueCat public SDK keys (these ship inside the apps; they aren't secrets).
+// Each can be set per build with VITE_REVENUECAT_*_KEY. Android keeps its
+// live key as the default; iOS and web have none until a real key is set, so
+// a store build never runs against a test key: without one, in-app purchases
+// are simply unavailable on that platform.
+const env = import.meta.env as Record<string, string | undefined>;
+const RC_ANDROID_API_KEY =
+  env.VITE_REVENUECAT_ANDROID_KEY?.trim() || "goog_dIqlVeXWmOVtTicDbLnkWOkNUTb";
+const RC_IOS_API_KEY = env.VITE_REVENUECAT_IOS_KEY?.trim() || "";
+const RC_WEB_API_KEY = env.VITE_REVENUECAT_WEB_KEY?.trim() || "";
+
+/** The key RevenueCat needs on this platform, or "" when none is configured. */
+function apiKeyFor(platform: string): string {
+  if (platform === "ios") return RC_IOS_API_KEY;
+  if (platform === "android") return RC_ANDROID_API_KEY;
+  return RC_WEB_API_KEY;
+}
+
+function noKeyNotice(platform: string) {
+  if (import.meta.env.DEV) {
+    console.info(
+      `RevenueCat: no ${platform} key (VITE_REVENUECAT_${platform.toUpperCase()}_KEY), in-app purchases are off.`,
+    );
+  }
+}
 
 let purchasesWebInstance: PurchasesWebInstance | null = null;
 let isNativeConfigured = false;
@@ -35,10 +56,16 @@ export async function configureRevenueCat(appUserId?: string) {
   if (typeof window === "undefined") return;
 
   if (Capacitor.isNativePlatform()) {
+    const platform = Capacitor.getPlatform();
+    const apiKey = apiKeyFor(platform);
+    if (!apiKey) {
+      noKeyNotice(platform);
+      return;
+    }
     try {
-      await (await loadNative()).setLogLevel({ level: "DEBUG" as any });
-      const platform = Capacitor.getPlatform();
-      const apiKey = platform === "ios" ? RC_IOS_API_KEY : RC_ANDROID_API_KEY;
+      await (
+        await loadNative()
+      ).setLogLevel({ level: (import.meta.env.DEV ? "DEBUG" : "WARN") as any });
 
       if (appUserId) {
         await (await loadNative()).configure({ apiKey, appUserID: appUserId });
@@ -54,6 +81,10 @@ export async function configureRevenueCat(appUserId?: string) {
       console.error("Failed to initialize RevenueCat Native", error);
     }
   } else {
+    if (!RC_WEB_API_KEY) {
+      noKeyNotice("web");
+      return;
+    }
     const rc = await loadWeb();
     const finalUserId = appUserId || rc.Purchases.generateRevenueCatAnonymousAppUserId();
     purchasesWebInstance = rc.Purchases.configure(RC_WEB_API_KEY, finalUserId);

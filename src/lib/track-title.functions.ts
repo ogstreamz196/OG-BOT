@@ -77,7 +77,7 @@ export function fallbackTitle(subjectName: string, description: string): string 
  */
 export const suggestTrackTitle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { subjectName?: string; description?: string; style?: string }) => ({
+  .validator((data: { subjectName?: string; description?: string; style?: string }) => ({
     subjectName: String(data?.subjectName ?? "")
       .trim()
       .slice(0, 60),

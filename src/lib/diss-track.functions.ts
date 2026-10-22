@@ -9,7 +9,7 @@ type Rpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknow
 /** Charge the diss-track price once per attempt id (atomic, idempotent). */
 export const chargeDissTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { attemptId: string }) => {
+  .validator((d: { attemptId: string }) => {
     if (!d || !UUID_RE.test(String(d.attemptId))) throw new Error("Bad attempt id");
     return { attemptId: String(d.attemptId) };
   })
@@ -34,7 +34,7 @@ export const chargeDissTrack = createServerFn({ method: "POST" })
 /** Give the coins back if the track never started. Only refunds a real, un-refunded charge. */
 export const refundDissTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { attemptId: string }) => {
+  .validator((d: { attemptId: string }) => {
     if (!d || !UUID_RE.test(String(d.attemptId))) throw new Error("Bad attempt id");
     return { attemptId: String(d.attemptId) };
   })

@@ -35,7 +35,7 @@ export const getCarromLink = createServerFn({ method: "POST" })
  */
 export const getCarromAppLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => {
+  .validator((raw: unknown) => {
     const challenge = (raw as { challenge?: unknown } | null)?.challenge;
     if (!/^[A-Za-z0-9_-]{43}$/.test(String(challenge ?? ""))) throw new Error("Invalid request");
     // From the carrom website the player goes back there; from the app, into the app.

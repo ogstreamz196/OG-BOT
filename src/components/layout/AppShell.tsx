@@ -24,6 +24,7 @@ import { CoinBalance } from "@/components/dashboard/CoinBalance";
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
+import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "./AppSidebar";
 import { VipTrialWelcome } from "./VipTrialWelcome";
@@ -180,6 +181,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <AdminEditModeToggle className="hidden md:inline-flex" />
                 <HighContrastToggle className="hidden sm:inline-flex" />
                 <CoinBalance className="order-first sm:order-none" />
+                <AccountButton />
 
                 {/* Standalone sign-out on ≥380px */}
                 <Button
@@ -288,5 +290,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </SidebarProvider>
     </AdminEditModeProvider>
+  );
+}
+
+/** Your initial in a circle: the quickest way to Settings, as in native apps. */
+function AccountButton() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const name = profile?.display_name || user?.email || "";
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <Link
+      to="/settings"
+      aria-label="Account settings"
+      title="Account settings"
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/50 bg-primary/15 text-sm font-black text-foreground transition-colors hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {initial}
+    </Link>
   );
 }

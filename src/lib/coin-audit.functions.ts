@@ -92,7 +92,7 @@ export type CoinAuditResult =
 
 export const auditCoinBalances = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId?: string }) =>
+  .validator((d: { userId?: string }) =>
     z.object({ userId: z.string().uuid().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<CoinAuditResult> => {
@@ -167,7 +167,7 @@ export type ReconcileResult =
  */
 export const reconcileUserCoinBalance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; trust?: "ledger" | "balance" }) =>
+  .validator((d: { userId: string; trust?: "ledger" | "balance" }) =>
     z
       .object({ userId: z.string().uuid(), trust: z.enum(["ledger", "balance"]).default("ledger") })
       .parse(d),
@@ -264,7 +264,7 @@ export type ResetBatchResult =
  */
 export const resetMemberBalances = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         runId: z.string().regex(/^[a-z0-9-]{6,40}$/),

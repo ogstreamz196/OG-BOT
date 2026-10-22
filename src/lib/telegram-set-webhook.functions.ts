@@ -24,7 +24,7 @@ function deriveSecret(key: string): string {
  */
 export const setTelegramWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown): { url?: string } => {
+  .validator((data: unknown): { url?: string } => {
     const d = (data ?? {}) as { url?: unknown };
     return { url: typeof d.url === "string" && d.url.length ? d.url : undefined };
   })

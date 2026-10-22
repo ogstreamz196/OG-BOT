@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 /** Owner unlocks are atomic and include the paired take at no additional cost. */
 export const purchaseOwnerTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ songId: z.string().uuid() }).parse(data))
+  .validator((data) => z.object({ songId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: song } = await context.supabase.from("songs").select("user_id")
       .eq("id", data.songId).maybeSingle();
@@ -21,7 +21,7 @@ export const purchaseOwnerTrack = createServerFn({ method: "POST" })
 /** Charges the full-track price before generation starts (idempotent per song). */
 export const prepayTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ songId: z.string().uuid() }).parse(data))
+  .validator((data) => z.object({ songId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { data: song } = await context.supabase.from("songs").select("user_id")
       .eq("id", data.songId).maybeSingle();
