@@ -169,6 +169,13 @@
       "when": 1792374861439,
       "tag": "0023_og_memories",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792629678256,
+      "tag": "0024_perf_indexes",
+      "breakpoints": true
     }
   ]
 }
