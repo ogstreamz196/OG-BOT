@@ -169,7 +169,7 @@ export type SavedCheck = CheckResult & { key: string; checked_at: string };
 
 export const runOnboardingCheck = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { key: string }) => {
+  .validator((input: { key: string }) => {
     if (!input?.key || typeof input.key !== "string") throw new Error("key required");
     return input;
   })

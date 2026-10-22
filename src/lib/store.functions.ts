@@ -281,7 +281,7 @@ type UpsertInput = {
 
 export const upsertStoreItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: UpsertInput) => {
+  .validator((data: UpsertInput) => {
     if (!data.category_id) throw new Error("category_id required");
     if (!SLUG_RE.test(data.slug)) throw new Error("Slug must be lowercase letters/digits/-/_");
     if (!data.name?.trim()) throw new Error("Name required");
@@ -343,7 +343,7 @@ export const upsertStoreItem = createServerFn({ method: "POST" })
 
 export const deleteStoreItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id: string }) => data)
+  .validator((data: { id: string }) => data)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: isAdmin } = await supabase.rpc("has_role", {
@@ -363,7 +363,7 @@ export const deleteStoreItem = createServerFn({ method: "POST" })
 // ─── admin: category upsert / delete ─────────────────────────────────────
 export const upsertStoreCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (d: {
       id?: string;
       slug: string;
@@ -408,7 +408,7 @@ export const upsertStoreCategory = createServerFn({ method: "POST" })
 // ─── admin: reorder helpers ──────────────────────────────────────────────
 export const reorderStoreItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { ids: string[] }) => {
+  .validator((d: { ids: string[] }) => {
     if (!Array.isArray(d.ids) || d.ids.length === 0) throw new Error("ids required");
     if (d.ids.length > 200) throw new Error("too many ids");
     for (const id of d.ids) {
@@ -436,7 +436,7 @@ export const reorderStoreItems = createServerFn({ method: "POST" })
 
 export const reorderStoreCategories = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { ids: string[] }) => {
+  .validator((d: { ids: string[] }) => {
     if (!Array.isArray(d.ids) || d.ids.length === 0) throw new Error("ids required");
     if (d.ids.length > 100) throw new Error("too many ids");
     for (const id of d.ids) {
@@ -466,7 +466,7 @@ type CheckoutResult = { clientSecret: string } | { error: string };
 
 export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { itemId: string; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { itemId: string; returnUrl: string; environment: StripeEnv }) => {
     if (!/^[0-9a-f-]{36}$/i.test(data.itemId)) throw new Error("Invalid itemId");
     if (data.environment !== "sandbox" && data.environment !== "live") {
       throw new Error("Invalid environment");

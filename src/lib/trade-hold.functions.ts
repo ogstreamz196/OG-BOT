@@ -9,7 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  */
 export const getTradeHoldLine = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({ text: z.string().max(4000), tone: z.enum(["foul", "cheeky", "safe"]) }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ line: string | null }> => {

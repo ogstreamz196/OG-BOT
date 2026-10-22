@@ -292,7 +292,7 @@ export function streakBonus(days: number): number {
 /** Post a user message to the community + trigger a short OG Bot reply. */
 export const postCommunityMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { content: string; foulMouth?: boolean }) => {
+  .validator((data: { content: string; foulMouth?: boolean }) => {
     const content = String(data?.content ?? "").trim();
     if (!content) throw new Error("Message required");
     if (content.length > 1000) throw new Error("Message too long (1000 chars max)");
@@ -744,7 +744,7 @@ export const clearMyBattleHistory = createServerFn({ method: "POST" })
  */
 export const claimGuestBattleMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
+  .validator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: res, error } = await supabaseAdmin.rpc(
@@ -791,7 +791,7 @@ async function guestSince(admin: any, guestId: string): Promise<string> {
 
 /** Public: guest view of the Battle Zone from their first message onward. */
 export const listGuestBattleMessages = createServerFn({ method: "POST" })
-  .inputValidator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
+  .validator((d: { guestId: string }) => ({ guestId: guestIdSchema(d?.guestId) }))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const since = await guestSince(supabaseAdmin, data.guestId);
@@ -835,7 +835,7 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
  * (score_tenths on their lines) until they join and claim them.
  */
 export const postGuestBattleMessage = createServerFn({ method: "POST" })
-  .inputValidator((d: { guestId: string; content: string }) => {
+  .validator((d: { guestId: string; content: string }) => {
     const content = String(d?.content ?? "").trim();
     if (!content) throw new Error("Message required");
     if (content.length > 400) throw new Error("Keep it under 400 characters");
@@ -1074,7 +1074,7 @@ export const listCommunityMessages = createServerFn({ method: "GET" })
 /** Load a page of older messages strictly before the given (created_at, id) cursor. */
 export const listOlderCommunityMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { before: string; beforeId?: string; limit?: number }) => {
+  .validator((data: { before: string; beforeId?: string; limit?: number }) => {
     const before = String(data?.before ?? "");
     if (!before) throw new Error("before required");
     const beforeId = data?.beforeId ? String(data.beforeId) : null;
@@ -1139,7 +1139,7 @@ export const listMyCommunityBlocks = createServerFn({ method: "GET" })
 /** Block a member so their Battle Zone messages are hidden for the caller. */
 export const blockCommunityUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string }) => {
+  .validator((d: { userId: string }) => {
     if (!d || typeof d.userId !== "string" || !/^[0-9a-f-]{36}$/i.test(d.userId)) {
       throw new Error("Invalid user");
     }
@@ -1157,7 +1157,7 @@ export const blockCommunityUser = createServerFn({ method: "POST" })
 /** Report an abusive Battle Zone message; Boss is alerted on Telegram. */
 export const reportCommunityMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { messageId: string; reason?: string }) => {
+  .validator((d: { messageId: string; reason?: string }) => {
     if (!d || typeof d.messageId !== "string" || !/^[0-9a-f-]{36}$/i.test(d.messageId)) {
       throw new Error("Invalid message");
     }

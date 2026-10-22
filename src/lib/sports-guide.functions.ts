@@ -66,7 +66,7 @@ export const syncSportsGuide = createServerFn({ method: "POST" })
 
 export const toggleSportsGuideReminder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ postId: z.string().uuid(), leadMinutes: z.number().int().min(5).max(120) }).parse(d))
+  .validator((d) => z.object({ postId: z.string().uuid(), leadMinutes: z.number().int().min(5).max(120) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: owned } = await supabase.rpc("has_sports_guide_access", { _user: userId });

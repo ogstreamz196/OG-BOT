@@ -234,7 +234,7 @@ async function buildUserSnapshot(
 
 export const syncUserActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { userId?: string }) => input)
+  .validator((input: { userId?: string }) => input)
   .handler(async ({ data, context }) => {
     const targetId = data.userId ?? context.userId;
     // Only allow dev/admin to sync other users; users can sync themselves.
@@ -293,7 +293,7 @@ export const syncAllUsersActivity = createServerFn({ method: "POST" })
 /** Archive a final (non-preview) song MP3 into the Drive folder. */
 export const archiveFinalSong = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { songId: string }) => input)
+  .validator((input: { songId: string }) => input)
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: song, error } = await supabaseAdmin

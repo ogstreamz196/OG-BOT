@@ -35,7 +35,7 @@ export const getSheetsConfig = createServerFn({ method: "GET" })
 
 export const setSheetsConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { sheetId: string }) => {
+  .validator((d: { sheetId: string }) => {
     const id = (d?.sheetId ?? "").trim();
     if (!/^[A-Za-z0-9_-]{20,}$/.test(id)) throw new Error("Invalid spreadsheet ID");
     return { sheetId: id };

@@ -75,7 +75,7 @@ async function summarise(db: any, id: string): Promise<MergeCandidate | null> {
 /** Find the duplicate by user id, email or username, with a summary of both. */
 export const findMergeCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({ primaryId: z.string().uuid(), query: z.string().trim().min(2).max(200) }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -113,7 +113,7 @@ export const findMergeCandidate = createServerFn({ method: "POST" })
 
 export const mergeAccounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({ primaryId: z.string().uuid(), duplicateId: z.string().uuid() }).parse(d),
   )
   .handler(async ({ data, context }) => {

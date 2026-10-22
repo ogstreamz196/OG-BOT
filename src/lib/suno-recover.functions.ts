@@ -25,7 +25,7 @@ const PENDING_STATES = ["PENDING", "TEXT_SUCCESS", "FIRST_SUCCESS", "PROCESSING"
 
 export const recoverStuckSong = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { songId: string }) => {
+  .validator((data: { songId: string }) => {
     if (!data?.songId || typeof data.songId !== "string") throw new Error("Missing songId");
     return { songId: data.songId };
   })

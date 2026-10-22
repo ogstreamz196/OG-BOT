@@ -112,7 +112,7 @@ export type DriveArchiveResult = {
 
 export const archiveSongToDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { songId: string; force?: boolean }) => ({
+  .validator((input: { songId: string; force?: boolean }) => ({
     songId: String(input.songId),
     force: Boolean(input.force),
   }))
@@ -219,7 +219,7 @@ export const archiveSongToDrive = createServerFn({ method: "POST" })
 /** Backfill: archive every completed track that has no Drive copy yet. */
 export const backfillDriveArchive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { limit?: number }) => ({
+  .validator((input: { limit?: number }) => ({
     limit: Math.max(1, Math.min(50, Number(input?.limit ?? 10))),
   }))
   .handler(async ({ data, context }) => {

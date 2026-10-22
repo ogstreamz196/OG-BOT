@@ -31,7 +31,7 @@ export type IdentifierSignIn =
   | { ok: false; reason: "not_found" | "too_many" };
 
 export const signInWithIdentifier = createServerFn({ method: "POST" })
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         identifier: z.string().trim().min(2).max(80),

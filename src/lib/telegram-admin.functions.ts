@@ -41,7 +41,7 @@ async function sendViaGateway(chatId: number, text: string) {
 /** Admin: queue a DM, attempt to send, and persist sent/failed status. */
 export const sendTelegramDm = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string; text: string }) => {
+  .validator((data: { userId: string; text: string }) => {
     if (!data?.userId) throw new Error("userId required");
     const text = (data.text ?? "").trim();
     if (!text) throw new Error("Message is empty");
@@ -111,7 +111,7 @@ export const sendTelegramDm = createServerFn({ method: "POST" })
 /** Admin: retry a previously-failed queued message. */
 export const retryTelegramDm = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { queueId: string }) => {
+  .validator((data: { queueId: string }) => {
     if (!data?.queueId) throw new Error("queueId required");
     return { queueId: data.queueId };
   })
@@ -185,7 +185,7 @@ export type TelegramQueueRow = {
 /** Admin: list queued + recent DM attempts for a user. */
 export const listTelegramDmsForUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => {
+  .validator((data: { userId: string }) => {
     if (!data?.userId) throw new Error("userId required");
     return { userId: data.userId };
   })
@@ -205,7 +205,7 @@ export const listTelegramDmsForUser = createServerFn({ method: "POST" })
 /** Admin: mint a fresh single-use Telegram start-link token for a user. */
 export const rotateTelegramLinkToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => {
+  .validator((data: { userId: string }) => {
     if (!data?.userId) throw new Error("userId required");
     return { userId: data.userId };
   })
@@ -225,7 +225,7 @@ export const rotateTelegramLinkToken = createServerFn({ method: "POST" })
 /** Admin: send a canned verification ping to a linked user. */
 export const sendTelegramTestPing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => {
+  .validator((data: { userId: string }) => {
     if (!data?.userId) throw new Error("userId required");
     return { userId: data.userId };
   })

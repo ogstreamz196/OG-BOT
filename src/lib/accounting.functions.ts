@@ -34,7 +34,7 @@ function categorise(c: any): string {
 
 export const listCardTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { from: string; to: string }) => {
+  .validator((d: { from: string; to: string }) => {
     if (isNaN(Date.parse(d.from)) || isNaN(Date.parse(d.to))) throw new Error("Invalid dates");
     return d;
   })
@@ -100,7 +100,7 @@ const DRIVE = "https://connector-gateway.lovable.dev/google_drive";
 /** Saves the accountant CSV into PURCHASE REVIEW/<period folder> on the boss's Drive. */
 export const saveAccountantCsvToDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { folder: string; fileName: string; csv: string }) => {
+  .validator((d: { folder: string; fileName: string; csv: string }) => {
     if (!/^[\w .\-/]{1,60}$/.test(d.folder) || !/^[\w .\-]{1,120}\.csv$/.test(d.fileName))
       throw new Error("Invalid name");
     if (d.csv.length > 5_000_000) throw new Error("File too large");

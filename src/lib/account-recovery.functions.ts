@@ -13,7 +13,7 @@ function esc(s: string) {
 
 /** Public: signed-out user asks the Boss to recover their account. Alerts Boss on Telegram. */
 export const requestAccountRecovery = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => schema.parse(d))
+  .validator((d: unknown) => schema.parse(d))
   .handler(async ({ data }) => {
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

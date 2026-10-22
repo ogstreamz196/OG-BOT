@@ -35,7 +35,7 @@ export async function isDeviceWhitelisted(
  * Only returns a boolean/count — no user data — safe to expose.
  */
 export const checkDeviceAccountAllowed = createServerFn({ method: "GET" })
-  .inputValidator((data) => deviceIdSchema.parse(data))
+  .validator((data) => deviceIdSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (await isDeviceWhitelisted(supabaseAdmin, data.deviceId)) {
@@ -57,7 +57,7 @@ export const checkDeviceAccountAllowed = createServerFn({ method: "GET" })
  */
 export const registerDeviceAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => deviceIdSchema.parse(data))
+  .validator((data) => deviceIdSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin

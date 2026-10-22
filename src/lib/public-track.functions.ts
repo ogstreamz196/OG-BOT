@@ -9,7 +9,7 @@ export type PublicSharedTrack = {
 };
 
 export const getPublicSharedTrack = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ songId: z.string().uuid() }).parse(data))
+  .validator((data) => z.object({ songId: z.string().uuid() }).parse(data))
   .handler(async ({ data }): Promise<PublicSharedTrack | null> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: song, error } = await supabaseAdmin

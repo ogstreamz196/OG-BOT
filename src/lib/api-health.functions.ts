@@ -434,7 +434,7 @@ export const runApiHealthCheck = createServerFn({ method: "POST" })
 /** Ping one key on demand. */
 export const pingApiKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { key: string }) => ({ key: String(d?.key ?? "").slice(0, 60) }))
+  .validator((d: { key: string }) => ({ key: String(d?.key ?? "").slice(0, 60) }))
   .handler(async ({ data, context }): Promise<HealthCheck> => {
     await assertAdmin(context);
     const spec = SPECS.find((s) => s.key === data.key);
