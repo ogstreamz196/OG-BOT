@@ -5,6 +5,7 @@ import {
   buildPlan,
   detectStyle,
   detectTradeIntent,
+  resolveTradeRequest,
   ema,
   parseInstrument,
   readFrame,
@@ -67,6 +68,26 @@ describe("parseInstrument", () => {
 });
 
 describe("detectTradeIntent", () => {
+  it("resolves the reported BTC follow-up without inheriting old prices", () => {
+    const now = Date.UTC(2026, 9, 23, 22, 48);
+    expect(resolveTradeRequest("Give me a signal", [{
+      role: "user", content: "Is btcusd bullish or bearish im down 25k this week",
+      created_at: new Date(now - 60_000).toISOString(),
+    }], now)).toBe("BTCUSD Give me a signal");
+  });
+
+  it("does not infer a market from stale, assistant-only or unrelated history", () => {
+    const now = Date.UTC(2026, 9, 23, 22, 48);
+    const old = { role: "user", content: "BTC signal", created_at: new Date(now - 31 * 60_000).toISOString() };
+    expect(resolveTradeRequest("Give me a signal", [old], now)).toBeNull();
+    expect(resolveTradeRequest("Give me a signal", [{ ...old, role: "assistant", created_at: new Date(now).toISOString() }], now)).toBeNull();
+    expect(resolveTradeRequest("Give me a signal", [
+      { ...old, content: "what time is the game", created_at: new Date(now).toISOString() },
+      { ...old, created_at: new Date(now - 60_000).toISOString() },
+    ], now)).toBeNull();
+    expect(resolveTradeRequest("ETH signal", [old], now)).toBe("ETH signal");
+  });
+
   it("needs a market plus a trade word (or just the market)", () => {
     expect(detectTradeIntent("signal on xauusd pls")?.code).toBe("XAUUSD");
     expect(detectTradeIntent("EURUSD?")?.code).toBe("EURUSD");

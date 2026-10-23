@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildTradeSignalContext,
+  buildTradeSignal,
   plainForTelegram,
   tradeReplyTtlMs,
 } from "./trade-signal-context.server";
@@ -95,6 +96,14 @@ describe("buildTradeSignalContext", () => {
     expect(out).toMatch(/TP1: \d.*TP2: \d.*TP3: \d/);
     expect(out).toMatch(/Confidence: \d{2}% \((Low|Medium|High)\)/);
     expect(out).toMatch(/Valid until: .+ UK time \(intraday signal, good for 4 hours\)/);
+    const signal = await buildTradeSignal("BTC signal please");
+    const entry = out.match(/\nEntry: ([\d.]+)/)?.[1];
+    const stop = out.match(/\nStop loss: ([\d.]+)/)?.[1];
+    expect(entry).toBeDefined();
+    expect(stop).toBeDefined();
+    expect(signal.reply).toContain(`Entry: ${entry}`);
+    expect(signal.reply).toContain(`SL: ${stop}`);
+    expect(signal.expiresAt).not.toBeNull();
   });
 
   it("falls back to Kraken when Binance is blocked", async () => {
@@ -229,6 +238,9 @@ describe("buildTradeSignalContext", () => {
     const out = await buildTradeSignalContext("usdcad entry");
     expect(out).toContain("could not be loaded");
     expect(out).not.toContain("SIGNAL ENGINE");
+    const signal = await buildTradeSignal("usdcad entry");
+    expect(signal.expiresAt).toBeNull();
+    expect(signal.reply).not.toMatch(/Entry:|SL:|TP1:/);
   });
 });
 
