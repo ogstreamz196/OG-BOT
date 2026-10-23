@@ -214,6 +214,28 @@ export function detectTradeIntent(text: string | null | undefined): Instrument |
   return TRADE_WORDS.test(text) || bare ? inst : null;
 }
 
+/** Resolve a short follow-up from recent USER messages, never old assistant levels. */
+export function resolveTradeRequest(
+  text: string,
+  recent: { role: string; content: string; created_at: string }[],
+  now = Date.now(),
+): string | null {
+  if (detectTradeIntent(text)) return text;
+  if (parseInstrument(text) || !TRADE_WORDS.test(text)) return null;
+  // Only explicit signal follow-ups inherit a market; ordinary requests don't.
+  if (!/\b(signals?|setups?|entry|entries|sl|tp|scalp|swing|bullish|bearish)\b/i.test(text)) return null;
+  for (const message of recent) {
+    if (message.role !== "user") continue;
+    const age = now - Date.parse(message.created_at);
+    if (!Number.isFinite(age) || age < 0 || age > 30 * 60_000) continue;
+    const market = detectTradeIntent(message.content);
+    if (market) return `${market.code} ${text}`;
+    // An unrelated user turn ends the market conversation.
+    if (!/\b(signals?|setups?|entry|entries|sl|tp|scalp|swing)\b/i.test(message.content)) break;
+  }
+  return null;
+}
+
 export function detectStyle(text: string): Style {
   if (/\b(scalp|scalping|1\s?m|5\s?m|15\s?m|m1|m5|m15|quick)\b/i.test(text)) return "scalp";
   if (/\b(swing|daily|weekly|long[\s-]?term|position|hold)\b/i.test(text)) return "swing";

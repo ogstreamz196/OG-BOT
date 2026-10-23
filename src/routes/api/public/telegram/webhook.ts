@@ -552,6 +552,61 @@ async function runChatAI(
   userText: string,
   roles: string[],
 ) {
+  // Resolve short follow-ups before entering generic chat. The card itself
+  // comes from live candles and the deterministic engine, not an AI model.
+  const trade = await import("@/lib/trade-signal");
+  let tradeText = trade.resolveTradeRequest(userText, []);
+  if (!tradeText && /\b(signals?|setups?|entry|entries|sl|tp|scalp|swing|bullish|bearish)\b/i.test(userText)) {
+    const { data: recent } = await admin
+      .from("og_messages")
+      .select("role, content, created_at")
+      .eq("user_id", profileId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    tradeText = trade.resolveTradeRequest(userText, recent ?? []);
+  }
+  if (tradeText) {
+    const timer = setInterval(() => {
+      void tg("sendChatAction", { chat_id, action: "typing" });
+    }, 4000);
+    try {
+      void tg("sendChatAction", { chat_id, action: "typing" });
+      const market = trade.detectTradeIntent(tradeText);
+      if (!market) return;
+      const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
+      const signalJob = buildTradeSignal(tradeText);
+      const { pickTradeHold } = await import("@/lib/trade-hold.server");
+      const vipish = ["vip", "admin", "boss", "dev"].some((role) => roles.includes(role));
+      const { data: pref } = vipish
+        ? await admin.from("user_preferences").select("foul_mouth").eq("user_id", profileId).maybeSingle()
+        : { data: null };
+      const tone = vipish && (pref?.foul_mouth ?? true) ? "foul" : "cheeky";
+      const hold = await pickTradeHold(admin as never, profileId, market, tone)
+        .catch(() => trade.holdingMessage(market, tone));
+      const held = await tg("sendMessage", { chat_id, text: hold, disable_web_page_preview: true });
+      const signal = await signalJob;
+      const ttl = signal.expiresAt
+        ? Math.max(1, Date.parse(signal.expiresAt) - Date.now() - 5 * 60_000)
+        : 5 * 60_000;
+      await scheduleDelete(chat_id, held, ttl);
+      const chunks = signal.reply.match(/[\s\S]{1,3800}/g) ?? [signal.reply];
+      for (const text of chunks) {
+        const sent = await tg("sendMessage", { chat_id, text, disable_web_page_preview: true });
+        if (!sent) throw new Error("Signal delivery failed");
+        await scheduleDelete(chat_id, sent, ttl);
+      }
+      const content = signal.expiresAt
+        ? trade.tagSignalExpiry(signal.reply, signal.expiresAt)
+        : signal.reply;
+      await admin.from("og_messages").insert([
+        { user_id: profileId, role: "user", content: tradeText },
+        { user_id: profileId, role: "assistant", content },
+      ]);
+    } finally {
+      clearInterval(timer);
+    }
+    return;
+  }
   const { aiChatTarget, fetchAiChat, liveFactsMessage, streamAiChat } =
     await import("@/lib/ai-endpoint.server");
   const ai = aiChatTarget(profileId);
@@ -709,8 +764,9 @@ async function runChatAI(
       : "") +
     (footballBlock ? `\n\n${footballBlock}` : "");
 
-  const history = ((historyRes.data ?? []) as { role: string; content: string }[])
-    .reverse()
+  const history = trade.cleanTradeHistory(
+    ((historyRes.data ?? []) as { role: string; content: string }[]).reverse(),
+  )
     .map((m) => ({
       role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
       content: m.content,

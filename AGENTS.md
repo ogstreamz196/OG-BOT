@@ -1,4 +1,7 @@
-Subdirectories (e.g. src/components/welcome) have their own AGENTS.md; read it before changing files there.
+Subdirectories have their own AGENTS.md; read it before changing files there.
+<!-- LOVABLE:BEGIN -->
+- Telegram trade requests resolve short follow-ups from recent user turns and send deterministic live-data cards directly; saved cards carry expiry tags to keep stale levels out of AI history.
+<!-- LOVABLE:END -->
 
 ## Privacy
 

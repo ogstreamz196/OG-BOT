@@ -62,7 +62,7 @@ async function fromKraken(pair: string, interval: Interval): Promise<Candle[]> {
   )) as { error?: string[]; result?: Record<string, unknown> };
   if (json.error?.length) throw new Error(json.error.join(", "));
   const key = Object.keys(json.result ?? {}).find((k) => k !== "last");
-  const rows = (key ? json.result![key] : []) as unknown[][];
+  const rows = (key ? json.result?.[key] : []) as unknown[][];
   return clean(
     rows.map((r) => ({
       t: Number(r[0]) * 1000,
@@ -133,9 +133,10 @@ async function candles(
 
   const limit = interval === "1d" ? 365 : interval === "1h" ? 1000 : 500;
   const tries: [string, () => Promise<Candle[]>][] = [];
-  if (inst.binance) tries.push(["Binance", () => fromBinance(inst.binance!, interval, limit)]);
-  if (inst.kraken) tries.push(["Kraken", () => fromKraken(inst.kraken!, interval)]);
-  if (inst.yahoo) tries.push(["Yahoo Finance", () => fromYahoo(inst.yahoo!, interval)]);
+  const { binance, kraken, yahoo } = inst;
+  if (binance) tries.push(["Binance", () => fromBinance(binance, interval, limit)]);
+  if (kraken) tries.push(["Kraken", () => fromKraken(kraken, interval)]);
+  if (yahoo) tries.push(["Yahoo Finance", () => fromYahoo(yahoo, interval)]);
   const live = tries.filter(([src]) => (sourceDownUntil.get(src) ?? 0) < Date.now());
   const order = live.length ? live : tries;
 
@@ -222,7 +223,8 @@ async function fetchNews(symbol: string): Promise<string | null> {
   }
 }
 
-const cache = new Map<string, { exp: number; value: string; expiresAt: string | null }>();
+type TradeSignalResult = { block: string; expiresAt: string | null; reply: string };
+const cache = new Map<string, TradeSignalResult & { exp: number }>();
 
 function frameLine(f: FrameRead, fmt: (n: number) => string): string {
   const e200 = Number.isFinite(f.ema200) ? `, 200 EMA ${fmt(f.ema200)}` : "";
@@ -264,13 +266,13 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
  */
 export async function buildTradeSignal(
   userText: string,
-): Promise<{ block: string; expiresAt: string | null }> {
+): Promise<TradeSignalResult> {
   const inst = detectTradeIntent(userText);
-  if (!inst) return { block: "", expiresAt: null };
+  if (!inst) return { block: "", expiresAt: null, reply: "" };
   const style: Style = detectStyle(userText);
   const key = `${inst.code}:${style}`;
   const hit = cache.get(key);
-  if (hit && hit.exp > Date.now()) return { block: hit.value, expiresAt: hit.expiresAt };
+  if (hit && hit.exp > Date.now()) return { block: hit.block, expiresAt: hit.expiresAt, reply: hit.reply };
 
   const entryIv: Interval = style === "scalp" ? "15m" : "1h";
   const [daily, hourly, fifteen, news] = await Promise.all([
@@ -313,8 +315,13 @@ export async function buildTradeSignal(
   const [hi, mid, lo] = frames;
   if (!hi || !mid || !lo) {
     const value = NO_DATA(inst);
-    cache.set(key, { exp: Date.now() + 30_000, value, expiresAt: null });
-    return { block: value, expiresAt: null };
+    const result = {
+      block: value,
+      expiresAt: null,
+      reply: `I can't pull a live chart for ${inst.label} right now, so I won't make up entry, stop or target levels. Try again in a minute.`,
+    };
+    cache.set(key, { exp: Date.now() + 30_000, ...result });
+    return result;
   }
 
   const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles);
@@ -379,9 +386,30 @@ export async function buildTradeSignal(
 
   const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
   const expiresAt = valid.until.toISOString();
-  cache.set(key, { exp: Date.now() + 60_000, value, expiresAt });
-  if (cache.size > 200) cache.delete(cache.keys().next().value!);
-  return { block: value, expiresAt };
+  // Telegram gets the engine's actual card, not model-authored levels or a refusal.
+  const reply = [
+    `📊 ${inst.label} — ${plan.direction}`,
+    `Confidence: ${plan.confidencePct}% (${plan.confidence})`,
+    `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
+    `SL: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
+    `TP1: ${fmt(plan.targets[0])} / TP2: ${fmt(plan.targets[1])} / TP3: ${fmt(plan.targets[2])}`,
+    `R:R: ${plan.rr}`,
+    `⏳ Valid until: ${ukTime(valid.until)} UK time — this reply self-destructs by then. Cancel any unfilled entry and ask for a fresh signal.`,
+    "",
+    `Here's the chart read: ${plan.reasons.join("; ")}.`,
+    ...(plan.caution ? [plan.caution] : []),
+    `Cancel early if: ${plan.invalidation}.`,
+    `Source: ${source}; last candle ${asOf} UTC.`,
+    ...(news ? ["", `News risk:\n${news}`] : []),
+    "",
+    "Confidence measures indicator agreement, not a win rate or guarantee.",
+    "Risk 1–2% per trade, move SL to entry after TP1. Not financial advice; don't chase losses.",
+  ].join("\n");
+  const result = { block: value, expiresAt, reply };
+  cache.set(key, { exp: Date.now() + 60_000, ...result });
+  const oldest = cache.keys().next().value;
+  if (cache.size > 200 && oldest) cache.delete(oldest);
+  return result;
 }
 
 /** How often the Telegram clean-up job runs (sports-guide-reminders cron). */
