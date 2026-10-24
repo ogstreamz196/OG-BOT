@@ -215,3 +215,42 @@ export function parseYahooPrice(json: unknown): number {
   const p = Number(meta?.regularMarketPrice);
   return p > 0 ? p : NaN;
 }
+
+/**
+ * Spot price from Swissquote's free public quote feed: the middle of bid and
+ * ask, taken as the median across its pricing platforms. NaN if unusable.
+ */
+export function parseSwissquoteMid(json: unknown): number {
+  if (!Array.isArray(json)) return NaN;
+  const mids: number[] = [];
+  for (const row of json as { spreadProfilePrices?: { bid?: unknown; ask?: unknown }[] }[]) {
+    const p = row?.spreadProfilePrices?.[0];
+    const bid = Number(p?.bid);
+    const ask = Number(p?.ask);
+    if (bid > 0 && ask >= bid) mids.push((bid + ask) / 2);
+  }
+  if (!mids.length) return NaN;
+  mids.sort((a, b) => a - b);
+  const m = Math.floor(mids.length / 2);
+  return mids.length % 2 ? mids[m] : (mids[m - 1] + mids[m]) / 2;
+}
+
+/**
+ * How far to shift a proxy chart (gold token, futures) onto the spot price
+ * brokers quote. 0 when either price is missing or the gap is implausible
+ * (over 3%), so a bad quote can never move the levels far.
+ */
+export function spotOffset(spot: number, proxy: number): number {
+  if (!(spot > 0) || !(proxy > 0)) return 0;
+  const gap = spot - proxy;
+  return Math.abs(gap) / proxy > 0.03 ? 0 : gap;
+}
+
+/** A candle series moved by a fixed amount (for spot-adjusted charts). */
+export function shiftCandles<T extends { o: number; h: number; l: number; c: number }>(
+  candles: T[],
+  by: number,
+): T[] {
+  if (!by) return candles;
+  return candles.map((c) => ({ ...c, o: c.o + by, h: c.h + by, l: c.l + by, c: c.c + by }));
+}

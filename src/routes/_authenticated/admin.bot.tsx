@@ -1,5 +1,6 @@
+import { lazy, Suspense } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bell, HeartPulse, Radio, Send, Sparkles } from "lucide-react";
+import { Bell, HeartPulse, LineChart, Radio, Send, Sparkles } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -16,6 +17,23 @@ export const Route = createFileRoute("/_authenticated/admin/bot")({
     typeof s.tab === "string" ? { tab: s.tab } : {},
   component: AdminBotPage,
 });
+
+// The backtest pulls in the whole signal engine, so it loads only when opened.
+const SignalsBacktestPanel = lazy(() =>
+  import("@/components/admin/SignalsBacktestPanel").then((m) => ({
+    default: m.SignalsBacktestPanel,
+  })),
+);
+
+function SignalsTab() {
+  return (
+    <Suspense
+      fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
+    >
+      <SignalsBacktestPanel />
+    </Suspense>
+  );
+}
 
 function BotHealth() {
   return (
@@ -54,6 +72,13 @@ const TABS: readonly BossTab[] = [
     Icon: Bell,
     hint: "Which events OG Bot sends to your Telegram.",
     Panel: BossNotificationsPanel,
+  },
+  {
+    value: "signals",
+    label: "Signals",
+    Icon: LineChart,
+    hint: "Test how the trade signals would have done on past prices.",
+    Panel: SignalsTab,
   },
   {
     value: "live",

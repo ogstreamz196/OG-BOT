@@ -10,12 +10,24 @@ const PAIR_LABEL: Record<SignalPair, string> = {
 export const SIGNAL_PAIRS_TEXT =
   "📈 <b>Live signals</b>\n\nBuilt from live charts the moment you tap. Pick a market 👇";
 
-export function signalFramesText(pair: SignalPair) {
+/**
+ * 1-minute signals are Boss-only: at that speed spread and slippage eat a
+ * big share of the stop, so the calls are too noisy for members.
+ */
+export const ONE_MINUTE_RE = /\b(?:1\s?m|m1)\b/i;
+
+/** A typed signal request moved from 1 minute to 15 minutes. */
+export function withoutOneMinute(text: string): string {
+  return text.replace(new RegExp(ONE_MINUTE_RE.source, "gi"), "15m");
+}
+
+export function signalFramesText(pair: SignalPair, oneMinute = true) {
   return (
     `📈 <b>${PAIR_LABEL[pair]}</b>\n\n` +
     "⏱ <b>1 hour</b>: intraday, held for hours\n" +
     "⚡ <b>15 mins</b>: scalp, in and out quicker\n" +
-    "🎯 <b>1 min</b>: very short term, moves fast\n\nPick a timeframe 👇"
+    (oneMinute ? "🎯 <b>1 min</b>: very short term, moves fast\n" : "") +
+    "\nPick a timeframe 👇"
   );
 }
 
@@ -30,13 +42,13 @@ export function signalPairsKeyboard() {
   };
 }
 
-export function signalFramesKeyboard(pair: SignalPair) {
+export function signalFramesKeyboard(pair: SignalPair, oneMinute = true) {
   return {
     inline_keyboard: [
       [
         { text: "⏱ 1 hour", callback_data: `signals:run:${pair}:1h` },
         { text: "⚡ 15 mins", callback_data: `signals:run:${pair}:15m` },
-        { text: "🎯 1 min", callback_data: `signals:run:${pair}:1m` },
+        ...(oneMinute ? [{ text: "🎯 1 min", callback_data: `signals:run:${pair}:1m` }] : []),
       ],
       [{ text: "⬅️ Markets", callback_data: "signals:pairs" }],
     ],

@@ -119,3 +119,27 @@ describe("live price", () => {
     expect(parseBinanceTicker({})).toBeNaN();
   });
 });
+
+describe("spot price correction", () => {
+  it("takes the median mid from Swissquote", async () => {
+    const { parseSwissquoteMid } = await import("./trade-signal-extras");
+    const row = (bid: number, ask: number) => ({
+      topo: { platform: "x", server: "y" },
+      spreadProfilePrices: [{ spreadProfile: "prime", bidSpread: 1, askSpread: 1, bid, ask }],
+      ts: 1,
+    });
+    expect(parseSwissquoteMid([row(4000, 4001), row(4002, 4003), row(3990, 3991)])).toBe(4000.5);
+    expect(parseSwissquoteMid([])).toBeNaN();
+    expect(parseSwissquoteMid({ error: true })).toBeNaN();
+  });
+
+  it("only trusts a sensible gap", async () => {
+    const { spotOffset, shiftCandles } = await import("./trade-signal-extras");
+    expect(spotOffset(4012, 4000)).toBe(12);
+    expect(spotOffset(4500, 4000)).toBe(0);
+    expect(spotOffset(NaN, 4000)).toBe(0);
+    expect(shiftCandles([{ t: 1, o: 1, h: 2, l: 0.5, c: 1.5 }], 10)).toEqual([
+      { t: 1, o: 11, h: 12, l: 10.5, c: 11.5 },
+    ]);
+  });
+});

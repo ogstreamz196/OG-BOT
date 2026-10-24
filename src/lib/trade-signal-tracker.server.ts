@@ -5,7 +5,9 @@
 // on the signal card, and builds the honest track record shown on new
 // signals. Outcome rules live in trade-signal-outcome.ts.
 import type { Instrument } from "./trade-signal";
-import type { SignalPlan } from "./trade-signal-context.server";
+import type { SignalFeeds, SignalPlan } from "./trade-signal-context.server";
+import { backtestKey, parseSavedBacktest, type SavedBacktest } from "./trade-signal-backtest";
+import { shiftCandles } from "./trade-signal-extras";
 import {
   ACTIVE_STATUSES,
   advanceSignal,
@@ -34,7 +36,7 @@ type Row = {
   message_id: number | null;
   market: string;
   label: string;
-  feeds: { binance?: string; kraken?: string; yahoo?: string };
+  feeds: SignalFeeds;
   timeframe: string;
   direction: "BUY" | "SELL";
   entry: number;
@@ -87,7 +89,9 @@ export async function recordSignal(opts: {
       timeframe: plan.timeframe,
       direction: plan.direction,
       entry: plan.entry,
-      entry_type: plan.entryType,
+      // Stop (confirmation) entries are pending orders too; feeds.entry says
+      // they fill on a break rather than a pullback.
+      entry_type: plan.entryType === "stop" ? "limit" : plan.entryType,
       stop: plan.stop,
       tp1: plan.targets[0],
       tp2: plan.targets[1],
@@ -106,6 +110,22 @@ export async function recordSignal(opts: {
   } catch (e) {
     console.warn("[signals] record failed", e);
   }
+}
+
+/** The Boss's saved backtest for this market and timeframe, or null. Cached 10 min. */
+export async function savedBacktest(
+  market: string,
+  timeframe: string,
+): Promise<SavedBacktest | null> {
+  return cached(`signal-backtest:${market}:${timeframe}`, 10 * 60_000, async () => {
+    const admin = await db();
+    const { data } = await admin
+      .from("site_content")
+      .select("value")
+      .eq("key", backtestKey(market, timeframe))
+      .maybeSingle();
+    return parseSavedBacktest((data as { value?: string } | null)?.value);
+  }).catch(() => null);
 }
 
 /** How past signals on this market and timeframe did (30 days), or null. Cached 10 min. */
@@ -253,14 +273,17 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
   let eventCount = 0;
   for (const group of byMarket.values()) {
     const inst = instrumentFor(group[0]);
-    const { data: bars } = await ctx.candles(inst, "1m").catch(() => ({ data: [] }));
+    const { data: raw } = await ctx.candles(inst, "1m").catch(() => ({ data: [] }));
     // Only finished minutes, so a bar is never judged half-formed.
-    const closed = bars.filter((c) => c.t + MINUTE <= now);
-    const lastPrice = bars.length ? bars[bars.length - 1].c : NaN;
+    const closedRaw = raw.filter((c) => c.t + MINUTE <= now);
     const trendCache = new Map<string, Promise<string | null>>();
 
     await Promise.all(
       group.map(async (row) => {
+        // Spot-adjusted signals (gold) follow the same shifted chart they were made from.
+        const offset = Number(row.feeds.offset) || 0;
+        const closed = shiftCandles(closedRaw, offset);
+        const lastPrice = raw.length ? raw[raw.length - 1].c + offset : NaN;
         const created = Date.parse(row.created_at);
         // Start at the first full minute after the signal went out.
         const from = Math.floor(created / MINUTE) * MINUTE + MINUTE;
@@ -269,6 +292,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const result = advanceSignal(
           {
             direction: row.direction,
+            entryType: row.feeds.entry === "stop" ? "stop" : "limit",
             entry: Number(row.entry),
             stop: Number(row.stop),
             targets: [Number(row.tp1), Number(row.tp2), Number(row.tp3)],

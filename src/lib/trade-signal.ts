@@ -22,6 +22,11 @@ export type Instrument = {
   pip?: number;
   /** Extra caveat about the price source. */
   sourceNote?: string;
+  /**
+   * Swissquote spot quote (e.g. "XAU/USD") when the chart feed is a proxy for
+   * the broker price (gold token, silver futures); charts are shifted onto it.
+   */
+  spot?: string;
 };
 
 export type Style = "scalp" | "intraday" | "swing";
@@ -97,6 +102,7 @@ const FIXED: { re: RegExp; make: () => Instrument }[] = [
       kraken: "PAXGUSD",
       yahoo: "GC=F",
       pip: 0.1,
+      spot: "XAU/USD",
       sourceNote:
         "priced from PAX Gold (tracks spot gold); your broker may differ by a dollar or two",
     }),
@@ -109,6 +115,7 @@ const FIXED: { re: RegExp; make: () => Instrument }[] = [
       asset: "metal",
       yahoo: "SI=F",
       pip: 0.01,
+      spot: "XAG/USD",
       sourceNote: "priced from silver futures; spot at your broker can differ slightly",
     }),
   },
@@ -384,9 +391,13 @@ export function readFrame(name: string, candles: Candle[]): FrameRead | null {
 
 /* ── Signal engine ─────────────────────────────────────────────────────── */
 
+export type EntryType = "market" | "limit" | "stop";
+
 export type TradePlan = {
   direction: "BUY" | "SELL";
   entry: number;
+  /** market: enter now. limit: wait for a pullback. stop: wait for price to confirm the move. */
+  entryType: EntryType;
   entryNote: string;
   stop: number;
   targets: number[];
@@ -400,6 +411,14 @@ export type TradePlan = {
   quality: "Clean" | "Mixed" | "Choppy";
   /** Plain-English reason for a Choppy rating. */
   qualityNote?: string;
+  /** Every warning worth showing the member, most important first. */
+  cautions: string[];
+  /**
+   * trade: a setup worth taking. wait: no clean setup right now (the reason
+   * says why); the levels are still worked out but shouldn't be traded.
+   */
+  verdict: "trade" | "wait";
+  waitReason?: string;
   score: number;
   maxScore: number;
   reasons: string[];
@@ -407,6 +426,39 @@ export type TradePlan = {
   resistance: number[];
   support: number[];
 };
+
+/** What the market hours mean for a signal right now (see sessionRead). */
+export type SessionRead = {
+  /** Set when the real market is shut, so no signal should be traded. */
+  closed?: string;
+  /** Thin or awkward trading hours worth a warning. */
+  caution?: string;
+  /** Confidence points to take off for those hours. */
+  penalty: number;
+};
+
+export type EngineOptions = {
+  /**
+   * The original rules (no momentum or volume penalty, no confirmation entry,
+   * no room check). Only the backtest uses it, to compare old with new.
+   */
+  classic?: boolean;
+  /** Entry-frame volume against its recent average (volumeRatio); NaN when unknown. */
+  volumeRatio?: number;
+  /** Market hours at the time of the signal. */
+  session?: SessionRead;
+};
+
+/** A setup needs at least this much room (in R) to the next level in its way. */
+export const MIN_ROOM_R = 1.5;
+/**
+ * A swing further than this many ATRs away is too far to hide the stop
+ * behind; with nothing in between, a plain 2 ATR stop is used instead (the
+ * classic rules squeezed the stop to 3 ATR, inside reach of the swing).
+ */
+const MAX_STOP_ATR = 3;
+/** Below this volume ratio a move has little behind it. */
+const LIGHT_VOLUME = 0.5;
 
 const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
   const s = [...xs].sort((a, b) => (asc ? a - b : b - a));
@@ -416,9 +468,11 @@ const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
 };
 
 /**
- * Multi-timeframe confluence: higher frame sets the bias, the entry frame
- * times it. Stops sit beyond the nearest swing (bounded by ATR), targets are
- * 1R, 2R and the next structure level.
+ * Multi-timeframe confluence: the higher frame sets the bias, the entry
+ * frame times it. Stops sit just beyond the nearest swing; targets are 1R
+ * and then the real support and resistance levels. Setups that fight
+ * short-term momentum wait for price to confirm, and setups with no room to
+ * run or no trend are marked "wait".
  */
 export function buildPlan(
   higher: FrameRead,
@@ -428,7 +482,9 @@ export function buildPlan(
   middleCandles: Candle[],
   /** The live price right now, when fresher than the last candle close. */
   priceNow?: number,
+  opts: EngineOptions = {},
 ): TradePlan {
+  const classic = !!opts.classic;
   const price = priceNow != null && Number.isFinite(priceNow) && priceNow > 0 ? priceNow : entry.close;
   const a = entry.atr;
   const tol = a * 0.3;
@@ -474,10 +530,22 @@ export function buildPlan(
     Number.isFinite(entry.adx) &&
     middle.adx < CHOPPY_ADX &&
     entry.adx < CHOPPY_ADX;
+  // Short-term momentum still pushing the other way (MACD on the wrong side
+  // and moving further away), e.g. a SELL while the entry-frame MACD is
+  // positive and rising.
+  const momentumAgainst =
+    !classic && (long ? entry.macdHist < 0 && !entry.macdRising : entry.macdHist > 0 && entry.macdRising);
+  const vol = opts.volumeRatio ?? NaN;
+  const lightVolume = !classic && Number.isFinite(vol) && vol < LIGHT_VOLUME;
+  const session = classic ? undefined : opts.session;
+
   let pct = 50 + strength * 40;
   if (!aligned) pct -= 8;
   if (stretchedNow) pct -= 5;
   if (choppy) pct -= 8;
+  if (momentumAgainst) pct -= 12;
+  if (lightVolume) pct -= 6;
+  if (session) pct -= session.penalty;
   const confidencePct = Math.round(Math.min(90, Math.max(51, pct)));
   const confidence: TradePlan["confidence"] =
     confidencePct >= 75 ? "High" : confidencePct >= 62 ? "Medium" : "Low";
@@ -489,39 +557,96 @@ export function buildPlan(
     ? undefined
     : `Timeframes are mixed (${higher.name} ${higher.bias}, ${middle.name} ${middle.bias}, ${entry.name} ${entry.bias}), so this is the most likely side rather than a clean setup. Use smaller size.`;
 
-  // Don't chase: stretched momentum means wait for a pullback.
+  // Entry: don't chase a stretched move (pullback limit), and when
+  // short-term momentum is against the trade, wait for price to confirm by
+  // breaking the last two candles (a stop order) instead of entering now.
   const farFromMean = Math.abs(price - entry.ema20) > a * 1.2;
   let entryPx = price;
+  let entryType: EntryType = "market";
   let entryNote = "Market price now";
   if (stretchedNow || farFromMean) {
     entryPx = entry.ema20;
+    entryType = "limit";
     entryNote = `Limit on a pullback to the ${entry.name} 20 EMA (price is stretched right now)`;
+  } else if (momentumAgainst) {
+    const lastTwo = entryCandles.slice(-2);
+    const trigger = long
+      ? Math.max(price, ...lastTwo.map((c) => c.h)) + a * 0.1
+      : Math.min(price, ...lastTwo.map((c) => c.l)) - a * 0.1;
+    entryPx = trigger;
+    entryType = "stop";
+    entryNote = `Only if price ${long ? "breaks above" : "breaks below"} this level (confirms the move)`;
   }
 
   const structure = long
     ? support.find((s) => s < entryPx - a * 0.5)
     : resistance.find((r) => r > entryPx + a * 0.5);
   let risk = structure != null ? Math.abs(entryPx - structure) + a * 0.25 : a * 1.5;
-  risk = Math.min(Math.max(risk, a * 1), a * 3);
+  if (classic) risk = Math.min(Math.max(risk, a * 1), a * 3);
+  else risk = risk > a * MAX_STOP_ATR ? a * 2 : Math.max(risk, a * 0.8);
   const stop = long ? entryPx - risk : entryPx + risk;
-  const t1 = long ? entryPx + risk : entryPx - risk;
-  const t2 = long ? entryPx + risk * 2 : entryPx - risk * 2;
-  const beyond = long ? resistance.find((r) => r > t2) : support.find((s) => s < t2);
-  const t3 = beyond ?? (long ? entryPx + risk * 3 : entryPx - risk * 3);
+  const at = (r: number) => (long ? entryPx + risk * r : entryPx - risk * r);
+  const t1 = at(1);
+  // Opposing levels in the trade's way, nearest first.
+  const ahead = long ? resistance.filter((r) => r > entryPx) : support.filter((s) => s < entryPx);
+  const inR = (lvl: number) => Math.abs(lvl - entryPx) / risk;
+  let t2: number;
+  let t3: number;
+  if (classic) {
+    t2 = at(2);
+    const beyond = long ? resistance.find((r) => r > t2) : support.find((s) => s < t2);
+    t3 = beyond ?? at(3);
+  } else {
+    // TP2 at the first real level from 1.5R, TP3 at the next one beyond it.
+    const lvl2 = ahead.find((l) => inR(l) >= 1.5);
+    t2 = lvl2 ?? at(2);
+    const lvl3 = ahead.find((l) => inR(l) >= inR(t2) + 0.5);
+    t3 = lvl3 ?? at(Math.max(3, inR(t2) + 1));
+  }
   const rr3 = Math.abs(t3 - entryPx) / risk;
+  const rr2 = Math.abs(t2 - entryPx) / risk;
+  const room = ahead.length ? inR(ahead[0]) : Infinity;
 
+  const cautions: string[] = [];
+  if (session?.closed) cautions.push(session.closed);
+  if (qualityNote) cautions.push(qualityNote);
+  if (caution) cautions.push(caution);
+  if (momentumAgainst)
+    cautions.push(
+      `${entry.name} momentum is still pushing ${long ? "down" : "up"}, so only enter if price confirms the move.`,
+    );
+  if (lightVolume)
+    cautions.push(`Volume is light (${vol.toFixed(1)}× average), so the move may not hold.`);
+  if (session?.caution) cautions.push(session.caution);
+
+  // When to sit it out rather than trade.
+  let waitReason: string | undefined;
+  if (!classic) {
+    if (session?.closed) waitReason = session.closed;
+    else if (choppy) waitReason = "No real trend right now, price is ranging.";
+    else if (!aligned && momentumAgainst)
+      waitReason = "The timeframes disagree and short-term momentum is against the trade.";
+    else if (room < MIN_ROOM_R)
+      waitReason = `Not enough room: the next ${long ? "resistance" : "support"} is only ${room.toFixed(1)}R away.`;
+  }
+
+  const fmtR = (r: number) => (Number.isInteger(Math.round(r * 10) / 10) ? r.toFixed(0) : r.toFixed(1));
   return {
     direction: long ? "BUY" : "SELL",
     entry: entryPx,
+    entryType,
     entryNote,
     stop,
     targets: [t1, t2, t3],
-    rr: `1:1 / 1:2 / 1:${rr3.toFixed(1)}`,
+    rr: `1:1 / 1:${fmtR(rr2)} / 1:${fmtR(rr3)}`,
     confidence,
     confidencePct,
     caution,
     quality,
     qualityNote,
+    cautions,
+    verdict: waitReason ? "wait" : "trade",
+    waitReason,
     score: Math.round(score * 10) / 10,
     maxScore,
     reasons,
@@ -530,6 +655,90 @@ export function buildPlan(
       : `a ${middle.name} close above the stop, or the ${higher.name} trend flipping bullish`,
     resistance,
     support,
+  };
+}
+
+/* ── Market hours ──────────────────────────────────────────────────────── */
+
+const ukHour = (d: Date) =>
+  Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(d),
+  );
+
+/**
+ * Market hours for a signal made now. Gold, silver, forex and oil shut from
+ * Friday 10pm to Sunday 11pm UK time (the gold feed is a token that trades
+ * all weekend, but brokers don't), and go thin around the daily 10pm UK
+ * rollover and in the quiet Asian morning. Crypto just gets a weekend note.
+ */
+export function sessionRead(inst: Instrument, now = Date.now()): SessionRead {
+  const d = new Date(now);
+  const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short" }).format(d);
+  const hour = ukHour(d);
+  if (inst.asset === "crypto") {
+    return day === "Sat" || day === "Sun"
+      ? { caution: "Weekend: thinner volume, so moves fake out more often.", penalty: 3 }
+      : { penalty: 0 };
+  }
+  if (inst.asset === "stock" || inst.asset === "index") return { penalty: 0 };
+  const shut =
+    day === "Sat" || (day === "Fri" && hour >= 22) || (day === "Sun" && hour < 23);
+  if (shut)
+    return {
+      closed: `The ${inst.label} market is closed for the weekend (opens Sunday 11pm UK). Wait for the open.`,
+      penalty: 0,
+    };
+  if (hour === 22 || (hour === 23 && day !== "Sun"))
+    return {
+      caution: "Daily rollover hour: spreads widen and price can spike. Better to wait an hour.",
+      penalty: 8,
+    };
+  if (hour >= 0 && hour < 7)
+    return { caution: "Quiet Asian session: moves are smaller and less reliable.", penalty: 4 };
+  return { penalty: 0 };
+}
+
+/* ── Whole analysis from candles ───────────────────────────────────────── */
+
+export type CandleSets = { daily: Candle[]; hourly: Candle[]; fifteen: Candle[]; minute: Candle[] };
+
+/**
+ * The three timeframes for a style (higher, middle, entry) plus the candles
+ * the plan works from. Shared by live signals and the backtest.
+ */
+export function framesFor(
+  sets: CandleSets,
+  style: Style,
+  oneMinute: boolean,
+): { frames: [FrameRead | null, FrameRead | null, FrameRead | null]; entryCandles: Candle[]; middleCandles: Candle[] } {
+  const { daily, hourly, fifteen, minute } = sets;
+  const h4 = aggregate(hourly, 4);
+  if (style === "swing") {
+    const weekly = readFrame("Weekly", aggregate(daily, 24 * 7));
+    // Weekly needs a year of dailies; fall back to Daily/4H/1H if it's short.
+    if (weekly)
+      return {
+        frames: [weekly, readFrame("Daily", daily), readFrame("4H", h4)],
+        entryCandles: h4,
+        middleCandles: daily,
+      };
+  } else if (oneMinute) {
+    return {
+      frames: [readFrame("1H", hourly), readFrame("15M", fifteen), readFrame("1M", minute)],
+      entryCandles: minute,
+      middleCandles: fifteen,
+    };
+  } else if (style === "scalp") {
+    return {
+      frames: [readFrame("4H", h4), readFrame("1H", hourly), readFrame("15M", fifteen)],
+      entryCandles: fifteen,
+      middleCandles: hourly,
+    };
+  }
+  return {
+    frames: [readFrame("Daily", daily), readFrame("4H", h4), readFrame("1H", hourly)],
+    entryCandles: hourly,
+    middleCandles: h4,
   };
 }
 
