@@ -1,3 +1,4 @@
+// OG Signals: the live board (see components/signals/SignalsBoard.tsx).
 import { createFileRoute } from "@tanstack/react-router";
 import { SignalsBoard } from "@/components/signals/SignalsBoard";
 
