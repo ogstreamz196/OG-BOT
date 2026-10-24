@@ -180,8 +180,8 @@ describe("telegram bot flow", () => {
     await type("🥇 Gold · Scalp");
     expect(deleted.has(signalsBar.id)).toBe(false);
     expect(barHolder().id).toBe(signalsBar.id);
-    // Followed cards stay; the "hold on" lines are tidied by the next tap.
-    expect(showing("GOLD SCALP card").length).toBe(3);
+    // Each new signal wipes out the last; "hold on" lines go on the next tap.
+    expect(showing("GOLD SCALP card").length).toBe(1);
     expect(showing("Hold on").length).toBe(1);
 
     // Back: main bar returns, the signals bar message goes.
@@ -326,6 +326,29 @@ describe("telegram bot flow", () => {
     await type("🧹 Clear chat");
     expect(barHolder().text).toContain("OG B0T here");
     expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
+    expect(liveBars()).toHaveLength(1);
+  });
+
+  test("a new signal wipes the last card and the updates under it, but not menus or chat", async () => {
+    await type("/start");
+    await type("📈 Signals");
+    await type("🥇 Gold · Scalp");
+    const first = sent.filter((m) => m.text.includes("GOLD SCALP card")).at(-1)!;
+    // The watcher posts an update under the card (it marks it as part of the signal).
+    const update = { id: nextId++, text: "📊 Gold BUY · TP1 hit" };
+    sent.push(update);
+    screens.push({ chat_id: CHAT, message_id: update.id, kind: "signal" });
+    // A question typed in between stays.
+    const question = nextId;
+    await type("what's the gold price doing?");
+
+    await type("₿ BTC · Holding");
+    expect(deleted.has(first.id)).toBe(true);
+    expect(deleted.has(update.id)).toBe(true);
+    expect(deleted.has(question)).toBe(false);
+    expect(showing("GOLD SCALP card")).toHaveLength(1);
+    // The signal buttons are still there.
+    expect(barButtons()).toContain("🥇 Gold · Scalp");
     expect(liveBars()).toHaveLength(1);
   });
 });

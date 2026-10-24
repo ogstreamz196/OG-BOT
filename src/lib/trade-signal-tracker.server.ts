@@ -236,6 +236,12 @@ async function sendFollowUp(row: Row, text: string) {
       } as never,
       { onConflict: "chat_id,message_id" },
     );
+    // Marked as part of this signal, so the member's next signal wipes it too.
+    await admin
+      .from("telegram_screen_messages" as never)
+      .upsert({ chat_id: row.chat_id, message_id: sent.message_id, kind: "signal" } as never, {
+        onConflict: "chat_id,message_id",
+      });
   }
 }
 
