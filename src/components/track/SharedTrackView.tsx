@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Headphones, Home, Pause, Play, Volume2 } from "lucide-react";
 import { ogBotLogo } from "@/assets/ogbot-logo";
-import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
+import ogStreamzLogo from "@/assets/og-streamz-presentz-288.webp";
 import { Button } from "@/components/ui/button";
 import type { PublicSharedTrack } from "@/lib/public-track.functions";
 import { PortalLinks } from "./PortalLinks";
@@ -43,8 +43,8 @@ export function SharedTrackView({
           <img
             src={ogStreamzLogo}
             alt="OG Streamz presentz ogbot.co.uk"
-            width={160}
-            height={160}
+            width={288}
+            height={288}
             className="absolute bottom-[4%] left-[4%] aspect-square w-[22%] max-w-24 rounded-[18%] shadow-lg ring-1 ring-white/25"
           />
         </>
