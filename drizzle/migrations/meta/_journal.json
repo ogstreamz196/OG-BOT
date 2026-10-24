@@ -176,6 +176,13 @@
       "when": 1792629678256,
       "tag": "0024_perf_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792807155323,
+      "tag": "0025_trade_signals",
+      "breakpoints": true
     }
   ]
 }

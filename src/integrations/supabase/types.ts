@@ -1917,6 +1917,111 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_signals: {
+        Row: {
+          best_target: number
+          card: string | null
+          chat_id: number | null
+          closed_at: string | null
+          confidence_pct: number
+          created_at: string
+          decimals: number
+          direction: string
+          entered_at: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          feeds: Json
+          id: string
+          label: string
+          last_candle_at: string | null
+          last_checked_at: string | null
+          last_edit_at: string | null
+          last_price: number | null
+          last_trend_check_at: string | null
+          market: string
+          message_id: number | null
+          pip: number | null
+          quality: string
+          status: string
+          stop: number
+          style: string
+          timeframe: string
+          tp1: number
+          tp2: number
+          tp3: number
+          user_id: string
+        }
+        Insert: {
+          best_target?: number
+          card?: string | null
+          chat_id?: number | null
+          closed_at?: string | null
+          confidence_pct: number
+          created_at?: string
+          decimals?: number
+          direction: string
+          entered_at?: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          feeds?: Json
+          id?: string
+          label: string
+          last_candle_at?: string | null
+          last_checked_at?: string | null
+          last_edit_at?: string | null
+          last_price?: number | null
+          last_trend_check_at?: string | null
+          market: string
+          message_id?: number | null
+          pip?: number | null
+          quality: string
+          status?: string
+          stop: number
+          style: string
+          timeframe: string
+          tp1: number
+          tp2: number
+          tp3: number
+          user_id: string
+        }
+        Update: {
+          best_target?: number
+          card?: string | null
+          chat_id?: number | null
+          closed_at?: string | null
+          confidence_pct?: number
+          created_at?: string
+          decimals?: number
+          direction?: string
+          entered_at?: string | null
+          entry?: number
+          entry_type?: string
+          expires_at?: string
+          feeds?: Json
+          id?: string
+          label?: string
+          last_candle_at?: string | null
+          last_checked_at?: string | null
+          last_edit_at?: string | null
+          last_price?: number | null
+          last_trend_check_at?: string | null
+          market?: string
+          message_id?: number | null
+          pip?: number | null
+          quality?: string
+          status?: string
+          stop?: number
+          style?: string
+          timeframe?: string
+          tp1?: number
+          tp2?: number
+          tp3?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       unlocked_songs: {
         Row: {
           cost_coins: number | null
