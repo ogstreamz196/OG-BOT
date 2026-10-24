@@ -12,23 +12,25 @@ import {
   validityWindow,
   type Candle,
   type CandleSets,
+  type FastFrame,
   type Instrument,
   type Style,
   type TradePlan,
 } from "./trade-signal";
 
-export type BacktestFrame = "1H" | "15M" | "1M";
+export type BacktestFrame = "1H" | "15M" | "5M" | "1M";
 
 /** How each signal timeframe maps onto the engine (same as live signals). */
 export const BACKTEST_FRAMES: Record<
   BacktestFrame,
-  { style: Style; oneMinute: boolean; entry: keyof CandleSets; ms: number; step: number }
+  { style: Style; fast?: FastFrame; entry: keyof CandleSets; ms: number; step: number }
 > = {
   // step: how many entry candles between simulated requests (about hourly
   // for the short frames, every other hour for 1H).
-  "1H": { style: "intraday", oneMinute: false, entry: "hourly", ms: 3600_000, step: 2 },
-  "15M": { style: "scalp", oneMinute: false, entry: "fifteen", ms: 900_000, step: 4 },
-  "1M": { style: "scalp", oneMinute: true, entry: "minute", ms: 60_000, step: 15 },
+  "1H": { style: "intraday", entry: "hourly", ms: 3600_000, step: 2 },
+  "15M": { style: "scalp", entry: "fifteen", ms: 900_000, step: 4 },
+  "5M": { style: "scalp", fast: "5m", entry: "five", ms: 300_000, step: 12 },
+  "1M": { style: "scalp", fast: "1m", entry: "minute", ms: 60_000, step: 15 },
 };
 
 /** Candles kept per timeframe at each step, matching what live signals load. */
@@ -36,12 +38,14 @@ const WINDOW: Record<keyof CandleSets, number> = {
   daily: 365,
   hourly: 1000,
   fifteen: 500,
+  five: 500,
   minute: 500,
 };
 const FRAME_MS: Record<keyof CandleSets, number> = {
   daily: 86_400_000,
   hourly: 3600_000,
   fifteen: 900_000,
+  five: 300_000,
   minute: 60_000,
 };
 
@@ -137,14 +141,15 @@ export async function runBacktest(opts: {
       daily: closedBy(opts.sets, "daily", t),
       hourly: closedBy(opts.sets, "hourly", t),
       fifteen: cfg.style === "scalp" ? closedBy(opts.sets, "fifteen", t) : [],
-      minute: cfg.oneMinute ? closedBy(opts.sets, "minute", t) : [],
+      five: cfg.fast === "5m" ? closedBy(opts.sets, "five", t) : [],
+      minute: cfg.fast === "1m" ? closedBy(opts.sets, "minute", t) : [],
     };
     const expiresAt = t + hours * 3600_000;
     const pathStart = firstAtOrAfter(entrySeries, t);
     const pathEnd = firstAtOrAfter(entrySeries, expiresAt);
     // Only judge signals whose whole window is in the data.
     if (pathEnd >= entrySeries.length) break;
-    const { frames, entryCandles, middleCandles } = framesFor(sets, cfg.style, cfg.oneMinute);
+    const { frames, entryCandles, middleCandles } = framesFor(sets, cfg.style, cfg.fast);
     const [hi, mid, lo] = frames;
     done++;
     if (done % 40 === 0) await opts.onProgress?.(done, total);
@@ -285,6 +290,7 @@ const BINANCE_INTERVAL: Record<keyof CandleSets, string> = {
   daily: "1d",
   hourly: "1h",
   fifteen: "15m",
+  five: "5m",
   minute: "1m",
 };
 
@@ -346,6 +352,7 @@ export function historyNeeded(frame: BacktestFrame, days: number, end: number) {
     hourly: warm("hourly"),
   };
   if (cfg.style === "scalp") need.fifteen = warm("fifteen");
-  if (cfg.oneMinute) need.minute = warm("minute");
+  if (cfg.fast === "5m") need.five = warm("five");
+  if (cfg.fast === "1m") need.minute = warm("minute");
   return { start, need };
 }

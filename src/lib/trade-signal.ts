@@ -245,6 +245,13 @@ export function resolveTradeRequest(
   return null;
 }
 
+/** A scalp timed on 1- or 5-minute candles ("gold 5m", "btc m1"), else undefined. */
+export function fastFrame(text: string): FastFrame | undefined {
+  if (/\b(?:1\s?m|m1)\b/i.test(text)) return "1m";
+  if (/\b(?:5\s?m|m5)\b/i.test(text)) return "5m";
+  return undefined;
+}
+
 export function detectStyle(text: string): Style {
   if (/\b(scalp|scalping|1\s?m|5\s?m|15\s?m|m1|m5|m15|quick)\b/i.test(text)) return "scalp";
   if (/\b(swing|daily|weekly|long[\s-]?term|position|hold)\b/i.test(text)) return "swing";
@@ -700,7 +707,16 @@ export function sessionRead(inst: Instrument, now = Date.now()): SessionRead {
 
 /* ── Whole analysis from candles ───────────────────────────────────────── */
 
-export type CandleSets = { daily: Candle[]; hourly: Candle[]; fifteen: Candle[]; minute: Candle[] };
+export type CandleSets = {
+  daily: Candle[];
+  hourly: Candle[];
+  fifteen: Candle[];
+  five: Candle[];
+  minute: Candle[];
+};
+
+/** The short entry timeframes (scalps timed on 1- or 5-minute candles). */
+export type FastFrame = "1m" | "5m";
 
 /**
  * The three timeframes for a style (higher, middle, entry) plus the candles
@@ -709,9 +725,9 @@ export type CandleSets = { daily: Candle[]; hourly: Candle[]; fifteen: Candle[];
 export function framesFor(
   sets: CandleSets,
   style: Style,
-  oneMinute: boolean,
+  fast?: FastFrame,
 ): { frames: [FrameRead | null, FrameRead | null, FrameRead | null]; entryCandles: Candle[]; middleCandles: Candle[] } {
-  const { daily, hourly, fifteen, minute } = sets;
+  const { daily, hourly, fifteen, five, minute } = sets;
   const h4 = aggregate(hourly, 4);
   if (style === "swing") {
     const weekly = readFrame("Weekly", aggregate(daily, 24 * 7));
@@ -722,10 +738,12 @@ export function framesFor(
         entryCandles: h4,
         middleCandles: daily,
       };
-  } else if (oneMinute) {
+  } else if (fast) {
+    // 1H trend, 15M structure, entry timed on 1- or 5-minute candles.
+    const entry = fast === "1m" ? minute : five;
     return {
-      frames: [readFrame("1H", hourly), readFrame("15M", fifteen), readFrame("1M", minute)],
-      entryCandles: minute,
+      frames: [readFrame("1H", hourly), readFrame("15M", fifteen), readFrame(fast.toUpperCase(), entry)],
+      entryCandles: entry,
       middleCandles: fifteen,
     };
   } else if (style === "scalp") {

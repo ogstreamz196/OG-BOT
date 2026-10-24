@@ -151,7 +151,13 @@ export async function trackRecord(market: string, timeframe: string): Promise<st
 
 /* ── Messages ─────────────────────────────────────────────────────────── */
 
-const HIGHER: Record<string, string> = { "1M": "1H", "15M": "4H", "1H": "Daily", "4H": "Weekly" };
+const HIGHER: Record<string, string> = {
+  "1M": "1H",
+  "5M": "1H",
+  "15M": "4H",
+  "1H": "Daily",
+  "4H": "Weekly",
+};
 
 function formatter(row: Row) {
   const fmt = (n: number) => n.toFixed(row.decimals);

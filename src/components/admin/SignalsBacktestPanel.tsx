@@ -29,6 +29,7 @@ type Market = keyof typeof MARKETS;
 const DAYS: Record<BacktestFrame, number[]> = {
   "1H": [90, 180, 365],
   "15M": [30, 90, 180],
+  "5M": [14, 30],
   "1M": [7, 14],
 };
 
@@ -65,7 +66,7 @@ export function SignalsBacktestPanel() {
       const m = MARKETS[market];
       const to = Date.now();
       const { start, need } = historyNeeded(frame, days, to);
-      const sets: CandleSets = { daily: [], hourly: [], fifteen: [], minute: [] };
+      const sets: CandleSets = { daily: [], hourly: [], fifteen: [], five: [], minute: [] };
       for (const [key, from] of Object.entries(need) as [keyof CandleSets, number][]) {
         setProgress(`Downloading ${key} candles…`);
         sets[key] = await fetchBinanceHistory(m.symbol, key, from, to);
@@ -152,7 +153,7 @@ export function SignalsBacktestPanel() {
         <Picker
           label="Timeframe"
           value={frame}
-          options={(["1H", "15M", "1M"] as BacktestFrame[]).map((f) => [f, f])}
+          options={(["1H", "15M", "5M", "1M"] as BacktestFrame[]).map((f) => [f, f])}
           onChange={(v) => pickFrame(v as BacktestFrame)}
         />
         <Picker

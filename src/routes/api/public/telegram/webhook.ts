@@ -18,6 +18,7 @@ import {
 } from "@/lib/telegram-signals";
 import { escapeTelegramHtml as esc, telegramApi } from "@/lib/telegram-api.server";
 import { mapPool } from "@/lib/map-pool";
+import type { FoulAccess } from "@/lib/foul-access.server";
 
 // Accepted tokens:
 //   - Rotated, single-use: "t_" + 32 lowercase hex chars (matched against
@@ -195,6 +196,48 @@ async function handleCallbackQuery(cq: {
   const menuKey = /^menu:(\w+)$/.exec(cq.data ?? "")?.[1];
   const chatHere = cq.message?.chat?.id;
   const privateChat = !!chatHere && chatHere > 0 && cq.from?.id === chatHere;
+  if (menuKey === "foul" && privateChat) {
+    const admin = await loadAdmin();
+    const { data: me } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("telegram_chat_id", chatHere)
+      .maybeSingle();
+    if (!me) {
+      await answer("Link your OG B0T account first.");
+      return Response.json({ ok: true, unlinked: true });
+    }
+    const { admin: isBoss, roles } = await isAdmin(admin, me.id);
+    const { foulAccess, setFoulMouth } = await import("@/lib/foul-access.server");
+    const { telegramSignInLinker } = await import("@/lib/telegram-signin.server");
+    const siteLink = telegramSignInLinker(admin, me.id);
+    const foul = await foulAccess(admin, me.id, roles);
+    if (!foul.allowed) {
+      await answer("Foul mouth is a VIP perk");
+      await screen(
+        chatHere,
+        "🔒 <b>Foul mouth is a VIP perk.</b>\nVIP lets OG B0T swear back, no filter.",
+        {
+          reply_markup: {
+            inline_keyboard: [[{ text: "👑 Get VIP", url: await siteLink("/store") }]],
+          },
+        },
+      );
+      return Response.json({ ok: true, foul: "locked" });
+    }
+    const next = !foul.on;
+    await setFoulMouth(admin, me.id, next);
+    await answer(next ? "Foul mouth on 🤬" : "Foul mouth off 😇");
+    // Redraw the menu in place with the new setting.
+    if (cq.message?.message_id) {
+      await tg("editMessageReplyMarkup", {
+        chat_id: chatHere,
+        message_id: cq.message.message_id,
+        reply_markup: menuPanel(isBoss, await siteLink("/"), { allowed: true, on: next }),
+      });
+    }
+    return Response.json({ ok: true, foul: next });
+  }
   if (menuKey && Object.hasOwn(MENU_ACTIONS, menuKey) && privateChat) {
     // Same as typing the command, so menu buttons and commands never drift apart.
     await answer("");
@@ -214,6 +257,7 @@ async function handleCallbackQuery(cq: {
     const chatId = cq.message.chat.id;
     await answer("Chat cleared 🧹");
     await clearRecentChat(chatId, cq.message.message_id);
+    await forgetScreens(chatId);
     const admin = await loadAdmin();
     const { data: me } = await admin
       .from("profiles")
@@ -306,17 +350,29 @@ async function reply(
 // nothing is tidied and everything else works as before.
 const SCREENS = "telegram_screen_messages" as never;
 
-/** Deletes the chat's earlier screens. */
+type ScreenRow = { message_id: number; kind?: string };
+
+/** The chat's remembered messages (kind needs the newer migration; works without it). */
+async function screenRows(chat_id: number): Promise<ScreenRow[]> {
+  const admin = await loadAdmin();
+  const q = (cols: string) =>
+    admin
+      .from(SCREENS)
+      .select(cols as never)
+      .eq("chat_id" as never, chat_id)
+      .limit(100);
+  let { data, error } = await q("message_id, kind");
+  if (error) ({ data, error } = await q("message_id"));
+  return error ? [] : ((data ?? []) as unknown as ScreenRow[]);
+}
+
+/** Deletes the chat's earlier screens (the welcome goes separately, see retireWelcome). */
 async function tidyScreens(chat_id: number) {
   try {
     const admin = await loadAdmin();
-    const { data, error } = await admin
-      .from(SCREENS)
-      .select("message_id")
-      .eq("chat_id" as never, chat_id)
-      .limit(100);
-    if (error || !data?.length) return;
-    const ids = (data as { message_id: number }[]).map((r) => Number(r.message_id));
+    const rows = (await screenRows(chat_id)).filter((r) => r.kind !== "welcome");
+    if (!rows.length) return;
+    const ids = rows.map((r) => Number(r.message_id));
     await tg("deleteMessages", { chat_id, message_ids: ids });
     await admin
       .from(SCREENS)
@@ -328,17 +384,61 @@ async function tidyScreens(chat_id: number) {
   }
 }
 
-/** Marks a sent message as a screen, so the next screen replaces it. */
-async function rememberScreen(chat_id: number, sent: unknown) {
+/**
+ * Marks a sent message as a screen, so the next screen replaces it, or as
+ * the welcome, which goes as soon as the member does anything.
+ */
+async function rememberScreen(
+  chat_id: number,
+  sent: unknown,
+  kind: "screen" | "welcome" = "screen",
+) {
   const message_id = (sent as { result?: { message_id?: number } } | null)?.result?.message_id;
   if (!message_id) return;
   try {
     const admin = await loadAdmin();
-    await admin.from(SCREENS).upsert({ chat_id, message_id } as never, {
-      onConflict: "chat_id,message_id",
-    });
+    const save = (row: Record<string, unknown>) =>
+      admin.from(SCREENS).upsert(row as never, { onConflict: "chat_id,message_id" });
+    const { error } = await save({ chat_id, message_id, ...(kind === "welcome" ? { kind } : {}) });
+    // Before the kind column exists the welcome is just a screen.
+    if (error && kind === "welcome") await save({ chat_id, message_id });
   } catch {
     /* table not there yet: nothing to tidy later */
+  }
+}
+
+/** Forgets everything remembered for a chat (after clearing it). */
+async function forgetScreens(chat_id: number) {
+  try {
+    const admin = await loadAdmin();
+    await admin
+      .from(SCREENS)
+      .delete()
+      .eq("chat_id" as never, chat_id);
+  } catch {
+    /* nothing remembered */
+  }
+}
+
+/**
+ * The first thing a member does after the welcome: the welcome goes and the
+ * short intro takes its place for good (it also carries the bottom bar).
+ */
+async function retireWelcome(chat_id: number, withIntro = true) {
+  try {
+    const welcome = (await screenRows(chat_id)).filter((r) => r.kind === "welcome");
+    if (!welcome.length) return;
+    const ids = welcome.map((r) => Number(r.message_id));
+    await tg("deleteMessages", { chat_id, message_ids: ids });
+    const admin = await loadAdmin();
+    await admin
+      .from(SCREENS)
+      .delete()
+      .eq("chat_id" as never, chat_id)
+      .in("message_id" as never, ids as never);
+    if (withIntro) await reply(chat_id, SHORT_INTRO, { reply_markup: USER_KEYBOARD }, 0);
+  } catch (e) {
+    console.warn("[telegram] retire welcome failed", e);
   }
 }
 
@@ -355,29 +455,20 @@ async function screen(
   return res;
 }
 
-// The welcome, word for word as the Boss wrote it.
-const INTRO_TEXT = [
-  "⚡👑🔥🤖💀 YO! I'M O.G B0T 💀🤖🔥👑⚡",
-  "",
-  "😈 AI just with an attitude! 🧠⚡",
-  "",
-  "🧠🤖 O.G INTELLIGENCE — Ask me anything. No limits on curiosity! 💡💬",
-  "",
-  "⚽🏆 LIVE SPORTS — Scores, fixtures & kick-off times. 🥅🔥",
-  "",
-  "📈💰  Live GOLD 🥇 & BITCOIN ₿ trading signals. 📊🚀",
-  "",
-  "⚔️💀 ROAST MODE — Talk trash. I'll talk worse. 🔥😈",
-  "",
-  "━━━━━━━━━━━━━━",
-  "",
-  "💎👑 ONE B0T. ZERO BORING MOMENTS. 👑💎",
-  "",
-  "🚀💬 Ask me anything... or try your luck roasting me! 😏🔥💀",
-]
-  .join("\n")
-  // Sent as HTML: "&" has to be escaped.
-  .replace(/&/g, "&amp;");
+// The welcome after /start or a clear, in OG B0T's own voice (sharp,
+// British, no fuss). It goes as soon as the member does anything and the
+// short intro below stays instead.
+const INTRO_TEXT =
+  "<b>OG B0T here.</b> Sharp, British, and not here to waste your time.\n\n" +
+  "🧠 <b>Ask anything</b>: advice, ideas, homework, a second opinion.\n" +
+  "⚽ <b>Sports</b>: fixtures, scores and kick-off times.\n" +
+  "📈 <b>Signals</b>: live gold and bitcoin setups.\n" +
+  "🔥 <b>Roast me</b>: have a go. I'll give it back worse.\n\n" +
+  "Type a question, or use the buttons below.";
+
+const SHORT_INTRO =
+  "<b>OG B0T</b>\n" +
+  "Type anything to chat. Tap <b>📂 Menu</b> for your account, tracks and VIP, or <b>📈 Signals</b> for live setups.";
 
 const LINK_STEPS =
   "🔗 <b>Link your account to unlock everything:</b>\n" +
@@ -388,7 +479,8 @@ const LINK_STEPS =
 // The intro carries the bottom bar, so it's always there after /start or a
 // clear (deleting the message that last set it can hide it in some apps).
 async function sendIntro(chat_id: number) {
-  await reply(chat_id, INTRO_TEXT, { reply_markup: USER_KEYBOARD }, 0);
+  const sent = await reply(chat_id, INTRO_TEXT, { reply_markup: USER_KEYBOARD }, 0);
+  await rememberScreen(chat_id, sent, "welcome");
 }
 
 // Deletes up to the last 100 messages (bots may delete private-chat messages <48h old).
@@ -439,9 +531,15 @@ const menuButton = (text: string, key: MenuKey) => ({ text, callback_data: `menu
 
 const MENU_TEXT = "📂 <b>OG Menu</b>\nEverything important, one tap away 👇";
 
-function menuPanel(isBoss: boolean, siteUrl: string) {
+function menuPanel(isBoss: boolean, siteUrl: string, foul: FoulAccess) {
+  const foulText = !foul.allowed
+    ? "🔒 Foul mouth (VIP)"
+    : foul.on
+      ? "🤬 Foul mouth: ON · tap to turn off"
+      : "😇 Foul mouth: OFF · tap to turn on";
   return {
     inline_keyboard: [
+      [{ text: foulText, callback_data: "menu:foul" }],
       [menuButton("👑 VIP expiry", "vip"), menuButton("🔐 Vault pass", "vault")],
       [menuButton("🎧 My tracks", "tracks"), menuButton("💰 Balance", "balance")],
       [menuButton("🛒 Buy coins", "buy"), menuButton("⚽ Sports Guide", "sports")],
@@ -859,15 +957,8 @@ async function runChatAI(
       const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
       const signalJob = buildTradeSignal(tradeText);
       const { pickTradeHold } = await import("@/lib/trade-hold.server");
-      const vipish = ["vip", "admin", "boss", "dev"].some((role) => roles.includes(role));
-      const { data: pref } = vipish
-        ? await admin
-            .from("user_preferences")
-            .select("foul_mouth")
-            .eq("user_id", profileId)
-            .maybeSingle()
-        : { data: null };
-      const tone = vipish && (pref?.foul_mouth ?? true) ? "foul" : "cheeky";
+      const { foulAccess } = await import("@/lib/foul-access.server");
+      const tone = (await foulAccess(admin, profileId, roles)).on ? "foul" : "cheeky";
       const picked = await pickTradeHold(admin as never, profileId, market, tone).catch(() =>
         trade.holdingMessage(market, tone),
       );
@@ -941,41 +1032,40 @@ async function runChatAI(
     /\b(coin|coins|balance|vip|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
       userText,
     );
-  const [profileRes, prefRes, siteRes, historyRes, dossier, promo, sportsBlock] = await Promise.all(
-    [
-      admin
-        .from("profiles")
-        .select("display_name, email, coin_balance")
-        .eq("id", profileId)
-        .maybeSingle(),
-      admin.from("user_preferences").select("foul_mouth").eq("user_id", profileId).maybeSingle(),
-      cached(
-        "og-persona-content",
-        60_000,
-        async () =>
-          await admin
-            .from("site_content")
-            .select("key, value")
-            .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
-      ),
-      admin
-        .from("og_messages")
-        .select("role, content")
-        .eq("user_id", profileId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      wantsAccount ? loadUserDossier(admin, profileId).catch(() => null) : Promise.resolve(null),
-      vp.detectPromoIntent(userText)
-        ? vp
-            .getOrCreateVipPromo(admin, profileId, { isPaidVip: roles.includes("vip") })
-            .catch(() => null)
-        : Promise.resolve(null),
-      buildSportsGuideContext(admin, profileId, userText).catch((e) => {
-        console.warn("[telegram] sports guide context failed", e);
-        return "";
-      }),
-    ],
-  );
+  const { foulAccess } = await import("@/lib/foul-access.server");
+  const [profileRes, foul, siteRes, historyRes, dossier, promo, sportsBlock] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("display_name, email, coin_balance")
+      .eq("id", profileId)
+      .maybeSingle(),
+    foulAccess(admin, profileId, roles),
+    cached(
+      "og-persona-content",
+      60_000,
+      async () =>
+        await admin
+          .from("site_content")
+          .select("key, value")
+          .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
+    ),
+    admin
+      .from("og_messages")
+      .select("role, content")
+      .eq("user_id", profileId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    wantsAccount ? loadUserDossier(admin, profileId).catch(() => null) : Promise.resolve(null),
+    vp.detectPromoIntent(userText)
+      ? vp
+          .getOrCreateVipPromo(admin, profileId, { isPaidVip: roles.includes("vip") })
+          .catch(() => null)
+      : Promise.resolve(null),
+    buildSportsGuideContext(admin, profileId, userText).catch((e) => {
+      console.warn("[telegram] sports guide context failed", e);
+      return "";
+    }),
+  ]);
   const profile = profileRes.data;
   if (!profile) {
     clearInterval(typingTimer);
@@ -983,13 +1073,14 @@ async function runChatAI(
     return;
   }
 
-  const isVip = ["vip", "admin", "boss", "dev"].some((r) => roles.includes(r));
+  // Same rule as the website: VIPs, staff, VIP trials and the free-access promo.
+  const isVip = foul.allowed;
   const isAdminUser = roles.includes("admin") || roles.includes("boss");
 
   const personaMap = new Map<string, string>(
     (siteRes.data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]),
   );
-  const foulMouth = isVip ? (prefRes.data?.foul_mouth ?? true) : false;
+  const foulMouth = foul.on;
 
   const userCtx: UserContextSummary = {
     display_name: profile.display_name,
@@ -1293,6 +1384,10 @@ async function handleTelegramUpdate(
     };
     if (buttonMap[trimmed]) trimmed = buttonMap[trimmed];
 
+    // Their first move after the welcome swaps it for the short intro
+    // (/start and /clear bring a fresh welcome instead).
+    if (!/^\/(start|clear)\b/i.test(trimmed)) await retireWelcome(chat_id);
+
     // A tap on a bottom-bar or old menu button (or a menu command) is tidied
     // away too; anything the member actually wrote stays.
     const tapped =
@@ -1316,7 +1411,11 @@ async function handleTelegramUpdate(
       // An old category keyboard gets swapped back to the normal bottom bar first.
       if (OLD_MENU_BUTTONS.has(trimmed))
         await reply(chat_id, "📂 The menu's simpler now 👇", { reply_markup: USER_KEYBOARD });
-      await screen(chat_id, MENU_TEXT, { reply_markup: menuPanel(isBoss, await siteLink("/")) });
+      const { foulAccess } = await import("@/lib/foul-access.server");
+      const foul = await foulAccess(admin, linkedProfile.id, roles);
+      await screen(chat_id, MENU_TEXT, {
+        reply_markup: menuPanel(isBoss, await siteLink("/"), foul),
+      });
       return Response.json({ ok: true, menu: true });
     }
 
@@ -1330,12 +1429,14 @@ async function handleTelegramUpdate(
     }
 
     if (/^\/start\b/i.test(trimmed)) {
+      await retireWelcome(chat_id, false); // never two welcomes at once
       await sendIntro(chat_id);
       return Response.json({ ok: true, intro: true });
     }
     if (/^\/clear\b/i.test(trimmed)) {
       const mid = (msg as { message_id?: number }).message_id;
       if (mid) await clearRecentChat(chat_id, mid);
+      await forgetScreens(chat_id);
       await admin.from("og_messages").delete().eq("user_id", linkedProfile.id);
       await sendIntro(chat_id);
       return Response.json({ ok: true, cleared: true });
