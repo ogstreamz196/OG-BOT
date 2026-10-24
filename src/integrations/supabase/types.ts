@@ -1851,6 +1851,24 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_screen_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          message_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          message_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          message_id?: number
+        }
+        Relationships: []
+      }
       telegram_sign_in_events: {
         Row: {
           chat_id: number | null
