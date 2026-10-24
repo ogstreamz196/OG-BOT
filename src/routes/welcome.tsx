@@ -799,7 +799,7 @@ function AuthModal() {
                 welcome coins and cook it in one tap.
               </p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
-                <li>🪙 25 free welcome coins (this track costs 5)</li>
+                <li>🪙 25 free welcome coins to cook it</li>
                 <li>👑 15 days of VIP — every style unlocked</li>
                 <li>💸 Earn commission when friends join</li>
               </ul>

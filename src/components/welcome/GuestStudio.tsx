@@ -15,7 +15,7 @@ import { claimAudio } from "@/lib/audio-focus";
 import { shareTrack } from "@/lib/share-track";
 import type { WizardResult } from "@/components/library/CreateNowWizard";
 import { buildTrackPlan } from "@/lib/track-plan";
-import { isNasheedStyle, trackCardLabel } from "@/lib/nasheed";
+import { isNasheedStyle, trackCardLabel, trackCoinCost } from "@/lib/nasheed";
 import {
   type GuestActiveTrack,
   readGuestActive,
@@ -96,7 +96,7 @@ export function GuestStudio({
   onSignUpForCoins: (track: GuestActiveTrack) => void;
 }) {
   const { data: settings } = useSettings();
-  const coinCost = settings?.coins_per_full_unlock ?? 5;
+  const baseCoins = settings?.coins_per_full_unlock ?? 5;
   const [active, setActive] = useState<GuestActiveTrack | null>(null);
   const [open, setOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -210,9 +210,11 @@ export function GuestStudio({
   if (!active) return null;
   const title = song?.title || active.title || "Your track";
   // A Nasheed is 2 × 99p (pure-vocal isolation runs the music engine twice).
-  const PRICE_LABEL = trackCardLabel(
-    isNasheedStyle(String((active.plan?.suno as { style?: unknown } | undefined)?.style ?? "")),
+  const nasheed = isNasheedStyle(
+    String((active.plan?.suno as { style?: unknown } | undefined)?.style ?? ""),
   );
+  const PRICE_LABEL = trackCardLabel(nasheed);
+  const coinCost = trackCoinCost(baseCoins, nasheed);
   const done = song?.status === "completed";
   const failed = song?.status === "failed";
 
