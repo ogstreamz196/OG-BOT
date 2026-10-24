@@ -1876,16 +1876,19 @@ export type Database = {
         Row: {
           chat_id: number
           created_at: string
+          kind: string
           message_id: number
         }
         Insert: {
           chat_id: number
           created_at?: string
+          kind?: string
           message_id: number
         }
         Update: {
           chat_id?: number
           created_at?: string
+          kind?: string
           message_id?: number
         }
         Relationships: []

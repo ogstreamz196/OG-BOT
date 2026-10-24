@@ -197,6 +197,13 @@
       "when": 1792858002719,
       "tag": "0027_carrom_guest_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792858017566,
+      "tag": "0028_telegram_screen_kind",
+      "breakpoints": true
     }
   ]
 }
