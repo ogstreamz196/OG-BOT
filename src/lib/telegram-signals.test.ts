@@ -21,3 +21,28 @@ describe("Telegram signal selections", () => {
     expect(parseSignalAction("signals:run:XAU:1m:extra")).toBeNull();
   });
 });
+
+describe("signal buttons in the bottom bar", () => {
+  it("members get Holding and Scalp for gold and bitcoin, the Boss also gets 1 min", async () => {
+    const { SIGNAL_BUTTONS, signalButtonRows, BACK_BUTTON } = await import("./telegram-signals");
+    const member = signalButtonRows(false).flat();
+    expect(member).toEqual([
+      "🥇 Gold · Holding",
+      "🥇 Gold · Scalp",
+      "₿ BTC · Holding",
+      "₿ BTC · Scalp",
+      BACK_BUTTON,
+    ]);
+    expect(signalButtonRows(true).flat()).toContain("₿ BTC · 1 min");
+    // No 15-minute button any more.
+    expect(Object.values(SIGNAL_BUTTONS).some((b) => b.timeframe === "15m")).toBe(false);
+    for (const label of signalButtonRows(true).flat()) {
+      if (label === BACK_BUTTON) continue;
+      const b = SIGNAL_BUTTONS[label];
+      const request = signalRequest(b.pair, b.timeframe);
+      expect(detectTradeIntent(request)?.code).toBe(b.pair === "XAU" ? "XAUUSD" : "BTCUSD");
+      expect(detectStyle(request)).toBe(b.timeframe === "1h" ? "intraday" : "scalp");
+    }
+    expect(SIGNAL_BUTTONS["🥇 Gold · Scalp"].timeframe).toBe("5m");
+  });
+});

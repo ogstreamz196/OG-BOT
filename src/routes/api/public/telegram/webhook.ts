@@ -6,14 +6,14 @@ import { pickCatchphrases, catchphraseNote, toneFor } from "@/lib/og-catchphrase
 import type { UserContextSummary } from "@/lib/og-persona-public";
 import { SPORTS_GUIDE_CHAT_ID, detectSport, detectEventTime } from "@/lib/sports-guide-parse";
 import {
-  SIGNALS_BUTTON,
-  SIGNAL_PAIRS_TEXT,
-  parseSignalAction,
-  signalFramesKeyboard,
-  signalFramesText,
-  signalPairsKeyboard,
-  signalRequest,
+  BACK_BUTTON,
   ONE_MINUTE_RE,
+  SIGNAL_BUTTONS,
+  SIGNALS_BUTTON,
+  SIGNALS_TEXT,
+  parseSignalAction,
+  signalButtonRows,
+  signalRequest,
   withoutOneMinute,
 } from "@/lib/telegram-signals";
 import { escapeTelegramHtml as esc, telegramApi } from "@/lib/telegram-api.server";
@@ -151,27 +151,14 @@ async function handleCallbackQuery(cq: {
     const memberOneMinute = action.kind === "run" && action.timeframe === "1m" && !staff;
     await answer(
       memberOneMinute
-        ? "1 min signals are Boss-only. Try 15 mins."
+        ? "1 min signals are Boss-only. Try a scalp."
         : action.kind === "run"
           ? "Checking the live charts…"
           : "",
     );
     if (action.kind !== "run" || memberOneMinute) {
-      // Move through the picker in the same message rather than stacking new ones.
-      const text =
-        action.kind === "pairs" ? SIGNAL_PAIRS_TEXT : signalFramesText(action.pair, staff);
-      const reply_markup =
-        action.kind === "pairs" ? signalPairsKeyboard() : signalFramesKeyboard(action.pair, staff);
-      const edited = cq.message?.message_id
-        ? await tg("editMessageText", {
-            chat_id: chatId,
-            message_id: cq.message.message_id,
-            text,
-            parse_mode: "HTML",
-            reply_markup,
-          })
-        : null;
-      if (!edited) await screen(chatId, text, { reply_markup });
+      // An old in-chat picker: signals live in the bottom bar now.
+      await screen(chatId, SIGNALS_TEXT, { reply_markup: kb(signalButtonRows(staff)) });
     } else {
       // The picker and anything else from the menu go; the signal comes next.
       await tidyScreens(chatId);
@@ -350,29 +337,17 @@ async function reply(
 // nothing is tidied and everything else works as before.
 const SCREENS = "telegram_screen_messages" as never;
 
-type ScreenRow = { message_id: number; kind?: string };
-
-/** The chat's remembered messages (kind needs the newer migration; works without it). */
-async function screenRows(chat_id: number): Promise<ScreenRow[]> {
-  const admin = await loadAdmin();
-  const q = (cols: string) =>
-    admin
-      .from(SCREENS)
-      .select(cols as never)
-      .eq("chat_id" as never, chat_id)
-      .limit(100);
-  let { data, error } = await q("message_id, kind");
-  if (error) ({ data, error } = await q("message_id"));
-  return error ? [] : ((data ?? []) as unknown as ScreenRow[]);
-}
-
-/** Deletes the chat's earlier screens (the welcome goes separately, see retireWelcome). */
+/** Deletes the chat's earlier screens. */
 async function tidyScreens(chat_id: number) {
   try {
     const admin = await loadAdmin();
-    const rows = (await screenRows(chat_id)).filter((r) => r.kind !== "welcome");
-    if (!rows.length) return;
-    const ids = rows.map((r) => Number(r.message_id));
+    const { data, error } = await admin
+      .from(SCREENS)
+      .select("message_id")
+      .eq("chat_id" as never, chat_id)
+      .limit(100);
+    if (error || !data?.length) return;
+    const ids = (data as { message_id: number }[]).map((r) => Number(r.message_id));
     await tg("deleteMessages", { chat_id, message_ids: ids });
     await admin
       .from(SCREENS)
@@ -384,24 +359,15 @@ async function tidyScreens(chat_id: number) {
   }
 }
 
-/**
- * Marks a sent message as a screen, so the next screen replaces it, or as
- * the welcome, which goes as soon as the member does anything.
- */
-async function rememberScreen(
-  chat_id: number,
-  sent: unknown,
-  kind: "screen" | "welcome" = "screen",
-) {
+/** Marks a sent message as a screen, so the next screen replaces it. */
+async function rememberScreen(chat_id: number, sent: unknown) {
   const message_id = (sent as { result?: { message_id?: number } } | null)?.result?.message_id;
   if (!message_id) return;
   try {
     const admin = await loadAdmin();
-    const save = (row: Record<string, unknown>) =>
-      admin.from(SCREENS).upsert(row as never, { onConflict: "chat_id,message_id" });
-    const { error } = await save({ chat_id, message_id, ...(kind === "welcome" ? { kind } : {}) });
-    // Before the kind column exists the welcome is just a screen.
-    if (error && kind === "welcome") await save({ chat_id, message_id });
+    await admin.from(SCREENS).upsert({ chat_id, message_id } as never, {
+      onConflict: "chat_id,message_id",
+    });
   } catch {
     /* table not there yet: nothing to tidy later */
   }
@@ -420,28 +386,6 @@ async function forgetScreens(chat_id: number) {
   }
 }
 
-/**
- * The first thing a member does after the welcome: the welcome goes and the
- * short intro takes its place for good (it also carries the bottom bar).
- */
-async function retireWelcome(chat_id: number, withIntro = true) {
-  try {
-    const welcome = (await screenRows(chat_id)).filter((r) => r.kind === "welcome");
-    if (!welcome.length) return;
-    const ids = welcome.map((r) => Number(r.message_id));
-    await tg("deleteMessages", { chat_id, message_ids: ids });
-    const admin = await loadAdmin();
-    await admin
-      .from(SCREENS)
-      .delete()
-      .eq("chat_id" as never, chat_id)
-      .in("message_id" as never, ids as never);
-    if (withIntro) await reply(chat_id, SHORT_INTRO, { reply_markup: USER_KEYBOARD }, 0);
-  } catch (e) {
-    console.warn("[telegram] retire welcome failed", e);
-  }
-}
-
 /** Shows a screen: clears the previous ones, then sends this one. */
 async function screen(
   chat_id: number,
@@ -455,9 +399,8 @@ async function screen(
   return res;
 }
 
-// The welcome after /start or a clear, in OG B0T's foul-mouthed voice. It
-// goes as soon as the member does anything and the short intro below stays
-// instead.
+// The welcome after /start or a clear, in OG B0T's foul-mouthed voice. It's
+// a screen like the rest: the first Menu or Signals tap replaces it.
 const INTRO_TEXT =
   "<b>OG B0T here.</b> No filter, no bullshit, and no wasting my fucking time.\n\n" +
   "🧠 <b>Ask anything</b>: advice, ideas, homework, whatever's on your mind.\n" +
@@ -465,10 +408,6 @@ const INTRO_TEXT =
   "📈 <b>Signals</b>: live gold and bitcoin setups.\n" +
   "🔥 <b>Roast me</b>: go on, try me. I'll rip you a new one.\n\n" +
   "Type something or smash the buttons below.";
-
-const SHORT_INTRO =
-  "<b>OG B0T</b>\n" +
-  "Type anything to chat. Tap <b>📂 Menu</b> for your account, tracks and VIP, or <b>📈 Signals</b> for live setups.";
 
 const LINK_STEPS =
   "🔗 <b>Link your account to unlock everything:</b>\n" +
@@ -479,8 +418,7 @@ const LINK_STEPS =
 // The intro carries the bottom bar, so it's always there after /start or a
 // clear (deleting the message that last set it can hide it in some apps).
 async function sendIntro(chat_id: number) {
-  const sent = await reply(chat_id, INTRO_TEXT, { reply_markup: USER_KEYBOARD }, 0);
-  await rememberScreen(chat_id, sent, "welcome");
+  await screen(chat_id, INTRO_TEXT, { reply_markup: USER_KEYBOARD }, 0);
 }
 
 // Deletes up to the last 100 messages (bots may delete private-chat messages <48h old).
@@ -505,7 +443,6 @@ const USER_KEYBOARD = kb([[MENU, SIGNALS_BUTTON, CLEAR]]);
 const UNLINKED_KEYBOARD = kb([[CLEAR, SITE]]);
 // Buttons from the old category menu, still on some members' screens.
 const OLD_MENU_BUTTONS = new Set([
-  "⬅️ Back",
   "🔙 Categories",
   "💷 Coins & Store",
   "🎧 Music & VIP",
@@ -963,7 +900,7 @@ async function runChatAI(
         trade.holdingMessage(market, tone),
       );
       const hold = movedFromOneMinute
-        ? `1 min calls are Boss-only (too noisy at that speed), so here's the 15 min read.\n${picked}`
+        ? `1 min calls are Boss-only (too noisy at that speed), so here's the 5 min scalp.\n${picked}`
         : picked;
       const held = await tg("sendMessage", { chat_id, text: hold, disable_web_page_preview: true });
       await rememberScreen(chat_id, held);
@@ -1384,15 +1321,12 @@ async function handleTelegramUpdate(
     };
     if (buttonMap[trimmed]) trimmed = buttonMap[trimmed];
 
-    // Their first move after the welcome swaps it for the short intro
-    // (/start and /clear bring a fresh welcome instead).
-    if (!/^\/(start|clear)\b/i.test(trimmed)) await retireWelcome(chat_id);
-
     // A tap on a bottom-bar or old menu button (or a menu command) is tidied
     // away too; anything the member actually wrote stays.
     const tapped =
       trimmed !== text.trim() ||
-      [MENU, SIGNALS_BUTTON, SITE].includes(trimmed) ||
+      [MENU, SIGNALS_BUTTON, SITE, BACK_BUTTON].includes(trimmed) ||
+      Object.hasOwn(SIGNAL_BUTTONS, trimmed) ||
       OLD_MENU_BUTTONS.has(trimmed) ||
       /^\/(menu|signals|help|sports|balance|tracks|library|buy|me|vault|vip)(@\w+)?$/i.test(
         trimmed,
@@ -1404,8 +1338,25 @@ async function handleTelegramUpdate(
 
     // Categorised menu navigation
     if (trimmed === SIGNALS_BUTTON || /^\/signals(?:@\w+)?$/i.test(trimmed)) {
-      await screen(chat_id, SIGNAL_PAIRS_TEXT, { reply_markup: signalPairsKeyboard() });
-      return Response.json({ ok: true, signals: "pairs" });
+      await screen(chat_id, SIGNALS_TEXT, { reply_markup: kb(signalButtonRows(isBoss)) });
+      return Response.json({ ok: true, signals: "menu" });
+    }
+    // A signal button in the bottom bar: straight to the live signal.
+    const signalButton = Object.hasOwn(SIGNAL_BUTTONS, trimmed) ? SIGNAL_BUTTONS[trimmed] : null;
+    if (signalButton && (!signalButton.bossOnly || isBoss)) {
+      await tidyScreens(chat_id);
+      await runChatAI(
+        admin,
+        linkedProfile.id,
+        chat_id,
+        signalRequest(signalButton.pair, signalButton.timeframe),
+        roles,
+      );
+      return Response.json({ ok: true, signals: "run" });
+    }
+    if (trimmed === BACK_BUTTON) {
+      await screen(chat_id, "📂 Back to the main menu 👇", { reply_markup: USER_KEYBOARD });
+      return Response.json({ ok: true, menu: "back" });
     }
     if (trimmed === MENU || /^\/menu\b/i.test(trimmed) || OLD_MENU_BUTTONS.has(trimmed)) {
       // An old category keyboard gets swapped back to the normal bottom bar first.
@@ -1429,7 +1380,6 @@ async function handleTelegramUpdate(
     }
 
     if (/^\/start\b/i.test(trimmed)) {
-      await retireWelcome(chat_id, false); // never two welcomes at once
       await sendIntro(chat_id);
       return Response.json({ ok: true, intro: true });
     }
