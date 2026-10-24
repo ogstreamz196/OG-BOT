@@ -18,6 +18,7 @@ import {
   stripSignalTag,
   cleanTradeHistory,
   EXPIRED_SIGNAL_NOTE,
+  fastFrame,
   framesFor,
   sessionRead,
   type Candle,
@@ -339,10 +340,22 @@ describe("framesFor", () => {
       daily: series(100, 1000, 1, 24),
       hourly: series(1000, 1000, 0.5),
       fifteen: series(500, 1000, 0.1, 0.25),
+      five: series(500, 1000, 0.02, 5 / 60),
       minute: [],
     };
-    expect(framesFor(sets, "scalp", false).frames.map((f) => f?.name)).toEqual(["4H", "1H", "15M"]);
-    expect(framesFor(sets, "swing", false).frames.map((f) => f?.name)).toEqual(["Daily", "4H", "1H"]);
+    expect(framesFor(sets, "scalp").frames.map((f) => f?.name)).toEqual(["4H", "1H", "15M"]);
+    expect(framesFor(sets, "swing").frames.map((f) => f?.name)).toEqual(["Daily", "4H", "1H"]);
+    const five = framesFor(sets, "scalp", "5m");
+    expect(five.frames.map((f) => f?.name)).toEqual(["1H", "15M", "5M"]);
+    expect(five.entryCandles).toBe(sets.five);
+  });
+
+  it("spots 1- and 5-minute requests, but not 15-minute ones", () => {
+    expect(fastFrame("XAUUSD signal 5m")).toBe("5m");
+    expect(fastFrame("btc m5 scalp")).toBe("5m");
+    expect(fastFrame("gold 1m")).toBe("1m");
+    expect(fastFrame("gold 15m")).toBeUndefined();
+    expect(fastFrame("gold signal")).toBeUndefined();
   });
 });
 

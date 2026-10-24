@@ -44,6 +44,7 @@ describe("runBacktest", () => {
     daily: series(500, 24 * HOUR, 1000, 2).map((c) => ({ ...c, t: c.t - 400 * 24 * HOUR })),
     hourly: series(3000, HOUR, 1500, 0.3),
     fifteen: [],
+    five: [],
     minute: [],
   };
   const from = T0 + 1200 * HOUR;

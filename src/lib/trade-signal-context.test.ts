@@ -296,7 +296,7 @@ describe("accuracy wiring", () => {
 
 describe("Telegram delivery", () => {
   for (const pair of ["BTCUSD", "XAUUSD"]) {
-    for (const frame of ["1h", "15m", "1m"]) {
+    for (const frame of ["1h", "15m", "5m", "1m"]) {
       it(`calculates ${pair} from actual ${frame} entry candles`, async () => {
         // Isolate source/candle/card caches so every selection must fetch its feed.
         vi.resetModules();
@@ -304,7 +304,7 @@ describe("Telegram delivery", () => {
         const fetchSpy = vi.fn(async (url: string) => {
           const interval = new URL(url).searchParams.get("interval");
           if (!url.includes("binance")) return new Response("nope", { status: 404 });
-          const ms = interval === "1d" ? 24 * HOUR : interval === "1h" ? HOUR : interval === "15m" ? HOUR / 4 : 60_000;
+          const ms = interval === "1d" ? 24 * HOUR : interval === "1h" ? HOUR : interval === "15m" ? HOUR / 4 : interval === "5m" ? 300_000 : 60_000;
           return ok(binanceRows(bars(1000, 2000, interval === "1m" ? -0.1 : 0.2, ms)));
         });
         stubFetch(fetchSpy);

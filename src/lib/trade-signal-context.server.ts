@@ -27,6 +27,7 @@ import {
   decimalsFor,
   detectStyle,
   detectTradeIntent,
+  fastFrame,
   framesFor,
   readFrame,
   sessionRead,
@@ -38,7 +39,7 @@ import {
   type Style,
 } from "./trade-signal";
 
-export type Interval = "1m" | "15m" | "1h" | "1d";
+export type Interval = "1m" | "5m" | "15m" | "1h" | "1d";
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; OGBot/1.0)" };
 const TIMEOUT_MS = 3500;
@@ -89,7 +90,7 @@ async function fromBinance(
 }
 
 async function fromKraken(pair: string, interval: Interval): Promise<Candle[]> {
-  const mins = interval === "1m" ? 1 : interval === "15m" ? 15 : interval === "1h" ? 60 : 1440;
+  const mins = { "1m": 1, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 }[interval];
   const json = (await getJson(
     `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=${mins}`,
   )) as { error?: string[]; result?: Record<string, unknown> };
@@ -109,7 +110,7 @@ async function fromKraken(pair: string, interval: Interval): Promise<Candle[]> {
 }
 
 async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> {
-  const range = interval === "1m" ? "1d" : interval === "15m" ? "5d" : interval === "1h" ? "60d" : "1y";
+  const range = { "1m": "1d", "5m": "5d", "15m": "5d", "1h": "60d", "1d": "1y" }[interval];
   const json = (await getJson(
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`,
   )) as {
@@ -144,7 +145,13 @@ async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> 
 }
 
 // Warm caches shared by every request on this server instance.
-const CANDLE_TTL: Record<Interval, number> = { "1d": 10 * 60_000, "1h": 60_000, "15m": 30_000, "1m": 10_000 };
+const CANDLE_TTL: Record<Interval, number> = {
+  "1d": 10 * 60_000,
+  "1h": 60_000,
+  "15m": 30_000,
+  "5m": 15_000,
+  "1m": 10_000,
+};
 const candleCache = new Map<string, { exp: number; value: { data: Candle[]; source: string } }>();
 const inflight = new Map<string, Promise<{ data: Candle[]; source: string }>>();
 /** Sources that refused us (e.g. a region block) are skipped for a while. */
@@ -272,15 +279,18 @@ async function fetchNews(symbol: string): Promise<string | null> {
 
 /**
  * The trend on the frame above a signal's entry timeframe (the one its
- * "cancel early if" line watches): 1M → 1H, 15M → 4H, 1H → Daily, 4H → Weekly.
+ * "cancel early if" line watches): 1M and 5M → 1H, 15M → 4H, 1H → Daily,
+ * 4H → Weekly.
  */
 export async function higherTrend(
   inst: Instrument,
   timeframe: string,
 ): Promise<FrameRead["bias"] | null> {
-  if (timeframe === "1M" || timeframe === "15M") {
+  if (timeframe === "1M" || timeframe === "5M" || timeframe === "15M") {
     const hourly = await candles(inst, "1h");
-    return readFrame(timeframe === "1M" ? "1H" : "4H", timeframe === "1M" ? hourly.data : aggregate(hourly.data, 4))?.bias ?? null;
+    return timeframe === "15M"
+      ? (readFrame("4H", aggregate(hourly.data, 4))?.bias ?? null)
+      : (readFrame("1H", hourly.data)?.bias ?? null);
   }
   const daily = await candles(inst, "1d");
   return readFrame(timeframe === "4H" ? "Weekly" : "Daily", timeframe === "4H" ? aggregate(daily.data, 24 * 7) : daily.data)?.bias ?? null;
@@ -539,9 +549,15 @@ export async function buildTradeSignal(
   const inst = detectTradeIntent(userText);
   if (!inst) return { block: "", expiresAt: null, reply: "" };
   const style: Style = detectStyle(userText);
-  const oneMinute = /\b(?:1\s?m|m1)\b/i.test(userText);
-  const entryIv: Interval = oneMinute ? "1m" : style === "scalp" ? "15m" : "1h";
-  const entryLabel = oneMinute ? "1M" : style === "scalp" ? "15M" : style === "swing" ? "4H" : "1H";
+  const fast = fastFrame(userText);
+  const entryIv: Interval = fast ?? (style === "scalp" ? "15m" : "1h");
+  const entryLabel = fast
+    ? fast.toUpperCase()
+    : style === "scalp"
+      ? "15M"
+      : style === "swing"
+        ? "4H"
+        : "1H";
   const key = `${inst.code}:${style}:${entryIv}`;
   const hit = cache.get(key);
   if (hit && hit.exp > Date.now())
@@ -554,14 +570,15 @@ export async function buildTradeSignal(
     };
 
   const tracker = import("./trade-signal-tracker.server");
-  const [daily, hourly, fifteen, minute, news, feedPrice, calendar, flow, record, spot, saved] =
+  const [daily, hourly, fifteen, quick, news, feedPrice, calendar, flow, record, spot, saved] =
     await Promise.all([
       candles(inst, "1d"),
       candles(inst, "1h"),
       style === "scalp"
         ? candles(inst, "15m")
         : Promise.resolve({ data: [] as Candle[], source: "" }),
-      oneMinute ? candles(inst, "1m") : Promise.resolve({ data: [] as Candle[], source: "" }),
+      // The 1- or 5-minute entry candles for a fast scalp.
+      fast ? candles(inst, fast) : Promise.resolve({ data: [] as Candle[], source: "" }),
       marketNews(inst),
       livePrice(inst),
       soft(economicCalendar(), [] as CalendarEvent[]),
@@ -590,10 +607,11 @@ export async function buildTradeSignal(
       daily: shiftCandles(daily.data, offset),
       hourly: shiftCandles(hourly.data, offset),
       fifteen: shiftCandles(fifteen.data, offset),
-      minute: shiftCandles(minute.data, offset),
+      five: fast === "5m" ? shiftCandles(quick.data, offset) : [],
+      minute: fast === "1m" ? shiftCandles(quick.data, offset) : [],
     },
     style,
-    oneMinute,
+    fast,
   );
 
   const [hi, mid, lo] = frames;
@@ -631,8 +649,8 @@ export async function buildTradeSignal(
     .toISOString()
     .slice(0, 16)
     .replace("T", " ");
-  const chartSource = oneMinute
-    ? minute.source
+  const chartSource = fast
+    ? quick.source
     : style === "scalp"
       ? fifteen.source
       : hourly.source || daily.source;
@@ -823,7 +841,7 @@ export async function buildTradeSignal(
     builtAt: new Date().toISOString(),
   };
   const result = { block: value, expiresAt, reply, plan: wait ? undefined : plan2, summary };
-  cache.set(key, { exp: Date.now() + (oneMinute ? 10_000 : 60_000), ...result });
+  cache.set(key, { exp: Date.now() + (fast ? 10_000 : 60_000), ...result });
   const oldest = cache.keys().next().value;
   if (cache.size > 200 && oldest) cache.delete(oldest);
   return result;
