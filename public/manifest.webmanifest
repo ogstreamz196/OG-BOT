@@ -1,7 +1,7 @@
 {
-  "name": "OG BOT",
-  "short_name": "OG BOT",
-  "description": "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+  "name": "OG B0T",
+  "short_name": "OG B0T",
+  "description": "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

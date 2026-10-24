@@ -48,7 +48,7 @@ export function DissAmbushCard({
       const { data: lyr, error: lyrErr } = await supabase.functions.invoke("generate-lyrics", {
         body: {
           songName: title,
-          description: `A savage, funny ${style} diss track roasting ${name}, built from what they told OG Bot in chat.`,
+          description: `A savage, funny ${style} diss track roasting ${name}, built from what they told OG B0T in chat.`,
           styleTags: [style, "diss track"],
           language: "English",
           vocal: "Male voice",
@@ -61,7 +61,7 @@ export function DissAmbushCard({
         },
       });
       const lyrics = (lyr?.lyrics ?? "").toString();
-      if (lyrErr || !lyrics) throw new Error("OG Bot choked on the bars — coins returned, try again.");
+      if (lyrErr || !lyrics) throw new Error("OG B0T choked on the bars — coins returned, try again.");
       const { data: row, error: insErr } = await supabase
         .from("songs")
         .insert({
@@ -100,7 +100,7 @@ export function DissAmbushCard({
       className="mt-2 w-full max-w-sm rounded-2xl border-2 border-destructive/60 bg-destructive/10 p-3 shadow-lg"
     >
       <div className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-destructive">
-        <Flame className="h-4 w-4" /> OG Bot diss ambush
+        <Flame className="h-4 w-4" /> OG B0T diss ambush
       </div>
       <p className="mt-1 text-xs text-foreground/80">
         A diss track made from what you told me. Balance:{" "}

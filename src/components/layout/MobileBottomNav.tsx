@@ -14,7 +14,7 @@ const TABS: Tab[] = [
   { to: "/library", label: "Music", icon: Library, match: (p) => p.startsWith("/library") },
   {
     to: "/messenger",
-    label: "OG Bot",
+    label: "OG B0T",
     icon: MessageCircle,
     match: (p) => p.startsWith("/messenger"),
   },

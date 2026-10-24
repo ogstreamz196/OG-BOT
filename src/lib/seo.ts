@@ -25,7 +25,9 @@ export function canonicalFor(pathname: string): string | null {
   return CANONICAL[clean] ?? null;
 }
 
-export const SITE_NAMES = ["OG BOT", "OG Bot", "OGBot", "OG Studio", "OG Streamz"];
+// OG B0T (letter O, zero in B0T) is the official name; the old spellings stay so
+// searches for "og bot" still find the site.
+export const SITE_NAMES = ["OG B0T", "OG BOT", "OG Bot", "OGBot", "OG Studio", "OG Streamz"];
 
 /** Structured data for the whole site: the site, the business and the app. */
 export function siteJsonLd(description: string) {
@@ -55,8 +57,8 @@ export function siteJsonLd(description: string) {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "@id": `${SITE_URL}/#app`,
-      name: "OG BOT",
-      alternateName: SITE_NAMES.filter((n) => n !== "OG BOT"),
+      name: "OG B0T",
+      alternateName: SITE_NAMES.filter((n) => n !== "OG B0T"),
       url: `${SITE_URL}/welcome`,
       image: SHARE_IMAGE,
       description,

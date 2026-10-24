@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 type Step = {
   key: string;
   label: string;
-  group: "Core" | "Connectors" | "Payments" | "AI providers" | "OG Bot";
+  group: "Core" | "Connectors" | "Payments" | "AI providers" | "OG B0T";
   fixHref?: string;
   fixLabel?: string;
 };
@@ -66,11 +66,11 @@ const STEPS: Step[] = [
   { key: "payments_sandbox_webhook", label: "Stripe sandbox webhook secret", group: "Payments" },
   { key: "gemini", label: "Gemini API key", group: "AI providers" },
   { key: "suno", label: "Suno API key", group: "AI providers" },
-  { key: "og_bot_host", label: "OG Bot host reachable", group: "OG Bot" },
-  { key: "og_bot_token", label: "OG_BOT_TOKEN present", group: "OG Bot" },
-  { key: "og_bot_mothership", label: "OG_BOT_MOTHERSHIP_URL present", group: "OG Bot" },
-  { key: "og_bot_mint_secret", label: "OG_BOT_REMOTE_MINT_SECRET present", group: "OG Bot" },
-  { key: "telegram_webhook_secret", label: "TELEGRAM_WEBHOOK_SECRET present", group: "OG Bot" },
+  { key: "og_bot_host", label: "OG B0T host reachable", group: "OG B0T" },
+  { key: "og_bot_token", label: "OG_BOT_TOKEN present", group: "OG B0T" },
+  { key: "og_bot_mothership", label: "OG_BOT_MOTHERSHIP_URL present", group: "OG B0T" },
+  { key: "og_bot_mint_secret", label: "OG_BOT_REMOTE_MINT_SECRET present", group: "OG B0T" },
+  { key: "telegram_webhook_secret", label: "TELEGRAM_WEBHOOK_SECRET present", group: "OG B0T" },
 ];
 
 type Status = "idle" | "running" | "ok" | "fail";

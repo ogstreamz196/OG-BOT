@@ -17,9 +17,9 @@ import { purchaseSportsGuideAccess } from "@/lib/store.functions";
 export const Route = createFileRoute("/_authenticated/sports")({
   head: () => ({
     meta: [
-      { title: "Sports Guide | OG BOT — AI Songs & Diss Tracks" },
+      { title: "Sports Guide | OG B0T — AI Songs & Diss Tracks" },
       { name: "description", content: "Live daily fixtures, fight cards and TV listings — search any team instantly." },
-      { property: "og:title", content: "Sports Guide | OG BOT — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Sports Guide | OG B0T — AI Songs & Diss Tracks" },
       { property: "og:description", content: "Live daily fixtures, fight cards and TV listings from OG Sports Guide." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -145,7 +145,7 @@ function SportsGuidePage() {
               <li>⚽ Every daily fixture, fight card & race — updated live</li>
               <li>🔎 Type any team or fighter and find their event instantly</li>
               <li>⭐ Pin your teams so they're always at the top</li>
-              <li>🔔 Telegram kick-off reminders from OG Bot</li>
+              <li>🔔 Telegram kick-off reminders from OG B0T</li>
             </ul>
             <div className="flex items-center justify-between rounded-xl border border-border bg-background/60 px-4 py-3 text-sm">
               <span className="text-muted-foreground">Your balance: {balance} coins</span>

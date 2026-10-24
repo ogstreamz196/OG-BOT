@@ -50,7 +50,7 @@ export async function streamOgChat(
         continue;
       }
       if (msg.t === "delta" && msg.d) onDelta(msg.d);
-      else if (msg.t === "error") throw new Error(msg.message || "OG Bot couldn't respond");
+      else if (msg.t === "error") throw new Error(msg.message || "OG B0T couldn't respond");
       else if (msg.t === "done") {
         const { t: _t, d: _d, message: _m, ...reply } = msg;
         final = reply as ChatReply;
@@ -58,6 +58,6 @@ export async function streamOgChat(
     }
     if (done) break;
   }
-  if (!final) throw new Error("OG Bot couldn't respond right now");
+  if (!final) throw new Error("OG B0T couldn't respond right now");
   return final;
 }

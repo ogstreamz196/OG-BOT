@@ -39,7 +39,7 @@ describe("memory", () => {
     expect(parseMemoryUpdate("not json", existing)).toEqual({ remember: [], forget: [] });
   });
 
-  it("tells OG Bot to use memories naturally, and stays empty with none", () => {
+  it("tells OG B0T to use memories naturally, and stays empty with none", () => {
     expect(memoryNote([])).toBe("");
     const note = memoryNote(["Supports Spurs"]);
     expect(note).toContain("- Supports Spurs");

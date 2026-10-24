@@ -46,15 +46,15 @@ import { DeleteMyAccount } from "@/components/DeleteMyAccount";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings | OG BOT — AI Songs & Diss Tracks" },
+      { title: "Settings | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
-        content: "Your OG BOT account: profile, VIP, Vault pass, coins and preferences.",
+        content: "Your OG B0T account: profile, VIP, Vault pass, coins and preferences.",
       },
-      { property: "og:title", content: "Settings | OG BOT — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Settings | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Your OG BOT account: profile, VIP, Vault pass, coins and preferences.",
+        content: "Your OG B0T account: profile, VIP, Vault pass, coins and preferences.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -646,7 +646,7 @@ const SECTIONS: {
     id: "preferences",
     short: "Preferences",
     title: "Preferences & coins",
-    about: "How OG Bot talks, what it remembers, how the app looks, and your coins.",
+    about: "How OG B0T talks, what it remembers, how the app looks, and your coins.",
     icon: <SlidersHorizontal className="h-3.5 w-3.5" />,
     chip: "border-orange-400/40 bg-orange-500/15",
   },

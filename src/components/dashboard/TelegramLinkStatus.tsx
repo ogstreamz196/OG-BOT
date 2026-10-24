@@ -85,7 +85,7 @@ export function TelegramLinkStatus() {
         if (fresh?.state !== "verified") {
           toast.error("Telegram didn't confirm yet", {
             description:
-              "Open OG Bot and tap Start, then allow ALL permissions — message access is required so we can verify and message you. Tap Reconnect to try again.",
+              "Open OG B0T and tap Start, then allow ALL permissions — message access is required so we can verify and message you. Tap Reconnect to try again.",
             duration: 8000,
           });
         } else {
@@ -106,7 +106,7 @@ export function TelegramLinkStatus() {
       const { token } = await tokenFn();
       if (!token) throw new Error("No token");
       toast.message("Opening Telegram…", {
-        description: "Tap Start and allow ALL permissions so OG Bot can message you.",
+        description: "Tap Start and allow ALL permissions so OG B0T can message you.",
       });
       launchedAt.current = Date.now();
       const url = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}`;
@@ -163,10 +163,10 @@ export function TelegramLinkStatus() {
           data.linkedAt ? ` · since ${formatLinkedAt(data.linkedAt)}` : ""
         }`
       : state === "failed"
-        ? `OG Bot couldn't reach your chat${data.verifyError ? ` — ${data.verifyError}` : ""}. Tap Reconnect and allow ALL permissions.`
+        ? `OG B0T couldn't reach your chat${data.verifyError ? ` — ${data.verifyError}` : ""}. Tap Reconnect and allow ALL permissions.`
         : state === "pending"
-          ? "Tap Reconnect, open OG Bot in Telegram, hit Start, and allow ALL permissions."
-          : "Tap Reconnect to open OG Bot in Telegram and allow ALL permissions.";
+          ? "Tap Reconnect, open OG B0T in Telegram, hit Start, and allow ALL permissions."
+          : "Tap Reconnect to open OG B0T in Telegram and allow ALL permissions.";
 
   const Icon =
     state === "verified"

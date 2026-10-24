@@ -27,7 +27,7 @@ export const Route = createFileRoute("/carrom-connect")({
     }
   },
   head: () => ({
-    meta: [{ title: "Connect OG CARROM | OG BOT" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Connect OG CARROM | OG B0T" }, { name: "robots", content: "noindex" }],
   }),
   component: CarromConnect,
 });
@@ -68,11 +68,11 @@ function CarromConnect() {
     return (
       <Shell title="Open this from OG CARROM">
         <p className="text-muted-foreground">
-          This page connects OG CARROM to your OG BOT account. Open OG CARROM (the app or
-          carrom.ogbot.co.uk) and tap "Sign in with OG BOT".
+          This page connects OG CARROM to your OG B0T account. Open OG CARROM (the app or
+          carrom.ogbot.co.uk) and tap "Sign in with OG B0T".
         </p>
         <Button asChild variant="outline" className="w-full">
-          <Link to="/">Go to OG BOT</Link>
+          <Link to="/">Go to OG B0T</Link>
         </Button>
       </Shell>
     );
@@ -81,8 +81,8 @@ function CarromConnect() {
   return (
     <Shell title="Connect OG CARROM">
       <p className="text-muted-foreground">
-        OG CARROM will use your OG BOT name so your carrom account is the same in the app and inside
-        OG BOT. It only sees your name, never your email, and coins aren't shared.
+        OG CARROM will use your OG B0T name so your carrom account is the same in the app and inside
+        OG B0T. It only sees your name, never your email, and coins aren't shared.
       </p>
       {error && (
         <p role="alert" className="text-sm text-destructive">

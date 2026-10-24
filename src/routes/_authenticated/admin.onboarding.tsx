@@ -5,5 +5,5 @@ export const Route = createFileRoute("/_authenticated/admin/onboarding")({
     throw redirect({ to: "/admin/system", search: { tab: "setup" } });
   },
   component: () => null,
-  head: () => ({ meta: [{ title: "Onboarding — Admin | OG BOT — AI Songs & Diss Tracks" }] }),
+  head: () => ({ meta: [{ title: "Onboarding — Admin | OG B0T — AI Songs & Diss Tracks" }] }),
 });

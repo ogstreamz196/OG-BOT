@@ -555,7 +555,7 @@ export async function streamAiChat(
     }
   }
   if (lastStatus === 429 || lastStatus === 402)
-    throw new Error("OG Bot is rate-limited, try again soon.");
+    throw new Error("OG B0T is rate-limited, try again soon.");
   throw new Error("All AI providers are busy — try again in a moment.");
 }
 
@@ -678,7 +678,7 @@ ${research}
 USER QUESTION:
 ${question}
 
-Answer in your normal OG Bot voice: same persona, slang and attitude as always (have a laugh at the losing team or the coin that dumped). Use only the relevant facts above and keep every score, price, date and name exactly as given. Mention a source by name if it helps. If the sources don't answer the question, say so instead of guessing.`;
+Answer in your normal OG B0T voice: same persona, slang and attitude as always (have a laugh at the losing team or the coin that dumped). Use only the relevant facts above and keep every score, price, date and name exactly as given. Mention a source by name if it helps. If the sources don't answer the question, say so instead of guessing.`;
 }
 
 /** Transcribe audio bytes with the Boss's own Gemini key. */

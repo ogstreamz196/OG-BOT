@@ -71,7 +71,7 @@ export function FreeAccessPanel() {
           <div className="min-w-0">
             <h3 className="font-semibold">Free access for all users</h3>
             <p className="text-sm text-muted-foreground">
-              Limited-time promo: every signed-in user gets VIP-only features, including OG Bot
+              Limited-time promo: every signed-in user gets VIP-only features, including OG B0T
               foul-mouth mode. Turn off to restore VIP-only access.
             </p>
             <p className="mt-1 text-xs text-muted-foreground">

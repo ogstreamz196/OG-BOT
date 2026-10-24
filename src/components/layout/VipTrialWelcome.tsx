@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRole } from "@/hooks/use-role";
 
 const PERKS = [
-  ["🤬", "Foul Mouth OG Bot", "Unfiltered roasts & UK slang — amp it up to Demon level"],
+  ["🤬", "Foul Mouth OG B0T", "Unfiltered roasts & UK slang — amp it up to Demon level"],
   ["🌍", "Any language", "Chat in 29 languages (free for everyone, forever)"],
   ["⚡", "Priority AI", "Fast-lane replies and song writing"],
   ["🪙", "Daily safety net", "10 free coins a day if you run low"],

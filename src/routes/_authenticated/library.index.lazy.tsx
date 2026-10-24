@@ -620,7 +620,7 @@ function LibraryPage() {
         return;
       }
       announceSampleCharge(genData);
-      toast.success("OG Bot is creating your song");
+      toast.success("OG B0T is creating your song");
       navigate({ to: "/library/$songId", params: { songId: row.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not generate song");
@@ -993,7 +993,7 @@ function LibraryPage() {
       void updateAttempt(attemptId, { stage: "queued", status: "succeeded", song_id: row.id });
       library.refetch();
       toast.success(
-        "OG Bot is cooking your track — you can close the app, it'll be in your Library",
+        "OG B0T is cooking your track — you can close the app, it'll be in your Library",
       );
       try {
         window.localStorage.removeItem(WIZARD_DRAFT_KEY);
@@ -1534,7 +1534,7 @@ function LibraryPage() {
             if (await startGuestTrackSafely(track)) {
               setTrackedSongId(track.songId);
               void library.refetch();
-              toast.success("Paid — OG Bot is cooking your track 🔥");
+              toast.success("Paid — OG B0T is cooking your track 🔥");
             }
             try {
               window.localStorage.removeItem(PAID_TRACK_PENDING_KEY);

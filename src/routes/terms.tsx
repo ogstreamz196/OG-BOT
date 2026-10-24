@@ -4,17 +4,17 @@ export const Route = createFileRoute("/terms")({
   component: TermsPage,
   head: () => ({
     meta: [
-      { title: "Terms of Use | OG BOT — AI Songs & Diss Tracks" },
+      { title: "Terms of Use | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
-          "Terms of Use for the OG BOT app and ogbot.co.uk — subscriptions, OG Coins, generated content, acceptable use and cancellation.",
+          "Terms of Use for the OG B0T app and ogbot.co.uk — subscriptions, OG Coins, generated content, acceptable use and cancellation.",
       },
-      { property: "og:title", content: "Terms of Use | OG BOT — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Terms of Use | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:
-          "The rules for using OG BOT: subscriptions, coins, generated tracks, acceptable use and cancellation.",
+          "The rules for using OG B0T: subscriptions, coins, generated tracks, acceptable use and cancellation.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -42,7 +42,7 @@ function TermsPage() {
       </Link>
       <h1 className="font-display mt-3 text-3xl font-black sm:text-4xl">Terms of Use</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        OG BOT is operated by OG Studio. Last updated: 30 September 2026. By using the OG BOT app or{" "}
+        OG B0T is operated by OG Studio. Last updated: 30 September 2026. By using the OG B0T app or{" "}
         <a href="https://ogbot.co.uk" className="text-primary underline">
           ogbot.co.uk
         </a>{" "}
@@ -60,7 +60,7 @@ function TermsPage() {
 
         <Section title="2. OG Coins">
           <p>
-            OG Coins are a limited, non-transferable licence to use features inside OG BOT. They
+            OG Coins are a limited, non-transferable licence to use features inside OG B0T. They
             have no cash value and cannot be exchanged for money. Unused coins are forfeited if you
             delete your account.
           </p>
@@ -102,7 +102,7 @@ function TermsPage() {
 
         <Section title="5. Acceptable use">
           <p>
-            Do not use OG BOT to create or share content that is unlawful, harassing, hateful,
+            Do not use OG B0T to create or share content that is unlawful, harassing, hateful,
             sexually explicit involving minors, or that impersonates a real person in a harmful or
             deceptive way. Explicit-language modes are for adult users and are still subject to
             these rules.
@@ -116,7 +116,7 @@ function TermsPage() {
         <Section title="6. Generated content disclaimer">
           <p>
             Songs, lyrics and replies are produced by automated systems and may be inaccurate or
-            unexpected. They are provided "as is" without warranty, and OG BOT is not liable for how
+            unexpected. They are provided "as is" without warranty, and OG B0T is not liable for how
             generated content is used.
           </p>
         </Section>

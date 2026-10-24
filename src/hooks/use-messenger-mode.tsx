@@ -83,12 +83,12 @@ export function useSetMessengerMode() {
       toast.error("Couldn't save messenger mode");
     },
     onSuccess: (next) => {
-      toast.success(next === "community" ? "⚔️ OG Battle Zone: ON" : "🤖 OG Bot Loner Mode: ON", {
+      toast.success(next === "community" ? "⚔️ OG Battle Zone: ON" : "🤖 OG B0T Loner Mode: ON", {
         id: "messenger-mode-toggle",
         description:
           next === "community"
-            ? "You're in the OG Battle Zone — everyone vs OG Bot. Saved to your profile."
-            : "Back to private chat with OG Bot. Saved to your profile.",
+            ? "You're in the OG Battle Zone — everyone vs OG B0T. Saved to your profile."
+            : "Back to private chat with OG B0T. Saved to your profile.",
       });
     },
     onSettled: () => {

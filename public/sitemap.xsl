@@ -7,7 +7,7 @@
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <meta name="robots" content="noindex"/>
-        <title>OG BOT sitemap</title>
+        <title>OG B0T sitemap</title>
         <style>
           body{margin:0;padding:24px 16px;background:#0a0a0a;color:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
           main{max-width:760px;margin:0 auto}
@@ -21,8 +21,8 @@
       </head>
       <body>
         <main>
-          <h1>OG BOT sitemap</h1>
-          <p>This list is for search engines. <xsl:value-of select="count(s:urlset/s:url)"/> pages. <a href="/welcome">Go to OG BOT</a></p>
+          <h1>OG B0T sitemap</h1>
+          <p>This list is for search engines. <xsl:value-of select="count(s:urlset/s:url)"/> pages. <a href="/welcome">Go to OG B0T</a></p>
           <ol>
             <xsl:for-each select="s:urlset/s:url">
               <li>

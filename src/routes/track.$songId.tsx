@@ -11,23 +11,23 @@ const SHARE_IMAGE = `${SITE_URL}/share/og-bot-track.png`;
 export const Route = createFileRoute("/track/$songId")({
   loader: ({ params }) => getPublicSharedTrack({ data: { songId: params.songId } }),
   head: ({ params, loaderData }) => {
-    const title = loaderData?.title || "Shared OG BOT track";
+    const title = loaderData?.title || "Shared OG B0T track";
     const description = loaderData
-      ? `Listen to “${title}”, created with OG BOT.`
-      : "Listen to music created with OG BOT.";
+      ? `Listen to “${title}”, created with OG B0T.`
+      : "Listen to music created with OG B0T.";
     const url = `${SITE_URL}/track/${params.songId}`;
     return {
       meta: [
-        { title: `${title} | OG BOT — AI Songs & Diss Tracks` },
+        { title: `${title} | OG B0T — AI Songs & Diss Tracks` },
         { name: "description", content: description },
-        { property: "og:title", content: `${title} | OG BOT — AI Songs & Diss Tracks` },
+        { property: "og:title", content: `${title} | OG B0T — AI Songs & Diss Tracks` },
         { property: "og:description", content: description },
         { property: "og:type", content: "music.song" },
         { property: "og:url", content: url },
         { property: "og:image", content: SHARE_IMAGE },
-        { property: "og:image:alt", content: "OG BOT" },
+        { property: "og:image:alt", content: "OG B0T" },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: `${title} | OG BOT — AI Songs & Diss Tracks` },
+        { name: "twitter:title", content: `${title} | OG B0T — AI Songs & Diss Tracks` },
         { name: "twitter:description", content: description },
         { name: "twitter:image", content: SHARE_IMAGE },
       ],
@@ -63,7 +63,7 @@ function SharedTrackPage() {
       <section className="mx-auto w-full max-w-2xl text-center">
         <img
           src={ogBotLogo.large}
-          alt="OG BOT"
+          alt="OG B0T"
           width={512}
           height={512}
           className="mx-auto aspect-square w-52 rounded-2xl object-cover shadow-glow sm:w-64"
@@ -77,7 +77,7 @@ function SharedTrackPage() {
             <SharedTrackPlayer src={track.audioUrl} title={track.title} />
             <Button asChild size="lg" className="mt-7 w-full max-w-xl">
               <Link to="/welcome">
-                <Headphones className="h-5 w-5" /> Make a track with OG BOT
+                <Headphones className="h-5 w-5" /> Make a track with OG B0T
               </Link>
             </Button>
 
@@ -98,7 +98,7 @@ function SharedTrackPage() {
             </p>
             <Button asChild variant="outline" className="mt-7">
               <Link to="/welcome">
-                <Home className="h-4 w-4" /> Visit OG BOT
+                <Home className="h-4 w-4" /> Visit OG B0T
               </Link>
             </Button>
           </>

@@ -18,7 +18,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
           "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-foreground/80 backdrop-blur-md",
           className,
         )}
-        aria-label="Powered by OG Bot"
+        aria-label="Powered by OG B0T"
       >
         <img
           src={ogBotLogo.small}
@@ -26,7 +26,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
           aria-hidden="true"
           className="h-4 w-4 rounded-full object-cover ring-1 ring-primary/50"
         />
-        Powered by OG Bot
+        Powered by OG B0T
       </span>
     );
   }
@@ -36,7 +36,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
         "mt-8 flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-card/40 px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground backdrop-blur-md",
         className,
       )}
-      aria-label="Powered by OG Bot"
+      aria-label="Powered by OG B0T"
     >
       <img
         src={ogBotLogo.small}
@@ -45,7 +45,7 @@ export function PoweredByOgBot({ variant = "footer", className }: PoweredByOgBot
         className="h-6 w-6 rounded-full object-cover ring-1 ring-primary/50"
       />
       <span>Powered by</span>
-      <span className="text-foreground">OG Bot</span>
+      <span className="text-foreground">OG B0T</span>
     </footer>
   );
 }

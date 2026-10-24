@@ -74,7 +74,7 @@ function friendlyError(raw?: string | null): string {
   if (msg.includes("network") || msg.includes("fetch") || msg.includes("econn"))
     return "Network hiccup — retry usually fixes it.";
   if (msg.includes("moderation") || msg.includes("policy") || msg.includes("forbidden"))
-    return "Blocked by OG Bot's content policy — edit the prompt and retry.";
+    return "Blocked by OG B0T's content policy — edit the prompt and retry.";
   return raw.length > 140 ? `${raw.slice(0, 140)}…` : raw;
 }
 

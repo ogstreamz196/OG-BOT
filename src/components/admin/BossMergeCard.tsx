@@ -26,7 +26,7 @@ const LABELS: Record<string, string> = {
   unlocked_songs: "unlocks",
   song_brief_drafts: "song drafts",
   generation_attempts: "creation attempts",
-  og_messages: "OG Bot chat messages",
+  og_messages: "OG B0T chat messages",
   community_messages: "Battle Zone messages",
   telegram_sign_in_events: "Telegram events",
   coin_transactions: "coin history entries",

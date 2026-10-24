@@ -63,13 +63,13 @@ export function parseMemoryUpdate(raw: string, existing: string[]): MemoryUpdate
 
 /** The extractor's instructions. Facts must be durable and about the member. */
 export function extractorPrompt(existing: string[], userText: string): string {
-  return `You keep OG Bot's notes about ONE member of a UK music and banter app.
+  return `You keep OG B0T's notes about ONE member of a UK music and banter app.
 Read their latest message and decide what is worth remembering long term.
 
 Remember only lasting facts the member states about THEMSELVES: their nickname or rap name, the football team they support, where they're from (town or city only), job or studies, hobbies, music they like, crypto or markets they trade, people they mention by first name and who they are (e.g. "Dan is their mate they always roast"), running jokes, how they like to be spoken to.
 Never remember: health, religion, sexuality, politics, ethnicity, exact addresses, phone numbers, emails, passwords, bank or card details, or anything about passing moods.
 Write each fact in third person, short, under 120 characters, e.g. "Supports Spurs", "Rap name is Lil Bricks".
-If the message says a saved fact is wrong or asks OG Bot to forget something, put that exact saved fact in "forget".
+If the message says a saved fact is wrong or asks OG B0T to forget something, put that exact saved fact in "forget".
 
 Saved facts:
 ${existing.length ? existing.map((f) => `- ${f}`).join("\n") : "(none yet)"}

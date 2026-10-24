@@ -70,7 +70,7 @@ const primaryNav: NavItem[] = [
     spin: true,
   },
   {
-    title: "OG Bot",
+    title: "OG B0T",
     url: "/messenger",
     image: ogBotLogo.small,
     badge: "Live",
@@ -199,11 +199,11 @@ export function AppSidebar() {
                 Powered by
                 <img
                   src={ogBotLogo.small}
-                  alt="OG Bot"
+                  alt="OG B0T"
                   draggable={false}
                   className="h-3.5 w-3.5 rounded-full object-cover pointer-events-none select-none"
                 />
-                <span className="font-bold tracking-wider text-foreground/80">OG Bot</span>
+                <span className="font-bold tracking-wider text-foreground/80">OG B0T</span>
               </span>
             </>
           )}

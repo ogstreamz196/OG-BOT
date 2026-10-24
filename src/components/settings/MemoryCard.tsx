@@ -20,7 +20,7 @@ export function MemoryCard() {
   const forget = useMutation({
     mutationFn: (id?: string) => forgetFn({ data: { id } }),
     onSuccess: (_r, id) => {
-      toast.success(id ? "Forgotten" : "OG Bot has forgotten everything");
+      toast.success(id ? "Forgotten" : "OG B0T has forgotten everything");
       void qc.invalidateQueries({ queryKey: KEY });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -40,16 +40,16 @@ export function MemoryCard() {
   return (
     <SettingsCard
       icon={<Brain className="h-5 w-5" />}
-      title="OG Bot's memory"
+      title="OG B0T's memory"
       tone="teal"
-      hint="Things you've told OG Bot in private chat, so it remembers you on any device."
+      hint="Things you've told OG B0T in private chat, so it remembers you on any device."
     >
       <SettingRow
-        label="Let OG Bot remember me"
+        label="Let OG B0T remember me"
         hint="Turning this off also wipes what it knows. Battle Zone never sees these."
       >
         <Switch
-          aria-label="Let OG Bot remember me"
+          aria-label="Let OG B0T remember me"
           checked={enabled}
           disabled={q.isLoading || toggle.isPending}
           onCheckedChange={(v) => toggle.mutate(v)}
@@ -62,7 +62,7 @@ export function MemoryCard() {
         </div>
       ) : enabled && memories.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nothing yet. Tell OG Bot your team, your rap name or who your mates are and it'll
+          Nothing yet. Tell OG B0T your team, your rap name or who your mates are and it'll
           remember.
         </p>
       ) : enabled ? (

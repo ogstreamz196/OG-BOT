@@ -77,14 +77,14 @@ export function InstallAppPrompt() {
   if (!deferred) return null;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent aria-label="Add OG BOT shortcut" className="max-w-sm">
+      <DialogContent aria-label="Add OG B0T shortcut" className="max-w-sm">
         <DialogHeader>
           <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15">
             <Smartphone className="h-7 w-7 text-primary" aria-hidden="true" />
           </div>
-          <DialogTitle className="text-center">Add OG BOT to your home screen</DialogTitle>
+          <DialogTitle className="text-center">Add OG B0T to your home screen</DialogTitle>
           <DialogDescription className="text-center">
-            One tap and OG BOT sits on your home screen like any other app. Nothing to download, no app store, free.
+            One tap and OG B0T sits on your home screen like any other app. Nothing to download, no app store, free.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col gap-2 sm:flex-col">

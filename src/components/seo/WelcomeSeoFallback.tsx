@@ -18,7 +18,7 @@ export function WelcomeSeoFallback() {
       >
         <img
           src={masterLogo}
-          alt="OG BOT"
+          alt="OG B0T"
           width={1607}
           height={1275}
           fetchPriority="high"
@@ -31,20 +31,20 @@ export function WelcomeSeoFallback() {
 
       <div className="mx-auto max-w-3xl px-4 pb-10">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-          OG Streamz · Powered by OG Bot
+          OG Streamz · Powered by OG B0T
         </p>
         <h1 className="mt-3 font-display text-3xl sm:text-5xl">
           Roast the bot. Drop the diss. Or cook a hit.
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Step into the world of OG Bot. Enter the battle, create your sound and unleash your
+          Step into the world of OG B0T. Enter the battle, create your sound and unleash your
           creativity. Your ideas. Your rules. No limits.
         </p>
 
         <section className="mt-8">
           <h2 className="text-xl font-bold">Choose your mode</h2>
           <h3 className="mt-3 font-semibold">Battle Zone</h3>
-          <p className="text-muted-foreground">Roast OG Bot. Bank coins for every hit.</p>
+          <p className="text-muted-foreground">Roast OG B0T. Bank coins for every hit.</p>
           <h3 className="mt-3 font-semibold">Music Hub</h3>
           <p className="text-muted-foreground">Your idea. Real vocals. Cover art. Done.</p>
           <h3 className="mt-3 font-semibold">Sports Guide</h3>

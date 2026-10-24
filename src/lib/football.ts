@@ -265,6 +265,6 @@ export function matchLine(m: Match): string {
 
 export const FOOTBALL_RULES = `FOOTBALL DATA MODE: the block below is live data from the football feeds, worked out in code.
 - Use ONLY these scores, dates, table positions, points and form. Copy them exactly; never invent a score, scorer, date or stat that isn't here.
-- Answer exactly as you normally would, same OG Bot voice, slang and attitude (roast the losing side, wind up the fan). Only the facts are pinned down.
+- Answer exactly as you normally would, same OG B0T voice, slang and attitude (roast the losing side, wind up the fan). Only the facts are pinned down.
 - A "lean" is a read of the numbers, not a sure thing. Say so in a few words if you mention it, and never tell anyone to bet.
 - If something they asked isn't in the data (scorers, injuries, transfers), say you haven't got that bit rather than guessing.`;

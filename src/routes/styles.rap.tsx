@@ -6,13 +6,13 @@ export const Route = createFileRoute("/styles/rap")({
   component: RapLandingPage,
   head: () => ({
     meta: [
-      { title: "AI Rap Generator — Cook Drill, Grime & Diss Tracks | OG BOT" },
+      { title: "AI Rap Generator — Cook Drill, Grime & Diss Tracks | OG B0T" },
       {
         name: "description",
         content:
-          "OG BOT's AI rap generator turns your idea into a full rap track with real vocals and cover art. UK drill, grime, trap, boom-bap and foul-mouth diss tracks — battle the bot, then let it cook.",
+          "OG B0T's AI rap generator turns your idea into a full rap track with real vocals and cover art. UK drill, grime, trap, boom-bap and foul-mouth diss tracks — battle the bot, then let it cook.",
       },
-      { property: "og:title", content: "AI Rap Generator — Cook Drill, Grime & Diss Tracks | OG BOT" },
+      { property: "og:title", content: "AI Rap Generator — Cook Drill, Grime & Diss Tracks | OG B0T" },
       {
         property: "og:description",
         content:
@@ -42,7 +42,7 @@ const steps = [
   },
   {
     icon: Mic2,
-    title: "OG Bot writes the bars",
+    title: "OG B0T writes the bars",
     desc: "Pick your style and heat level, from clean to full foul-mouth Savage mode.",
   },
   {
@@ -57,7 +57,7 @@ function RapLandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="mx-auto flex max-w-4xl items-center justify-between px-4 py-5">
         <Link to="/welcome" className="text-lg font-bold tracking-tight">
-          OG BOT
+          OG B0T
         </Link>
         <Button asChild size="sm">
           <Link to="/welcome">Start free</Link>
@@ -73,7 +73,7 @@ function RapLandingPage() {
             AI Rap Generator that actually spits
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Type an idea and OG BOT cooks a full rap track — real vocals, a hard beat and
+            Type an idea and OG B0T cooks a full rap track — real vocals, a hard beat and
             cover art. UK drill, grime, trap, boom-bap, or a foul-mouth diss track aimed at
             whoever's asking for it.
           </p>
@@ -83,7 +83,7 @@ function RapLandingPage() {
             </Button>
             <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link to="/welcome">
-                <Swords className="mr-2 h-4 w-4" /> Battle OG Bot first
+                <Swords className="mr-2 h-4 w-4" /> Battle OG B0T first
               </Link>
             </Button>
           </div>
@@ -120,7 +120,7 @@ function RapLandingPage() {
           <Coins className="mx-auto h-8 w-8 text-primary" />
           <h2 className="mt-3 text-2xl font-bold">Earn OG Coins while you're at it</h2>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
-            Battle OG Bot in the Battle Zone, grab daily drops and earn lifetime referral
+            Battle OG B0T in the Battle Zone, grab daily drops and earn lifetime referral
             commission — coins you can spend on more tracks. 2 tracks for the price of 1 on
             your first unlock.
           </p>
