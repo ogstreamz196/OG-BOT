@@ -170,8 +170,10 @@ async function handleCallbackQuery(cq: {
             reply_markup,
           })
         : null;
-      if (!edited) await reply(chatId, text, { reply_markup });
+      if (!edited) await screen(chatId, text, { reply_markup });
     } else {
+      // The picker and anything else from the menu go; the signal comes next.
+      await tidyScreens(chatId);
       try {
         await runChatAI(
           admin,
@@ -292,6 +294,64 @@ async function reply(
     ...(extra ?? {}),
   });
   await scheduleDelete(chat_id, res, ttlMs);
+  return res;
+}
+
+/* ── Screens: one button-driven message on show at a time ─────────────── */
+// What the bot shows when a member taps a button (menu, VIP, Vault, tracks,
+// the signals picker, "hold on" lines, "no trade" cards) is a screen: the
+// next one replaces it, so hunting for signals stays clutter-free. Typed
+// questions and their answers, the intro and followed signal cards are
+// never screens. Needs the telegram_screen_messages table; until it exists
+// nothing is tidied and everything else works as before.
+const SCREENS = "telegram_screen_messages" as never;
+
+/** Deletes the chat's earlier screens. */
+async function tidyScreens(chat_id: number) {
+  try {
+    const admin = await loadAdmin();
+    const { data, error } = await admin
+      .from(SCREENS)
+      .select("message_id")
+      .eq("chat_id" as never, chat_id)
+      .limit(100);
+    if (error || !data?.length) return;
+    const ids = (data as { message_id: number }[]).map((r) => Number(r.message_id));
+    await tg("deleteMessages", { chat_id, message_ids: ids });
+    await admin
+      .from(SCREENS)
+      .delete()
+      .eq("chat_id" as never, chat_id)
+      .in("message_id" as never, ids as never);
+  } catch (e) {
+    console.warn("[telegram] tidy screens failed", e);
+  }
+}
+
+/** Marks a sent message as a screen, so the next screen replaces it. */
+async function rememberScreen(chat_id: number, sent: unknown) {
+  const message_id = (sent as { result?: { message_id?: number } } | null)?.result?.message_id;
+  if (!message_id) return;
+  try {
+    const admin = await loadAdmin();
+    await admin.from(SCREENS).upsert({ chat_id, message_id } as never, {
+      onConflict: "chat_id,message_id",
+    });
+  } catch {
+    /* table not there yet: nothing to tidy later */
+  }
+}
+
+/** Shows a screen: clears the previous ones, then sends this one. */
+async function screen(
+  chat_id: number,
+  text: string,
+  extra?: Record<string, unknown>,
+  ttlMs?: number,
+) {
+  await tidyScreens(chat_id);
+  const res = await reply(chat_id, text, extra, ttlMs);
+  await rememberScreen(chat_id, res);
   return res;
 }
 
@@ -815,6 +875,7 @@ async function runChatAI(
         ? `1 min calls are Boss-only (too noisy at that speed), so here's the 15 min read.\n${picked}`
         : picked;
       const held = await tg("sendMessage", { chat_id, text: hold, disable_web_page_preview: true });
+      await rememberScreen(chat_id, held);
       const signal = await signalJob;
       const ttl = signal.expiresAt
         ? Math.max(1, Date.parse(signal.expiresAt) - Date.now() - 5 * 60_000)
@@ -825,6 +886,8 @@ async function runChatAI(
       for (const text of chunks) {
         const sent = await tg("sendMessage", { chat_id, text, disable_web_page_preview: true });
         if (!sent) throw new Error("Signal delivery failed");
+        // "No trade right now" cards aren't followed, so the next screen clears them.
+        if (!signal.plan) await rememberScreen(chat_id, sent);
         firstMessageId ??=
           (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
         await scheduleDelete(chat_id, sent, ttl);
@@ -1230,21 +1293,35 @@ async function handleTelegramUpdate(
     };
     if (buttonMap[trimmed]) trimmed = buttonMap[trimmed];
 
+    // A tap on a bottom-bar or old menu button (or a menu command) is tidied
+    // away too; anything the member actually wrote stays.
+    const tapped =
+      trimmed !== text.trim() ||
+      [MENU, SIGNALS_BUTTON, SITE].includes(trimmed) ||
+      OLD_MENU_BUTTONS.has(trimmed) ||
+      /^\/(menu|signals|help|sports|balance|tracks|library|buy|me|vault|vip)(@\w+)?$/i.test(
+        trimmed,
+      );
+    const tapId = (msg as { message_id?: number }).message_id;
+    if (tapped && tapId && trimmed !== "/clear") {
+      void tg("deleteMessage", { chat_id, message_id: tapId });
+    }
+
     // Categorised menu navigation
     if (trimmed === SIGNALS_BUTTON || /^\/signals(?:@\w+)?$/i.test(trimmed)) {
-      await reply(chat_id, SIGNAL_PAIRS_TEXT, { reply_markup: signalPairsKeyboard() });
+      await screen(chat_id, SIGNAL_PAIRS_TEXT, { reply_markup: signalPairsKeyboard() });
       return Response.json({ ok: true, signals: "pairs" });
     }
     if (trimmed === MENU || /^\/menu\b/i.test(trimmed) || OLD_MENU_BUTTONS.has(trimmed)) {
       // An old category keyboard gets swapped back to the normal bottom bar first.
       if (OLD_MENU_BUTTONS.has(trimmed))
         await reply(chat_id, "📂 The menu's simpler now 👇", { reply_markup: USER_KEYBOARD });
-      await reply(chat_id, MENU_TEXT, { reply_markup: menuPanel(isBoss, await siteLink("/")) });
+      await screen(chat_id, MENU_TEXT, { reply_markup: menuPanel(isBoss, await siteLink("/")) });
       return Response.json({ ok: true, menu: true });
     }
 
     if (trimmed === SITE) {
-      await reply(chat_id, "🌐 <b>OG B0T on the web</b>\nYou'll be signed straight in.", {
+      await screen(chat_id, "🌐 <b>OG B0T on the web</b>\nYou'll be signed straight in.", {
         reply_markup: {
           inline_keyboard: [[{ text: "🌐 Open OGBOT.CO.UK", url: await siteLink("/") }]],
         },
@@ -1264,9 +1341,7 @@ async function handleTelegramUpdate(
       return Response.json({ ok: true, cleared: true });
     }
     if (/^\/help\b/i.test(trimmed)) {
-      await reply(chat_id, isBoss ? HELP_ADMIN : HELP_USER, {
-        reply_markup: USER_KEYBOARD,
-      });
+      await screen(chat_id, isBoss ? HELP_ADMIN : HELP_USER);
       return Response.json({ ok: true, help: true });
     }
     if (/^\/sports\b/i.test(trimmed)) {
@@ -1279,7 +1354,7 @@ async function handleTelegramUpdate(
         console.warn("[telegram] quick sports failed", e);
       }
       if (!q) body += "\n\nTip: send <code>/sports arsenal</code> or <code>/sports dazn</code>";
-      await reply(chat_id, body.slice(0, 4000), {
+      await screen(chat_id, body.slice(0, 4000), {
         reply_markup: {
           inline_keyboard: [[{ text: "⚽ Open Sports Guide", url: await siteLink("/sports") }]],
         },
@@ -1292,7 +1367,7 @@ async function handleTelegramUpdate(
         .select("coin_balance")
         .eq("id", linkedProfile.id)
         .maybeSingle();
-      await reply(chat_id, `💰 <b>${p?.coin_balance ?? 0}</b> OG coins`, {
+      await screen(chat_id, `💰 <b>${p?.coin_balance ?? 0}</b> OG coins`, {
         reply_markup: {
           inline_keyboard: [[{ text: "🛒 Top up", url: await siteLink("/store") }]],
         },
@@ -1336,11 +1411,11 @@ async function handleTelegramUpdate(
           ? { text: "📚 Open full library", url: await siteLink("/library") }
           : { text: "🎵 Make a track", url: await siteLink("/") },
       ]);
-      await reply(chat_id, body, { reply_markup: { inline_keyboard: rows } });
+      await screen(chat_id, body, { reply_markup: { inline_keyboard: rows } });
       return Response.json({ ok: true, library: true });
     }
     if (/^\/buy\b/i.test(trimmed)) {
-      await reply(
+      await screen(
         chat_id,
         "🛒 <b>Top up OG coins</b>\nCoins, VIP and the Vault pass are all in the Store.",
         {
@@ -1357,9 +1432,7 @@ async function handleTelegramUpdate(
         .select(PROFILE_COLS)
         .eq("id", linkedProfile.id)
         .maybeSingle();
-      await reply(chat_id, p ? fmtProfile(p as AdminProfile) : "Profile not found.", {
-        reply_markup: USER_KEYBOARD,
-      });
+      await screen(chat_id, p ? fmtProfile(p as AdminProfile) : "Profile not found.");
       return Response.json({ ok: true, me: true });
     }
     if (
@@ -1406,7 +1479,7 @@ async function handleTelegramUpdate(
           `⚠️ <b>Important:</b> sign out of the Vault first, then sign in with these details.\n\n` +
           `Tap to copy. Keep it private.\n\n⏳ <i>For your security, this message self-destructs in 1 hour.</i>`;
       }
-      await reply(
+      await screen(
         chat_id,
         body,
         {
@@ -1488,7 +1561,7 @@ async function handleTelegramUpdate(
           `🆓 <b>Free plan</b>, no active VIP.\n\n` +
           `VIP unlocks every style, Foul Mouth mode and your own OG VIP ID.`;
       }
-      await reply(chat_id, body, {
+      await screen(chat_id, body, {
         reply_markup: {
           inline_keyboard: [[{ text: "👑 Open VIP Store", url: await siteLink("/store") }]],
         },
@@ -1503,9 +1576,7 @@ async function handleTelegramUpdate(
 
     // Anything else starting with / isn't a command we know.
     if (trimmed.startsWith("/")) {
-      await reply(chat_id, "🤷 I don't know that one. /help shows everything I can do.", {
-        reply_markup: USER_KEYBOARD,
-      });
+      await screen(chat_id, "🤷 I don't know that one. /help shows everything I can do.");
       return Response.json({ ok: true, unknown_cmd: true });
     }
 
