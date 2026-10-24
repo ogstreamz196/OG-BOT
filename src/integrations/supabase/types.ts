@@ -333,6 +333,27 @@ export type Database = {
           },
         ]
       }
+      carrom_guest_accounts: {
+        Row: {
+          created_at: string
+          guest_id: string
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          guest_id: string
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          guest_id?: string
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
       chat_image_allowance: {
         Row: {
           last_free_at: string | null
