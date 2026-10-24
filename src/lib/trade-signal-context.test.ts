@@ -245,6 +245,33 @@ describe("buildTradeSignalContext", () => {
 });
 
 describe("Telegram delivery", () => {
+  for (const pair of ["BTCUSD", "XAUUSD"]) {
+    for (const frame of ["1h", "15m", "1m"]) {
+      it(`calculates ${pair} from actual ${frame} entry candles`, async () => {
+        // Isolate source/candle/card caches so every selection must fetch its feed.
+        vi.resetModules();
+        const { buildTradeSignal: build } = await import("./trade-signal-context.server");
+        const fetchSpy = vi.fn(async (url: string) => {
+          const interval = new URL(url).searchParams.get("interval");
+          if (!url.includes("binance")) return new Response("nope", { status: 404 });
+          const ms = interval === "1d" ? 24 * HOUR : interval === "1h" ? HOUR : interval === "15m" ? HOUR / 4 : 60_000;
+          return ok(binanceRows(bars(1000, 2000, interval === "1m" ? -0.1 : 0.2, ms)));
+        });
+        stubFetch(fetchSpy);
+        const signal = await build(`${pair} signal ${frame}`);
+        expect(fetchSpy.mock.calls.some(([url]) => url.includes(`interval=${frame}&`))).toBe(true);
+        expect(signal.reply).toContain(`Timeframe: ${frame.toUpperCase()}`);
+        expect(signal.reply).toMatch(/Entry: \d/);
+        expect(signal.expiresAt).not.toBeNull();
+        if (frame === "1m") {
+          const fifteen = await build(`${pair} signal 15m`);
+          expect(fifteen.reply).toContain("Timeframe: 15M");
+          expect(signal.reply.match(/Entry: (\S+)/)?.[1]).not.toBe(fifteen.reply.match(/Entry: (\S+)/)?.[1]);
+        }
+      });
+    }
+  }
+
   it("self-destructs one clean-up sweep before the signal expires", () => {
     const H = 3600_000;
     const SWEEP = 5 * 60_000;
