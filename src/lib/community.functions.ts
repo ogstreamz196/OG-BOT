@@ -1195,11 +1195,11 @@ export const reportCommunityMessage = createServerFn({ method: "POST" })
         const esc = (s: string) =>
           s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
         const text = `<b>🚩 Battle Zone report</b>\nFrom: ${esc(msg.display_name || "OG member")}\n“${esc(String(msg.content).slice(0, 300))}”\nReview and remove within 24h if abusive.`;
-        const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+        const { telegramApi } = await import("@/lib/telegram-api.server");
         const chats = [...new Set((bosses ?? []).map((b) => b.telegram_chat_id).filter(Boolean))];
         await Promise.all(
           chats.map((chat_id) =>
-            vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" }),
+            telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" }),
           ),
         );
       }

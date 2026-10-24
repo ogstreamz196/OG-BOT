@@ -1,35 +1,7 @@
 // Yearly VIP acknowledgement: queue a row and DM every Boss on Telegram with
 // an "Acknowledge" button. Only the first insert notifies (idempotent).
 
-async function tgCall(method: string, body: Record<string, unknown>) {
-  const botToken = process.env.OG_BOT_TOKEN;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const direct = Boolean(botToken);
-  if (!direct && (!tgKey || !lovableKey)) return null;
-  const url = direct
-    ? `https://api.telegram.org/bot${botToken}/${method}`
-    : `https://connector-gateway.lovable.dev/telegram/${method}`;
-  const headers: Record<string, string> = direct
-    ? { "Content-Type": "application/json" }
-    : {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": tgKey as string,
-        "Content-Type": "application/json",
-      };
-  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) }).catch(
-    () => null,
-  );
-  if (!r) return null;
-  const j = (await r.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
-  if (!r.ok || j?.ok === false) console.error(`[vip-ack] ${method} failed`, j?.description);
-  return j;
-}
-export { tgCall as vipAckTelegram };
-
-function esc(s: string) {
-  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
+import { escapeTelegramHtml as esc, telegramApi } from "./telegram-api.server";
 
 export async function queueYearlyVipAck(admin: any, userId: string, ogVipId: string | null) {
   const { data: inserted, error } = await admin
@@ -80,7 +52,7 @@ export async function queueYearlyVipAck(admin: any, userId: string, ogVipId: str
 
   for (const b of (bosses ?? []) as { telegram_chat_id: number | null }[]) {
     if (!b.telegram_chat_id) continue;
-    await tgCall("sendMessage", {
+    await telegramApi("sendMessage", {
       chat_id: b.telegram_chat_id,
       text,
       parse_mode: "HTML",

@@ -86,16 +86,11 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
             chat_id: number;
             message_id: number;
           }[];
-          const botToken = process.env.OG_BOT_TOKEN;
-          if (botToken) {
-            await mapPool(rows, 10, (m) =>
-              fetch(`https://api.telegram.org/bot${botToken}/deleteMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chat_id: m.chat_id, message_id: m.message_id }),
-              }).catch(() => null),
-            );
-          }
+          // Same transport as the bot itself, so this works on either token setup.
+          const { telegramApi } = await import("@/lib/telegram-api.server");
+          await mapPool(rows, 10, (m) =>
+            telegramApi("deleteMessage", { chat_id: m.chat_id, message_id: m.message_id }),
+          );
           // Drop the rows either way — already-cleared or too-old messages can't be deleted.
           if (rows.length) {
             await supabaseAdmin

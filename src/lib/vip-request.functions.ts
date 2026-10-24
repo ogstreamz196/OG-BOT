@@ -38,7 +38,7 @@ export const sendVipRequest = createServerFn({ method: "POST" })
     if (!isVipRole && !isAdmin && !onTrial) throw new Error("Requests are a VIP feature");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { vipAckTelegram } = await import("./vip-ack.server");
+    const { telegramApi } = await import("./telegram-api.server");
     const { data: roleRows } = await supabaseAdmin
       .from("user_roles")
       .select("user_id")
@@ -60,7 +60,7 @@ export const sendVipRequest = createServerFn({ method: "POST" })
       (p?.telegram_username ? `\nTelegram: @${esc(p.telegram_username)}` : "") +
       `\n\n${esc(data.message)}`;
     const results = await Promise.all(
-      chats.map((chat_id) => vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" })),
+      chats.map((chat_id) => telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" })),
     );
     if (!results.some((r) => (r as { ok?: boolean } | null)?.ok)) {
       throw new Error("Couldn't reach the Boss right now — please try again");

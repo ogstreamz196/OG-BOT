@@ -183,11 +183,11 @@ export async function alertKeyFailures(): Promise<number> {
   const ids = [...new Set((roleRows ?? []).map((r: any) => r.user_id))];
   const { data: bosses } = await db.from("profiles").select("telegram_chat_id").in("id", ids);
   const chats = [...new Set((bosses ?? []).map((b: any) => b.telegram_chat_id).filter(Boolean))];
-  const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+  const { telegramApi } = await import("@/lib/telegram-api.server");
   const text = `⚠️ <b>AI key warning</b>\n${lines.join("\n")}\nSongs keep working on the other keys. Check Boss Controls → API & Integrations.`;
   await Promise.all(
     chats.map((chat_id) =>
-      vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML", disable_notification: true }),
+      telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML", disable_notification: true }),
     ),
   );
   return lines.length;
