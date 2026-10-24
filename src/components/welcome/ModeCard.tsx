@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tone = "blue" | "crimson" | "silver" | "gold";
+type Tone = "blue" | "crimson" | "silver" | "gold" | "emerald";
 
 const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: string }> = {
   blue: {
@@ -30,11 +30,17 @@ const TONES: Record<Tone, { ring: string; eyebrow: string; cta: string; glow: st
     cta: "bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 text-black shadow-[0_0_16px_rgba(251,191,36,0.45)]",
     glow: "from-amber-500/30",
   },
+  emerald: {
+    ring: "hover:border-emerald-400/70 focus-within:ring-emerald-400",
+    eyebrow: "text-emerald-400",
+    cta: "bg-emerald-500 text-black shadow-[0_0_16px_rgba(16,185,129,0.45)]",
+    glow: "from-emerald-500/30",
+  },
 };
 
 /**
  * One of the modes on the landing page and members' home (Battle Zone, Music
- * Hub, Sports Guide, OG Carrom). Both cards share the same
+ * Hub, Sports Guide, OG Signals, OG Carrom). Both cards share the same
  * square artwork, spacing and button placement; the button's stretched hit
  * area makes the whole card one tap target.
  */

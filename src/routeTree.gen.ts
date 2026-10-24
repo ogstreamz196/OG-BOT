@@ -44,6 +44,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPurchaseHistoryRouteImport } from './routes/_authenticated/purchase-history'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
 import { Route as AuthenticatedSportsRouteImport } from './routes/_authenticated/sports'
 import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
 import { Route as ApiOgChatRouteImport } from './routes/api/og-chat'
@@ -260,6 +261,11 @@ const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
+  id: '/signals',
+  path: '/signals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSportsRoute = AuthenticatedSportsRouteImport.update({
@@ -551,6 +557,7 @@ export interface FileRoutesByFullPath {
   '/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/signals': typeof AuthenticatedSignalsRoute
   '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
   '/api/og-chat': typeof ApiOgChatRoute
@@ -630,6 +637,7 @@ export interface FileRoutesByTo {
   '/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/signals': typeof AuthenticatedSignalsRoute
   '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
   '/api/og-chat': typeof ApiOgChatRoute
@@ -712,6 +720,7 @@ export interface FileRoutesById {
   '/_authenticated/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/signals': typeof AuthenticatedSignalsRoute
   '/_authenticated/sports': typeof AuthenticatedSportsRoute
   '/_authenticated/store': typeof AuthenticatedStoreRoute
   '/api/og-chat': typeof ApiOgChatRoute
@@ -795,6 +804,7 @@ export interface FileRouteTypes {
     | '/purchase-history'
     | '/referrals'
     | '/settings'
+    | '/signals'
     | '/sports'
     | '/store'
     | '/api/og-chat'
@@ -874,6 +884,7 @@ export interface FileRouteTypes {
     | '/purchase-history'
     | '/referrals'
     | '/settings'
+    | '/signals'
     | '/sports'
     | '/store'
     | '/api/og-chat'
@@ -955,6 +966,7 @@ export interface FileRouteTypes {
     | '/_authenticated/purchase-history'
     | '/_authenticated/referrals'
     | '/_authenticated/settings'
+    | '/_authenticated/signals'
     | '/_authenticated/sports'
     | '/_authenticated/store'
     | '/api/og-chat'
@@ -1281,6 +1293,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/signals': {
+      id: '/_authenticated/signals'
+      path: '/signals'
+      fullPath: '/signals'
+      preLoaderRoute: typeof AuthenticatedSignalsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sports': {
@@ -1632,6 +1651,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPurchaseHistoryRoute: typeof AuthenticatedPurchaseHistoryRoute
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
   AuthenticatedSportsRoute: typeof AuthenticatedSportsRoute
   AuthenticatedStoreRoute: typeof AuthenticatedStoreRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -1670,6 +1690,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPurchaseHistoryRoute: AuthenticatedPurchaseHistoryRoute,
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSignalsRoute: AuthenticatedSignalsRoute,
   AuthenticatedSportsRoute: AuthenticatedSportsRoute,
   AuthenticatedStoreRoute: AuthenticatedStoreRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
