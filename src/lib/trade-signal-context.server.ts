@@ -584,28 +584,35 @@ export async function buildTradeSignal(
   const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
   const expiresAt = valid.until.toISOString();
   // Telegram gets the engine's actual card, not model-authored levels or a refusal.
+  // Short and scannable: the levels first, one per line, then the why.
+  const allReasons = [...plan.reasons, ...extraReasons];
+  const trends = allReasons
+    .map((r) => /^(\S+) trend (\w+)$/.exec(r))
+    .filter((m): m is RegExpExecArray => !!m)
+    .map((m) => `${m[1]} ${m[2]}`);
+  const otherReasons = allReasons
+    .filter((r) => !/^\S+ trend \w+$/.test(r))
+    .map((r) => r.replace(/MACD momentum (\w+) and (\w+)/, "MACD $1, $2"));
+  const rrs = plan.rr.split(" / ").map((r) => r.replace(/\.0$/, ""));
+  const isLimit = plan.entryNote.startsWith("Limit");
   const reply = [
-    `📊 ${inst.label} — ${plan.direction}`,
-    `Timeframe: ${entryLabel}`,
-    `Confidence: ${plan.confidencePct}% (${plan.confidence}) · Setup: ${plan.quality}`,
-    `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
-    `SL: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
-    `TP1: ${fmt(plan.targets[0])} / TP2: ${fmt(plan.targets[1])} / TP3: ${fmt(plan.targets[2])}`,
-    `R:R: ${plan.rr}`,
-    `⏳ Valid until: ${ukTime(valid.until)} UK time — this reply self-destructs by then. Cancel any unfilled entry and ask for a fresh signal.`,
+    `${plan.direction === "BUY" ? "🟢" : "🔴"} ${plan.direction} · ${inst.label}`,
+    `⏱ ${entryLabel} timeframe · ${plan.confidencePct}% confidence (${plan.confidence}) · ${plan.quality} setup`,
     "",
-    `Here's the chart read: ${[...plan.reasons, ...extraReasons].join("; ")}.`,
+    `▶️ Entry: ${fmt(plan.entry)}  (${isLimit ? "limit order, wait for the pullback" : "market price now"})`,
+    `🛑 SL: ${fmt(plan.stop)}  (${dist(plan.entry, plan.stop)})`,
+    ...plan.targets.map((t, i) => `🎯 TP${i + 1}: ${fmt(t)}${rrs[i] ? `  (${rrs[i]})` : ""}`),
+    "",
+    `⏳ Valid until ${ukTime(valid.until)} UK. This card deletes itself then.`,
     ...cautions.map((c) => `⚠️ ${c}`),
-    `Cancel early if: ${plan.invalidation}.`,
-    `Source: ${source}; ${Number.isFinite(live) ? "live price checked just now" : `last candle ${asOf} UTC`}.`,
-    ...(newsLines.length ? ["", `📅 High-impact news before this expires:\n${newsLines.join("\n")}`] : []),
-    ...(news ? ["", `Headlines:\n${news}`] : []),
+    ...(trends.length ? [`📊 Trend: ${trends.join(" · ")}`] : []),
+    ...(otherReasons.length ? [`🔎 ${otherReasons.join(" · ")}`] : []),
+    `❌ Cancel if: ${plan.invalidation}`,
+    ...(newsLines.length ? ["", `📅 Big news before it expires:\n${newsLines.join("\n")}`] : []),
     ...(record ? ["", `📈 Track record: ${record}`] : []),
     "",
-    "I'll follow this one and message you when the entry fills, a target or the stop is hit, or it's time up.",
-    "",
-    "Confidence measures indicator agreement, not a win rate or guarantee.",
-    "Risk 1–2% per trade, move SL to entry after TP1. Not financial advice; don't chase losses.",
+    "🔔 I'll message you when it fills, hits a target or stops out.",
+    `Data: ${source}, ${Number.isFinite(live) ? "live price just now" : `last candle ${asOf} UTC`}. Confidence is indicator agreement, not a win rate. Risk 1–2%, move SL to entry after TP1. Not financial advice.`,
   ].join("\n");
   const plan2: SignalPlan = {
     market: inst.code,
