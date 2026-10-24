@@ -183,6 +183,13 @@
       "when": 1792807155323,
       "tag": "0025_trade_signals",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792855323883,
+      "tag": "0026_telegram_screen_messages",
+      "breakpoints": true
     }
   ]
 }
