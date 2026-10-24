@@ -100,6 +100,8 @@ export type WizardDraft = {
   beatName: string;
   targetMinutes: number;
   isPublic: boolean;
+  /** Lyrics rating chosen last time (0 = PG); kept so a retry never resets it. */
+  foulIntensity?: number;
 };
 
 export const EMPTY_DRAFT: WizardDraft = {
@@ -185,7 +187,9 @@ export function CreateNowWizard({
   const setFoulIntensity = useSetFoulIntensity();
   const [intensityLocal, setIntensityLocal] = useState<number | null>(null);
   const intensity = intensityLocal ?? (guestMode ? 0 : savedIntensity);
-  const foulMouth = guestMode ? intensity > 0 : savedFoulMouth;
+  // The 18+ button always mirrors the slider so they can never disagree.
+  const foulMouth = intensity > 0;
+  void savedFoulMouth;
   const isNasheed = styles.includes("Nasheed");
   const [beatPath, setBeatPath] = useState("");
   const [beatName, setBeatName] = useState("");
@@ -240,6 +244,7 @@ export function CreateNowWizard({
     setBeatName(d.beatName ?? "");
     setTargetMinutes(d.targetMinutes || 3);
     setIsPublic(d.isPublic ?? true);
+    setIntensityLocal(typeof d.foulIntensity === "number" ? d.foulIntensity : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -375,6 +380,7 @@ export function CreateNowWizard({
         beatName: isNasheed ? "" : beatName,
         targetMinutes,
         isPublic,
+        foulIntensity: isNasheed ? 0 : intensity,
       },
     );
     onOpenChange(false);
