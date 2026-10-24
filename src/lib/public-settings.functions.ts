@@ -15,6 +15,7 @@ export const getPublicAppSettings = createServerFn({ method: "GET" }).handler(as
       "coins_per_lyric_video",
       "free_access_all",
       "free_access_expires_at",
+      "signals_portal_enabled",
     ]);
   const map: Record<string, unknown> = {};
   for (const row of (data ?? []) as Array<{ key: string; value: unknown }>)
@@ -31,5 +32,8 @@ export const getPublicAppSettings = createServerFn({ method: "GET" }).handler(as
     coins_per_lyric_video: num(map.coins_per_lyric_video),
     free_access_all: map.free_access_all === true || map.free_access_all === "true",
     free_access_expires_at: typeof exp === "string" && exp ? exp : null,
+    // On unless the Boss has switched it off.
+    signals_portal_enabled:
+      map.signals_portal_enabled !== false && map.signals_portal_enabled !== "false",
   };
 });

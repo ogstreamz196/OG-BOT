@@ -8,6 +8,8 @@ import createTrack480 from "./og-bot-create-track-480.webp";
 import sportsGuide from "./og-bot-sports-guide-badge.webp";
 import carrom from "./og-carrom.webp";
 import carrom480 from "./og-carrom-480.webp";
+import signals from "./og-signals.webp";
+import signals480 from "./og-signals-480.webp";
 
 export type ModeArt = { src: string; srcSet: string };
 
@@ -22,4 +24,5 @@ export const modeArt = {
   // Already 480px.
   sportsGuide: { src: sportsGuide, srcSet: `${sportsGuide} 480w` },
   carrom: art(carrom480, carrom),
+  signals: art(signals480, signals),
 };

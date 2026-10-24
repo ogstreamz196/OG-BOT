@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
 import { useCarromLink } from "@/hooks/use-carrom-link";
+import { useSignalsPortal } from "@/hooks/use-signals-portal";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { VipYearlyTeaser } from "@/components/home/VipYearlyTeaser";
 import { useQuery } from "@tanstack/react-query";
@@ -128,6 +129,7 @@ function DashboardHome() {
   const { isVip, hasVipRole, isTrial } = useRole();
   const navigate = useNavigate();
   const carrom = useCarromLink();
+  const signalsPortal = useSignalsPortal();
   const { data: recentSongs = [], isLoading: recentLoading } = useRecentSongs(user?.id);
 
   const displayName =
@@ -355,12 +357,29 @@ function DashboardHome() {
               cta="Open Sports Guide"
               onClick={() => navigate({ to: "/sports" })}
             />
+            {signalsPortal.enabled && (
+              <ModeCard
+                compact
+                tone="emerald"
+                className="og-rise"
+                style={{ animationDelay: "0.3s" }}
+                image={modeArt.signals}
+                imageAlt="OG Signals badge"
+                eyebrow="Live"
+                live
+                badge="Real time"
+                title="OG Signals"
+                description="Gold, crypto and forex setups. Entry, SL and targets, live."
+                cta="Open Signals"
+                onClick={() => navigate({ to: "/signals" })}
+              />
+            )}
             <ModeCard
               compact
               onShown={carrom.onShown}
               tone="gold"
               className="og-rise"
-              style={{ animationDelay: "0.3s" }}
+              style={{ animationDelay: signalsPortal.enabled ? "0.4s" : "0.3s" }}
               image={modeArt.carrom}
               imageAlt="OG Carrom badge"
               eyebrow="New game"

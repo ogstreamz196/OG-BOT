@@ -54,6 +54,7 @@ import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import type { WizardDraft, WizardResult } from "@/components/library/CreateNowWizard";
 import { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
+import { useSignalsPortal } from "@/hooks/use-signals-portal";
 
 // The song wizard is a pop-up: it loads once the page is idle (or on first
 // open), not before the landing page can paint.
@@ -689,6 +690,13 @@ const openSportsGuide = () => {
   openAuth();
 };
 
+const openSignals = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/signals");
+  window.history.replaceState(null, "", url.toString());
+  openAuth();
+};
+
 /** Signed-out song wizard: nothing generates until the visitor signs in. */
 function GuestWizard() {
   const [open, setOpen] = useState(false);
@@ -991,6 +999,7 @@ function BattleModal() {
 }
 
 function Hero() {
+  const signalsPortal = useSignalsPortal();
   return (
     <section className="relative mx-auto max-w-5xl px-3 pt-3 pb-8 sm:px-8 sm:pt-6 sm:pb-14">
       <MasterLogo />
@@ -1053,11 +1062,25 @@ function Hero() {
             cta="Open Sports Guide"
             onClick={openSportsGuide}
           />
+          {signalsPortal.enabled && (
+            <ModeCard
+              tone="emerald"
+              className="og-rise"
+              style={{ animationDelay: "0.3s" }}
+              image={modeArt.signals}
+              imageAlt="OG Signals badge"
+              eyebrow="Members only"
+              title="OG Signals"
+              description="Gold, crypto and forex setups. Entry, SL and targets, live."
+              cta="Open Signals"
+              onClick={openSignals}
+            />
+          )}
           <ModeCard
             onShown={watchCarromCard}
             tone="gold"
             className="og-rise"
-            style={{ animationDelay: "0.3s" }}
+            style={{ animationDelay: signalsPortal.enabled ? "0.4s" : "0.3s" }}
             image={modeArt.carrom}
             imageAlt="OG Carrom badge"
             eyebrow="New game"

@@ -353,7 +353,7 @@ const spotCache = new Map<string, { exp: number; value: number }>();
  * Spot price brokers quote (Swissquote's free feed) for markets charted from
  * a proxy, e.g. gold from the PAX Gold token. NaN when unavailable.
  */
-async function spotPrice(inst: Instrument): Promise<number> {
+export async function spotPrice(inst: Instrument): Promise<number> {
   if (!inst.spot) return NaN;
   const hit = spotCache.get(inst.spot);
   if (hit && hit.exp > Date.now()) return hit.value;
@@ -448,7 +448,49 @@ export type SignalPlan = {
   expiresAt: string;
 };
 
-type TradeSignalResult = { block: string; expiresAt: string | null; reply: string; plan?: SignalPlan };
+/** The signal as data, for the OG Signals page (the same numbers as the card). */
+export type SignalSummary = {
+  market: string;
+  label: string;
+  timeframe: string;
+  verdict: "trade" | "wait";
+  waitReason?: string;
+  direction: "BUY" | "SELL";
+  confidencePct: number;
+  confidence: "Low" | "Medium" | "High";
+  quality: "Clean" | "Mixed" | "Choppy";
+  entry: number;
+  entryType: EntryType;
+  stop: number;
+  targets: number[];
+  /** Risk:reward per target, e.g. ["1:1", "1:2", "1:3.4"]. */
+  rrs: string[];
+  /** Price when the signal was built. */
+  price: number;
+  /** Change since yesterday's close, %. */
+  changePct: number | null;
+  /** Added to the chart feed's price to reach spot (gold, silver), else 0. */
+  offset: number;
+  /** e.g. ["4H ↓", "1H ↓", "15M ↑"]. */
+  trends: string[];
+  cautions: string[];
+  cancelIf: string;
+  validUntil: string;
+  decimals: number;
+  pip: number | null;
+  source: string;
+  /** Saved backtest line, when the Boss has saved one. */
+  tested: string | null;
+  builtAt: string;
+};
+
+type TradeSignalResult = {
+  block: string;
+  expiresAt: string | null;
+  reply: string;
+  plan?: SignalPlan;
+  summary?: SignalSummary;
+};
 const cache = new Map<string, TradeSignalResult & { exp: number }>();
 
 function frameLine(f: FrameRead, fmt: (n: number) => string): string {
@@ -503,7 +545,13 @@ export async function buildTradeSignal(
   const key = `${inst.code}:${style}:${entryIv}`;
   const hit = cache.get(key);
   if (hit && hit.exp > Date.now())
-    return { block: hit.block, expiresAt: hit.expiresAt, reply: hit.reply, plan: hit.plan };
+    return {
+      block: hit.block,
+      expiresAt: hit.expiresAt,
+      reply: hit.reply,
+      plan: hit.plan,
+      summary: hit.summary,
+    };
 
   const tracker = import("./trade-signal-tracker.server");
   const [daily, hourly, fifteen, minute, news, feedPrice, calendar, flow, record, spot, saved] =
@@ -746,7 +794,35 @@ export async function buildTradeSignal(
     expiresAt,
   };
   // A "wait" isn't a trade, so there's nothing to follow.
-  const result = { block: value, expiresAt, reply, plan: wait ? undefined : plan2 };
+  const summary: SignalSummary = {
+    market: inst.code,
+    label: inst.label,
+    timeframe: entryLabel,
+    verdict: plan.verdict,
+    waitReason: plan.waitReason,
+    direction: plan.direction,
+    confidencePct: plan.confidencePct,
+    confidence: plan.confidence,
+    quality: plan.quality,
+    entry: plan.entry,
+    entryType: plan.entryType,
+    stop: plan.stop,
+    targets: plan.targets,
+    rrs,
+    price,
+    changePct: Number.isFinite(change) ? change : null,
+    offset,
+    trends,
+    cautions: [...cautions, ...newsLines.map((l) => `Big news: ${l}`)],
+    cancelIf,
+    validUntil: expiresAt,
+    decimals: dp,
+    pip: inst.pip ?? null,
+    source,
+    tested,
+    builtAt: new Date().toISOString(),
+  };
+  const result = { block: value, expiresAt, reply, plan: wait ? undefined : plan2, summary };
   cache.set(key, { exp: Date.now() + (oneMinute ? 10_000 : 60_000), ...result });
   const oldest = cache.keys().next().value;
   if (cache.size > 200 && oldest) cache.delete(oldest);

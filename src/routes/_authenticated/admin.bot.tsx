@@ -11,6 +11,7 @@ import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus"
 import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
 import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
+import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
@@ -27,11 +28,14 @@ const SignalsBacktestPanel = lazy(() =>
 
 function SignalsTab() {
   return (
-    <Suspense
-      fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
-    >
-      <SignalsBacktestPanel />
-    </Suspense>
+    <>
+      <SignalsPortalPanel />
+      <Suspense
+        fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
+      >
+        <SignalsBacktestPanel />
+      </Suspense>
+    </>
   );
 }
 
@@ -77,7 +81,7 @@ const TABS: readonly BossTab[] = [
     value: "signals",
     label: "Signals",
     Icon: LineChart,
-    hint: "Test how the trade signals would have done on past prices.",
+    hint: "Turn the OG Signals portal on or off, and test how signals would have done on past prices.",
     Panel: SignalsTab,
   },
   {
