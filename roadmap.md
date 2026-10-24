@@ -54,6 +54,7 @@
 
 ## Pending
 
+- [ ] Add Telegram Signals menu with XAU/BTC and 1h/15m/1m live signals; verify all selections
 - [x] Diagnose and fix Telegram trade-signal generation; verify live market fallback and delivery
 - [x] Use the supplied OG-STREAMZ artwork on Welcome back and enlarge both welcome and sign-in logos
 - [x] Free AI fallback cascade (Groq, OpenRouter) — waiting on user to add GROQ_API_KEY and OPENROUTER_API_KEY
