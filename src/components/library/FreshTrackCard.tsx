@@ -157,12 +157,7 @@ export function FreshTrackCard({
   async function shareNow() {
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("song-url", {
-        body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
-      });
-      if (error || !data?.url) throw new Error("Could not prepare the track");
-      const blob = await downloadFile(data.url as string, `${title}.mp3`);
-      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
+      await shareTrack({ title, songId: song.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Share failed");
     } finally {

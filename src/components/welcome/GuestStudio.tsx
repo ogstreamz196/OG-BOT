@@ -411,8 +411,7 @@ function GuestTrackPlayer({ song, title }: { song: GuestSong; title: string }) {
   async function share() {
     setBusy("share");
     try {
-      const blob = await fetchMaster().catch(() => null);
-      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
+      await shareTrack({ title, songId: song.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Share failed");
     } finally {

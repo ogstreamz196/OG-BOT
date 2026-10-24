@@ -186,20 +186,7 @@ function CommunityTrackRowImpl({
   async function shareUnlocked() {
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("song-url", {
-        body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
-      });
-      if (error || !data?.url) throw new Error("Could not prepare the track");
-      const { Capacitor } = await import("@capacitor/core");
-      // Web: fetch the bytes quietly for the share sheet (no extra file download).
-      // Phone app: save the MP3 natively so the share sheet can attach it.
-      const blob = Capacitor.isNativePlatform()
-        ? await downloadFile(data.url as string, `${title}.mp3`)
-        : await fetch(data.url as string).then((r) => {
-            if (!r.ok) throw new Error("Could not prepare the track");
-            return r.blob();
-          });
-      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
+      await shareTrack({ title, songId: song.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Share failed");
     } finally {
