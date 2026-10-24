@@ -204,6 +204,20 @@
       "when": 1792858017566,
       "tag": "0028_telegram_screen_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792869474718,
+      "tag": "0029_telegram_screen_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792869490332,
+      "tag": "0030_telegram_screen_signal",
+      "breakpoints": true
     }
   ]
 }
