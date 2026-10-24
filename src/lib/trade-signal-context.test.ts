@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTradeSignalContext,
   buildTradeSignal,
@@ -65,8 +65,17 @@ const realFetch = globalThis.fetch;
 function stubFetch(fn: unknown) {
   globalThis.fetch = fn as typeof fetch;
 }
+// A weekday afternoon in London, so market hours never turn a test into
+// "wait". Date.now is pinned by hand so this works under Bun's runner too.
+const realNow = Date.now;
+const setNow = (iso: string) => {
+  const t = Date.parse(iso);
+  Date.now = () => t;
+};
+beforeEach(() => setNow("2026-10-21T13:00:00Z"));
 afterEach(() => {
   globalThis.fetch = realFetch;
+  Date.now = realNow;
 });
 
 describe("buildTradeSignalContext", () => {
@@ -241,6 +250,47 @@ describe("buildTradeSignalContext", () => {
     const signal = await buildTradeSignal("usdcad entry");
     expect(signal.expiresAt).toBeNull();
     expect(signal.reply).not.toMatch(/Entry:|SL:|TP1:/);
+  });
+});
+
+describe("accuracy wiring", () => {
+  const goldFeed = (spot: unknown) =>
+    vi.fn(async (url: string) => {
+      if (url.includes("swissquote")) return ok(spot);
+      const interval = new URL(url).searchParams.get("interval");
+      if (!url.includes("binance") || !url.includes("klines")) return new Response("no", { status: 404 });
+      const ms = interval === "1d" ? 24 * HOUR : HOUR;
+      return ok(binanceRows(bars(1000, 2000, 0.2, ms)));
+    });
+
+  it("moves gold onto the spot price brokers quote", async () => {
+    vi.resetModules();
+    const { buildTradeSignal: build } = await import("./trade-signal-context.server");
+    stubFetch(goldFeed([]));
+    const plain = await build("gold signal");
+    vi.resetModules();
+    const { buildTradeSignal: build2 } = await import("./trade-signal-context.server");
+    // Last hourly close is ~2199.8; spot is 12 higher.
+    const last = bars(1000, 2000, 0.2, HOUR).at(-1)!.c;
+    const q = { spreadProfilePrices: [{ bid: last + 11.9, ask: last + 12.1 }] };
+    stubFetch(goldFeed([q, q, q]));
+    const spot = await build2("gold signal");
+    expect(spot.plan!.entry - plain.plan!.entry).toBeCloseTo(12, 0);
+    expect(spot.plan!.feeds.offset).toBeCloseTo(12, 0);
+    expect(spot.block).toMatch(/chart moved \+12\.\d+ onto the Swissquote spot price/);
+  });
+
+  it("says no trade while gold is shut for the weekend, and tracks nothing", async () => {
+    setNow("2026-10-24T12:00:00Z");
+    vi.resetModules();
+    const { buildTradeSignal: build } = await import("./trade-signal-context.server");
+    stubFetch(goldFeed([]));
+    const signal = await build("gold signal");
+    expect(signal.reply).toMatch(/^⏸ No trade right now · XAU\/USD \(Gold\) · 1H/);
+    expect(signal.reply).toContain("closed for the weekend");
+    expect(signal.reply).not.toMatch(/Entry:|SL:/);
+    expect(signal.plan).toBeUndefined();
+    expect(signal.block).toContain("Verdict: WAIT");
   });
 });
 

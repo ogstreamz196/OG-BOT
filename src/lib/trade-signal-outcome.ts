@@ -4,8 +4,8 @@
 // (trade-signal-tracker.server.ts) stores the result and tells the member.
 //
 // Rules (deliberately cautious, so the track record never flatters itself):
-// - A limit entry fills when price trades through it; a market entry is
-//   live from the start.
+// - A limit entry fills when price trades back to it, a stop entry when
+//   price breaks through it; a market entry is live from the start.
 // - After TP1 the stop moves to the entry (the card tells members to do so).
 // - If one candle touches both the stop and a target, the stop counts.
 // - Unfilled limits and open trades end when the signal's time is up.
@@ -28,6 +28,11 @@ export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"]
 
 export type TrackedSignal = {
   direction: "BUY" | "SELL";
+  /**
+   * How a pending entry fills: a limit when price comes back to it (the
+   * default), a stop when price breaks through it to confirm the move.
+   */
+  entryType?: "limit" | "stop";
   entry: number;
   stop: number;
   targets: [number, number, number];
@@ -74,7 +79,8 @@ export function advanceSignal(
   for (const c of candles) {
     if (!isActive(status) || c.t >= signal.expiresAt) break;
     if (status === "pending") {
-      const filled = long ? below(c, signal.entry) : above(c, signal.entry);
+      const buysLow = long === (signal.entryType !== "stop");
+      const filled = buysLow ? below(c, signal.entry) : above(c, signal.entry);
       if (!filled) continue;
       status = "open";
       events.push({ kind: "filled", at: c.t, price: signal.entry });

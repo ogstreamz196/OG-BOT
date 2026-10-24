@@ -18,7 +18,10 @@ import {
   stripSignalTag,
   cleanTradeHistory,
   EXPIRED_SIGNAL_NOTE,
+  framesFor,
+  sessionRead,
   type Candle,
+  type FrameRead,
 } from "./trade-signal";
 
 /** Steady trend with a gentle wiggle so swings exist. */
@@ -211,6 +214,135 @@ describe("buildPlan", () => {
     expect(aligned.caution).toBeUndefined();
     expect(aligned.confidencePct).toBeGreaterThan(mixed.confidencePct);
     expect(aligned.confidencePct).toBeLessThanOrEqual(90);
+  });
+});
+
+describe("buildPlan accuracy rules", () => {
+  const d = series(300, 2000, -2, 24);
+  const h = series(1000, 1500, -0.5);
+  const h4 = aggregate(h, 4);
+  const hi = readFrame("Daily", d)!;
+  const mid = readFrame("4H", h4)!;
+  const lo = readFrame("1H", h)!;
+  // Same downtrend, but the 1H MACD is positive and rising (momentum against a SELL).
+  const against: FrameRead = {
+    ...lo,
+    ema20: lo.close,
+    rsi: 45,
+    macdHist: Math.abs(lo.macdHist) + 1,
+    macdRising: true,
+  };
+
+  it("waits for confirmation when short-term momentum is against the trade", () => {
+    const plan = buildPlan(hi, mid, against, h, h4);
+    const base = buildPlan(hi, mid, lo, h, h4);
+    expect(plan.direction).toBe("SELL");
+    expect(plan.entryType).toBe("stop");
+    // A sell stop sits below the last two candles.
+    expect(plan.entry).toBeLessThan(Math.min(...h.slice(-2).map((c) => c.l)));
+    expect(plan.cautions.join(" ")).toMatch(/momentum is still pushing up/);
+    expect(plan.confidencePct).toBeLessThan(base.confidencePct);
+    expect(base.entryType).not.toBe("stop");
+  });
+
+  it("the classic rules ignore momentum and volume", () => {
+    const plan = buildPlan(hi, mid, against, h, h4, undefined, { classic: true, volumeRatio: 0.1 });
+    expect(plan.entryType).not.toBe("stop");
+    expect(plan.cautions.join(" ")).not.toMatch(/momentum|Volume/);
+    expect(plan.verdict).toBe("trade");
+  });
+
+  it("marks light volume", () => {
+    const quiet = buildPlan(hi, mid, lo, h, h4, undefined, { volumeRatio: 0.2 });
+    const normal = buildPlan(hi, mid, lo, h, h4, undefined, { volumeRatio: 1 });
+    expect(quiet.cautions.join(" ")).toMatch(/Volume is light \(0\.2× average\)/);
+    expect(quiet.confidencePct).toBeLessThan(normal.confidencePct);
+  });
+
+  it("waits when a level blocks the way before 1.5R", () => {
+    // A gentle downtrend at ~1000 (ATR 2) with one swing high 3 above
+    // (the stop goes just beyond it, 3.5 away).
+    const price = 1000;
+    const line = (n: number): Candle[] =>
+      Array.from({ length: n }, (_, i) => {
+        const mid = price + 0.05 * (n - 1 - i);
+        return { t: i * 3600_000, o: mid, h: mid + 1, l: mid - 1, c: mid };
+      });
+    const frame = (name: string): FrameRead => ({
+      name,
+      bias: "bearish",
+      score: -2,
+      close: price,
+      ema20: price,
+      ema50: price + 5,
+      ema200: price + 10,
+      rsi: 40,
+      atr: 2,
+      macdHist: -1,
+      macdRising: false,
+      adx: 30,
+    });
+    const withHigh = line(300);
+    withHigh[290] = { ...withHigh[290], h: price + 3 };
+    const clear = buildPlan(frame("Daily"), frame("4H"), frame("1H"), withHigh, line(300), price);
+    expect(clear.verdict).toBe("trade");
+    expect(clear.stop).toBeCloseTo(price + 3.5);
+
+    // Now a swing low 4 below: only 1.1R of room before support.
+    const blocked = [...withHigh];
+    blocked[280] = { ...blocked[280], l: price - 4 };
+    const plan = buildPlan(frame("Daily"), frame("4H"), frame("1H"), blocked, line(300), price);
+    expect(plan.verdict).toBe("wait");
+    expect(plan.waitReason).toMatch(/Not enough room: the next support is only 1\.1R away/);
+  });
+
+  it("puts the second target on a real level when there is one", () => {
+    const plan = buildPlan(hi, mid, lo, h, h4);
+    const risk = plan.stop - plan.entry;
+    const tp2R = (plan.entry - plan.targets[1]) / risk;
+    expect(tp2R).toBeGreaterThanOrEqual(1.5);
+    expect(plan.targets[2]).toBeLessThan(plan.targets[1]);
+  });
+
+  it("waits while the gold market is shut for the weekend", () => {
+    const gold = parseInstrument("gold")!;
+    const saturday = Date.UTC(2026, 9, 24, 12);
+    const session = sessionRead(gold, saturday);
+    expect(session.closed).toMatch(/closed for the weekend/);
+    const plan = buildPlan(hi, mid, lo, h, h4, undefined, { session });
+    expect(plan.verdict).toBe("wait");
+  });
+});
+
+describe("sessionRead", () => {
+  const gold = parseInstrument("gold")!;
+  const btc = parseInstrument("btc")!;
+  it("knows gold's hours in UK time", () => {
+    // Wednesday 2pm UK (BST): London/New York overlap, nothing to say.
+    expect(sessionRead(gold, Date.UTC(2026, 9, 21, 13))).toEqual({ penalty: 0 });
+    // 10pm UK: daily rollover.
+    expect(sessionRead(gold, Date.UTC(2026, 9, 21, 21)).caution).toMatch(/rollover/);
+    // 3am UK: Asian session.
+    expect(sessionRead(gold, Date.UTC(2026, 9, 21, 2)).caution).toMatch(/Asian/);
+    // Sunday 11:30pm UK (clocks went back that morning): open again.
+    expect(sessionRead(gold, Date.UTC(2026, 9, 25, 23, 30)).closed).toBeUndefined();
+  });
+  it("only notes weekends for crypto", () => {
+    expect(sessionRead(btc, Date.UTC(2026, 9, 24, 12)).caution).toMatch(/Weekend/);
+    expect(sessionRead(btc, Date.UTC(2026, 9, 21, 2))).toEqual({ penalty: 0 });
+  });
+});
+
+describe("framesFor", () => {
+  it("picks 4H/1H/15M for a scalp and falls back from a short weekly", () => {
+    const sets = {
+      daily: series(100, 1000, 1, 24),
+      hourly: series(1000, 1000, 0.5),
+      fifteen: series(500, 1000, 0.1, 0.25),
+      minute: [],
+    };
+    expect(framesFor(sets, "scalp", false).frames.map((f) => f?.name)).toEqual(["4H", "1H", "15M"]);
+    expect(framesFor(sets, "swing", false).frames.map((f) => f?.name)).toEqual(["Daily", "4H", "1H"]);
   });
 });
 

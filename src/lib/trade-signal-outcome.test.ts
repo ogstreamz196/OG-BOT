@@ -34,6 +34,27 @@ describe("signal outcomes", () => {
     expect(r.status).toBe("tp3");
   });
 
+  it("fills a sell stop only when price breaks down through it", () => {
+    const sellStop: TrackedSignal = {
+      direction: "SELL",
+      entryType: "stop",
+      entry: 100,
+      stop: 105,
+      targets: [95, 90, 85],
+      status: "pending",
+      expiresAt: 10_000,
+    };
+    // Bouncing above the trigger doesn't fill; breaking below it does.
+    expect(advanceSignal(sellStop, [bar(1, 101, 104)], 2).status).toBe("pending");
+    const r = advanceSignal(sellStop, [bar(1, 101, 104), bar(2, 99, 101.5)], 3);
+    expect(r.events[0]).toEqual({ kind: "filled", at: 2, price: 100 });
+    expect(r.status).toBe("open");
+    // A buy stop fills on the way up.
+    const buyStop: TrackedSignal = { ...buy, entryType: "stop", status: "pending" };
+    expect(advanceSignal(buyStop, [bar(1, 97, 99)], 2).status).toBe("pending");
+    expect(advanceSignal(buyStop, [bar(1, 98, 100.5)], 2).status).toBe("open");
+  });
+
   it("fills a sell limit only when price trades up to it", () => {
     const sell: TrackedSignal = {
       ...buy,

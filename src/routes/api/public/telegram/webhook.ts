@@ -13,6 +13,8 @@ import {
   signalFramesText,
   signalPairsKeyboard,
   signalRequest,
+  ONE_MINUTE_RE,
+  withoutOneMinute,
 } from "@/lib/telegram-signals";
 import { escapeTelegramHtml as esc, telegramApi } from "@/lib/telegram-api.server";
 import { mapPool } from "@/lib/map-pool";
@@ -70,12 +72,22 @@ async function handleCallbackQuery(cq: {
       await answer("Link your OG BOT account first.");
       return Response.json({ ok: true, unlinked: true });
     }
-    await answer(action.kind === "run" ? "Checking the live charts…" : "");
-    if (action.kind !== "run") {
+    const { admin: staff, roles } = await isAdmin(admin, profile.id);
+    // An old picker can still show 1 min to a member: that one's Boss-only now.
+    const memberOneMinute = action.kind === "run" && action.timeframe === "1m" && !staff;
+    await answer(
+      memberOneMinute
+        ? "1 min signals are Boss-only. Try 15 mins."
+        : action.kind === "run"
+          ? "Checking the live charts…"
+          : "",
+    );
+    if (action.kind !== "run" || memberOneMinute) {
       // Move through the picker in the same message rather than stacking new ones.
-      const text = action.kind === "pairs" ? SIGNAL_PAIRS_TEXT : signalFramesText(action.pair);
+      const text =
+        action.kind === "pairs" ? SIGNAL_PAIRS_TEXT : signalFramesText(action.pair, staff);
       const reply_markup =
-        action.kind === "pairs" ? signalPairsKeyboard() : signalFramesKeyboard(action.pair);
+        action.kind === "pairs" ? signalPairsKeyboard() : signalFramesKeyboard(action.pair, staff);
       const edited = cq.message?.message_id
         ? await tg("editMessageText", {
             chat_id: chatId,
@@ -87,7 +99,6 @@ async function handleCallbackQuery(cq: {
         : null;
       if (!edited) await reply(chatId, text, { reply_markup });
     } else {
-      const { roles } = await isAdmin(admin, profile.id);
       try {
         await runChatAI(
           admin,
@@ -643,6 +654,7 @@ async function runChatAI(
   // comes from live candles and the deterministic engine, not an AI model.
   const trade = await import("@/lib/trade-signal");
   let tradeText = trade.resolveTradeRequest(userText, []);
+  const staff = ["admin", "boss", "dev"].some((role) => roles.includes(role));
   if (
     !tradeText &&
     /\b(signals?|setups?|entry|entries|sl|tp|scalp|swing|bullish|bearish)\b/i.test(userText)
@@ -655,6 +667,9 @@ async function runChatAI(
       .limit(20);
     tradeText = trade.resolveTradeRequest(userText, recent ?? []);
   }
+  // 1-minute calls are Boss-only (see ONE_MINUTE_RE); members get the 15-minute read.
+  const movedFromOneMinute = !!tradeText && !staff && ONE_MINUTE_RE.test(tradeText);
+  if (tradeText && movedFromOneMinute) tradeText = withoutOneMinute(tradeText);
   if (tradeText) {
     const timer = setInterval(() => {
       void tg("sendChatAction", { chat_id, action: "typing" });
@@ -675,9 +690,12 @@ async function runChatAI(
             .maybeSingle()
         : { data: null };
       const tone = vipish && (pref?.foul_mouth ?? true) ? "foul" : "cheeky";
-      const hold = await pickTradeHold(admin as never, profileId, market, tone).catch(() =>
+      const picked = await pickTradeHold(admin as never, profileId, market, tone).catch(() =>
         trade.holdingMessage(market, tone),
       );
+      const hold = movedFromOneMinute
+        ? `1 min calls are Boss-only (too noisy at that speed), so here's the 15 min read.\n${picked}`
+        : picked;
       const held = await tg("sendMessage", { chat_id, text: hold, disable_web_page_preview: true });
       const signal = await signalJob;
       const ttl = signal.expiresAt
