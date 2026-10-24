@@ -7,7 +7,7 @@ export function trackShareUrl(songId?: string) {
 
 /** Share message text (without the link — the share sheet adds it once). */
 export function trackShareText(title: string) {
-  return `Listen to “${title}” on 0G B0T 🎧`;
+  return `Listen to “${title}” on OG B0T 🎧`;
 }
 
 /** Clipboard version: message plus the link exactly once, on its own line. */
