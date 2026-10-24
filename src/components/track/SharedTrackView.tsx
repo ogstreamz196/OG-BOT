@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Headphones, Home, Pause, Play, Volume2 } from "lucide-react";
 import { ogBotLogo } from "@/assets/ogbot-logo";
+import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
 import { Button } from "@/components/ui/button";
 import type { PublicSharedTrack } from "@/lib/public-track.functions";
 import { PortalLinks } from "./PortalLinks";
@@ -22,14 +23,33 @@ export function SharedTrackView({
   const lyrics = track?.lyrics?.trim();
   // The artwork is as big as the screen allows while the title and player
   // still fit without scrolling: by height on phones, beside them on wide screens.
+  // Real cover art carries the OG Streamz presentz badge in its corner, like a
+  // label stamp, over a soft fade so it reads on any artwork.
   const art = (
-    <img
-      src={track?.coverUrl || ogBotLogo.large}
-      alt={track?.coverUrl ? `Cover art for ${track.title}` : "OG B0T"}
-      width={512}
-      height={512}
-      className="aspect-square w-[min(100%,46dvh)] rounded-3xl object-cover shadow-glow lg:w-[min(100%,72dvh)]"
-    />
+    <div className="relative aspect-square w-[min(100%,46dvh)] overflow-hidden rounded-3xl shadow-glow lg:w-[min(100%,72dvh)]">
+      <img
+        src={track?.coverUrl || ogBotLogo.large}
+        alt={track?.coverUrl ? `Cover art for ${track.title}` : "OG B0T"}
+        width={512}
+        height={512}
+        className="h-full w-full object-cover"
+      />
+      {track?.coverUrl ? (
+        <>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent"
+          />
+          <img
+            src={ogStreamzLogo}
+            alt="OG Streamz presentz ogbot.co.uk"
+            width={160}
+            height={160}
+            className="absolute bottom-[4%] left-[4%] aspect-square w-[22%] max-w-24 rounded-[18%] shadow-lg ring-1 ring-white/25"
+          />
+        </>
+      ) : null}
+    </div>
   );
 
   return (
