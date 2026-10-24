@@ -455,16 +455,16 @@ async function screen(
   return res;
 }
 
-// The welcome after /start or a clear, in OG B0T's own voice (sharp,
-// British, no fuss). It goes as soon as the member does anything and the
-// short intro below stays instead.
+// The welcome after /start or a clear, in OG B0T's foul-mouthed voice. It
+// goes as soon as the member does anything and the short intro below stays
+// instead.
 const INTRO_TEXT =
-  "<b>OG B0T here.</b> Sharp, British, and not here to waste your time.\n\n" +
-  "🧠 <b>Ask anything</b>: advice, ideas, homework, a second opinion.\n" +
+  "<b>OG B0T here.</b> No filter, no bullshit, and no wasting my fucking time.\n\n" +
+  "🧠 <b>Ask anything</b>: advice, ideas, homework, whatever's on your mind.\n" +
   "⚽ <b>Sports</b>: fixtures, scores and kick-off times.\n" +
   "📈 <b>Signals</b>: live gold and bitcoin setups.\n" +
-  "🔥 <b>Roast me</b>: have a go. I'll give it back worse.\n\n" +
-  "Type a question, or use the buttons below.";
+  "🔥 <b>Roast me</b>: go on, try me. I'll rip you a new one.\n\n" +
+  "Type something or smash the buttons below.";
 
 const SHORT_INTRO =
   "<b>OG B0T</b>\n" +
