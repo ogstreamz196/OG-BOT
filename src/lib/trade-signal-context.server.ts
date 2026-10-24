@@ -584,35 +584,51 @@ export async function buildTradeSignal(
   const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
   const expiresAt = valid.until.toISOString();
   // Telegram gets the engine's actual card, not model-authored levels or a refusal.
-  // Short and scannable: the levels first, one per line, then the why.
-  const allReasons = [...plan.reasons, ...extraReasons];
-  const trends = allReasons
+  // A brief card: the levels first, one per line, then only what changes
+  // the decision (cautions, trend, when to bail).
+  const arrow = (bias: string) => (bias === "bullish" ? "↑" : bias === "bearish" ? "↓" : "↔");
+  const trends = plan.reasons
     .map((r) => /^(\S+) trend (\w+)$/.exec(r))
     .filter((m): m is RegExpExecArray => !!m)
-    .map((m) => `${m[1]} ${m[2]}`);
-  const otherReasons = allReasons
-    .filter((r) => !/^\S+ trend \w+$/.test(r))
-    .map((r) => r.replace(/MACD momentum (\w+) and (\w+)/, "MACD $1, $2"));
+    .map((m) => `${m[1]} ${arrow(m[2])}`);
+  const bail = /^a (\S+) close (above|below) the stop, or the (\S+) trend flipping (\w+)$/.exec(
+    plan.invalidation,
+  );
+  const cancelIf = bail
+    ? `${bail[1]} closes ${bail[2]} SL, or ${bail[3]} turns ${bail[4]}`
+    : plan.invalidation;
+  const londonDay = (d: Date) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", dateStyle: "short" }).format(d);
+  const validShort =
+    londonDay(valid.until) === londonDay(new Date())
+      ? new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Europe/London",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(valid.until)
+      : ukTime(valid.until);
+  const recordShort = record?.replace(
+    /^last (\d+) days, (\d+) signals filled: TP1 hit on (\d+) \((\d+)%\).*$/,
+    "last $1 days, TP1 hit $3 of $2 ($4%)",
+  );
   const rrs = plan.rr.split(" / ").map((r) => r.replace(/\.0$/, ""));
   const isLimit = plan.entryNote.startsWith("Limit");
   const reply = [
     `${plan.direction === "BUY" ? "🟢" : "🔴"} ${plan.direction} · ${inst.label}`,
-    `⏱ ${entryLabel} timeframe · ${plan.confidencePct}% confidence (${plan.confidence}) · ${plan.quality} setup`,
+    `⏱ ${entryLabel} · ${plan.confidencePct}% confidence · ${plan.quality}`,
     "",
-    `▶️ Entry: ${fmt(plan.entry)}  (${isLimit ? "limit order, wait for the pullback" : "market price now"})`,
+    `▶️ Entry: ${fmt(plan.entry)}  (${isLimit ? "limit, wait for pullback" : "market now"})`,
     `🛑 SL: ${fmt(plan.stop)}  (${dist(plan.entry, plan.stop)})`,
     ...plan.targets.map((t, i) => `🎯 TP${i + 1}: ${fmt(t)}${rrs[i] ? `  (${rrs[i]})` : ""}`),
     "",
-    `⏳ Valid until ${ukTime(valid.until)} UK. This card deletes itself then.`,
     ...cautions.map((c) => `⚠️ ${c}`),
-    ...(trends.length ? [`📊 Trend: ${trends.join(" · ")}`] : []),
-    ...(otherReasons.length ? [`🔎 ${otherReasons.join(" · ")}`] : []),
-    `❌ Cancel if: ${plan.invalidation}`,
-    ...(newsLines.length ? ["", `📅 Big news before it expires:\n${newsLines.join("\n")}`] : []),
-    ...(record ? ["", `📈 Track record: ${record}`] : []),
+    ...(newsLines.length ? [`📅 ${newsLines.join("\n📅 ")}`] : []),
+    ...(trends.length ? [`📊 Trend: ${trends.join("  ")}`] : []),
+    `❌ Cancel if ${cancelIf}`,
+    `⏳ Valid till ${validShort} UK`,
+    ...(recordShort ? [`📈 ${recordShort[0].toUpperCase()}${recordShort.slice(1)}`] : []),
     "",
-    "🔔 I'll message you when it fills, hits a target or stops out.",
-    `Data: ${source}, ${Number.isFinite(live) ? "live price just now" : `last candle ${asOf} UTC`}. Confidence is indicator agreement, not a win rate. Risk 1–2%, move SL to entry after TP1. Not financial advice.`,
+    "🔔 I'll update you here · Not financial advice",
   ].join("\n");
   const plan2: SignalPlan = {
     market: inst.code,
