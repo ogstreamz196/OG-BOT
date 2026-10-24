@@ -44,8 +44,81 @@ async function tg(method: string, body: Record<string, unknown>) {
   return res?.ok ? res : null;
 }
 
-// Inline buttons: the signals picker, Clear chat, and Boss's "✅ Acknowledge"
-// on a new yearly VIP DM.
+/**
+ * Sends one of the member's own tracks into the chat as an audio file they
+ * can keep. Same rule as downloading in the app: the full track once it's
+ * unlocked (Boss and admins always), otherwise the free preview with a way
+ * to unlock.
+ */
+async function sendTrackAudio(chat_id: number, songId: string) {
+  const admin = await loadAdmin();
+  const { data: me } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("telegram_chat_id", chat_id)
+    .maybeSingle();
+  if (!me) {
+    await reply(chat_id, "Link your OG BOT account first.");
+    return;
+  }
+  const [{ data: song }, { roles }, { data: unlock }] = await Promise.all([
+    admin
+      .from("songs")
+      .select("id, title, style, audio_path, sample_path, status")
+      .eq("id", songId)
+      .eq("user_id", me.id)
+      .maybeSingle(),
+    isAdmin(admin, me.id),
+    admin
+      .from("unlocked_songs")
+      .select("id")
+      .eq("user_id", me.id)
+      .eq("song_id", songId)
+      .maybeSingle(),
+  ]);
+  if (!song || song.status !== "completed") {
+    await reply(chat_id, "I couldn't find that track in your library.");
+    return;
+  }
+  const full = !!unlock || roles.some((r) => r === "admin" || r === "boss");
+  const path = full ? song.audio_path : song.sample_path;
+  if (!path) {
+    await reply(chat_id, "That track's file isn't ready yet. Try again in a minute.");
+    return;
+  }
+  const { data: signed } = await admin.storage.from("song-files").createSignedUrl(path, 600);
+  const { telegramSignInLinker } = await import("@/lib/telegram-signin.server");
+  const unlockUrl = await telegramSignInLinker(admin, me.id)(`/library/${song.id}`);
+  const title = song.title || "OG BOT track";
+  const sent = signed?.signedUrl
+    ? await tg("sendAudio", {
+        chat_id,
+        audio: signed.signedUrl,
+        title: full ? title : `${title} (preview)`,
+        performer: "OG BOT",
+        caption: full
+          ? `🎧 <b>${esc(title)}</b>`
+          : `🔒 <b>Preview.</b> Unlock the full track in the app, then tap ⬇️ again for the whole thing.`,
+        parse_mode: "HTML",
+        ...(full
+          ? {}
+          : {
+              reply_markup: {
+                inline_keyboard: [[{ text: "🔓 Unlock full track", url: unlockUrl }]],
+              },
+            }),
+      })
+    : null;
+  if (!sent) {
+    // Too big for Telegram to fetch, or the link failed: open it in the app instead.
+    await reply(chat_id, `I couldn't send <b>${esc(title)}</b> here. Open it in the app instead.`, {
+      reply_markup: { inline_keyboard: [[{ text: "▶️ Open track", url: unlockUrl }]] },
+    });
+  }
+}
+
+// Inline buttons: the signals picker, the menu panel, track downloads, Clear
+// chat, and Boss's "✅ Acknowledge" on a new yearly VIP DM.
 async function handleCallbackQuery(cq: {
   id: string;
   data?: string;
@@ -116,6 +189,24 @@ async function handleCallbackQuery(cq: {
       }
     }
     return Response.json({ ok: true, signals: action.kind });
+  }
+  const menuKey = /^menu:(\w+)$/.exec(cq.data ?? "")?.[1];
+  const chatHere = cq.message?.chat?.id;
+  const privateChat = !!chatHere && chatHere > 0 && cq.from?.id === chatHere;
+  if (menuKey && Object.hasOwn(MENU_ACTIONS, menuKey) && privateChat) {
+    // Same as typing the command, so menu buttons and commands never drift apart.
+    await answer("");
+    const admin = await loadAdmin();
+    return handleTelegramUpdate(admin, chatHere, MENU_ACTIONS[menuKey as MenuKey], {
+      chat: { id: chatHere, type: "private" },
+      from: { id: chatHere },
+    });
+  }
+  const trackId = /^track:([0-9a-f-]{36})$/.exec(cq.data ?? "")?.[1];
+  if (trackId && privateChat) {
+    await answer("Sending your track…");
+    await sendTrackAudio(chatHere, trackId);
+    return Response.json({ ok: true, track: true });
   }
   if (cq.data === "clearchat" && cq.message?.chat?.id && cq.message.message_id) {
     const chatId = cq.message.chat.id;
@@ -220,8 +311,10 @@ const LINK_STEPS =
   "2. Go to Settings → <b>Connect Telegram</b>\n" +
   "3. Tap your personal link, it brings you straight back here";
 
+// The intro carries the bottom bar, so it's always there after /start or a
+// clear (deleting the message that last set it can hide it in some apps).
 async function sendIntro(chat_id: number) {
-  await reply(chat_id, INTRO_TEXT, undefined, 0);
+  await reply(chat_id, INTRO_TEXT, { reply_markup: USER_KEYBOARD }, 0);
 }
 
 // Deletes up to the last 100 messages (bots may delete private-chat messages <48h old).
@@ -231,48 +324,59 @@ async function clearRecentChat(chat_id: number, upToMessageId: number) {
   if (ids.length) await tg("deleteMessages", { chat_id, message_ids: ids });
 }
 
-// Collapsed bottom bar keeps focus on the chat; the full menu is opened
-// through categories with a Back button.
+// The bottom bar is always showing: Menu, Signals and Clear chat. Menu opens
+// one panel of the important things (inline buttons under the message).
 const kb = (rows: string[][]) => ({
   keyboard: rows.map((r) => r.map((text) => ({ text }))),
   resize_keyboard: true,
   is_persistent: true,
 });
-const BACK = "⬅️ Back";
 const MENU = "📂 Menu";
 const CLEAR = "🧹 Clear chat";
 const SITE = "🌐 OGBOT.CO.UK";
-const CATEGORIES = "🔙 Categories";
-const BOSS_TOOLS = "🛠 Boss tools";
 const USER_KEYBOARD = kb([[MENU, SIGNALS_BUTTON, CLEAR]]);
 // Before linking there's nothing to open yet, so just the basics.
 const UNLINKED_KEYBOARD = kb([[CLEAR, SITE]]);
-const CATEGORY_KEYBOARD = (isBoss: boolean) =>
-  kb([
-    ["💷 Coins & Store", "🎧 Music & VIP"],
-    ["🔐 Access", "❓ Help"],
-    [SIGNALS_BUTTON, SITE],
-    ...(isBoss ? [[BOSS_TOOLS]] : []),
-    [BACK],
-  ]);
-const SUBMENUS: Record<string, { intro: string; rows: string[][] }> = {
-  "💷 Coins & Store": {
-    intro: "💷 <b>Coins & Store</b>\nCheck your balance or top up.",
-    rows: [["💰 Balance", "🛒 Buy Coins"]],
-  },
-  "🎧 Music & VIP": {
-    intro: "🎧 <b>Music & VIP</b>\nYour tracks and your VIP status.",
-    rows: [["🎧 Library", "👑 VIP Status"]],
-  },
-  "🔐 Access": {
-    intro: "🔐 <b>Access</b>\nVault login, the Sports Guide and your profile.",
-    rows: [["🔐 Vault ID", "⚽ Sports Guide"], ["👤 My Profile"]],
-  },
-  [BOSS_TOOLS]: {
-    intro: "🛠 <b>Boss tools</b>\nPlatform numbers and member search. /help lists every command.",
-    rows: [["📊 Stats", "👥 Users"]],
-  },
-};
+// Buttons from the old category menu, still on some members' screens.
+const OLD_MENU_BUTTONS = new Set([
+  "⬅️ Back",
+  "🔙 Categories",
+  "💷 Coins & Store",
+  "🎧 Music & VIP",
+  "🔐 Access",
+  "🛠 Boss tools",
+]);
+
+/** What each menu button runs (callback_data "menu:<key>"). */
+const MENU_ACTIONS = {
+  vip: "/vip",
+  vault: "/vault",
+  tracks: "/tracks",
+  balance: "/balance",
+  buy: "/buy",
+  sports: "/sports",
+  me: "/me",
+  help: "/help",
+  stats: "/stats",
+  users: "/users",
+} as const;
+type MenuKey = keyof typeof MENU_ACTIONS;
+const menuButton = (text: string, key: MenuKey) => ({ text, callback_data: `menu:${key}` });
+
+const MENU_TEXT = "📂 <b>OG Menu</b>\nEverything important, one tap away 👇";
+
+function menuPanel(isBoss: boolean, siteUrl: string) {
+  return {
+    inline_keyboard: [
+      [menuButton("👑 VIP expiry", "vip"), menuButton("🔐 Vault pass", "vault")],
+      [menuButton("🎧 My tracks", "tracks"), menuButton("💰 Balance", "balance")],
+      [menuButton("🛒 Buy coins", "buy"), menuButton("⚽ Sports Guide", "sports")],
+      [menuButton("👤 My profile", "me"), menuButton("❓ Help", "help")],
+      ...(isBoss ? [[menuButton("📊 Stats", "stats"), menuButton("👥 Users", "users")]] : []),
+      [{ text: "🌐 Open OGBOT.CO.UK", url: siteUrl }],
+    ],
+  };
+}
 
 const HELP_USER = `🤖 <b>OG Bot</b>
 
@@ -1117,24 +1221,12 @@ async function handleTelegramUpdate(
       await reply(chat_id, SIGNAL_PAIRS_TEXT, { reply_markup: signalPairsKeyboard() });
       return Response.json({ ok: true, signals: "pairs" });
     }
-    if (trimmed === MENU || trimmed === CATEGORIES) {
-      await reply(chat_id, "📂 <b>Menu</b>\nPick a section 👇", {
-        reply_markup: CATEGORY_KEYBOARD(isBoss),
-      });
+    if (trimmed === MENU || /^\/menu\b/i.test(trimmed) || OLD_MENU_BUTTONS.has(trimmed)) {
+      // An old category keyboard gets swapped back to the normal bottom bar first.
+      if (OLD_MENU_BUTTONS.has(trimmed))
+        await reply(chat_id, "📂 The menu's simpler now 👇", { reply_markup: USER_KEYBOARD });
+      await reply(chat_id, MENU_TEXT, { reply_markup: menuPanel(isBoss, await siteLink("/")) });
       return Response.json({ ok: true, menu: true });
-    }
-    if (trimmed === BACK) {
-      await reply(chat_id, "💬 Back to chatting. Tap 📂 Menu any time.", {
-        reply_markup: USER_KEYBOARD,
-      });
-      return Response.json({ ok: true, menu: "closed" });
-    }
-    const submenu = SUBMENUS[trimmed];
-    if (submenu && (trimmed !== BOSS_TOOLS || isBoss)) {
-      await reply(chat_id, submenu.intro, {
-        reply_markup: kb([...submenu.rows, [CATEGORIES, BACK]]),
-      });
-      return Response.json({ ok: true, menu: trimmed });
     }
 
     if (trimmed === SITE) {
@@ -1157,7 +1249,7 @@ async function handleTelegramUpdate(
       await sendIntro(chat_id);
       return Response.json({ ok: true, cleared: true });
     }
-    if (/^\/help\b/i.test(trimmed) || /^\/menu\b/i.test(trimmed)) {
+    if (/^\/help\b/i.test(trimmed)) {
       await reply(chat_id, isBoss ? HELP_ADMIN : HELP_USER, {
         reply_markup: USER_KEYBOARD,
       });
@@ -1210,14 +1302,12 @@ async function handleTelegramUpdate(
                 `${i + 1}. <b>${esc(s.title || "Untitled")}</b>${s.style ? ` — ${esc(String(s.style).slice(0, 40))}` : ""}`,
             )
             .join("\n") +
-          "\n\nTap a track to listen. Make it public in the app to share the link."
+          "\n\n⬇️ sends the track here in Telegram to keep. ▶️ opens it in the app."
         : "🎧 <b>No finished tracks yet</b>\nGo make one, it only takes a minute.";
       const libraryLinks = await Promise.all(list.map((s) => siteLink(`/library/${s.id}`)));
       const rows = list.map((s, i) => [
-        {
-          text: `▶️ ${(s.title || "Untitled").slice(0, 30)}`,
-          url: libraryLinks[i],
-        },
+        { text: `⬇️ ${(s.title || "Untitled").slice(0, 24)}`, callback_data: `track:${s.id}` },
+        { text: "▶️ Open", url: libraryLinks[i] },
         ...(s.is_public && s.revealed
           ? [
               {
