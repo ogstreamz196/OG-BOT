@@ -54,6 +54,7 @@ import { useCarromLink } from "@/hooks/use-carrom-link";
 import { useSignalsPortal } from "@/hooks/use-signals-portal";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { VipYearlyTeaser } from "@/components/home/VipYearlyTeaser";
+import { CarromPasswordCard } from "@/components/home/CarromPasswordCard";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -297,6 +298,8 @@ function DashboardHome() {
             </span>
           </div>
         </div>
+
+        <CarromPasswordCard />
 
         {/* 3. The two modes, side by side */}
         <div id="modes" className="scroll-mt-24">
