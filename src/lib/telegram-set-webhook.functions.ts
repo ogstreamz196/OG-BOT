@@ -109,15 +109,16 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
       { command: "sports", description: "Open the Sports Guide" },
       { command: "buy", description: "Top up OG coins" },
       { command: "me", description: "Your profile" },
+      { command: "signals", description: "Live gold and bitcoin signals" },
+      { command: "clear", description: "Wipe this chat and start fresh" },
     ];
     const adminCommands = [
       ...publicCommands,
-      { command: "online", description: "Who's on site right now" },
-      { command: "lastseen", description: "Recent visitors + last menu" },
       { command: "user", description: "Inspect a user by email/uuid" },
       { command: "users", description: "Search profiles" },
       { command: "stats", description: "Platform snapshot" },
-      { command: "addcoins", description: "Grant OG coins" },
+      { command: "addcoins", description: "Add or take OG coins" },
+      { command: "setcoins", description: "Set an exact coin balance" },
       { command: "broadcast", description: "DM every linked user" },
     ];
     const setCommands = async (scope: Record<string, unknown>, commands: unknown) => {
@@ -140,7 +141,7 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
       const { data: roleRows } = await supabaseAdmin
         .from("user_roles")
         .select("user_id")
-        .in("role", ["admin"]);
+        .in("role", ["admin", "boss"]);
       const ids = Array.from(new Set((roleRows ?? []).map((r) => r.user_id as string)));
       if (ids.length) {
         const { data: profs } = await supabaseAdmin

@@ -35,9 +35,9 @@ export const requestAccountRecovery = createServerFn({ method: "POST" })
         (data.note ? `<b>Note:</b> ${esc(data.note)}\n` : "") +
         `<b>Time:</b> ${new Date().toUTCString()}\n` +
         `<a href="https://www.ogbot.co.uk/admin/users">Open Manage Users</a>`;
-      const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+      const { telegramApi } = await import("@/lib/telegram-api.server");
       await Promise.all(
-        chats.map((chat_id) => vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" })),
+        chats.map((chat_id) => telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" })),
       );
     } catch (e) {
       console.error("recovery alert failed", e);

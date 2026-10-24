@@ -60,10 +60,10 @@ export const Route = createFileRoute("/api/public/new-user-alert")({
           `Name: <b>${esc(name)}</b>\n` +
           `Joined: ${new Date().toUTCString()}` +
           (count ? `\nTotal members: <b>${count}</b>` : "");
-        const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+        const { telegramApi } = await import("@/lib/telegram-api.server");
         const results = await Promise.all(
           chats.map((chat_id) =>
-            vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" }),
+            telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" }),
           ),
         );
         const sent = results.filter((r) => (r as { ok?: boolean } | null)?.ok).length;

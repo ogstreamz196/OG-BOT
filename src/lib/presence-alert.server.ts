@@ -39,7 +39,7 @@ export async function alertBossPresence(userId: string, kind: "app" | "battle") 
       supabaseAdmin.from("profiles").select("telegram_chat_id").in("id", bossIds),
     ]);
     const name = esc(who?.display_name || "An OG member");
-    const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+    const { telegramApi } = await import("@/lib/telegram-api.server");
 
     const text =
       kind === "battle"
@@ -47,7 +47,7 @@ export async function alertBossPresence(userId: string, kind: "app" | "battle") 
         : `<b>🟢 ${name} just opened OG BOT</b>`;
     const chats = [...new Set((bosses ?? []).map((b) => b.telegram_chat_id).filter(Boolean))];
     await Promise.all(
-      chats.map((chat_id) => vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" })),
+      chats.map((chat_id) => telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" })),
     );
   } catch (e) {
     console.error("presence alert failed", e);
