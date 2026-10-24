@@ -1066,7 +1066,7 @@ function Hero() {
             image={modeArt.createTrack}
             imageAlt="OG B0T Create a Track badge"
             eyebrow="AI studio"
-            title="Music Hub"
+            title="Make a Track"
             description="Your idea. Real vocals. Cover art. Done."
             cta="Create a Track"
             onClick={openWizard}
