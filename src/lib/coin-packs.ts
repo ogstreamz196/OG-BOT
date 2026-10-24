@@ -55,7 +55,7 @@ export const COIN_PACKS: readonly CoinPack[] = [
     priceCents: 3999,
     currency: "gbp",
     label: "Pro",
-    description: "Serious sessions across Music Hub & Messenger.",
+    description: "Serious sessions across Make a Track & Messenger.",
     bestValue: true,
   },
 ] as const;

@@ -29,7 +29,7 @@ const CAPABILITIES = [
   "Webhook Dispatch",
   "Persona Override Engine",
   "Foul-Mouth Filter Toggle",
-  "Background Music Hub Sync",
+  "Background Make a Track Sync",
   "VIP Privilege Detection",
   "Boss-Only Override Mode",
   "Encrypted Token Rotation",
