@@ -79,6 +79,7 @@ import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authen
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
 import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
+import { Route as ApiPublicTradeSignalWatchRouteImport } from './routes/api/public/trade-signal-watch'
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
 import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -461,6 +462,12 @@ const ApiPublicSunoRetryRoute = ApiPublicSunoRetryRouteImport.update({
   path: '/api/public/suno-retry',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTradeSignalWatchRoute =
+  ApiPublicTradeSignalWatchRouteImport.update({
+    id: '/api/public/trade-signal-watch',
+    path: '/api/public/trade-signal-watch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminUsersUserIdRoute =
   AuthenticatedAdminUsersUserIdRouteImport.update({
     id: '/$userId',
@@ -577,6 +584,7 @@ export interface FileRoutesByFullPath {
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
+  '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/library/': typeof AuthenticatedLibraryIndexLazyRoute
@@ -656,6 +664,7 @@ export interface FileRoutesByTo {
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
+  '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/buy-coins': typeof AuthenticatedBuyCoinsIndexRoute
   '/library': typeof AuthenticatedLibraryIndexLazyRoute
@@ -737,6 +746,7 @@ export interface FileRoutesById {
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
+  '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/_authenticated/library/': typeof AuthenticatedLibraryIndexLazyRoute
@@ -818,6 +828,7 @@ export interface FileRouteTypes {
     | '/api/public/new-user-alert'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
+    | '/api/public/trade-signal-watch'
     | '/admin/'
     | '/buy-coins/'
     | '/library/'
@@ -897,6 +908,7 @@ export interface FileRouteTypes {
     | '/api/public/new-user-alert'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
+    | '/api/public/trade-signal-watch'
     | '/admin'
     | '/buy-coins'
     | '/library'
@@ -977,6 +989,7 @@ export interface FileRouteTypes {
     | '/api/public/new-user-alert'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
+    | '/api/public/trade-signal-watch'
     | '/_authenticated/admin/'
     | '/_authenticated/buy-coins/'
     | '/_authenticated/library/'
@@ -1026,6 +1039,7 @@ export interface RootRouteChildren {
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
+  ApiPublicTradeSignalWatchRoute: typeof ApiPublicTradeSignalWatchRoute
   ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
@@ -1521,6 +1535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSunoRetryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/trade-signal-watch': {
+      id: '/api/public/trade-signal-watch'
+      path: '/api/public/trade-signal-watch'
+      fullPath: '/api/public/trade-signal-watch'
+      preLoaderRoute: typeof ApiPublicTradeSignalWatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/users/$userId': {
       id: '/_authenticated/admin/users/$userId'
       path: '/$userId'
@@ -1716,6 +1737,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
+  ApiPublicTradeSignalWatchRoute: ApiPublicTradeSignalWatchRoute,
   ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,

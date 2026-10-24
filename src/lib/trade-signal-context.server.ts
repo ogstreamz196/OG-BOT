@@ -4,6 +4,20 @@
 // trade plan are computed in code (trade-signal.ts) so the bot quotes real
 // numbers instead of guessing.
 import {
+  type CalendarEvent,
+  type CryptoFlow,
+  cryptoFlowRead,
+  newsRisk,
+  parseBinanceTicker,
+  parseCalendar,
+  parseFunding,
+  parseKrakenTicker,
+  parseOpenInterestChange,
+  parseYahooPrice,
+  volumeNote,
+  volumeRatio,
+} from "./trade-signal-extras";
+import {
   aggregate,
   buildPlan,
   decimalsFor,
@@ -17,7 +31,7 @@ import {
   type Style,
 } from "./trade-signal";
 
-type Interval = "1m" | "15m" | "1h" | "1d";
+export type Interval = "1m" | "15m" | "1h" | "1d";
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; OGBot/1.0)" };
 const TIMEOUT_MS = 3500;
@@ -51,6 +65,7 @@ async function fromBinance(symbol: string, interval: Interval, limit: number): P
       h: +String(r[2]),
       l: +String(r[3]),
       c: +String(r[4]),
+      v: +String(r[5]),
     })),
   );
 }
@@ -70,6 +85,7 @@ async function fromKraken(pair: string, interval: Interval): Promise<Candle[]> {
       h: +String(r[2]),
       l: +String(r[3]),
       c: +String(r[4]),
+      v: +String(r[6]),
     })),
   );
 }
@@ -83,7 +99,13 @@ async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> 
       result?: {
         timestamp?: number[];
         indicators?: {
-          quote?: { open?: number[]; high?: number[]; low?: number[]; close?: number[] }[];
+          quote?: {
+            open?: number[];
+            high?: number[];
+            low?: number[];
+            close?: number[];
+            volume?: number[];
+          }[];
         };
       }[];
     };
@@ -98,6 +120,7 @@ async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> 
       h: q.high?.[i] ?? NaN,
       l: q.low?.[i] ?? NaN,
       c: q.close?.[i] ?? NaN,
+      v: q.volume?.[i] ?? undefined,
     })),
   );
 }
@@ -121,7 +144,7 @@ function markDown(source: string, e: unknown) {
  * starts if the current one is slow, and the first good answer in preference
  * order wins. Results are cached per market and timeframe.
  */
-async function candles(
+export async function candles(
   inst: Instrument,
   interval: Interval,
 ): Promise<{ data: Candle[]; source: string }> {
@@ -223,7 +246,150 @@ async function fetchNews(symbol: string): Promise<string | null> {
   }
 }
 
-type TradeSignalResult = { block: string; expiresAt: string | null; reply: string };
+/**
+ * The trend on the frame above a signal's entry timeframe (the one its
+ * "cancel early if" line watches): 1M → 1H, 15M → 4H, 1H → Daily, 4H → Weekly.
+ */
+export async function higherTrend(
+  inst: Instrument,
+  timeframe: string,
+): Promise<FrameRead["bias"] | null> {
+  if (timeframe === "1M" || timeframe === "15M") {
+    const hourly = await candles(inst, "1h");
+    return readFrame(timeframe === "1M" ? "1H" : "4H", timeframe === "1M" ? hourly.data : aggregate(hourly.data, 4))?.bias ?? null;
+  }
+  const daily = await candles(inst, "1d");
+  return readFrame(timeframe === "4H" ? "Weekly" : "Daily", timeframe === "4H" ? aggregate(daily.data, 24 * 7) : daily.data)?.bias ?? null;
+}
+
+/* ── Live price, calendar and crypto positioning (all soft-fail) ─────── */
+
+const liveCache = new Map<string, { exp: number; value: number }>();
+
+/**
+ * The latest traded price, fresher than the last candle close. Tried in the
+ * same source order as the candles; NaN when none answers quickly.
+ */
+export async function livePrice(inst: Instrument): Promise<number> {
+  const hit = liveCache.get(inst.code);
+  if (hit && hit.exp > Date.now()) return hit.value;
+  const tries: [string, () => Promise<number>][] = [];
+  if (inst.binance) {
+    const s = inst.binance;
+    tries.push([
+      "Binance",
+      async () => parseBinanceTicker(await getJson(`https://api.binance.com/api/v3/ticker/price?symbol=${s}`)),
+    ]);
+  }
+  if (inst.kraken) {
+    const k = inst.kraken;
+    tries.push([
+      "Kraken",
+      async () => parseKrakenTicker(await getJson(`https://api.kraken.com/0/public/Ticker?pair=${k}`)),
+    ]);
+  }
+  if (inst.yahoo) {
+    const y = inst.yahoo;
+    tries.push([
+      "Yahoo Finance",
+      async () =>
+        parseYahooPrice(
+          await getJson(
+            `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(y)}?interval=1m&range=1d`,
+          ),
+        ),
+    ]);
+  }
+  // All sources at once; the first in preference order to answer within
+  // LIVE_MS wins. A slow feed never holds the signal up.
+  const running = tries
+    .filter(([source]) => (sourceDownUntil.get(source) ?? 0) <= Date.now())
+    .map(([source, run]) =>
+      run().catch((e) => {
+        markDown(source, e);
+        return NaN;
+      }),
+    );
+  const deadline = new Promise<number>((r) => setTimeout(() => r(NaN), LIVE_MS));
+  for (const job of running) {
+    const value = await Promise.race([job, deadline]);
+    if (Number.isFinite(value) && value > 0) {
+      liveCache.set(inst.code, { exp: Date.now() + 5_000, value });
+      return value;
+    }
+  }
+  return NaN;
+}
+
+/** The extra reads are nice to have: none may delay a signal by more than this. */
+const LIVE_MS = 1200;
+const EXTRA_MS = 1500;
+function soft<T>(job: Promise<T>, fallback: T, ms = EXTRA_MS): Promise<T> {
+  return Promise.race([
+    job.catch(() => fallback),
+    new Promise<T>((r) => setTimeout(() => r(fallback), ms)),
+  ]);
+}
+
+let calendarCache: { exp: number; value: CalendarEvent[] } | null = null;
+
+/** This week's economic calendar (free Forex Factory feed), cached for an hour. */
+async function economicCalendar(): Promise<CalendarEvent[]> {
+  if (calendarCache && calendarCache.exp > Date.now()) return calendarCache.value;
+  try {
+    const value = parseCalendar(
+      await getJson("https://nfs.faireconomy.media/ff_calendar_thisweek.json"),
+    );
+    calendarCache = { exp: Date.now() + (value.length ? 60 : 10) * 60_000, value };
+    return value;
+  } catch {
+    calendarCache = { exp: Date.now() + 10 * 60_000, value: [] };
+    return [];
+  }
+}
+
+const flowCache = new Map<string, { exp: number; value: CryptoFlow | null }>();
+
+/** Binance futures funding and open interest for a crypto market. */
+async function cryptoFlow(inst: Instrument): Promise<CryptoFlow | null> {
+  if (inst.asset !== "crypto" || !inst.binance) return null;
+  const hit = flowCache.get(inst.code);
+  if (hit && hit.exp > Date.now()) return hit.value;
+  const s = inst.binance;
+  const [funding, oi] = await Promise.all([
+    getJson(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`)
+      .then(parseFunding)
+      .catch(() => NaN),
+    getJson(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${s}&period=1h&limit=25`)
+      .then(parseOpenInterestChange)
+      .catch(() => NaN),
+  ]);
+  const value =
+    Number.isFinite(funding) || Number.isFinite(oi) ? { funding, oiChange24h: oi } : null;
+  flowCache.set(inst.code, { exp: Date.now() + (value ? 2 : 10) * 60_000, value });
+  return value;
+}
+
+/** What a sent signal needs for outcome tracking (see trade-signal-tracker.server.ts). */
+export type SignalPlan = {
+  market: string;
+  label: string;
+  feeds: { binance?: string; kraken?: string; yahoo?: string };
+  style: Style;
+  timeframe: string;
+  direction: "BUY" | "SELL";
+  entry: number;
+  entryType: "market" | "limit";
+  stop: number;
+  targets: [number, number, number];
+  confidencePct: number;
+  quality: "Clean" | "Mixed" | "Choppy";
+  decimals: number;
+  pip: number | null;
+  expiresAt: string;
+};
+
+type TradeSignalResult = { block: string; expiresAt: string | null; reply: string; plan?: SignalPlan };
 const cache = new Map<string, TradeSignalResult & { exp: number }>();
 
 function frameLine(f: FrameRead, fmt: (n: number) => string): string {
@@ -243,7 +409,8 @@ const HOW_TO_ANSWER = `TRADE SIGNAL MODE — the user wants a trade call. Rules:
   R:R: …
   ⏳ Valid until: … (UK time) — say plainly that after this time the signal is stale and they should ask you again, and that an unfilled pullback entry should be cancelled by then.
   Then 2–4 short lines on WHY (trend across timeframes, momentum, the key level), what would cancel it early, and any news risk from the headlines given.
-- If a CAUTION line is given, say the timeframes are mixed so it's a lean, and to go smaller.
+- Give the Setup quality next to the confidence. For each CAUTION line, say it briefly in plain words (mixed timeframes, no clean setup, big news due, crowded futures) and that they should go smaller or wait.
+- If a HIGH-IMPACT NEWS list is given, name those events and times. If a TRACK RECORD line is given, quote it exactly; never make one up.
 - Explain that the confidence is how strongly the indicators agree, not a guaranteed win rate.
 - Keep your usual voice for the commentary, but the numbers stay serious and exact.
 - End with ONE short line: risk 1–2% per trade, move SL to entry after TP1, not financial advice. Don't lecture beyond that.
@@ -275,9 +442,10 @@ export async function buildTradeSignal(
   const entryLabel = oneMinute ? "1M" : style === "scalp" ? "15M" : style === "swing" ? "4H" : "1H";
   const key = `${inst.code}:${style}:${entryIv}`;
   const hit = cache.get(key);
-  if (hit && hit.exp > Date.now()) return { block: hit.block, expiresAt: hit.expiresAt, reply: hit.reply };
+  if (hit && hit.exp > Date.now())
+    return { block: hit.block, expiresAt: hit.expiresAt, reply: hit.reply, plan: hit.plan };
 
-  const [daily, hourly, fifteen, minute, news] = await Promise.all([
+  const [daily, hourly, fifteen, minute, news, live, calendar, flow, record] = await Promise.all([
     candles(inst, "1d"),
     candles(inst, "1h"),
     style === "scalp"
@@ -285,6 +453,13 @@ export async function buildTradeSignal(
       : Promise.resolve({ data: [] as Candle[], source: "" }),
     oneMinute ? candles(inst, "1m") : Promise.resolve({ data: [] as Candle[], source: "" }),
     marketNews(inst),
+    livePrice(inst),
+    soft(economicCalendar(), [] as CalendarEvent[]),
+    soft(cryptoFlow(inst), null),
+    soft(
+      import("./trade-signal-tracker.server").then((m) => m.trackRecord(inst.code, entryLabel)),
+      null,
+    ),
   ]);
 
   const h4 = aggregate(hourly.data, 4);
@@ -331,8 +506,8 @@ export async function buildTradeSignal(
     return result;
   }
 
-  const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles);
-  const price = lo.close;
+  const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live);
+  const price = Number.isFinite(live) && live > 0 ? live : lo.close;
   const dp = decimalsFor(inst, price);
   const fmt = (n: number) =>
     n.toLocaleString("en-GB", {
@@ -374,9 +549,21 @@ export async function buildTradeSignal(
       hour: "2-digit",
       minute: "2-digit",
     }).format(d);
+  // Big scheduled news, volume and (crypto) futures positioning.
+  const news2 = newsRisk(calendar, inst, Date.now(), valid.until.getTime(), ukTime);
+  const volNote = volumeNote(volumeRatio(entryCandles));
+  const flowRead = flow ? cryptoFlowRead(flow, plan.direction) : { note: null };
+  const cautions = [plan.qualityNote, plan.caution, news2.caution, flowRead.caution].filter(
+    (c): c is string => !!c,
+  );
+  const newsLines = news2.events.map(
+    (e) => `${ukTime(new Date(e.at))} UK: ${e.currency} ${e.title}`,
+  );
+  const extraReasons = [volNote, flowRead.note].filter((x): x is string => !!x);
   lines.push(
     `Confidence: ${plan.confidencePct}% (${plan.confidence})`,
-    ...(plan.caution ? [`CAUTION: ${plan.caution}`] : []),
+    `Setup quality: ${plan.quality}`,
+    ...cautions.map((c) => `CAUTION: ${c}`),
     `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
     `Stop loss: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
     `TP1: ${fmt(plan.targets[0])}  TP2: ${fmt(plan.targets[1])}  TP3: ${fmt(plan.targets[2])}`,
@@ -386,8 +573,11 @@ export async function buildTradeSignal(
   );
   lines.push(
     `Confluence score: ${plan.score} of ±${plan.maxScore}`,
-    `Reasons: ${plan.reasons.join("; ")}`,
+    `Reasons: ${[...plan.reasons, ...extraReasons].join("; ")}`,
   );
+  if (newsLines.length)
+    lines.push("", "HIGH-IMPACT NEWS DURING THIS SIGNAL (economic calendar):", ...newsLines);
+  if (record) lines.push("", `TRACK RECORD: ${record}`);
   if (news)
     lines.push("", "MARKET HEADLINES (Yahoo Finance; for context and news risk only):", news);
 
@@ -397,23 +587,44 @@ export async function buildTradeSignal(
   const reply = [
     `📊 ${inst.label} — ${plan.direction}`,
     `Timeframe: ${entryLabel}`,
-    `Confidence: ${plan.confidencePct}% (${plan.confidence})`,
+    `Confidence: ${plan.confidencePct}% (${plan.confidence}) · Setup: ${plan.quality}`,
     `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
     `SL: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
     `TP1: ${fmt(plan.targets[0])} / TP2: ${fmt(plan.targets[1])} / TP3: ${fmt(plan.targets[2])}`,
     `R:R: ${plan.rr}`,
     `⏳ Valid until: ${ukTime(valid.until)} UK time — this reply self-destructs by then. Cancel any unfilled entry and ask for a fresh signal.`,
     "",
-    `Here's the chart read: ${plan.reasons.join("; ")}.`,
-    ...(plan.caution ? [plan.caution] : []),
+    `Here's the chart read: ${[...plan.reasons, ...extraReasons].join("; ")}.`,
+    ...cautions.map((c) => `⚠️ ${c}`),
     `Cancel early if: ${plan.invalidation}.`,
-    `Source: ${source}; last candle ${asOf} UTC.`,
-    ...(news ? ["", `News risk:\n${news}`] : []),
+    `Source: ${source}; ${Number.isFinite(live) ? "live price checked just now" : `last candle ${asOf} UTC`}.`,
+    ...(newsLines.length ? ["", `📅 High-impact news before this expires:\n${newsLines.join("\n")}`] : []),
+    ...(news ? ["", `Headlines:\n${news}`] : []),
+    ...(record ? ["", `📈 Track record: ${record}`] : []),
+    "",
+    "I'll follow this one and message you when the entry fills, a target or the stop is hit, or it's time up.",
     "",
     "Confidence measures indicator agreement, not a win rate or guarantee.",
     "Risk 1–2% per trade, move SL to entry after TP1. Not financial advice; don't chase losses.",
   ].join("\n");
-  const result = { block: value, expiresAt, reply };
+  const plan2: SignalPlan = {
+    market: inst.code,
+    label: inst.label,
+    feeds: { binance: inst.binance, kraken: inst.kraken, yahoo: inst.yahoo },
+    style,
+    timeframe: entryLabel,
+    direction: plan.direction,
+    entry: plan.entry,
+    entryType: plan.entryNote.startsWith("Limit") ? "limit" : "market",
+    stop: plan.stop,
+    targets: [plan.targets[0], plan.targets[1], plan.targets[2]],
+    confidencePct: plan.confidencePct,
+    quality: plan.quality,
+    decimals: dp,
+    pip: inst.pip ?? null,
+    expiresAt,
+  };
+  const result = { block: value, expiresAt, reply, plan: plan2 };
   cache.set(key, { exp: Date.now() + (oneMinute ? 10_000 : 60_000), ...result });
   const oldest = cache.keys().next().value;
   if (cache.size > 200 && oldest) cache.delete(oldest);
