@@ -5,11 +5,6 @@ export const CARROM_URL = "https://carrom.ogbot.co.uk/";
 const CARROM_ORIGIN = "https://carrom.ogbot.co.uk";
 const WARM_KEY = "og:carrom-warm";
 
-/** Same tab, so it feels like part of OG BOT (and the back button works). */
-export function openCarrom() {
-  window.location.assign(CARROM_URL);
-}
-
 type NetInfo = { saveData?: boolean; effectiveType?: string };
 
 /** Skip the background warm-up on data saver or a very slow connection. */

@@ -52,3 +52,15 @@ export const getCarromAppLink = createServerFn({ method: "POST" })
         : `${CARROM_APP_LINK}?og=${encodeURIComponent(token)}`,
     };
   });
+
+/**
+ * For guests on the landing page: a 24-hour guest pass (in the #fragment) so
+ * that when they pick a carrom username, OG CARROM can make them an OG B0T
+ * account with the same name (see /api/public/carrom/register-guest).
+ */
+export const getCarromGuestLink = createServerFn({ method: "POST" }).handler(
+  async (): Promise<{ url: string }> => {
+    const { signCarromGuestPass } = await import("@/lib/carrom-link.server");
+    return { url: `${CARROM_URL}#og-guest=${await signCarromGuestPass()}` };
+  },
+);

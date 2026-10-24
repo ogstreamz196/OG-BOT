@@ -36,7 +36,6 @@ import { modeArt } from "@/assets/mode-art";
 import masterLogo from "@/assets/og-bot-master-logo.webp";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
-import { openCarrom, watchCarromCard } from "@/components/welcome/og-carrom";
 import { SHARE_IMAGE } from "@/lib/seo";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
@@ -55,6 +54,7 @@ import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import type { WizardDraft, WizardResult } from "@/components/library/CreateNowWizard";
 import { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
 import { useSignalsPortal } from "@/hooks/use-signals-portal";
+import { useCarromLink } from "@/hooks/use-carrom-link";
 
 // The song wizard is a pop-up: it loads once the page is idle (or on first
 // open), not before the landing page can paint.
@@ -1000,6 +1000,7 @@ function BattleModal() {
 
 function Hero() {
   const signalsPortal = useSignalsPortal();
+  const carrom = useCarromLink({ guest: true });
   return (
     <section className="relative mx-auto max-w-5xl px-3 pt-3 pb-8 sm:px-8 sm:pt-6 sm:pb-14">
       <MasterLogo />
@@ -1077,7 +1078,7 @@ function Hero() {
             />
           )}
           <ModeCard
-            onShown={watchCarromCard}
+            onShown={carrom.onShown}
             tone="gold"
             className="og-rise"
             style={{ animationDelay: signalsPortal.enabled ? "0.4s" : "0.3s" }}
@@ -1087,7 +1088,7 @@ function Hero() {
             title="OG Carrom"
             description="Strike. Pocket. Win. Online, vs the computer or with mates."
             cta="Play OG Carrom"
-            onClick={openCarrom}
+            onClick={() => void carrom.open()}
           />
         </div>
       </div>

@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AppReturnRouteImport } from './routes/app-return'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CarromConnectRouteImport } from './routes/carrom-connect'
+import { Route as CarromReturnRouteImport } from './routes/carrom-return'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as HomeRouteImport } from './routes/home'
@@ -82,6 +83,7 @@ import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
 import { Route as ApiPublicTradeSignalWatchRouteImport } from './routes/api/public/trade-signal-watch'
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
+import { Route as ApiPublicCarromRegisterGuestRouteImport } from './routes/api/public/carrom/register-guest'
 import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
@@ -112,6 +114,11 @@ const AuthRoute = AuthRouteImport.update({
 const CarromConnectRoute = CarromConnectRouteImport.update({
   id: '/carrom-connect',
   path: '/carrom-connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarromReturnRoute = CarromReturnRouteImport.update({
+  id: '/carrom-return',
+  path: '/carrom-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -480,6 +487,12 @@ const AuthenticatedAdminUsersUserIdRoute =
     path: '/$userId',
     getParentRoute: () => AuthenticatedAdminUsersRoute,
   } as any)
+const ApiPublicCarromRegisterGuestRoute =
+  ApiPublicCarromRegisterGuestRouteImport.update({
+    id: '/api/public/carrom/register-guest',
+    path: '/api/public/carrom/register-guest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCarromVerifyRoute = ApiPublicCarromVerifyRouteImport.update({
   id: '/api/public/carrom/verify',
   path: '/api/public/carrom/verify',
@@ -529,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
   '/carrom-connect': typeof CarromConnectRoute
+  '/carrom-return': typeof CarromReturnRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -596,6 +610,7 @@ export interface FileRoutesByFullPath {
   '/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/library/': typeof AuthenticatedLibraryIndexLazyRoute
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -609,6 +624,7 @@ export interface FileRoutesByTo {
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
   '/carrom-connect': typeof CarromConnectRoute
+  '/carrom-return': typeof CarromReturnRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -677,6 +693,7 @@ export interface FileRoutesByTo {
   '/buy-coins': typeof AuthenticatedBuyCoinsIndexRoute
   '/library': typeof AuthenticatedLibraryIndexLazyRoute
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -692,6 +709,7 @@ export interface FileRoutesById {
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
   '/carrom-connect': typeof CarromConnectRoute
+  '/carrom-return': typeof CarromReturnRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -760,6 +778,7 @@ export interface FileRoutesById {
   '/_authenticated/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/_authenticated/library/': typeof AuthenticatedLibraryIndexLazyRoute
   '/_authenticated/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -776,6 +795,7 @@ export interface FileRouteTypes {
     | '/app-return'
     | '/auth'
     | '/carrom-connect'
+    | '/carrom-return'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -843,6 +863,7 @@ export interface FileRouteTypes {
     | '/buy-coins/'
     | '/library/'
     | '/admin/users/$userId'
+    | '/api/public/carrom/register-guest'
     | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
@@ -856,6 +877,7 @@ export interface FileRouteTypes {
     | '/app-return'
     | '/auth'
     | '/carrom-connect'
+    | '/carrom-return'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -924,6 +946,7 @@ export interface FileRouteTypes {
     | '/buy-coins'
     | '/library'
     | '/admin/users/$userId'
+    | '/api/public/carrom/register-guest'
     | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
@@ -938,6 +961,7 @@ export interface FileRouteTypes {
     | '/app-return'
     | '/auth'
     | '/carrom-connect'
+    | '/carrom-return'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -1006,6 +1030,7 @@ export interface FileRouteTypes {
     | '/_authenticated/buy-coins/'
     | '/_authenticated/library/'
     | '/_authenticated/admin/users/$userId'
+    | '/api/public/carrom/register-guest'
     | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
@@ -1021,6 +1046,7 @@ export interface RootRouteChildren {
   AppReturnRoute: typeof AppReturnRoute
   AuthRoute: typeof AuthRoute
   CarromConnectRoute: typeof CarromConnectRoute
+  CarromReturnRoute: typeof CarromReturnRoute
   DashboardRoute: typeof DashboardRoute
   DeleteAccountRoute: typeof DeleteAccountRoute
   HomeRoute: typeof HomeRoute
@@ -1052,6 +1078,7 @@ export interface RootRouteChildren {
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
   ApiPublicTradeSignalWatchRoute: typeof ApiPublicTradeSignalWatchRoute
+  ApiPublicCarromRegisterGuestRoute: typeof ApiPublicCarromRegisterGuestRoute
   ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
@@ -1090,6 +1117,13 @@ declare module '@tanstack/react-router' {
       path: '/carrom-connect'
       fullPath: '/carrom-connect'
       preLoaderRoute: typeof CarromConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carrom-return': {
+      id: '/carrom-return'
+      path: '/carrom-return'
+      fullPath: '/carrom-return'
+      preLoaderRoute: typeof CarromReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1568,6 +1602,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersUserIdRouteImport
       parentRoute: typeof AuthenticatedAdminUsersRoute
     }
+    '/api/public/carrom/register-guest': {
+      id: '/api/public/carrom/register-guest'
+      path: '/api/public/carrom/register-guest'
+      fullPath: '/api/public/carrom/register-guest'
+      preLoaderRoute: typeof ApiPublicCarromRegisterGuestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/carrom/verify': {
       id: '/api/public/carrom/verify'
       path: '/api/public/carrom/verify'
@@ -1727,6 +1768,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppReturnRoute: AppReturnRoute,
   AuthRoute: AuthRoute,
   CarromConnectRoute: CarromConnectRoute,
+  CarromReturnRoute: CarromReturnRoute,
   DashboardRoute: DashboardRoute,
   DeleteAccountRoute: DeleteAccountRoute,
   HomeRoute: HomeRoute,
@@ -1759,6 +1801,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
   ApiPublicTradeSignalWatchRoute: ApiPublicTradeSignalWatchRoute,
+  ApiPublicCarromRegisterGuestRoute: ApiPublicCarromRegisterGuestRoute,
   ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
