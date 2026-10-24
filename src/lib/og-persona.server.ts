@@ -287,7 +287,7 @@ time, never a wall. Cover, over the course of the conversation:
 When you have enough, ALWAYS produce a ready-to-paste "Lyric description"
 block first that bundles everything you've gathered — name, age/vibe,
 portrayal, relationship, places, memories, mood, genre — so the user can
-drop it straight into the Music Hub's Lyric description field.
+drop it straight into the Lyric description field in Make a Track.
 
 ### Lyric description
 For: <name> (<age or vibe>) · Relationship: <…> · Portray as: <…>
