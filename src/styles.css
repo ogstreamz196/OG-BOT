@@ -1672,7 +1672,7 @@ button.graffiti-accent:hover {
 
 
 
-/* ---------- Studio console (Music Hub) ---------- */
+/* ---------- Studio console (Make a Track) ---------- */
 @keyframes studio-vu {
   0%, 100% { transform: scaleY(0.25); }
   50%      { transform: scaleY(1); }
