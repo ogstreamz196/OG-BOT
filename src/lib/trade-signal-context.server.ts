@@ -17,7 +17,7 @@ import {
   type Style,
 } from "./trade-signal";
 
-type Interval = "15m" | "1h" | "1d";
+type Interval = "1m" | "15m" | "1h" | "1d";
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; OGBot/1.0)" };
 const TIMEOUT_MS = 3500;
@@ -56,7 +56,7 @@ async function fromBinance(symbol: string, interval: Interval, limit: number): P
 }
 
 async function fromKraken(pair: string, interval: Interval): Promise<Candle[]> {
-  const mins = interval === "15m" ? 15 : interval === "1h" ? 60 : 1440;
+  const mins = interval === "1m" ? 1 : interval === "15m" ? 15 : interval === "1h" ? 60 : 1440;
   const json = (await getJson(
     `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=${mins}`,
   )) as { error?: string[]; result?: Record<string, unknown> };
@@ -75,7 +75,7 @@ async function fromKraken(pair: string, interval: Interval): Promise<Candle[]> {
 }
 
 async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> {
-  const range = interval === "15m" ? "5d" : interval === "1h" ? "60d" : "1y";
+  const range = interval === "1m" ? "1d" : interval === "15m" ? "5d" : interval === "1h" ? "60d" : "1y";
   const json = (await getJson(
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`,
   )) as {
@@ -103,7 +103,7 @@ async function fromYahoo(symbol: string, interval: Interval): Promise<Candle[]> 
 }
 
 // Warm caches shared by every request on this server instance.
-const CANDLE_TTL: Record<Interval, number> = { "1d": 10 * 60_000, "1h": 60_000, "15m": 30_000 };
+const CANDLE_TTL: Record<Interval, number> = { "1d": 10 * 60_000, "1h": 60_000, "15m": 30_000, "1m": 10_000 };
 const candleCache = new Map<string, { exp: number; value: { data: Candle[]; source: string } }>();
 const inflight = new Map<string, Promise<{ data: Candle[]; source: string }>>();
 /** Sources that refused us (e.g. a region block) are skipped for a while. */
@@ -270,17 +270,20 @@ export async function buildTradeSignal(
   const inst = detectTradeIntent(userText);
   if (!inst) return { block: "", expiresAt: null, reply: "" };
   const style: Style = detectStyle(userText);
-  const key = `${inst.code}:${style}`;
+  const oneMinute = /\b(?:1\s?m|m1)\b/i.test(userText);
+  const entryIv: Interval = oneMinute ? "1m" : style === "scalp" ? "15m" : "1h";
+  const entryLabel = oneMinute ? "1M" : style === "scalp" ? "15M" : style === "swing" ? "4H" : "1H";
+  const key = `${inst.code}:${style}:${entryIv}`;
   const hit = cache.get(key);
   if (hit && hit.exp > Date.now()) return { block: hit.block, expiresAt: hit.expiresAt, reply: hit.reply };
 
-  const entryIv: Interval = style === "scalp" ? "15m" : "1h";
-  const [daily, hourly, fifteen, news] = await Promise.all([
+  const [daily, hourly, fifteen, minute, news] = await Promise.all([
     candles(inst, "1d"),
     candles(inst, "1h"),
     style === "scalp"
       ? candles(inst, "15m")
       : Promise.resolve({ data: [] as Candle[], source: "" }),
+    oneMinute ? candles(inst, "1m") : Promise.resolve({ data: [] as Candle[], source: "" }),
     marketNews(inst),
   ]);
 
@@ -296,6 +299,10 @@ export async function buildTradeSignal(
     ];
     entryCandles = h4;
     middleCandles = daily.data;
+  } else if (oneMinute) {
+    frames = [readFrame("1H", hourly.data), readFrame("15M", fifteen.data), readFrame("1M", minute.data)];
+    entryCandles = minute.data;
+    middleCandles = fifteen.data;
   } else if (style === "scalp") {
     frames = [readFrame("4H", h4), readFrame("1H", hourly.data), readFrame("15M", fifteen.data)];
     entryCandles = fifteen.data;
@@ -343,10 +350,10 @@ export async function buildTradeSignal(
     .toISOString()
     .slice(0, 16)
     .replace("T", " ");
-  const source = [hourly.source || daily.source, inst.sourceNote].filter(Boolean).join("; ");
+  const source = [oneMinute ? minute.source : style === "scalp" ? fifteen.source : hourly.source || daily.source, inst.sourceNote].filter(Boolean).join("; ");
 
   const lines = [
-    `LIVE MARKET DATA — ${inst.label} (${style} view, entry timeframe ${entryIv === "15m" ? "15M" : style === "swing" ? "4H" : "1H"}; source: ${source}; last candle ${asOf} UTC)`,
+    `LIVE MARKET DATA — ${inst.label} (${style} view, entry timeframe ${entryLabel}; source: ${source}; last candle ${asOf} UTC)`,
     `Price now: ${fmt(price)}${Number.isFinite(change) ? ` (${change >= 0 ? "+" : ""}${change.toFixed(2)}% vs yesterday's close)` : ""}${lastDay ? `, today's range ${fmt(lastDay.l)} – ${fmt(lastDay.h)}` : ""}`,
     frameLine(hi, fmt),
     frameLine(mid, fmt),
@@ -389,6 +396,7 @@ export async function buildTradeSignal(
   // Telegram gets the engine's actual card, not model-authored levels or a refusal.
   const reply = [
     `📊 ${inst.label} — ${plan.direction}`,
+    `Timeframe: ${entryLabel}`,
     `Confidence: ${plan.confidencePct}% (${plan.confidence})`,
     `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
     `SL: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
@@ -406,7 +414,7 @@ export async function buildTradeSignal(
     "Risk 1–2% per trade, move SL to entry after TP1. Not financial advice; don't chase losses.",
   ].join("\n");
   const result = { block: value, expiresAt, reply };
-  cache.set(key, { exp: Date.now() + 60_000, ...result });
+  cache.set(key, { exp: Date.now() + (oneMinute ? 10_000 : 60_000), ...result });
   const oldest = cache.keys().next().value;
   if (cache.size > 200 && oldest) cache.delete(oldest);
   return result;

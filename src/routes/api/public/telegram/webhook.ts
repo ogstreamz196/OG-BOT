@@ -5,6 +5,7 @@ import { buildSystemPrompt, detectSongIntent } from "@/lib/og-persona.server";
 import { pickCatchphrases, catchphraseNote, toneFor } from "@/lib/og-catchphrases.server";
 import type { UserContextSummary } from "@/lib/og-persona-public";
 import { SPORTS_GUIDE_CHAT_ID, detectSport, detectEventTime } from "@/lib/sports-guide-parse";
+import { SIGNALS_BUTTON, parseSignalAction, signalPairsKeyboard, signalFramesKeyboard, signalRequest } from "@/lib/telegram-signals";
 
 // Accepted tokens:
 //   - Rotated, single-use: "t_" + 32 lowercase hex chars (matched against
@@ -71,6 +72,39 @@ async function handleCallbackQuery(cq: {
   message?: { chat?: { id?: number }; message_id?: number; text?: string };
 }) {
   const answer = (text: string) => tg("answerCallbackQuery", { callback_query_id: cq.id, text });
+  if (cq.data?.startsWith("signals:")) {
+    const action = parseSignalAction(cq.data);
+    const chatId = cq.message?.chat?.id;
+    // Signals are private and retain the bot's existing linked-account access.
+    if (!action || !chatId || chatId <= 0 || cq.from?.id !== chatId) {
+      await answer("Open Signals in your private chat with OG Bot.");
+      return Response.json({ ok: true, ignored: true });
+    }
+    const admin = await loadAdmin();
+    const { data: profile } = await admin.from("profiles").select("id")
+      .eq("telegram_chat_id", chatId).maybeSingle();
+    if (!profile) {
+      await answer("Link your OG BOT account first.");
+      return Response.json({ ok: true, unlinked: true });
+    }
+    await answer(action.kind === "run" ? "Checking the live charts…" : "Choose your signal");
+    if (action.kind === "pairs") {
+      await reply(chatId, "📈 <b>Signals — choose a pair</b>", { reply_markup: signalPairsKeyboard() });
+    } else if (action.kind === "pair") {
+      await reply(chatId, `📈 <b>${action.pair} — choose a timeframe</b>`, {
+        reply_markup: signalFramesKeyboard(action.pair),
+      });
+    } else {
+      const { roles } = await isAdmin(admin, profile.id);
+      try {
+        await runChatAI(admin, profile.id, chatId, signalRequest(action.pair, action.timeframe), roles);
+      } catch (error) {
+        console.error("[telegram] button signal failed", error);
+        await reply(chatId, "I couldn't finish that live signal. Try the timeframe again.");
+      }
+    }
+    return Response.json({ ok: true, signals: action.kind });
+  }
   if (cq.data === "clearchat" && cq.message?.chat?.id && cq.message.message_id) {
     const chatId = cq.message.chat.id;
     await answer("Chat cleared 🧹");
@@ -192,12 +226,13 @@ const kb = (rows: string[][]) => ({
 });
 const BACK = "⬅️ Back";
 const MENU = "📂 Menu";
-const USER_KEYBOARD = kb([[MENU, "🧹 Clear chat"]]);
+const USER_KEYBOARD = kb([[MENU, SIGNALS_BUTTON, "🧹 Clear chat"]]);
 const BOSS_KEYBOARD = USER_KEYBOARD;
 const CATEGORY_KEYBOARD = (isBoss: boolean) =>
   kb([
     ["💷 Coins & Store", "🎧 Music & VIP"],
     ["🔐 Access", "❓ Help"],
+    [SIGNALS_BUTTON],
     ...(isBoss ? [["🛠 Boss tools"]] : []),
     [BACK],
   ]);
@@ -225,6 +260,7 @@ Tap a button below or use a command:
 /me — your linked profile
 /vip — your VIP status and expiry date
 /sports — open the Sports Guide
+/signals — XAU and BTC live signals
 /help — this menu
 
 Just type anything else and I'll answer — same brain as the in-app messenger.`;
@@ -907,6 +943,18 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         const updateId: number | undefined =
           typeof update?.update_id === "number" ? update.update_id : undefined;
         if (update?.callback_query) {
+          // Claim callbacks too: retries must not generate duplicate signals.
+          const callbackChat = update.callback_query.message?.chat?.id;
+          if (typeof updateId === "number" && typeof callbackChat === "number") {
+            const admin = await loadAdmin();
+            const { error } = await admin.from("telegram_processed_updates")
+              .insert({ update_id: updateId, chat_id: callbackChat, kind: "callback" });
+            if (error?.code === "23505") {
+              await tg("answerCallbackQuery", { callback_query_id: update.callback_query.id });
+              return Response.json({ ok: true, duplicate: true });
+            }
+            if (error) return Response.json({ ok: false }, { status: 503 });
+          }
           return await handleCallbackQuery(update.callback_query);
         }
         // ---- Sports Guide feed: mirror posts from the sports channel/group.
@@ -1026,6 +1074,10 @@ async function handleTelegramUpdate(
     if (buttonMap[trimmed]) trimmed = buttonMap[trimmed];
 
     // Categorised menu navigation
+    if (trimmed === SIGNALS_BUTTON || /^\/signals(?:@\w+)?$/i.test(trimmed)) {
+      await reply(chat_id, "📈 <b>Signals — choose a pair</b>", { reply_markup: signalPairsKeyboard() });
+      return Response.json({ ok: true, signals: "pairs" });
+    }
     if (trimmed === MENU || trimmed === "🔙 Categories") {
       await reply(chat_id, "📂 <b>Pick a category</b>", {
         reply_markup: CATEGORY_KEYBOARD(isBoss),
