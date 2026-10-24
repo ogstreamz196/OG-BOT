@@ -6,6 +6,8 @@ export type PublicSharedTrack = {
   title: string;
   lyrics: string | null;
   audioUrl: string;
+  /** Being remade after an edit: no audio yet, the page checks back. */
+  pending?: boolean;
 };
 
 export const getPublicSharedTrack = createServerFn({ method: "GET" })
@@ -16,12 +18,22 @@ export const getPublicSharedTrack = createServerFn({ method: "GET" })
       .from("songs")
       .select("id,title,lyrics,audio_path,status,is_public,revealed")
       .eq("id", data.songId)
-      .eq("status", "completed")
       .eq("is_public", true)
       .neq("revealed", false)
       .maybeSingle();
 
-    if (error || !song?.audio_path) return null;
+    if (error || !song) return null;
+    // An edit re-makes the track in place: the link works again in a minute or two.
+    if (song.status === "pending" || song.status === "processing") {
+      return {
+        id: song.id,
+        title: song.title || "OG B0T track",
+        lyrics: null,
+        audioUrl: "",
+        pending: true,
+      };
+    }
+    if (song.status !== "completed" || !song.audio_path) return null;
 
     const { data: signed, error: signError } = await supabaseAdmin.storage
       .from("song-files")
@@ -59,9 +71,10 @@ export const listPublicCommunityTracks = createServerFn({ method: "GET" }).handl
       .limit(30);
     const rows = (songs ?? []).filter((s) => s.audio_path);
     if (rows.length === 0) return [];
-    const { data: signed } = await supabaseAdmin.storage
-      .from("song-files")
-      .createSignedUrls(rows.map((r) => r.audio_path as string), 60 * 60);
+    const { data: signed } = await supabaseAdmin.storage.from("song-files").createSignedUrls(
+      rows.map((r) => r.audio_path as string),
+      60 * 60,
+    );
     const urlBy = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
     return rows
       .map((r) => ({

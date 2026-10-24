@@ -213,6 +213,8 @@ export async function materialiseClips(
           portal_id: parentSong.portal_id ?? null,
           is_variation: true,
           revealed: false,
+          // Same visibility as the track it came from, so its share link works.
+          is_public: parentSong.is_public ?? true,
         })
         .select("id")
         .single();
@@ -324,9 +326,8 @@ async function materialiseNasheed(
     skipped: 0,
     pending: true,
   };
-  const { checkVocalSeparation, startVocalSeparation, markSeparating } = await import(
-    "./nasheed-stems.server"
-  );
+  const { checkVocalSeparation, startVocalSeparation, markSeparating } =
+    await import("./nasheed-stems.server");
   let current = song;
   if (current.stem_task_id) {
     const chk = await checkVocalSeparation(current);

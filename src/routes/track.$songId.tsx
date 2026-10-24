@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { Headphones, Home, Pause, Play, Volume2 } from "lucide-react";
 import { ogBotLogo } from "@/assets/ogbot-logo";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,13 @@ export const Route = createFileRoute("/track/$songId")({
 function SharedTrackPage() {
   const track = Route.useLoaderData();
   const lyrics = track?.lyrics?.trim();
+  const router = useRouter();
+  // Being remixed: look again every 20 seconds until it's ready.
+  useEffect(() => {
+    if (!track?.pending) return;
+    const t = setTimeout(() => void router.invalidate(), 20_000);
+    return () => clearTimeout(t);
+  }, [track, router]);
 
   return (
     <main className="min-h-dvh bg-background px-4 py-10 text-foreground sm:py-14">
@@ -69,7 +76,17 @@ function SharedTrackPage() {
           className="mx-auto aspect-square w-52 rounded-2xl object-cover shadow-glow sm:w-64"
         />
 
-        {track ? (
+        {track?.pending ? (
+          <>
+            <h1 className="mt-8 text-balance font-display text-3xl text-foreground sm:text-4xl">
+              {track.title}
+            </h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              This track is being remixed right now. It'll play here in a minute or two; this page
+              checks by itself.
+            </p>
+          </>
+        ) : track ? (
           <>
             <h1 className="mt-8 text-balance font-display text-3xl text-foreground sm:text-4xl">
               {track.title}

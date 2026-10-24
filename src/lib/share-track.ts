@@ -18,6 +18,28 @@ async function fetchLogoFile(): Promise<File | null> {
 }
 
 /**
+ * Share links only open public tracks, so sharing your own private track
+ * (or a second take, which starts private on older tracks) makes it public.
+ * Only the owner's update goes through (row security); for anyone else's
+ * track this changes nothing. Resolves to true when it was made public.
+ */
+async function makeShareable(songId: string): Promise<boolean> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase
+      .from("songs")
+      .update({ is_public: true } as never)
+      .eq("id", songId)
+      .eq("is_public", false)
+      .eq("status", "completed")
+      .select("id");
+    return !!data?.length;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Open the device share sheet for a finished track.
  *
  * Preference order:
@@ -39,6 +61,13 @@ export async function shareTrack({
   url?: string;
 }): Promise<void> {
   const text = `🎧 “${title}” — made with OG B0T\nListen here: ${url}`;
+  // Runs alongside the share sheet (the sheet must open straight after the
+  // tap); it's done long before anyone opens the link.
+  if (songId) {
+    void makeShareable(songId).then((changed) => {
+      if (changed) toast("Your track is now public, so the link works for everyone");
+    });
+  }
   const nav = typeof navigator !== "undefined" ? navigator : undefined;
   const logoFile = await fetchLogoFile();
 
