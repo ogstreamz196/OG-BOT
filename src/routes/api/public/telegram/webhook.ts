@@ -441,6 +441,45 @@ async function setKeys(
   return sent;
 }
 
+/**
+ * A new signal wipes out the last: earlier signal cards and their updates
+ * ("signal" rows, plus cards recorded in trade_signals) are deleted, and the
+ * earlier trades stop messaging this chat. They're still followed quietly,
+ * so their results keep counting towards the track record.
+ */
+async function replaceOldSignals(chat_id: number, keep: number[]) {
+  try {
+    const admin = await loadAdmin();
+    const ids = new Set<number>();
+    const rows = await screenRows(chat_id);
+    for (const r of rows) if (r.kind === "signal") ids.add(Number(r.message_id));
+    const { data: cards } = await admin
+      .from("trade_signals" as never)
+      .select("message_id")
+      .eq("chat_id" as never, chat_id)
+      .gte("created_at" as never, new Date(Date.now() - 48 * 3_600_000).toISOString())
+      .limit(100);
+    for (const c of (cards ?? []) as { message_id: number | null }[]) {
+      if (c.message_id) ids.add(Number(c.message_id));
+    }
+    for (const id of keep) ids.delete(id);
+    // Telegram deletes up to 100 at a time; anything older has expired anyway.
+    await dropMessages(chat_id, [...ids].slice(-100));
+    await admin
+      .from("trade_signals" as never)
+      .update({ chat_id: null } as never)
+      .eq("chat_id" as never, chat_id);
+    // The new card is a signal row, so the next signal can wipe it.
+    for (const message_id of keep) {
+      await admin.from(SCREENS).upsert({ chat_id, message_id, kind: "signal" } as never, {
+        onConflict: "chat_id,message_id",
+      });
+    }
+  } catch (e) {
+    console.warn("[telegram] replace old signals failed", e);
+  }
+}
+
 /** Forgets everything remembered for a chat (after clearing it). */
 async function forgetScreens(chat_id: number) {
   try {
@@ -995,17 +1034,21 @@ async function runChatAI(
       await scheduleDelete(chat_id, held, ttl);
       const chunks = signal.reply.match(/[\s\S]{1,3800}/g) ?? [signal.reply];
       let firstMessageId: number | null = null;
+      const cardIds: number[] = [];
       for (const text of chunks) {
         const sent = await tg("sendMessage", { chat_id, text, disable_web_page_preview: true });
         if (!sent) throw new Error("Signal delivery failed");
         // "No trade right now" cards aren't followed, so the next screen clears them.
         if (!signal.plan) await rememberScreen(chat_id, sent);
-        firstMessageId ??=
-          (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
+        const id = (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
+        firstMessageId ??= id;
+        if (id) cardIds.push(id);
         await scheduleDelete(chat_id, sent, ttl);
       }
       // Follow it: fills, targets, stops and time-up get a reply under the card.
       if (signal.plan) {
+        // A new signal wipes out the last one (see replaceOldSignals).
+        await replaceOldSignals(chat_id, cardIds);
         const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
         await recordSignal({
           userId: profileId,
