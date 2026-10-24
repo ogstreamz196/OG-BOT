@@ -254,6 +254,8 @@ export async function materialiseClips(
           portal_id: parentSong.portal_id ?? null,
           is_variation: true,
           revealed: false,
+          // Same visibility as the track it came from, so its share link works.
+          is_public: parentSong.is_public ?? true,
           foul_mouth: parentSong.foul_mouth ?? false,
           foul_intensity: parentSong.foul_intensity ?? 0,
         })
