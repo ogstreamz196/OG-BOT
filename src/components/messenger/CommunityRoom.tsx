@@ -631,7 +631,7 @@ export function CommunityRoom() {
                       <ArenaMessage
                         kind={isBot ? "bot" : "user"}
                         mine={mine}
-                        name={isBot ? "0G B0T" : m.display_name || "OG member"}
+                        name={isBot ? "OG B0T" : m.display_name || "OG member"}
                         time={formatTime(m.created_at)}
                         content={m.content}
                         vip={!isBot && !!m.vip}
@@ -692,7 +692,7 @@ export function CommunityRoom() {
       </div>
 
       {send.isPending ? (
-        <ArenaTyping label="0G B0T is cooking a comeback…" />
+        <ArenaTyping label="OG B0T is cooking a comeback…" />
       ) : activeTypers.length > 0 ? (
         <ArenaTyping
           label={

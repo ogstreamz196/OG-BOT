@@ -47,7 +47,7 @@ export const BOSS_AREAS = [
   },
   {
     to: "/admin/bot",
-    label: "0G B0T",
+    label: "OG B0T",
     desc: "Persona, Telegram, alerts and live users",
     icon: Bot,
     group: "bot",

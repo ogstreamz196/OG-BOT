@@ -5,17 +5,17 @@ export const Route = createFileRoute("/policy")({
   component: PolicyPage,
   head: () => ({
     meta: [
-      { title: "Privacy Policy | 0G B0T — AI Songs & Diss Tracks" },
+      { title: "Privacy Policy | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
-          "Privacy policy for the 0G B0T app and ogbot.co.uk — what data we collect, why, who we share it with, and how to request deletion. Operated by OG Studio.",
+          "Privacy policy for the OG B0T app and ogbot.co.uk — what data we collect, why, who we share it with, and how to request deletion. Operated by OG Studio.",
       },
-      { property: "og:title", content: "Privacy Policy | 0G B0T — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Privacy Policy | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:
-          "How 0G B0T collects, uses, stores, and protects your data. Operated by OG Studio.",
+          "How OG B0T collects, uses, stores, and protects your data. Operated by OG Studio.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -61,7 +61,7 @@ function PolicyPage() {
           </h1>
           <p className="max-w-3xl text-lg leading-relaxed text-muted-foreground">
             This policy explains how OG Studio (&quot;we&quot;, &quot;us&quot;) handles information
-            in the 0G B0T app and on{" "}
+            in the OG B0T app and on{" "}
             <a
               href="https://ogbot.co.uk"
               className="font-semibold text-primary underline-offset-4 hover:underline"
@@ -76,7 +76,7 @@ function PolicyPage() {
         <div className="landing-grid">
           <Section icon={UserCheck} title="1. Who we are &amp; how to contact us">
             <p>
-              0G B0T is operated by the OG Studio team. For any privacy question, request, or
+              OG B0T is operated by the OG Studio team. For any privacy question, request, or
               complaint, contact us at{" "}
               <a
                 href="mailto:ogbot196@gmail.com"
@@ -113,12 +113,12 @@ function PolicyPage() {
               IDs, full device fingerprints, browsing history, or page-by-page activity.
             </p>
             <p>
-              <strong className="text-foreground">Messages:</strong> chats you send to the 0G B0T
+              <strong className="text-foreground">Messages:</strong> chats you send to the OG B0T
               assistant and Battle Zone, and messages you send through the Telegram bot if you
               connect it.
             </p>
             <p>
-              <strong className="text-foreground">0G B0T&apos;s memory:</strong> short notes 0G B0T
+              <strong className="text-foreground">OG B0T&apos;s memory:</strong> short notes OG B0T
               keeps from your private chats so it remembers you (for example the team you support
               or your rap name). It never keeps health, religion, sexuality, political views,
               addresses, contact details or payment details. You can see, delete or switch off
@@ -202,7 +202,7 @@ function PolicyPage() {
 
           <Section icon={Database} title="6. Children &amp; content ratings">
             <p>
-              0G B0T is not directed at children under 13. The app supports a parental-guidance
+              OG B0T is not directed at children under 13. The app supports a parental-guidance
               (&quot;PG&quot;) mode that produces clean lyrics, and an 18+ mode for explicit content
               that is restricted by in-app settings. Accounts used by children should remain in PG
               mode.

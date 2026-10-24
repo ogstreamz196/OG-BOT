@@ -12,7 +12,7 @@ export const Route = createFileRoute("/tg")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Opening 0G B0T | 0G B0T — AI Songs & Diss Tracks" },
+      { title: "Opening OG B0T | OG B0T — AI Songs & Diss Tracks" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -72,7 +72,7 @@ function TelegramSignIn() {
         </div>
       ) : (
         <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Opening 0G B0T…
+          <Loader2 className="h-4 w-4 animate-spin" /> Opening OG B0T…
         </div>
       )}
     </main>

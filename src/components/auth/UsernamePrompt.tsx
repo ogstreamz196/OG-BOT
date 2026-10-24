@@ -87,7 +87,7 @@ export function UsernamePrompt() {
             <AtSign className="h-5 w-5 text-primary" /> Pick your username
           </DialogTitle>
           <DialogDescription>
-            This is your name across 0G B0T. Letters and numbers only, at least 5 characters, with
+            This is your name across OG B0T. Letters and numbers only, at least 5 characters, with
             at least one number.
           </DialogDescription>
         </DialogHeader>

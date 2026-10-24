@@ -65,7 +65,7 @@ function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <img
       src={ogBotLogo.small}
-      alt="0G B0T"
+      alt="OG B0T"
       width={512}
       height={512}
       decoding="async"
@@ -81,28 +81,28 @@ export const Route = createFileRoute("/welcome")({
   component: WelcomePage,
   head: () => ({
     meta: [
-      { title: "0G B0T | AI Music Creation, Rap Battles & Entertainment" },
+      { title: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
       {
         name: "description",
         content:
-          "Enter 0G B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
+          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
-      { property: "og:title", content: "0G B0T | AI Music Creation, Rap Battles & Entertainment" },
+      { property: "og:title", content: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
       {
         property: "og:description",
         content:
-          "Enter 0G B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
+          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
       { property: "og:image", content: SHARE_IMAGE },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
-      { property: "og:image:alt", content: "0G B0T Battle Zone badge" },
+      { property: "og:image:alt", content: "OG B0T Battle Zone badge" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "0G B0T | AI Music Creation, Rap Battles & Entertainment" },
+      { name: "twitter:title", content: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
       {
         name: "twitter:description",
         content:
-          "Enter 0G B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
+          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
       { name: "twitter:image", content: SHARE_IMAGE },
     ],
@@ -826,7 +826,7 @@ function AuthModal() {
               <p className="font-display text-xl font-black">Don't stop now 🔥</p>
               <p className="mt-1 text-sm">Join free to keep battling — your chat comes with you.</p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
-                <li>🔒 Unlock Private chat — just you &amp; 0G B0T, nobody else sees a word</li>
+                <li>🔒 Unlock Private chat — just you &amp; OG B0T, nobody else sees a word</li>
                 <li>🪙 Earn OG Coins for every roast you land</li>
                 <li>👑 15 days of VIP on us</li>
               </ul>
@@ -910,7 +910,7 @@ function TopNav() {
             <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-xs">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
-              <span>0G B0T</span>
+              <span>OG B0T</span>
             </p>
           </div>
         </Link>
@@ -935,7 +935,7 @@ function MasterLogo() {
       />
       <DodgyLogo
         src={masterLogo}
-        alt="0G B0T logo: the red TV-headed mascot in sunglasses with blue flames"
+        alt="OG B0T logo: the red TV-headed mascot in sunglasses with blue flames"
         size={512}
         aspectRatio="1607 / 1275"
         glow={false}
@@ -986,7 +986,7 @@ function BattleModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none">
-        <DialogTitle className="sr-only">Battle Zone — roast 0G B0T</DialogTitle>
+        <DialogTitle className="sr-only">Battle Zone — roast OG B0T</DialogTitle>
         <GuestBattle
           onNeedAccount={() => {
             setOpen(false);
@@ -1016,7 +1016,7 @@ function Hero() {
         </h1>
 
         <p className="mx-auto mt-3 max-w-xl text-sm font-medium text-foreground/85 sm:mt-4 sm:text-lg md:max-w-2xl">
-          Step into the world of 0G B0T. Enter the battle, create your sound and unleash your
+          Step into the world of OG B0T. Enter the battle, create your sound and unleash your
           creativity. Your ideas. Your rules. No limits.
         </p>
       </div>
@@ -1030,11 +1030,11 @@ function Hero() {
             tone="crimson"
             className="og-rise"
             image={modeArt.battleZone}
-            imageAlt="0G B0T Battle Zone badge"
+            imageAlt="OG B0T Battle Zone badge"
             eyebrow="Live now"
             live
             title="Battle Zone"
-            description="Roast 0G B0T. Bank coins for every hit."
+            description="Roast OG B0T. Bank coins for every hit."
             cta="Enter Battle Zone"
             onClick={openBattle}
           />
@@ -1043,7 +1043,7 @@ function Hero() {
             className="og-rise"
             style={{ animationDelay: "0.1s" }}
             image={modeArt.createTrack}
-            imageAlt="0G B0T Create a Track badge"
+            imageAlt="OG B0T Create a Track badge"
             eyebrow="AI studio"
             title="Music Hub"
             description="Your idea. Real vocals. Cover art. Done."
@@ -1055,7 +1055,7 @@ function Hero() {
             className="og-rise"
             style={{ animationDelay: "0.2s" }}
             image={modeArt.sportsGuide}
-            imageAlt="0G B0T Sports Guide badge"
+            imageAlt="OG B0T Sports Guide badge"
             eyebrow="Members only"
             title="Sports Guide"
             description="Daily fixtures, fight cards and TV listings."

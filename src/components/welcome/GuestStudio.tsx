@@ -286,7 +286,7 @@ export function GuestStudio({ onSave }: { onSave: (title: string) => void }) {
               <DialogDescription className="text-sm text-foreground/85">
                 {failed ? (
                   <>
-                    0G B0T is retrying <span className="font-bold text-foreground">{title}</span>{" "}
+                    OG B0T is retrying <span className="font-bold text-foreground">{title}</span>{" "}
                     automatically. Keep this page handy and check back in a few minutes.
                   </>
                 ) : (
@@ -522,7 +522,7 @@ function SaveToLibraryCard({ onSave }: { onSave: () => void }) {
         <Save className="h-4 w-4" /> Want to keep this track forever?
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Save it to your permanent 0G B0T library so you never lose it across devices.
+        Save it to your permanent OG B0T library so you never lose it across devices.
       </p>
       <button
         type="button"

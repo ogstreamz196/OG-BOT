@@ -82,7 +82,7 @@ export function MessengerWelcomeDialog({
         <DialogHeader className="items-center !text-center">
           <img
             src={ogBotLogo.large}
-            alt="0G B0T"
+            alt="OG B0T"
             className="mb-0.5 h-11 w-11 rounded-full object-cover ring-2 ring-primary/50 ring-offset-2 ring-offset-card sm:h-14 sm:w-14"
           />
           <DialogTitle className="max-w-[calc(100%-2.5rem)] text-balance text-base font-black leading-tight sm:max-w-none sm:text-2xl">
@@ -113,7 +113,7 @@ export function MessengerWelcomeDialog({
             <span className="min-w-0">
               <span className="block text-xs font-black uppercase sm:text-base">Private chat</span>
               <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
-                Just you &amp; 0G B0T. Nobody else sees a word.
+                Just you &amp; OG B0T. Nobody else sees a word.
               </span>
             </span>
           </button>
@@ -139,7 +139,7 @@ export function MessengerWelcomeDialog({
                 OG Battle Zone
               </span>
               <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
-                Everyone vs 0G B0T — see if you can win a roast battle.
+                Everyone vs OG B0T — see if you can win a roast battle.
               </span>
             </span>
           </button>

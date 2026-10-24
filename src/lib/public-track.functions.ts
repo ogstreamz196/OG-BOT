@@ -30,7 +30,7 @@ export const getPublicSharedTrack = createServerFn({ method: "GET" })
 
     return {
       id: song.id,
-      title: song.title || "0G B0T track",
+      title: song.title || "OG B0T track",
       lyrics: song.lyrics,
       audioUrl: signed.signedUrl,
     };
@@ -66,7 +66,7 @@ export const listPublicCommunityTracks = createServerFn({ method: "GET" }).handl
     return rows
       .map((r) => ({
         id: r.id,
-        title: r.title || "0G B0T track",
+        title: r.title || "OG B0T track",
         style: r.style,
         coverUrl: r.cover_url,
         audioUrl: urlBy.get(r.audio_path as string) ?? "",

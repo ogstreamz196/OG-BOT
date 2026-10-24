@@ -56,7 +56,7 @@ export const Route = createFileRoute("/api/public/new-user-alert")({
 
         const name = (claimed as { display_name?: string | null }).display_name || "New member";
         const text =
-          `<b>🎉 New 0G B0T user</b>\n` +
+          `<b>🎉 New OG B0T user</b>\n` +
           `Name: <b>${esc(name)}</b>\n` +
           `Joined: ${new Date().toUTCString()}` +
           (count ? `\nTotal members: <b>${count}</b>` : "");

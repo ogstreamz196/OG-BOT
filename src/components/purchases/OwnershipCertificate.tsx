@@ -70,7 +70,7 @@ export function OwnershipCertificate({ row, onClose }: { row: PurchaseRow; onClo
 
             <header className="relative text-center">
               <p className="text-[0.7rem] font-black uppercase tracking-[0.4em] text-coin">
-                OGSTREAMZ · 0G B0T
+                OGSTREAMZ · OG B0T
               </p>
               <h2 className="font-display mt-3 text-2xl font-black uppercase leading-tight tracking-[0.04em] text-foreground sm:text-3xl">
                 Certificate of Ownership
@@ -125,7 +125,7 @@ export function OwnershipCertificate({ row, onClose }: { row: PurchaseRow; onClo
             <footer className="relative mt-7 flex items-end justify-between gap-4">
               <div className="min-w-0 text-[0.7rem] leading-relaxed text-muted-foreground">
                 <p>
-                  OG Coins are a non-transferable licence for use inside 0G B0T. Coins already used
+                  OG Coins are a non-transferable licence for use inside OG B0T. Coins already used
                   cannot be refunded.
                 </p>
                 <p className="mt-1">

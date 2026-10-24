@@ -9,7 +9,7 @@ export function buildVaultReceiverPrompt(origin: string) {
 - "Test Connection" button -> backend calls:
   GET ${base}/ping
   Header: Authorization: Bearer <KEY>
-  - 200 { ok: true, key_name, active_credentials } -> show "Connected to 0G B0T Vault (N active logins)"
+  - 200 { ok: true, key_name, active_credentials } -> show "Connected to OG B0T Vault (N active logins)"
   - 401 -> "Invalid or revoked API key"
 - Status badge (Not configured / Connected / Error), last successful sync time, last error.
 - "Sync now" button and a read-only list of synced logins (username, active, note).
@@ -26,5 +26,5 @@ export function buildVaultReceiverPrompt(origin: string) {
   POST ${base}/verify  (Authorization: Bearer <KEY>, JSON { "username": "...", "pin": "..." })
   Response: { ok: true, valid: true|false }
 
-4. Don't break any existing logic. Add a help note: "Copy the key from 0G B0T → Boss Controls → API & Integrations → OG Vault API, paste it here, then press Test Connection."`;
+4. Don't break any existing logic. Add a help note: "Copy the key from OG B0T → Boss Controls → API & Integrations → OG Vault API, paste it here, then press Test Connection."`;
 }

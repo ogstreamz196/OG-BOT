@@ -94,7 +94,7 @@ export const listCardTransactions = createServerFn({ method: "POST" })
     }
   });
 
-const PURCHASE_REVIEW_FOLDER = "1aaNQ3B5cglti1x1kAGGk9y6FtMQ5FHT0"; // 0G B0T / PURCHASE REVIEW
+const PURCHASE_REVIEW_FOLDER = "1aaNQ3B5cglti1x1kAGGk9y6FtMQ5FHT0"; // OG B0T / PURCHASE REVIEW
 const DRIVE = "https://connector-gateway.lovable.dev/google_drive";
 
 /** Saves the accountant CSV into PURCHASE REVIEW/<period folder> on the boss's Drive. */

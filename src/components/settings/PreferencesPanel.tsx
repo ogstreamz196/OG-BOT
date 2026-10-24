@@ -88,14 +88,14 @@ export function PreferencesPanel() {
     <SettingsCard
       icon={<SlidersHorizontal className="h-5 w-5" />}
       title="App preferences"
-      hint="How 0G B0T talks and how the app looks. Changes save as soon as you tap them."
+      hint="How OG B0T talks and how the app looks. Changes save as soon as you tap them."
       tone="orange"
     >
       <SettingRow
-        label="0G B0T Foul Mouth"
+        label="OG B0T Foul Mouth"
         hint={
           isVip ? (
-            "Let 0G B0T swear and go fully savage in replies."
+            "Let OG B0T swear and go fully savage in replies."
           ) : (
             <>
               VIP only.{" "}

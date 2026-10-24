@@ -80,7 +80,7 @@ export function useSetFoulMouth() {
       toast.success(next ? "🤬 Foul Mouth: ON" : "🧼 Foul Mouth: OFF", {
         id: "foul-mouth-toggle",
         description: next
-          ? "0G B0T is off the leash. Saved to your profile."
+          ? "OG B0T is off the leash. Saved to your profile."
           : "Clean mode locked in. Saved to your profile.",
       });
     },

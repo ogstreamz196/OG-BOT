@@ -72,10 +72,10 @@ describe("live search (Gemini + Google Search)", () => {
     expect(await getLiveResearchContext("latest news")).toBeNull();
   });
 
-  it("keeps 0G B0T in character when it presents the facts", () => {
+  it("keeps OG B0T in character when it presents the facts", () => {
     const msg = liveFactsMessage("- Arsenal 2-1 Chelsea", "who won?");
     expect(msg).toContain("CURRENT WEB SOURCES");
-    expect(msg).toContain("normal 0G B0T voice");
+    expect(msg).toContain("normal OG B0T voice");
     expect(msg).toContain("who won?");
   });
 });
@@ -118,7 +118,7 @@ describe("Foul Mouth chat routing", () => {
   });
 });
 
-describe("when 0G B0T searches the web", () => {
+describe("when OG B0T searches the web", () => {
   it("searches for live facts, not small talk", async () => {
     const { needsLiveResearch } = await import("./ai-endpoint.server");
     for (const q of [
@@ -213,7 +213,7 @@ describe("smart routing", () => {
   });
 });
 
-describe("0G B0T's voice", () => {
+describe("OG B0T's voice", () => {
   it("keeps Foul Mouth on the swearing model, with no extra routing", async () => {
     process.env.GROQ_API_KEY = "q";
     process.env.OPENROUTER_API_KEY = "a";

@@ -41,7 +41,7 @@ async function nativeDownload(url: string, filename: string): Promise<boolean> {
       await Filesystem.copy({
         from: name,
         directory: Directory.Cache,
-        to: `0G B0T/${name}`,
+        to: `OG B0T/${name}`,
         toDirectory: Directory.Documents,
       });
     } catch {

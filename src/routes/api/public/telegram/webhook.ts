@@ -58,7 +58,7 @@ async function sendTrackAudio(chat_id: number, songId: string) {
     .eq("telegram_chat_id", chat_id)
     .maybeSingle();
   if (!me) {
-    await reply(chat_id, "Link your 0G B0T account first.");
+    await reply(chat_id, "Link your OG B0T account first.");
     return;
   }
   const [{ data: song }, { roles }, { data: unlock }] = await Promise.all([
@@ -89,13 +89,13 @@ async function sendTrackAudio(chat_id: number, songId: string) {
   const { data: signed } = await admin.storage.from("song-files").createSignedUrl(path, 600);
   const { telegramSignInLinker } = await import("@/lib/telegram-signin.server");
   const unlockUrl = await telegramSignInLinker(admin, me.id)(`/library/${song.id}`);
-  const title = song.title || "0G B0T track";
+  const title = song.title || "OG B0T track";
   const sent = signed?.signedUrl
     ? await tg("sendAudio", {
         chat_id,
         audio: signed.signedUrl,
         title: full ? title : `${title} (preview)`,
-        performer: "0G B0T",
+        performer: "OG B0T",
         caption: full
           ? `🎧 <b>${esc(title)}</b>`
           : `🔒 <b>Preview.</b> Unlock the full track in the app, then tap ⬇️ again for the whole thing.`,
@@ -132,7 +132,7 @@ async function handleCallbackQuery(cq: {
     const chatId = cq.message?.chat?.id;
     // Signals are private and retain the bot's existing linked-account access.
     if (!action || !chatId || chatId <= 0 || cq.from?.id !== chatId) {
-      await answer("Open Signals in your private chat with 0G B0T.");
+      await answer("Open Signals in your private chat with OG B0T.");
       return Response.json({ ok: true, ignored: true });
     }
     const admin = await loadAdmin();
@@ -142,7 +142,7 @@ async function handleCallbackQuery(cq: {
       .eq("telegram_chat_id", chatId)
       .maybeSingle();
     if (!profile) {
-      await answer("Link your 0G B0T account first.");
+      await answer("Link your OG B0T account first.");
       return Response.json({ ok: true, unlinked: true });
     }
     const { admin: staff, roles } = await isAdmin(admin, profile.id);
@@ -297,7 +297,7 @@ async function reply(
 
 // The welcome, word for word as the Boss wrote it.
 const INTRO_TEXT = [
-  "⚡👑🔥🤖💀 YO! I'M 0.G B0T 💀🤖🔥👑⚡",
+  "⚡👑🔥🤖💀 YO! I'M O.G B0T 💀🤖🔥👑⚡",
   "",
   "😈 AI just with an attitude! 🧠⚡",
   "",
@@ -392,7 +392,7 @@ function menuPanel(isBoss: boolean, siteUrl: string) {
   };
 }
 
-const HELP_USER = `🤖 <b>0G B0T</b>
+const HELP_USER = `🤖 <b>OG B0T</b>
 
 Just type to chat with me, same brain as the in-app messenger. Or use the buttons below.
 
@@ -558,7 +558,7 @@ async function maybeBootstrapBossTelegram(
 
   await reply(
     chat_id,
-    `👑 <b>Boss verified.</b> 0G B0T is wired to this Telegram now.\n\n💰 <b>${boss.coin_balance ?? 0}</b> OG coins\n🛠 Boss tools are under 📂 Menu, and /help lists every command.`,
+    `👑 <b>Boss verified.</b> OG B0T is wired to this Telegram now.\n\n💰 <b>${boss.coin_balance ?? 0}</b> OG coins\n🛠 Boss tools are under 📂 Menu, and /help lists every command.`,
     { reply_markup: USER_KEYBOARD },
   );
   return true;
@@ -1244,7 +1244,7 @@ async function handleTelegramUpdate(
     }
 
     if (trimmed === SITE) {
-      await reply(chat_id, "🌐 <b>0G B0T on the web</b>\nYou'll be signed straight in.", {
+      await reply(chat_id, "🌐 <b>OG B0T on the web</b>\nYou'll be signed straight in.", {
         reply_markup: {
           inline_keyboard: [[{ text: "🌐 Open OGBOT.CO.UK", url: await siteLink("/") }]],
         },
@@ -1523,7 +1523,7 @@ async function handleTelegramUpdate(
   }
 
   if (typeof text === "string" && /^\/help\b/i.test(text.trim())) {
-    await reply(chat_id, `🤖 <b>0G B0T is online.</b>\n\n${LINK_STEPS}`, {
+    await reply(chat_id, `🤖 <b>OG B0T is online.</b>\n\n${LINK_STEPS}`, {
       reply_markup: UNLINKED_KEYBOARD,
     });
     return Response.json({ ok: true, help: true });
@@ -1538,7 +1538,7 @@ async function handleTelegramUpdate(
       return Response.json({ ok: true, cleared: true });
     }
     if (unlinkedText === SITE) {
-      await reply(chat_id, "🌐 <b>0G B0T on the web</b>", {
+      await reply(chat_id, "🌐 <b>OG B0T on the web</b>", {
         reply_markup: {
           inline_keyboard: [[{ text: "🌐 Open OGBOT.CO.UK", url: "https://ogbot.co.uk" }]],
         },

@@ -488,7 +488,7 @@ export function CreateNowWizard({
             {step === 3 && "Final touches"}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            {step === 1 && "A name and a little story is all 0G B0T needs."}
+            {step === 1 && "A name and a little story is all OG B0T needs."}
             {step === 2 && "Mix styles if you like, then choose who sings."}
             {step === 3 && "Language, length and rating — then create."}
           </DialogDescription>
@@ -935,7 +935,7 @@ export function CreateNowWizard({
                   <div className="flex items-center justify-between gap-2">
                     <p className="min-w-0 truncate text-sm font-bold text-foreground">
                       {title.trim() ||
-                        `For ${subjectName.trim().slice(0, 24) || "you"} · 0G B0T names it`}
+                        `For ${subjectName.trim().slice(0, 24) || "you"} · OG B0T names it`}
                     </p>
                     <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
                       {isPublic ? (

@@ -53,14 +53,14 @@ const TABS: readonly BossTab[] = [
     value: "persona",
     label: "Persona",
     Icon: Sparkles,
-    hint: "How 0G B0T talks, plus the foul mouth switch.",
+    hint: "How OG B0T talks, plus the foul mouth switch.",
     Panel: OgPersonaPanel,
   },
   {
     value: "health",
     label: "Health & usage",
     Icon: HeartPulse,
-    hint: "Is 0G B0T answering, and how much paid AI it is using.",
+    hint: "Is OG B0T answering, and how much paid AI it is using.",
     Panel: BotHealth,
   },
   {
@@ -74,7 +74,7 @@ const TABS: readonly BossTab[] = [
     value: "alerts",
     label: "Your alerts",
     Icon: Bell,
-    hint: "Which events 0G B0T sends to your Telegram.",
+    hint: "Which events OG B0T sends to your Telegram.",
     Panel: BossNotificationsPanel,
   },
   {
@@ -88,7 +88,7 @@ const TABS: readonly BossTab[] = [
     value: "live",
     label: "Live users",
     Icon: Radio,
-    hint: "Who is online right now. Pick someone to speak to them as 0G B0T.",
+    hint: "Who is online right now. Pick someone to speak to them as OG B0T.",
     Panel: LiveUsersPanel,
   },
 ];
@@ -97,7 +97,7 @@ function AdminBotPage() {
   const { isAdmin, isLoading } = useRole();
   if (isLoading) {
     return (
-      <DashboardShell title="0G B0T">
+      <DashboardShell title="OG B0T">
         <div className="py-24 text-center text-sm text-muted-foreground">
           Checking admin access…
         </div>
@@ -107,7 +107,7 @@ function AdminBotPage() {
   if (!isAdmin) return <Navigate to="/" />;
 
   return (
-    <DashboardShell title="0G B0T">
+    <DashboardShell title="OG B0T">
       <div className="boss-ui mx-auto w-full min-w-0 max-w-5xl">
         <BossNav />
         <BossTabs tabs={TABS} />

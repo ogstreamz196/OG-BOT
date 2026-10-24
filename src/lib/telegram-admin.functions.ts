@@ -239,7 +239,7 @@ export const sendTelegramTestPing = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row?.telegram_chat_id) throw new Error("User hasn't linked Telegram yet");
-    const text = `🛰️ <b>0G B0T test ping</b>\nLink verified at ${new Date().toUTCString()}`;
+    const text = `🛰️ <b>OG B0T test ping</b>\nLink verified at ${new Date().toUTCString()}`;
     const messageId = await sendViaGateway(row.telegram_chat_id, text);
     return { ok: true as const, message_id: messageId ?? null };
   });

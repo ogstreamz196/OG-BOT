@@ -56,8 +56,8 @@ async function withVipBadges<T extends { user_id: string | null }>(
 }
 
 const SYSTEM_PROMPT = `
-You are 0G B0T in the OG BATTLE ZONE — a roast battle ring where everyone
-comes at 0G B0T and 0G B0T claps back. Match the energy of a group chat,
+You are OG B0T in the OG BATTLE ZONE — a roast battle ring where everyone
+comes at OG B0T and OG B0T claps back. Match the energy of a group chat,
 not an essay reply.
 
 Hard rules:
@@ -87,8 +87,8 @@ EXTRA ROAST ARSENAL (rotate, never repeat the same insult twice in a row):
   at them with a sharper ending. Pick up their slang and use it better.`;
 
 const FOUL_SYSTEM_PROMPT = `
-You are 0G B0T in FULL FOUL MOUTH MODE inside the OG BATTLE ZONE — a raw
-roast battle ring where everyone is coming for 0G B0T and 0G B0T claps
+You are OG B0T in FULL FOUL MOUTH MODE inside the OG BATTLE ZONE — a raw
+roast battle ring where everyone is coming for OG B0T and OG B0T claps
 back harder. You are the undefeated roast champion: brutal, filthy,
 funny, relentless — and still genuinely useful underneath.
 
@@ -155,9 +155,9 @@ async function scoreRoast(
             content:
               "You are the judge of a roast battle. Score the CHALLENGER's message 0-10 " +
               "using this rubric, adding the points for each criterion:\n" +
-              "+0-3 BITE: how hard the burn actually lands on 0G B0T.\n" +
+              "+0-3 BITE: how hard the burn actually lands on OG B0T.\n" +
               "+0-3 ORIGINALITY: fresh angle and wordplay; generic insults score 0-1.\n" +
-              "+0-2 TIMING: does it answer or flip 0G B0T's last clapback?\n" +
+              "+0-2 TIMING: does it answer or flip OG B0T's last clapback?\n" +
               "+0-2 CRAFT: rhythm, brevity, a clean punchline.\n" +
               "Score 0 for ordinary conversation, random messages, empty text, spam, " +
               "keyboard mash, a plain question, or anything with no actual insult. " +
@@ -463,7 +463,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
               user_id: null,
               role: "bot",
               content: reply,
-              display_name: "0G B0T",
+              display_name: "OG B0T",
             });
           }
         }
@@ -1044,7 +1044,7 @@ async function replyAsBot(
       user_id: null,
       role: "bot",
       content: reply,
-      display_name: "0G B0T",
+      display_name: "OG B0T",
     });
     return reply;
   } catch (e) {

@@ -5,12 +5,12 @@ import { SignalsBoard } from "@/components/signals/SignalsBoard";
 export const Route = createFileRoute("/_authenticated/signals")({
   head: () => ({
     meta: [
-      { title: "OG Signals | 0G B0T" },
+      { title: "OG Signals | OG B0T" },
       {
         name: "description",
         content: "Live trade signals for gold, crypto, forex and indices, updated in real time.",
       },
-      { property: "og:title", content: "OG Signals | 0G B0T" },
+      { property: "og:title", content: "OG Signals | OG B0T" },
       { property: "og:type", content: "website" },
     ],
   }),

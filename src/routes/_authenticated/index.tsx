@@ -65,16 +65,16 @@ export const Route = createFileRoute("/_authenticated/")({
   component: DashboardHome,
   head: () => ({
     meta: [
-      { title: "AI Music Studio | 0G B0T — AI Songs & Diss Tracks" },
+      { title: "AI Music Studio | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
-          "Your 0G B0T studio: cook AI songs, roast the bot in Battle Zone, and keep track of your coins and VIP.",
+          "Your OG B0T studio: cook AI songs, roast the bot in Battle Zone, and keep track of your coins and VIP.",
       },
-      { property: "og:title", content: "AI Music Studio | 0G B0T — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "AI Music Studio | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Generate AI songs, chat with 0G B0T, and run your creator economy.",
+        content: "Generate AI songs, chat with OG B0T, and run your creator economy.",
       },
       { property: "og:url", content: "https://ogbot.co.uk/" },
       { property: "og:type", content: "website" },
@@ -199,7 +199,7 @@ function DashboardHome() {
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
             <img
               src={welcomeLogo}
-              alt="OG Streamz Presentz 0G B0T"
+              alt="OG Streamz Presentz OG B0T"
               width={300}
               height={300}
               decoding="async"
@@ -312,15 +312,15 @@ function DashboardHome() {
               tone="crimson"
               className="og-rise"
               image={modeArt.battleZone}
-              imageAlt="0G B0T Battle Zone badge"
+              imageAlt="OG B0T Battle Zone badge"
               eyebrow="Live now"
               live
               badge={isVip ? "VIP unlocked" : "Free entry"}
               title="Battle Zone"
               description={
                 isVip
-                  ? "Roast 0G B0T. Bank coins for every hit."
-                  : "Roast 0G B0T. VIP lets him swear back."
+                  ? "Roast OG B0T. Bank coins for every hit."
+                  : "Roast OG B0T. VIP lets him swear back."
               }
               cta="Enter Battle Zone"
               onClick={() => navigate({ to: "/messenger", search: { live: true } })}
@@ -331,7 +331,7 @@ function DashboardHome() {
               className="og-rise"
               style={{ animationDelay: "0.1s" }}
               image={modeArt.createTrack}
-              imageAlt="0G B0T Make a Track badge"
+              imageAlt="OG B0T Make a Track badge"
               eyebrow="AI studio"
               badge="Instant"
               title="Music Hub"
@@ -349,7 +349,7 @@ function DashboardHome() {
               className="og-rise"
               style={{ animationDelay: "0.2s" }}
               image={modeArt.sportsGuide}
-              imageAlt="0G B0T Sports Guide badge"
+              imageAlt="OG B0T Sports Guide badge"
               eyebrow="Members"
               badge="Daily"
               title="Sports Guide"
@@ -509,7 +509,7 @@ function DashboardHome() {
                   to="/settings"
                 />
                 <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
-                <ChecklistItem done={saidHi} label="Say hi in 0G B0T" to="/messenger" />
+                <ChecklistItem done={saidHi} label="Say hi in OG B0T" to="/messenger" />
                 <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
               </CardContent>
             </Card>
@@ -570,7 +570,7 @@ function AskOgCta() {
               </span>
               <div className="min-w-0">
                 <div className="text-[0.7rem] font-bold uppercase tracking-[0.28em] text-primary">
-                  Ask 0G B0T
+                  Ask OG B0T
                 </div>
                 <h2 className="font-display mt-1 text-2xl font-black leading-tight sm:text-4xl">
                   Start any task — pick a service & go
@@ -592,7 +592,7 @@ function AskOgCta() {
               What do you want to do?
             </DialogTitle>
             <DialogDescription>
-              Pick a service and tell 0G B0T what to spin up. We'll drop you in with your prompt
+              Pick a service and tell OG B0T what to spin up. We'll drop you in with your prompt
               ready.
             </DialogDescription>
           </DialogHeader>
@@ -688,7 +688,7 @@ function ContinuityDemo() {
         />
       </div>
       <p className="relative mt-5 text-center text-xs text-muted-foreground sm:text-sm">
-        Every 0G B0T — web, Messenger, Telegram, MusicHub — shares the same memory. Pick up exactly
+        Every OG B0T — web, Messenger, Telegram, MusicHub — shares the same memory. Pick up exactly
         where you left off.
       </p>
     </section>

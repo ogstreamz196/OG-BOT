@@ -44,7 +44,7 @@ export const getCarromAppLink = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }): Promise<{ url: string }> => {
     const claims = context.claims as { is_anonymous?: boolean } | undefined;
-    if (claims?.is_anonymous) throw new Error("Sign in to 0G B0T first");
+    if (claims?.is_anonymous) throw new Error("Sign in to OG B0T first");
     const token = await passFor(context.userId, data.challenge);
     return {
       url: data.web

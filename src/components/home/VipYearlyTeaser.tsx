@@ -6,7 +6,7 @@ import { useRole } from "@/hooks/use-role";
 import { CURRENCY_SYMBOL, VIP_PLAN, VIP_PLAN_YEARLY } from "@/lib/coin-packs";
 
 const PERKS = [
-  "🤬 Foul Mouth 0G B0T",
+  "🤬 Foul Mouth OG B0T",
   "⚡ Priority AI",
   "🎛️ Every music style",
   "👑 Gold badge + OG VIP ID",
@@ -55,7 +55,7 @@ export function VipYearlyTeaser() {
           >
             {daysLeft
               ? `Your free VIP ends in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`
-              : "Let 0G B0T off the leash"}
+              : "Let OG B0T off the leash"}
           </h2>
           <p className="mt-2 max-w-xl text-sm text-foreground/85 sm:text-base">
             {daysLeft

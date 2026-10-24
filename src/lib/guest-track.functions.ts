@@ -69,7 +69,7 @@ export const createGuestTrackCheckout = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         payment_intent_data: {
-          description: `Full track — ${song.title || "0G B0T track"}`,
+          description: `Full track — ${song.title || "OG B0T track"}`,
           metadata: meta,
         },
         metadata: meta,

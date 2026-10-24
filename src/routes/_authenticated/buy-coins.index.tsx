@@ -9,15 +9,15 @@ export const Route = createFileRoute("/_authenticated/buy-coins/")({
   },
   head: () => ({
     meta: [
-      { title: "OG Coins & VIP — 0G B0T Store | AI Songs & Diss Tracks" },
+      { title: "OG Coins & VIP — OG B0T Store | AI Songs & Diss Tracks" },
       {
         name: "description",
-        content: "Buy OG Coins, unlock VIP perks, and review purchases in the 0G B0T Store.",
+        content: "Buy OG Coins, unlock VIP perks, and review purchases in the OG B0T Store.",
       },
-      { property: "og:title", content: "OG Coins & VIP — 0G B0T Store | AI Songs & Diss Tracks" },
+      { property: "og:title", content: "OG Coins & VIP — OG B0T Store | AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Buy OG Coins, unlock VIP perks, and review purchases in the 0G B0T Store.",
+        content: "Buy OG Coins, unlock VIP perks, and review purchases in the OG B0T Store.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

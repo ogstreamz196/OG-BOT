@@ -394,7 +394,7 @@ const SPECS: Spec[] = [
   { key: "suno", label: "Suno (song generation)", secret: "SUNO_API_KEY", help: "sunoapi.org", group: "Music", required: true, run: checkSuno },
   { key: "stripe", label: "Stripe (card checkout)", secret: "STRIPE_SECRET_KEY", help: "dashboard.stripe.com/apikeys", group: "Payments", required: true, run: checkStripe },
   { key: "ledgerly", label: "Ledgerly bookkeeping", group: "Payments", required: false, run: checkLedgerly },
-  { key: "og_bot_token", label: "0G B0T token (@BotFather)", secret: "OG_BOT_TOKEN", help: "t.me/BotFather", group: "Telegram", required: true, run: checkOgBotToken },
+  { key: "og_bot_token", label: "OG B0T token (@BotFather)", secret: "OG_BOT_TOKEN", help: "t.me/BotFather", group: "Telegram", required: true, run: checkOgBotToken },
   { key: "telegram", label: "Telegram connection", secret: "TELEGRAM_API_KEY", group: "Telegram", required: true,
     run: () => checkGateway("TELEGRAM_API_KEY", "telegram", "/getMe", "Telegram") },
   { key: "drive", label: "Google Drive (purchase review & backups)", secret: "GOOGLE_DRIVE_API_KEY", group: "Google", required: false,
@@ -402,8 +402,8 @@ const SPECS: Spec[] = [
   { key: "sheets", label: "Google Sheets (sync)", secret: "GOOGLE_SHEETS_API_KEY", group: "Google", required: false,
     run: () => checkGateway("GOOGLE_SHEETS_API_KEY", "google_sheets", "/v4/spreadsheets/ping", "Google Sheets") },
   { key: "lovable_ai", label: "Connected-services gateway", group: "Core", required: true, run: checkLovable },
-  { key: "og_bot_host", label: "OG_BOT_HOST", secret: "OG_BOT_HOST", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_HOST", "0G B0T host") },
-  { key: "og_bot_mothership", label: "OG_BOT_MOTHERSHIP_URL", secret: "OG_BOT_MOTHERSHIP_URL", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_MOTHERSHIP_URL", "0G B0T mothership") },
+  { key: "og_bot_host", label: "OG_BOT_HOST", secret: "OG_BOT_HOST", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_HOST", "OG B0T host") },
+  { key: "og_bot_mothership", label: "OG_BOT_MOTHERSHIP_URL", secret: "OG_BOT_MOTHERSHIP_URL", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_MOTHERSHIP_URL", "OG B0T mothership") },
   { key: "og_bot_mint_secret", label: "OG_BOT_REMOTE_MINT_SECRET", secret: "OG_BOT_REMOTE_MINT_SECRET", group: "Bot hosting", required: true, run: () => checkMintSecret() },
 ];
 
