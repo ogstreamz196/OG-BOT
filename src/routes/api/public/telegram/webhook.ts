@@ -158,7 +158,8 @@ async function handleCallbackQuery(cq: {
     );
     if (action.kind !== "run" || memberOneMinute) {
       // An old in-chat picker: signals live in the bottom bar now.
-      await screen(chatId, SIGNALS_TEXT, { reply_markup: kb(signalButtonRows(staff)) });
+      await setKeys(chatId, SIGNALS_TEXT, kb(signalButtonRows(staff)));
+      await tidyScreens(chatId);
     } else {
       // The picker and anything else from the menu go; the signal comes next.
       await tidyScreens(chatId);
@@ -232,6 +233,7 @@ async function handleCallbackQuery(cq: {
     return handleTelegramUpdate(admin, chatHere, MENU_ACTIONS[menuKey as MenuKey], {
       chat: { id: chatHere, type: "private" },
       from: { id: chatHere },
+      viaMenu: menuKey !== "open",
     });
   }
   const trackId = /^track:([0-9a-f-]{36})$/.exec(cq.data ?? "")?.[1];
@@ -330,30 +332,62 @@ async function reply(
 
 /* ── Screens: one button-driven message on show at a time ─────────────── */
 // What the bot shows when a member taps a button (menu, VIP, Vault, tracks,
-// the signals picker, "hold on" lines, "no trade" cards) is a screen: the
-// next one replaces it, so hunting for signals stays clutter-free. Typed
-// questions and their answers, the intro and followed signal cards are
-// never screens. Needs the telegram_screen_messages table; until it exists
+// "hold on" lines, "no trade" cards) is a screen: the next one replaces it,
+// so hunting for signals stays clutter-free. Typed questions and their
+// answers and followed signal cards are never screens.
+//
+// The bottom bar belongs to the message that set it: delete that message and
+// Telegram hides the bar. So the message carrying the current bar is a
+// "keys" row that tidying never touches; it's only swapped when the bar
+// changes (Signals, Back, /start). The welcome carries the bar too, as a
+// "welcome" row: the first tap swaps it for a one-line holder so the intro
+// clears but the buttons stay.
+//
+// Needs the telegram_screen_messages table (and its kind column); until then
 // nothing is tidied and everything else works as before.
 const SCREENS = "telegram_screen_messages" as never;
+type ScreenRow = { message_id: number; kind?: string };
 
-/** Deletes the chat's earlier screens. */
-async function tidyScreens(chat_id: number) {
+async function screenRows(chat_id: number): Promise<ScreenRow[]> {
+  const admin = await loadAdmin();
+  const withKind = await admin
+    .from(SCREENS)
+    .select("message_id, kind")
+    .eq("chat_id" as never, chat_id)
+    .limit(100);
+  if (!withKind.error) return (withKind.data ?? []) as ScreenRow[];
+  // Before the kind column exists every row is an ordinary screen.
+  const plain = await admin
+    .from(SCREENS)
+    .select("message_id")
+    .eq("chat_id" as never, chat_id)
+    .limit(100);
+  return plain.error ? [] : ((plain.data ?? []) as ScreenRow[]);
+}
+
+async function dropMessages(chat_id: number, ids: number[]) {
+  if (!ids.length) return;
+  await tg("deleteMessages", { chat_id, message_ids: ids });
+  const admin = await loadAdmin();
+  await admin
+    .from(SCREENS)
+    .delete()
+    .eq("chat_id" as never, chat_id)
+    .in("message_id" as never, ids as never);
+}
+
+/** Deletes the chat's earlier screens; the bottom bar's message stays. */
+async function tidyScreens(chat_id: number, opts: { keepWelcome?: boolean } = {}) {
   try {
-    const admin = await loadAdmin();
-    const { data, error } = await admin
-      .from(SCREENS)
-      .select("message_id")
-      .eq("chat_id" as never, chat_id)
-      .limit(100);
-    if (error || !data?.length) return;
-    const ids = (data as { message_id: number }[]).map((r) => Number(r.message_id));
-    await tg("deleteMessages", { chat_id, message_ids: ids });
-    await admin
-      .from(SCREENS)
-      .delete()
-      .eq("chat_id" as never, chat_id)
-      .in("message_id" as never, ids as never);
+    const rows = await screenRows(chat_id);
+    if (!opts.keepWelcome && rows.some((r) => r.kind === "welcome")) {
+      // The intro goes, but the buttons it carried must not.
+      await setKeys(chat_id, MAIN_KEYS_TEXT, USER_KEYBOARD);
+    }
+    await dropMessages(
+      chat_id,
+      rows.filter((r) => (r.kind ?? "screen") === "screen").map((r) => Number(r.message_id)),
+    );
   } catch (e) {
     console.warn("[telegram] tidy screens failed", e);
   }
@@ -371,6 +405,40 @@ async function rememberScreen(chat_id: number, sent: unknown) {
   } catch {
     /* table not there yet: nothing to tidy later */
   }
+}
+
+/**
+ * Sets the bottom bar: sends `text` carrying it, then deletes the message
+ * that carried the previous bar. Never auto-deleted, so the bar never drops.
+ */
+async function setKeys(
+  chat_id: number,
+  text: string,
+  keyboard: ReturnType<typeof kb>,
+  kind: "keys" | "welcome" = "keys",
+) {
+  const sent = await reply(chat_id, text, { reply_markup: keyboard }, 0);
+  const message_id = (sent as { result?: { message_id?: number } } | null)?.result?.message_id;
+  if (!message_id) return sent;
+  try {
+    const rows = await screenRows(chat_id);
+    await dropMessages(
+      chat_id,
+      rows
+        .filter((r) => r.kind === "keys" || r.kind === "welcome")
+        .map((r) => Number(r.message_id))
+        .filter((id) => id !== message_id),
+    );
+    // If this can't be stored (kind column not there yet) the message just
+    // stays, which keeps the bar showing.
+    const admin = await loadAdmin();
+    await admin.from(SCREENS).upsert({ chat_id, message_id, kind } as never, {
+      onConflict: "chat_id,message_id",
+    });
+  } catch (e) {
+    console.warn("[telegram] set keys failed", e);
+  }
+  return sent;
 }
 
 /** Forgets everything remembered for a chat (after clearing it). */
@@ -399,8 +467,8 @@ async function screen(
   return res;
 }
 
-// The welcome after /start or a clear, in OG B0T's foul-mouthed voice. It's
-// a screen like the rest: the first Menu or Signals tap replaces it.
+// The welcome after /start or a clear, in OG B0T's foul-mouthed voice. The
+// first tap clears it (see tidyScreens); the buttons stay.
 const INTRO_TEXT =
   "<b>OG B0T here.</b> No filter, no bullshit, and no wasting my fucking time.\n\n" +
   "🧠 <b>Ask anything</b>: advice, ideas, homework, whatever's on your mind.\n" +
@@ -415,10 +483,13 @@ const LINK_STEPS =
   "2. Go to Settings → <b>Connect Telegram</b>\n" +
   "3. Tap your personal link, it brings you straight back here";
 
-// The intro carries the bottom bar, so it's always there after /start or a
-// clear (deleting the message that last set it can hide it in some apps).
+// The one line left holding the main bar once the intro has cleared.
+const MAIN_KEYS_TEXT = "🤖 <b>OG B0T</b> · type anything or tap below 👇";
+
+// The intro carries the bottom bar, so it's always there after /start or a clear.
 async function sendIntro(chat_id: number) {
-  await screen(chat_id, INTRO_TEXT, { reply_markup: USER_KEYBOARD }, 0);
+  await setKeys(chat_id, INTRO_TEXT, USER_KEYBOARD, "welcome");
+  await tidyScreens(chat_id, { keepWelcome: true });
 }
 
 // Deletes up to the last 100 messages (bots may delete private-chat messages <48h old).
@@ -462,11 +533,23 @@ const MENU_ACTIONS = {
   help: "/help",
   stats: "/stats",
   users: "/users",
+  open: "/menu",
 } as const;
 type MenuKey = keyof typeof MENU_ACTIONS;
 const menuButton = (text: string, key: MenuKey) => ({ text, callback_data: `menu:${key}` });
 
 const MENU_TEXT = "📂 <b>OG Menu</b>\nEverything important, one tap away 👇";
+
+// Screens opened from the menu get a way straight back to it.
+const MENU_BACK_ROW = [menuButton("⬅️ Menu", "open")];
+function withMenuBack(extra: Record<string, unknown> | undefined) {
+  const markup = extra?.reply_markup as { inline_keyboard?: unknown[][] } | undefined;
+  if (markup && !markup.inline_keyboard) return extra; // a bottom-bar keyboard: leave it
+  return {
+    ...extra,
+    reply_markup: { inline_keyboard: [...(markup?.inline_keyboard ?? []), MENU_BACK_ROW] },
+  };
+}
 
 function menuPanel(isBoss: boolean, siteUrl: string, foul: FoulAccess) {
   const foulText = !foul.allowed
@@ -651,10 +734,10 @@ async function maybeBootstrapBossTelegram(
       () => undefined,
     );
 
-  await reply(
+  await setKeys(
     chat_id,
     `👑 <b>Boss verified.</b> OG B0T is wired to this Telegram now.\n\n💰 <b>${boss.coin_balance ?? 0}</b> OG coins\n🛠 Boss tools are under 📂 Menu, and /help lists every command.`,
-    { reply_markup: USER_KEYBOARD },
+    USER_KEYBOARD,
   );
   return true;
 }
@@ -1285,6 +1368,8 @@ async function handleTelegramUpdate(
   msg: {
     chat?: { id?: number; type?: string };
     from?: { id?: number; username?: string; first_name?: string };
+    /** Came from a menu panel button: the screen gets a "⬅️ Menu" button. */
+    viaMenu?: boolean;
   },
 ): Promise<Response> {
   // Look up linked profile by chat_id FIRST so already-linked users
@@ -1305,6 +1390,8 @@ async function handleTelegramUpdate(
     // telegram-signin.server.ts), so Telegram's browser never starts a new one.
     const { telegramSignInLinker } = await import("@/lib/telegram-signin.server");
     const siteLink = telegramSignInLinker(admin, linkedProfile.id);
+    const show = (body: string, extra?: Record<string, unknown>, ttlMs?: number) =>
+      screen(chat_id, body, msg.viaMenu ? withMenuBack(extra) : extra, ttlMs);
 
     // Map emoji-keyboard button taps → slash commands
     const buttonMap: Record<string, string> = {
@@ -1336,9 +1423,11 @@ async function handleTelegramUpdate(
       void tg("deleteMessage", { chat_id, message_id: tapId });
     }
 
-    // Categorised menu navigation
+    // Signals swap the bottom bar for the signal buttons, which then stay put
+    // however many signals are run, until Back.
     if (trimmed === SIGNALS_BUTTON || /^\/signals(?:@\w+)?$/i.test(trimmed)) {
-      await screen(chat_id, SIGNALS_TEXT, { reply_markup: kb(signalButtonRows(isBoss)) });
+      await setKeys(chat_id, SIGNALS_TEXT, kb(signalButtonRows(isBoss)));
+      await tidyScreens(chat_id);
       return Response.json({ ok: true, signals: "menu" });
     }
     // A signal button in the bottom bar: straight to the live signal.
@@ -1355,13 +1444,13 @@ async function handleTelegramUpdate(
       return Response.json({ ok: true, signals: "run" });
     }
     if (trimmed === BACK_BUTTON) {
-      await screen(chat_id, "📂 Back to the main menu 👇", { reply_markup: USER_KEYBOARD });
+      await setKeys(chat_id, MAIN_KEYS_TEXT, USER_KEYBOARD);
+      await tidyScreens(chat_id);
       return Response.json({ ok: true, menu: "back" });
     }
     if (trimmed === MENU || /^\/menu\b/i.test(trimmed) || OLD_MENU_BUTTONS.has(trimmed)) {
       // An old category keyboard gets swapped back to the normal bottom bar first.
-      if (OLD_MENU_BUTTONS.has(trimmed))
-        await reply(chat_id, "📂 The menu's simpler now 👇", { reply_markup: USER_KEYBOARD });
+      if (OLD_MENU_BUTTONS.has(trimmed)) await setKeys(chat_id, MAIN_KEYS_TEXT, USER_KEYBOARD);
       const { foulAccess } = await import("@/lib/foul-access.server");
       const foul = await foulAccess(admin, linkedProfile.id, roles);
       await screen(chat_id, MENU_TEXT, {
@@ -1392,7 +1481,7 @@ async function handleTelegramUpdate(
       return Response.json({ ok: true, cleared: true });
     }
     if (/^\/help\b/i.test(trimmed)) {
-      await screen(chat_id, isBoss ? HELP_ADMIN : HELP_USER);
+      await show(isBoss ? HELP_ADMIN : HELP_USER);
       return Response.json({ ok: true, help: true });
     }
     if (/^\/sports\b/i.test(trimmed)) {
@@ -1405,7 +1494,7 @@ async function handleTelegramUpdate(
         console.warn("[telegram] quick sports failed", e);
       }
       if (!q) body += "\n\nTip: send <code>/sports arsenal</code> or <code>/sports dazn</code>";
-      await screen(chat_id, body.slice(0, 4000), {
+      await show(body.slice(0, 4000), {
         reply_markup: {
           inline_keyboard: [[{ text: "⚽ Open Sports Guide", url: await siteLink("/sports") }]],
         },
@@ -1418,7 +1507,7 @@ async function handleTelegramUpdate(
         .select("coin_balance")
         .eq("id", linkedProfile.id)
         .maybeSingle();
-      await screen(chat_id, `💰 <b>${p?.coin_balance ?? 0}</b> OG coins`, {
+      await show(`💰 <b>${p?.coin_balance ?? 0}</b> OG coins`, {
         reply_markup: {
           inline_keyboard: [[{ text: "🛒 Top up", url: await siteLink("/store") }]],
         },
@@ -1462,19 +1551,15 @@ async function handleTelegramUpdate(
           ? { text: "📚 Open full library", url: await siteLink("/library") }
           : { text: "🎵 Make a track", url: await siteLink("/") },
       ]);
-      await screen(chat_id, body, { reply_markup: { inline_keyboard: rows } });
+      await show(body, { reply_markup: { inline_keyboard: rows } });
       return Response.json({ ok: true, library: true });
     }
     if (/^\/buy\b/i.test(trimmed)) {
-      await screen(
-        chat_id,
-        "🛒 <b>Top up OG coins</b>\nCoins, VIP and the Vault pass are all in the Store.",
-        {
-          reply_markup: {
-            inline_keyboard: [[{ text: "🛒 Open Store", url: await siteLink("/store") }]],
-          },
+      await show("🛒 <b>Top up OG coins</b>\nCoins, VIP and the Vault pass are all in the Store.", {
+        reply_markup: {
+          inline_keyboard: [[{ text: "🛒 Open Store", url: await siteLink("/store") }]],
         },
-      );
+      });
       return Response.json({ ok: true, buy: true });
     }
     if (/^\/me\b/i.test(trimmed)) {
@@ -1483,7 +1568,7 @@ async function handleTelegramUpdate(
         .select(PROFILE_COLS)
         .eq("id", linkedProfile.id)
         .maybeSingle();
-      await screen(chat_id, p ? fmtProfile(p as AdminProfile) : "Profile not found.");
+      await show(p ? fmtProfile(p as AdminProfile) : "Profile not found.");
       return Response.json({ ok: true, me: true });
     }
     if (
@@ -1530,8 +1615,7 @@ async function handleTelegramUpdate(
           `⚠️ <b>Important:</b> sign out of the Vault first, then sign in with these details.\n\n` +
           `Tap to copy. Keep it private.\n\n⏳ <i>For your security, this message self-destructs in 1 hour.</i>`;
       }
-      await screen(
-        chat_id,
+      await show(
         body,
         {
           reply_markup: {
@@ -1612,7 +1696,7 @@ async function handleTelegramUpdate(
           `🆓 <b>Free plan</b>, no active VIP.\n\n` +
           `VIP unlocks every style, Foul Mouth mode and your own OG VIP ID.`;
       }
-      await screen(chat_id, body, {
+      await show(body, {
         reply_markup: {
           inline_keyboard: [[{ text: "👑 Open VIP Store", url: await siteLink("/store") }]],
         },
@@ -1784,7 +1868,7 @@ async function handleTelegramUpdate(
     `✅ <b>Connected, ${esc(name)}!</b>\n💰 <b>${balance}</b> OG coins` +
     (isBoss ? `\n\n👑 Boss mode on. Boss tools are under 📂 Menu, /help lists every command.` : "");
 
-  await reply(chat_id, greeting, { reply_markup: USER_KEYBOARD });
+  await reply(chat_id, greeting);
   await sendIntro(chat_id);
 
   await admin
