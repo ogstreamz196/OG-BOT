@@ -68,7 +68,9 @@ export default defineConfig({
                 request.mode === "navigate" &&
                 !url.pathname.startsWith("/~oauth") &&
                 !url.pathname.startsWith("/auth") &&
-                !url.pathname.startsWith("/api/"),
+                !url.pathname.startsWith("/api/") &&
+                // Shared tracks carry a short-lived audio link: always load them fresh.
+                !url.pathname.startsWith("/track/"),
               handler: "NetworkFirst",
               options: {
                 cacheName: "og-pages",
