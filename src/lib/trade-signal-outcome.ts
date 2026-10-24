@@ -1,0 +1,131 @@
+// What happened to a trade signal after it was sent: walks the 1-minute
+// candles since the last check and moves the signal through its states.
+// Pure, so it can be tested on made-up price paths. The watcher
+// (trade-signal-tracker.server.ts) stores the result and tells the member.
+//
+// Rules (deliberately cautious, so the track record never flatters itself):
+// - A limit entry fills when price trades through it; a market entry is
+//   live from the start.
+// - After TP1 the stop moves to the entry (the card tells members to do so).
+// - If one candle touches both the stop and a target, the stop counts.
+// - Unfilled limits and open trades end when the signal's time is up.
+
+import type { Candle } from "./trade-signal";
+
+export type SignalStatus =
+  | "pending" // limit entry not reached yet
+  | "open" // entered, no target yet
+  | "tp1"
+  | "tp2"
+  | "tp3" // closed: full target
+  | "stopped" // closed: stop hit before TP1
+  | "breakeven" // closed: back to entry after TP1
+  | "expired" // closed: time up while in the trade
+  | "unfilled" // closed: time up before the entry was reached
+  | "cancelled"; // closed: the higher-timeframe trend flipped
+
+export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"];
+
+export type TrackedSignal = {
+  direction: "BUY" | "SELL";
+  entry: number;
+  stop: number;
+  targets: [number, number, number];
+  status: SignalStatus;
+  /** When the signal stops being valid (ms). */
+  expiresAt: number;
+};
+
+export type OutcomeEvent = {
+  kind: "filled" | "tp1" | "tp2" | "tp3" | "stopped" | "breakeven" | "expired" | "unfilled";
+  /** Candle time the event happened in (ms), or `now` for time-ups. */
+  at: number;
+  /** The level it happened at. */
+  price: number;
+};
+
+export function isActive(status: SignalStatus): boolean {
+  return ACTIVE_STATUSES.includes(status);
+}
+
+/** How many targets the trade reached (0–3) for a status. */
+export function targetsReached(status: SignalStatus): number {
+  return status === "tp1" ? 1 : status === "tp2" ? 2 : status === "tp3" ? 3 : 0;
+}
+
+/**
+ * Moves a signal along the candles (oldest first, already limited to the
+ * ones not seen yet). Candles that start after the expiry are ignored; if
+ * `now` is past the expiry and the signal is still active, it times out.
+ */
+export function advanceSignal(
+  signal: TrackedSignal,
+  candles: Candle[],
+  now: number,
+): { status: SignalStatus; events: OutcomeEvent[] } {
+  const long = signal.direction === "BUY";
+  const events: OutcomeEvent[] = [];
+  let status = signal.status;
+  const below = (c: Candle, level: number) => c.l <= level;
+  const above = (c: Candle, level: number) => c.h >= level;
+  const touchesStop = (c: Candle, level: number) => (long ? below(c, level) : above(c, level));
+  const touchesTarget = (c: Candle, level: number) => (long ? above(c, level) : below(c, level));
+
+  for (const c of candles) {
+    if (!isActive(status) || c.t >= signal.expiresAt) break;
+    if (status === "pending") {
+      const filled = long ? below(c, signal.entry) : above(c, signal.entry);
+      if (!filled) continue;
+      status = "open";
+      events.push({ kind: "filled", at: c.t, price: signal.entry });
+      // Same candle: only the stop counts (we can't know the order inside it).
+      if (touchesStop(c, signal.stop)) {
+        status = "stopped";
+        events.push({ kind: "stopped", at: c.t, price: signal.stop });
+      }
+      continue;
+    }
+    const reached = targetsReached(status);
+    const stopLevel = reached >= 1 ? signal.entry : signal.stop;
+    if (touchesStop(c, stopLevel)) {
+      status = reached >= 1 ? "breakeven" : "stopped";
+      events.push({ kind: status, at: c.t, price: stopLevel });
+      continue;
+    }
+    for (let i = reached; i < 3; i++) {
+      if (!touchesTarget(c, signal.targets[i])) break;
+      status = (["tp1", "tp2", "tp3"] as const)[i];
+      events.push({ kind: status, at: c.t, price: signal.targets[i] });
+    }
+  }
+
+  if (isActive(status) && now >= signal.expiresAt) {
+    const kind = status === "pending" ? "unfilled" : "expired";
+    events.push({ kind, at: now, price: NaN });
+    status = kind;
+  }
+  return { status, events };
+}
+
+/* ── Track record ──────────────────────────────────────────────────────── */
+
+export type ClosedSignal = { status: SignalStatus; best_target: number; entered: boolean };
+
+/** Minimum filled-and-closed signals before a track record is shown. */
+export const MIN_TRACK_RECORD = 5;
+
+/**
+ * One honest line on how past signals for this market and timeframe did,
+ * or null when there aren't enough yet. Unfilled limits aren't trades, so
+ * they don't count.
+ */
+export function trackRecordText(rows: ClosedSignal[], days: number): string | null {
+  const filled = rows.filter((r) => r.entered && !isActive(r.status));
+  if (filled.length < MIN_TRACK_RECORD) return null;
+  const tp1 = filled.filter((r) => r.best_target >= 1).length;
+  const stopped = filled.filter((r) => r.status === "stopped").length;
+  const other = filled.length - tp1 - stopped;
+  const pct = Math.round((tp1 / filled.length) * 100);
+  const tail = other > 0 ? `, ${other} ended early or ran out of time` : "";
+  return `last ${days} days, ${filled.length} signals filled: TP1 hit on ${tp1} (${pct}%), stopped out before TP1 on ${stopped}${tail}. Past results don't promise future ones.`;
+}

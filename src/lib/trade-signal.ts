@@ -2,6 +2,7 @@
 // about, compute indicators from real candles, and turn them into a trade
 // plan with exact levels. No network here (see trade-signal-context.server.ts),
 // so every number the bot quotes comes from code, not from the model.
+import { CHOPPY_ADX, adx } from "./trade-signal-extras";
 
 export type AssetClass = "forex" | "metal" | "crypto" | "index" | "commodity" | "stock";
 
@@ -25,7 +26,8 @@ export type Instrument = {
 
 export type Style = "scalp" | "intraday" | "swing";
 
-export type Candle = { t: number; o: number; h: number; l: number; c: number };
+/** One price bar; `v` is volume when the feed has it. */
+export type Candle = { t: number; o: number; h: number; l: number; c: number; v?: number };
 
 const FX = [
   "EUR",
@@ -343,6 +345,8 @@ export type FrameRead = {
   atr: number;
   macdHist: number;
   macdRising: boolean;
+  /** Trend strength (ADX 14); NaN when there's too little data. */
+  adx: number;
 };
 
 export function readFrame(name: string, candles: Candle[]): FrameRead | null {
@@ -374,6 +378,7 @@ export function readFrame(name: string, candles: Candle[]): FrameRead | null {
     atr: atr(candles),
     macdHist: m.hist,
     macdRising: m.hist > m.prevHist,
+    adx: adx(candles),
   };
 }
 
@@ -391,6 +396,10 @@ export type TradePlan = {
   confidencePct: number;
   /** Set when the timeframes are mixed, so the call is a lean rather than a clean setup. */
   caution?: string;
+  /** Clean: trend and timeframes agree. Mixed: timeframes disagree. Choppy: no real trend. */
+  quality: "Clean" | "Mixed" | "Choppy";
+  /** Plain-English reason for a Choppy rating. */
+  qualityNote?: string;
   score: number;
   maxScore: number;
   reasons: string[];
@@ -417,8 +426,10 @@ export function buildPlan(
   entry: FrameRead,
   entryCandles: Candle[],
   middleCandles: Candle[],
+  /** The live price right now, when fresher than the last candle close. */
+  priceNow?: number,
 ): TradePlan {
-  const price = entry.close;
+  const price = priceNow != null && Number.isFinite(priceNow) && priceNow > 0 ? priceNow : entry.close;
   const a = entry.atr;
   const tol = a * 0.3;
   const sw = swings(entryCandles.slice(-200));
@@ -457,12 +468,23 @@ export function buildPlan(
     higher.score !== 0 && Math.sign(higher.score) === lean && Math.sign(middle.score) === lean;
   const strength = Math.min(1, Math.abs(score) / maxScore);
   const stretchedNow = long ? entry.rsi >= 74 : entry.rsi <= 26;
+  // No real trend on the frames that time the trade: setups chop about.
+  const choppy =
+    Number.isFinite(middle.adx) &&
+    Number.isFinite(entry.adx) &&
+    middle.adx < CHOPPY_ADX &&
+    entry.adx < CHOPPY_ADX;
   let pct = 50 + strength * 40;
   if (!aligned) pct -= 8;
   if (stretchedNow) pct -= 5;
+  if (choppy) pct -= 8;
   const confidencePct = Math.round(Math.min(90, Math.max(51, pct)));
   const confidence: TradePlan["confidence"] =
     confidencePct >= 75 ? "High" : confidencePct >= 62 ? "Medium" : "Low";
+  const quality: TradePlan["quality"] = choppy ? "Choppy" : aligned ? "Clean" : "Mixed";
+  const qualityNote = choppy
+    ? `No clean setup: trend strength is weak (ADX ${middle.adx.toFixed(0)} on ${middle.name}, ${entry.adx.toFixed(0)} on ${entry.name}), so price is mostly ranging. Best to wait; if you take it, go small.`
+    : undefined;
   const caution = aligned
     ? undefined
     : `Timeframes are mixed (${higher.name} ${higher.bias}, ${middle.name} ${middle.bias}, ${entry.name} ${entry.bias}), so this is the most likely side rather than a clean setup. Use smaller size.`;
@@ -498,6 +520,8 @@ export function buildPlan(
     confidence,
     confidencePct,
     caution,
+    quality,
+    qualityNote,
     score: Math.round(score * 10) / 10,
     maxScore,
     reasons,

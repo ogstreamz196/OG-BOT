@@ -626,10 +626,24 @@ async function runChatAI(
         : 5 * 60_000;
       await scheduleDelete(chat_id, held, ttl);
       const chunks = signal.reply.match(/[\s\S]{1,3800}/g) ?? [signal.reply];
+      let firstMessageId: number | null = null;
       for (const text of chunks) {
         const sent = await tg("sendMessage", { chat_id, text, disable_web_page_preview: true });
         if (!sent) throw new Error("Signal delivery failed");
+        firstMessageId ??=
+          (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
         await scheduleDelete(chat_id, sent, ttl);
+      }
+      // Follow it: fills, targets, stops and time-up get a reply under the card.
+      if (signal.plan) {
+        const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
+        await recordSignal({
+          userId: profileId,
+          chatId: chat_id,
+          messageId: chunks.length === 1 ? firstMessageId : null,
+          card: signal.reply,
+          plan: signal.plan,
+        });
       }
       const content = signal.expiresAt
         ? trade.tagSignalExpiry(signal.reply, signal.expiresAt)
