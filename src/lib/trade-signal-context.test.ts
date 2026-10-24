@@ -260,12 +260,12 @@ describe("Telegram delivery", () => {
         stubFetch(fetchSpy);
         const signal = await build(`${pair} signal ${frame}`);
         expect(fetchSpy.mock.calls.some(([url]) => url.includes(`interval=${frame}&`))).toBe(true);
-        expect(signal.reply).toContain(`⏱ ${frame.toUpperCase()} timeframe`);
+        expect(signal.reply).toContain(`⏱ ${frame.toUpperCase()} ·`);
         expect(signal.reply).toMatch(/Entry: \d/);
         expect(signal.expiresAt).not.toBeNull();
         if (frame === "1m") {
           const fifteen = await build(`${pair} signal 15m`);
-          expect(fifteen.reply).toContain("⏱ 15M timeframe");
+          expect(fifteen.reply).toContain("⏱ 15M ·");
           expect(signal.reply.match(/Entry: (\S+)/)?.[1]).not.toBe(fifteen.reply.match(/Entry: (\S+)/)?.[1]);
         }
       });

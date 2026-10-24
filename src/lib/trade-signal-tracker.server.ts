@@ -149,33 +149,33 @@ function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
-      return `✅ Entry filled at ${fmt(row.entry)}. Stop ${fmt(row.stop)}, TP1 ${fmt(row.tp1)}.`;
+      return `✅ Filled at ${fmt(row.entry)} · SL ${fmt(row.stop)}`;
     case "tp1":
-      return `🎯 TP1 hit at ${fmt(row.tp1)} (${move(row.entry, row.tp1)}). Move your stop to your entry (${fmt(row.entry)}) so this one can't lose.`;
+      return `🎯 TP1 hit (${move(row.entry, row.tp1)}) · move SL to ${fmt(row.entry)}`;
     case "tp2":
-      return `🎯 TP2 hit at ${fmt(row.tp2)} (${move(row.entry, row.tp2)}). Stop stays at entry; TP3 is ${fmt(row.tp3)}.`;
+      return `🎯 TP2 hit (${move(row.entry, row.tp2)}) · next ${fmt(row.tp3)}`;
     case "tp3":
-      return `🏁 TP3 hit at ${fmt(row.tp3)} (${move(row.entry, row.tp3)}). Full target reached, trade done.`;
+      return `🏁 TP3 hit (${move(row.entry, row.tp3)}) · trade done`;
     case "stopped":
-      return `🛑 Stopped out at ${fmt(row.stop)} (${move(row.entry, row.stop)}). That's the risk you planned for; don't chase it.`;
+      return `🛑 Stopped out (${move(row.entry, row.stop)}) · don't chase it`;
     case "breakeven":
-      return `⚖️ Price came back to your entry (${fmt(row.entry)}) after TP1, so the rest closed at breakeven.`;
+      return `⚖️ Back to entry after TP1 · closed at breakeven`;
     case "unfilled":
-      return `⏳ Your entry at ${fmt(row.entry)} wasn't reached in time. Cancel that order and ask me for a fresh signal.`;
+      return `⏳ Entry not reached in time · cancel the order`;
     case "expired":
       return row.last_price != null
-        ? `⏳ Time's up on this signal. Price is ${fmt(row.last_price)} (${move(row.entry, row.last_price)} from entry). Manage what's left yourself or ask me for a fresh read.`
-        : `⏳ Time's up on this signal. Manage what's left yourself or ask me for a fresh read.`;
+        ? `⏳ Time's up · price ${fmt(row.last_price)} (${move(row.entry, row.last_price)})`
+        : `⏳ Time's up on this signal`;
     case "cancelled":
-      return `⚠️ The ${HIGHER[row.timeframe] ?? "higher"} trend has turned ${e.bias}, so this setup is off. ${row.status === "pending" ? "Cancel the order." : "Close it or tighten your stop."}`;
+      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancel the order" : "close it or tighten SL"}`;
   }
 }
 
 const STATUS_TEXT: Partial<Record<SignalStatus, string>> = {
-  pending: "waiting for the entry",
+  pending: "waiting for entry",
   open: "in the trade",
-  tp1: "TP1 hit, stop at entry",
-  tp2: "TP2 hit, stop at entry",
+  tp1: "TP1 hit",
+  tp2: "TP2 hit",
 };
 
 function liveLine(row: Row, price: number, now: number): string {
@@ -185,8 +185,8 @@ function liveLine(row: Row, price: number, now: number): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(now));
-  const vsEntry = row.status === "pending" ? "" : ` (${move(row.entry, price)} from entry)`;
-  return `📍 Live: ${fmt(price)}${vsEntry} · ${STATUS_TEXT[row.status] ?? ""} · ${when} UK`;
+  const vsEntry = row.status === "pending" ? "" : ` (${move(row.entry, price)})`;
+  return `📍 ${fmt(price)}${vsEntry} · ${STATUS_TEXT[row.status] ?? ""} · ${when}`;
 }
 
 async function sendFollowUp(row: Row, text: string) {
