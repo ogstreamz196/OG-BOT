@@ -205,11 +205,11 @@ async function handleCallbackQuery(cq: {
       await screen(
         chatHere,
         "🔒 <b>Foul mouth is a VIP perk.</b>\nVIP lets OG B0T swear back, no filter.",
-        {
+        withMenuBack({
           reply_markup: {
             inline_keyboard: [[{ text: "👑 Get VIP", url: await siteLink("/store") }]],
           },
-        },
+        }),
       );
       return Response.json({ ok: true, foul: "locked" });
     }
@@ -572,25 +572,25 @@ function menuPanel(isBoss: boolean, siteUrl: string, foul: FoulAccess) {
 
 const HELP_USER = `🤖 <b>OG B0T</b>
 
-Just type to chat with me, same brain as the in-app messenger. Or use the buttons below.
+Just type to chat with me, same brain as the in-app messenger. Or use the buttons below: 📂 Menu has everything here plus the foul mouth switch, 📈 Signals swaps in the signal buttons until you tap Back.
 
 💰 <b>Coins</b>
 /balance  your OG coin balance
 /buy  top up OG coins
 
-🎧 <b>Music & VIP</b>
-/tracks  your latest tracks to play and share
+🎧 <b>Music, VIP & Vault</b>
+/tracks  your latest tracks to download and share
 /vip  your VIP status and expiry date
-
-🔐 <b>Access</b>
 /vault  your OG Vault login
-/sports  the Sports Guide (try <code>/sports arsenal</code>)
-/me  your linked profile
 
-📈 <b>Signals</b>
+📈 <b>Signals & sports</b>
 /signals  live gold and bitcoin signals
+/sports  the Sports Guide (try <code>/sports arsenal</code>)
 
-🧹 /clear wipes this chat and starts fresh.`;
+👤 <b>You</b>
+/me  your linked profile
+/menu  the OG Menu
+/clear  wipe this chat and start fresh`;
 
 const HELP_ADMIN = `${HELP_USER}
 
@@ -764,9 +764,14 @@ async function runAdminCommand(
   admin: Awaited<ReturnType<typeof loadAdmin>>,
   chat_id: number,
   text: string,
+  viaMenu = false,
 ): Promise<boolean> {
   const [cmd, ...rest] = text.trim().split(/\s+/);
   const arg = rest.join(" ");
+  // Opened from the menu panel: a screen with a way back to the menu. Typed
+  // Boss commands stay as ordinary messages to scroll back through.
+  const out = (body: string) =>
+    viaMenu ? screen(chat_id, body, withMenuBack(undefined)) : reply(chat_id, body);
 
   if (cmd === "/user" || cmd === "/inspect" || cmd === "/whois") {
     if (!arg) {
@@ -787,12 +792,12 @@ async function runAdminCommand(
     const { data, error } = await query.limit(10);
     if (error) {
       console.error("[telegram] /users failed", error);
-      await reply(chat_id, "⚠️ Search failed. Try again in a moment.");
+      await out("⚠️ Search failed. Try again in a moment.");
       return true;
     }
     const rows = (data ?? []) as AdminProfile[];
     if (!rows.length) {
-      await reply(chat_id, q ? `No profiles match "${esc(q)}".` : "No profiles yet.");
+      await out(q ? `No profiles match "${esc(q)}".` : "No profiles yet.");
       return true;
     }
     const list = rows
@@ -804,10 +809,7 @@ async function runAdminCommand(
       )
       .join("\n\n");
     const title = q ? `👥 <b>Profiles matching "${esc(q)}"</b>` : "👥 <b>Newest profiles</b>";
-    await reply(
-      chat_id,
-      `${title}\n\n${list}\n\n✈️ = Telegram linked · /user &lt;email&gt; for more`,
-    );
+    await out(`${title}\n\n${list}\n\n✈️ = Telegram linked · /user &lt;email&gt; for more`);
     return true;
   }
 
@@ -892,8 +894,7 @@ async function runAdminCommand(
       0,
     );
     const n = (v: number | null) => (v ?? 0).toLocaleString("en-GB");
-    await reply(
-      chat_id,
+    await out(
       `📊 <b>OG Streamz right now</b>\n\n` +
         `👥 Members: <b>${n(users)}</b> (+${n(newToday)} in the last 24h)\n` +
         `✈️ On Telegram: <b>${n(linked)}</b>\n` +
@@ -1705,7 +1706,7 @@ async function handleTelegramUpdate(
     }
     // Admin commands
     if (isBoss && trimmed.startsWith("/")) {
-      const handled = await runAdminCommand(admin, chat_id, trimmed);
+      const handled = await runAdminCommand(admin, chat_id, trimmed, msg.viaMenu);
       if (handled) return Response.json({ ok: true, admin_cmd: true });
     }
 

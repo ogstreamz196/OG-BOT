@@ -8,7 +8,10 @@ const CHAT = 4242;
 type Sent = { id: number; text: string; markup?: Record<string, unknown> };
 const sent: Sent[] = [];
 const deleted = new Set<number>();
+const edits: { id: number; markup: Record<string, unknown> }[] = [];
 let nextId = 100;
+// Who the linked member is, and their foul mouth state.
+const who = { roles: [] as string[], foulAllowed: true, foulOn: true };
 
 vi.mock("@/lib/telegram-api.server", () => ({
   escapeTelegramHtml: (s: string) => s,
@@ -24,6 +27,11 @@ vi.mock("@/lib/telegram-api.server", () => ({
     }
     if (method === "deleteMessages") for (const id of body.message_ids as number[]) deleted.add(id);
     if (method === "deleteMessage") deleted.add(body.message_id as number);
+    if (method === "editMessageReplyMarkup")
+      edits.push({
+        id: body.message_id as number,
+        markup: body.reply_markup as Record<string, unknown>,
+      });
     return { ok: true, result: true };
   },
 }));
@@ -40,6 +48,10 @@ function query(table: string) {
     select: () => q,
     order: () => q,
     limit: () => q,
+    gt: () => q,
+    gte: () => q,
+    not: () => q,
+    or: () => q,
     eq: (col: string, v: unknown) => (filters.push([col, (x) => x === v]), q),
     in: (col: string, vs: unknown[]) => (filters.push([col, (x) => vs.includes(x)]), q),
     maybeSingle: () => ((single = true), q),
@@ -67,7 +79,8 @@ function query(table: string) {
         } else data = screens.filter(match);
       }
       if (table === "profiles" && op === "select") data = single ? { id: "u1" } : [{ id: "u1" }];
-      resolve({ data, error: null });
+      if (table === "user_roles") data = who.roles.map((role) => ({ role }));
+      resolve({ data, error: null, count: 0 });
     },
   };
   return q;
@@ -79,8 +92,10 @@ vi.mock("@/lib/telegram-signin.server", () => ({
   telegramSignInLinker: () => async (path: string) => `https://ogbot.co.uk${path}`,
 }));
 vi.mock("@/lib/foul-access.server", () => ({
-  foulAccess: async () => ({ allowed: true, on: true }),
-  setFoulMouth: async () => undefined,
+  foulAccess: async () => ({ allowed: who.foulAllowed, on: who.foulAllowed && who.foulOn }),
+  setFoulMouth: async (_a: unknown, _id: string, on: boolean) => {
+    who.foulOn = on;
+  },
 }));
 vi.mock("@/lib/trade-hold.server", () => ({ pickTradeHold: async () => "Hold on…" }));
 vi.mock("@/lib/trade-signal-context.server", () => ({
@@ -131,6 +146,10 @@ const barHolder = () => [...sent].reverse().find((m) => m.markup && "keyboard" i
 const barButtons = () =>
   (barHolder().markup!.keyboard as { text: string }[][]).flat().map((b) => b.text);
 const lastSent = () => sent[sent.length - 1];
+type Btn = { text: string; callback_data?: string; url?: string };
+const buttons = (m: { markup?: Record<string, unknown> }) =>
+  ((m.markup?.inline_keyboard ?? []) as Btn[][]).flat();
+const liveBars = () => sent.filter((m) => m.markup && "keyboard" in m.markup && !deleted.has(m.id));
 const showing = (needle: string) =>
   sent.filter((m) => m.text.includes(needle) && !deleted.has(m.id));
 
@@ -138,7 +157,9 @@ describe("telegram bot flow", () => {
   beforeEach(() => {
     sent.length = 0;
     deleted.clear();
+    edits.length = 0;
     screens.length = 0;
+    Object.assign(who, { roles: [], foulAllowed: true, foulOn: true });
   });
 
   test("signal buttons stay while signals run; menu items lead back to the menu", async () => {
@@ -207,5 +228,104 @@ describe("telegram bot flow", () => {
     await type("/vip");
     const rows = (lastSent().markup!.inline_keyboard as { text: string }[][]).flat();
     expect(rows.map((b) => b.text)).not.toContain("⬅️ Menu");
+  });
+
+  for (const boss of [false, true]) {
+    test(`every menu button works and leads back to the menu (${boss ? "Boss" : "member"})`, async () => {
+      if (boss) who.roles = ["boss"];
+      await type("/start");
+      await type("📂 Menu");
+      let menu = lastSent();
+      const keys = buttons(menu)
+        .map((b) => b.callback_data)
+        .filter((d): d is string => !!d && d !== "menu:foul");
+      expect(keys.includes("menu:stats")).toBe(boss);
+      expect(keys.includes("menu:users")).toBe(boss);
+      expect(buttons(menu).some((b) => b.url?.startsWith("https://ogbot.co.uk"))).toBe(true);
+      const mainBar = barHolder();
+
+      for (const key of keys) {
+        await tap(key, menu.id);
+        const opened = lastSent();
+        expect(opened.id, key).toBeGreaterThan(menu.id);
+        expect(deleted.has(menu.id), `${key} replaces the menu`).toBe(true);
+        expect(
+          buttons(opened).map((b) => b.text),
+          key,
+        ).toContain("⬅️ Menu");
+        await tap("menu:open", opened.id);
+        menu = lastSent();
+        expect(menu.text, key).toContain("OG Menu");
+        expect(deleted.has(opened.id), `${key} is tidied by ⬅️ Menu`).toBe(true);
+      }
+      // The bar never moved, and only one bar message is in the chat.
+      expect(barHolder().id).toBe(mainBar.id);
+      expect(deleted.has(mainBar.id)).toBe(false);
+      expect(liveBars()).toHaveLength(1);
+      // Only one menu-made screen is ever left showing.
+      expect(sent.filter((m) => m.text.includes("OG Menu") && !deleted.has(m.id))).toHaveLength(1);
+    });
+  }
+
+  test("foul mouth switch flips on and off in place, and is locked for free members", async () => {
+    await type("/start");
+    await type("📂 Menu");
+    const menu = lastSent();
+    expect(buttons(menu)[0].text).toContain("Foul mouth: ON");
+    await tap("menu:foul", menu.id);
+    expect(who.foulOn).toBe(false);
+    expect(buttons({ markup: edits.at(-1)!.markup })[0].text).toContain("Foul mouth: OFF");
+    expect(edits.at(-1)!.id).toBe(menu.id);
+    await tap("menu:foul", menu.id);
+    expect(who.foulOn).toBe(true);
+    expect(buttons({ markup: edits.at(-1)!.markup })[0].text).toContain("Foul mouth: ON");
+    // Flipping edits the menu; it never sends a new message.
+    expect(lastSent().id).toBe(menu.id);
+
+    who.foulAllowed = false;
+    await type("📂 Menu");
+    const locked = lastSent();
+    expect(buttons(locked)[0].text).toContain("🔒 Foul mouth (VIP)");
+    await tap("menu:foul", locked.id);
+    const perk = lastSent();
+    expect(perk.text).toContain("VIP perk");
+    expect(buttons(perk).map((b) => b.text)).toEqual(["👑 Get VIP", "⬅️ Menu"]);
+    await tap("menu:open", perk.id);
+    expect(lastSent().text).toContain("OG Menu");
+  });
+
+  test("1 min signals are on the Boss bar only", async () => {
+    await type("/start");
+    await type("📈 Signals");
+    expect(barButtons()).not.toContain("🥇 Gold · 1 min");
+    expect(barButtons().at(-1)).toBe("⬅️ Back");
+    who.roles = ["boss"];
+    await type("📈 Signals");
+    expect(barButtons()).toContain("🥇 Gold · 1 min");
+    expect(liveBars()).toHaveLength(1);
+  });
+
+  test("typed Boss commands stay as normal messages; members can't use them", async () => {
+    who.roles = ["boss"];
+    await type("/start");
+    await type("/stats");
+    const stats = lastSent();
+    expect(stats.text).toContain("OG Streamz right now");
+    expect(buttons(stats)).toHaveLength(0);
+    await type("📂 Menu");
+    expect(deleted.has(stats.id)).toBe(false);
+
+    who.roles = [];
+    await type("/stats");
+    expect(lastSent().text).toContain("I don't know that one");
+  });
+
+  test("clear chat brings back the intro and the bar", async () => {
+    await type("/start");
+    await type("📈 Signals");
+    await type("🧹 Clear chat");
+    expect(barHolder().text).toContain("OG B0T here");
+    expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
+    expect(liveBars()).toHaveLength(1);
   });
 });
