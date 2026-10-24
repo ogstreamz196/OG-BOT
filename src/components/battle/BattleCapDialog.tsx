@@ -36,7 +36,7 @@ export function BattleCapDialog({
         <DialogHeader>
           <DialogTitle className="text-center text-2xl">🏆 Pot's stacked!</DialogTitle>
           <DialogDescription className="text-center text-foreground/80">
-            You battered OG Bot and built your bank to <strong>{purse}</strong>. Cash it into your
+            You battered 0G B0T and built your bank to <strong>{purse}</strong>. Cash it into your
             balance now, or let the pot keep building.
           </DialogDescription>
         </DialogHeader>

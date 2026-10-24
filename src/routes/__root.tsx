@@ -97,31 +97,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
         { name: "theme-color", content: "#0a0a0a" },
         { name: "format-detection", content: "telephone=no" },
-        { title: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
+        { title: "0G B0T — AI Songs, Foul-Mouth Diss Tracks & Battle Zone" },
         {
           name: "description",
           content:
-            "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+            "Type an idea and 0G B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         },
         { name: "author", content: "OG Streamz" },
         { property: "og:site_name", content: "OG Streamz" },
         {
           property: "og:title",
-          content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone",
+          content: "0G B0T — AI Songs, Foul-Mouth Diss Tracks & Battle Zone",
         },
         {
           property: "og:description",
           content:
-            "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+            "Type an idea and 0G B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         },
         { property: "og:type", content: "website" },
         { property: "og:url", content: canonical ?? `${SITE_URL}${pathname}` },
         { property: "og:locale", content: "en_GB" },
         { property: "og:image", content: SHARE_IMAGE },
-        { property: "og:image:alt", content: "OG BOT" },
+        { property: "og:image:alt", content: "0G B0T" },
         { name: "twitter:image", content: SHARE_IMAGE },
-        { name: "application-name", content: "OG BOT" },
-        { name: "apple-mobile-web-app-title", content: "OG BOT" },
+        { name: "application-name", content: "0G B0T" },
+        { name: "apple-mobile-web-app-title", content: "0G B0T" },
         {
           name: "robots",
           content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
@@ -129,12 +129,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { name: "twitter:card", content: "summary_large_image" },
         {
           name: "twitter:title",
-          content: "OG BOT — AI Songs, Foul-Mouth Diss Tracks & Battle Zone",
+          content: "0G B0T — AI Songs, Foul-Mouth Diss Tracks & Battle Zone",
         },
         {
           name: "twitter:description",
           content:
-            "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+            "Type an idea and 0G B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         },
         {
           name: "google-site-verification",
@@ -190,7 +190,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         // Styles for older TVs, car screens and phones (no CSS layers).
         { children: LEGACY_CSS_LOADER },
         ...siteJsonLd(
-          "Type an idea and OG BOT cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+          "Type an idea and 0G B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
         ).map((data) => ({ type: "application/ld+json", children: JSON.stringify(data) })),
       ],
     };

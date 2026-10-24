@@ -36,7 +36,7 @@ export function E2ESmokeTest() {
         <div>
           <h3 className="text-lg font-bold">End-to-end smoke test</h3>
           <p className="text-xs text-muted-foreground">
-            Sign-in → create song → suno-generate → status poll → OG Bot round-trip.
+            Sign-in → create song → suno-generate → status poll → 0G B0T round-trip.
           </p>
         </div>
         <Button onClick={onRun} disabled={running} className="gap-2">

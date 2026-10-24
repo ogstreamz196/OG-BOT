@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/public/v1/vault/ping")({
           .from("vip_pass_credentials")
           .select("id", { count: "exact", head: true })
           .eq("active", true);
-        return json({ ok: true, key_name: "OG BOT Vault", active_credentials: count ?? 0 });
+        return json({ ok: true, key_name: "0G B0T Vault", active_credentials: count ?? 0 });
       },
     },
   },

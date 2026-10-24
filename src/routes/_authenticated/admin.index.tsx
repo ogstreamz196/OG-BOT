@@ -55,7 +55,7 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <QuickAction to="/admin/users" Icon={UserSearch} label="Find a member" />
               <QuickAction to="/admin/coins" tab="grant" Icon={Gift} label="Grant coins" />
-              <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG Bot persona" />
+              <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="0G B0T persona" />
               <QuickAction
                 to="/admin/system"
                 tab="tests"

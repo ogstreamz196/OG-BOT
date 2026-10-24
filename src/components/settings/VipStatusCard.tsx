@@ -61,7 +61,7 @@ export function VipStatusCard({ className }: { className?: string } = {}) {
           <Crown className="h-4 w-4 text-primary" /> OG VIP membership
         </CardTitle>
         <CardDescription>
-          £5 / month — foul-mouth OG bot, priority replies, and a 10-coin daily safety net.
+          £5 / month — foul-mouth 0G B0T, priority replies, and a 10-coin daily safety net.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

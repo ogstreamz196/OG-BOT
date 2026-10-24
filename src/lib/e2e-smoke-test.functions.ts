@@ -144,7 +144,7 @@ export const runE2ESmokeTest = createServerFn({ method: "POST" })
       }
 
       // 5) OG Bot round-trip
-      await run("og_chat", "Send OG Bot test message", async () => {
+      await run("og_chat", "Send 0G B0T test message", async () => {
         const { chatOgBot } = await import("@/lib/og-messenger.functions");
         const res = await chatOgBot({
           data: {
@@ -153,7 +153,7 @@ export const runE2ESmokeTest = createServerFn({ method: "POST" })
           },
         } as never);
         const reply = (res as { reply?: string } | undefined)?.reply || "";
-        if (!reply || reply.length < 2) throw new Error("Empty reply from OG bot");
+        if (!reply || reply.length < 2) throw new Error("Empty reply from 0G B0T");
         return `reply (${reply.length} chars): ${reply.slice(0, 80)}…`;
       });
     } finally {

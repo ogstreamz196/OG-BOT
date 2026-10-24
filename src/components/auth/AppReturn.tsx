@@ -58,17 +58,17 @@ export function AppReturn() {
   return (
     <div className="grid min-h-dvh place-items-center bg-background px-4 text-center">
       <div className="flex max-w-sm flex-col items-center gap-4">
-        <p className="text-foreground">{session ? "Signed in to OG BOT" : "Finishing sign-in…"}</p>
+        <p className="text-foreground">{session ? "Signed in to 0G B0T" : "Finishing sign-in…"}</p>
         {appIntent && (
           <>
             <Button asChild size="lg" className="min-h-12 w-full">
               <a href={appIntent} onClick={() => setOpening(true)}>
-                Open OG BOT app
+                Open 0G B0T app
               </a>
             </Button>
             {opening && (
               <p className="text-sm text-muted-foreground">
-                If OG BOT does not open, check that the installed app supports sign-in return.
+                If 0G B0T does not open, check that the installed app supports sign-in return.
               </p>
             )}
             <a href={next} className="text-sm text-muted-foreground underline">

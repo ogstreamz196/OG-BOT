@@ -579,7 +579,7 @@ function TelegramDmCard({
   const send = useMutation({
     mutationFn: async () => sendFn({ data: { userId, text } }),
     onSuccess: () => {
-      toast.success("Sent via OG Bot ✅");
+      toast.success("Sent via 0G B0T ✅");
       setText("");
       invalidate();
     },
@@ -618,7 +618,7 @@ function TelegramDmCard({
           <MessageCircle className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold">Message via OG Bot</h3>
+          <h3 className="font-semibold">Message via 0G B0T</h3>
           <p className="text-xs text-muted-foreground">
             {linked
               ? `Telegram linked${tgUsername ? ` · @${tgUsername}` : ""}. Messages send straight to their DMs.`
@@ -672,7 +672,7 @@ function TelegramDmCard({
                 ) : (
                   <Send className="mr-2 h-4 w-4" />
                 )}
-                Send via OG Bot
+                Send via 0G B0T
               </Button>
             </div>
           </div>
@@ -720,7 +720,7 @@ function TelegramDmCard({
           <p className="mt-2 text-xs text-muted-foreground">
             {activeToken
               ? "Fresh single-use link. Share it with the member; it replaces any previous one."
-              : "Create a link, then send it to the member. Once they tap Start in Telegram, OG Bot can DM them."}
+              : "Create a link, then send it to the member. Once they tap Start in Telegram, 0G B0T can DM them."}
           </p>
         </div>
       )}

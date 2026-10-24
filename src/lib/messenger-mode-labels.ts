@@ -11,13 +11,13 @@ export function isCommunityMode(mode: MessengerMode): boolean {
 }
 
 export function modeHeading(mode: MessengerMode): string {
-  return isCommunityMode(mode) ? "OG Battle Zone" : "OG Bot Loner Mode";
+  return isCommunityMode(mode) ? "OG Battle Zone" : "0G B0T Loner Mode";
 }
 
 export function modeBadge(mode: MessengerMode): string {
   return isCommunityMode(mode)
-    ? "OG Battle Zone · everyone vs OG Bot"
-    : "OG Bot Loner Mode · private";
+    ? "OG Battle Zone · everyone vs 0G B0T"
+    : "0G B0T Loner Mode · private";
 }
 
 /** Visible pill copy — describes the action the NEXT click will perform. */

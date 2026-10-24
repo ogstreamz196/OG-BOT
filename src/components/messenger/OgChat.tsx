@@ -63,7 +63,7 @@ function OgAvatar({ size = 36, className = "" }: { size?: number; className?: st
   return (
     <img
       src={size > 48 ? ogBotLogo.large : ogBotLogo.small}
-      alt="OG Bot"
+      alt="0G B0T"
       width={size}
       height={size}
       className={cn(
@@ -419,7 +419,7 @@ export function OgChat({
     const t = text.trim();
     const att = attachment;
     if (m.isPending) return;
-    if (!user) return toast.error("Sign in to chat with OG Bot.");
+    if (!user) return toast.error("Sign in to chat with 0G B0T.");
 
     // OG Bot Loner Mode is ALWAYS private. The page-level Loner ↔ Community
     // toggle (in /messenger) is the single source of truth — when OgChat is
@@ -748,13 +748,13 @@ export function OgChat({
                   />
                   <img
                     src={ogBotLogo.large}
-                    alt="OG Bot"
+                    alt="0G B0T"
                     className="relative h-full w-full rounded-full object-cover ring-4 ring-primary/40 shadow-[0_0_60px_-10px_hsl(var(--primary)/0.9)] animate-[bob_3s_ease-in-out_infinite]"
                   />
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-lg font-extrabold sm:text-2xl">
-                    Message <span className="text-gradient-brand">OG Bot</span>
+                    Message <span className="text-gradient-brand">0G B0T</span>
                   </h2>
                   <p className="text-xs text-muted-foreground sm:text-base">
                     Ask anything. Private chat is free.
@@ -767,10 +767,10 @@ export function OgChat({
                   <div className="flex flex-col items-center gap-2 pt-2">
                     <div
                       className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary"
-                      title="Private chat — only you and OG Bot can see this"
+                      title="Private chat — only you and 0G B0T can see this"
                     >
                       <ShieldCheck className="h-3 w-3" />
-                      Private · OG Bot Loner Mode
+                      Private · 0G B0T Loner Mode
                     </div>
                     <div className="flex flex-wrap justify-center gap-2">
                       {QUICK_STARTS.map((q) => (
@@ -844,7 +844,7 @@ export function OgChat({
                       isUser ? (isVip ? "text-amber-400" : "text-primary") : "text-foreground/70",
                     )}
                   >
-                    {isUser ? "You" : "OG Bot"}
+                    {isUser ? "You" : "0G B0T"}
                     {isUser && isVip && (
                       <>
                         <Crown className="h-3 w-3 fill-amber-300 text-amber-500" />
@@ -902,7 +902,7 @@ export function OgChat({
                 className="min-w-0 flex-1 max-w-[calc(100%-2rem)] items-start gap-0.5 sm:max-w-[82%] lg:max-w-[74%]"
               >
                 <span className="inline-flex items-center gap-1 px-1.5 text-[0.7rem] font-bold uppercase text-foreground/70">
-                  OG Bot
+                  0G B0T
                 </span>
                 <MessageContent className="w-full break-words bg-transparent p-0 text-[13px] leading-[1.38] text-foreground shadow-none sm:text-sm">
                   <MessageResponse className="prose-sm max-w-none prose-p:my-0.5 prose-p:leading-snug prose-ul:my-0.5 prose-ol:my-0.5 prose-headings:my-0.5 prose-code:text-primary">
@@ -917,18 +917,18 @@ export function OgChat({
               className="flex items-end gap-3"
               role="status"
               aria-live="polite"
-              aria-label="OG Bot is typing"
+              aria-label="0G B0T is typing"
             >
               <OgAvatar size={40} className="shrink-0 animate-pulse" />
               <div className="flex flex-col gap-1.5 min-w-[60%] max-w-[78%]">
                 <span className="px-2 text-[0.7rem] font-black uppercase tracking-[0.18em] text-foreground/70 inline-flex items-center gap-1.5">
-                  OG Bot
+                  0G B0T
                   <span className="font-bold normal-case tracking-normal text-muted-foreground/80">
                     is typing<span className="inline-block animate-pulse">…</span>
                   </span>
                 </span>
                 <div className="rounded-2xl rounded-bl-sm bg-card border-2 border-border px-4 py-3 inline-flex items-center">
-                  <TypingDots aria-label="OG Bot is typing" />
+                  <TypingDots aria-label="0G B0T is typing" />
                 </div>
                 {/* Shimmering bubble skeletons — Suno-style "still cooking" placeholders */}
                 <div className="space-y-1.5">
@@ -936,7 +936,7 @@ export function OgChat({
                   <div className="h-3 w-[70%] rounded-md bg-gradient-to-r from-muted via-muted/40 to-muted bg-[length:200%_100%] animate-[shimmer_1.6s_linear_infinite]" />
                   <div className="h-3 w-[55%] rounded-md bg-gradient-to-r from-muted via-muted/40 to-muted bg-[length:200%_100%] animate-[shimmer_1.6s_linear_infinite]" />
                 </div>
-                <span className="sr-only">OG Bot is generating a response</span>
+                <span className="sr-only">0G B0T is generating a response</span>
               </div>
             </div>
           )}
@@ -994,7 +994,7 @@ export function OgChat({
           }
           className="mx-3 mb-1 flex items-center justify-center gap-1.5 rounded-full border border-destructive/50 bg-destructive/10 px-3 py-1.5 text-xs font-bold text-foreground transition hover:bg-destructive/20"
         >
-          ⚡ OG Bot is taking notes — turn this chat into a diss track (5 coins)
+          ⚡ 0G B0T is taking notes — turn this chat into a diss track (5 coins)
         </button>
       )}
       <form
@@ -1010,7 +1010,7 @@ export function OgChat({
             <div className="flex items-center gap-2">
               <img src={attachment.dataUrl} alt="" className="h-10 w-10 rounded-md object-cover" />
               <span className="flex-1 truncate text-xs text-muted-foreground">
-                {attachment.name} · ask OG Bot anything about it
+                {attachment.name} · ask 0G B0T anything about it
               </span>
               <button
                 type="button"
@@ -1093,13 +1093,13 @@ export function OgChat({
                     ? "Out of coins — top up to chat"
                     : attachment
                       ? "Ask about this image…"
-                      : "Message OG Bot…"
+                      : "Message 0G B0T…"
             }
             disabled={m.isPending || isOut || !user || transcribing}
             maxLength={2000}
             inputMode="text"
             enterKeyHint="send"
-            aria-label="Message OG Bot in Loner Mode"
+            aria-label="Message 0G B0T in Loner Mode"
             data-testid="og-loner-composer"
             style={{ touchAction: "manipulation" }}
             className="min-h-10 max-h-32 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-base leading-5 placeholder:text-muted-foreground/70 focus:outline-none disabled:cursor-not-allowed sm:px-2.5 sm:text-[15px]"
@@ -1168,10 +1168,10 @@ function VipFoulPromo({
         </div>
         <h3 className="mt-2 font-display text-lg font-black">Unlock Foul Mouth</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          OG Bot goes unfiltered — savage roasts, UK street slang, no holding back.
+          0G B0T goes unfiltered — savage roasts, UK street slang, no holding back.
         </p>
         <ul className="mt-3 space-y-1 text-left text-xs text-foreground/90">
-          <li>🔥 Unfiltered OG Bot persona</li>
+          <li>🔥 Unfiltered 0G B0T persona</li>
           <li>👑 Your own OG VIP ID and gold badge</li>
           <li>⚡ Priority replies + daily 10-coin safety net</li>
         </ul>

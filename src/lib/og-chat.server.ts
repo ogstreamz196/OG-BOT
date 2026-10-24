@@ -311,10 +311,10 @@ export async function runOgChat(
         console.error(`${provider} API error`, res.status, text);
         if (res.status === 429 || res.status === 402) {
           if (/quota|credit|billing/i.test(text))
-            throw new Error("OG Bot is taking a break right now — please try again later.");
-          throw new Error("OG Bot is rate-limited, try again soon.");
+            throw new Error("0G B0T is taking a break right now — please try again later.");
+          throw new Error("0G B0T is rate-limited, try again soon.");
         }
-        throw new Error(`OG Bot couldn't respond right now (HTTP ${res.status})`);
+        throw new Error(`0G B0T couldn't respond right now (HTTP ${res.status})`);
       }
 
       const json = (await res.json().catch(() => ({}))) as {

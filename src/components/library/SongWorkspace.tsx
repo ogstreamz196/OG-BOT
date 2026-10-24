@@ -635,8 +635,8 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
         announceSampleCharge(data);
         toast.success(
           editCost > 0
-            ? `${editCost} OG coins used · OG Bot is cooking your new take`
-            : "OG Bot is cooking your new take",
+            ? `${editCost} OG coins used · 0G B0T is cooking your new take`
+            : "0G B0T is cooking your new take",
         );
         refreshCoinBalance();
         onSaved?.();
@@ -1173,7 +1173,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold">Generation failed</p>
                           <p className="mt-0.5 text-xs opacity-90">
-                            {song.error_message || "Something went wrong on OG Bot's side."} Your
+                            {song.error_message || "Something went wrong on 0G B0T's side."} Your
                             coins were refunded automatically.
                           </p>
                         </div>
@@ -1336,7 +1336,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
         <TabsContent value="takes" className="mt-0">
           {cooking ? (
             <p className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-              Your old takes are hidden while OG Bot cooks the new version.
+              Your old takes are hidden while 0G B0T cooks the new version.
             </p>
           ) : (
             <VariationsCard variations={variations} />
@@ -1433,7 +1433,7 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
         </div>
         <div className="flex flex-1 flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-bold text-primary">OG Bot is cooking…</span>
+            <span className="text-sm font-bold text-primary">0G B0T is cooking…</span>
             <span className="flex items-center gap-2 font-mono text-xs font-semibold tabular-nums text-primary">
               <span>{Math.round(progress)}%</span>
               <span className="rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[0.7rem] font-medium text-muted-foreground">

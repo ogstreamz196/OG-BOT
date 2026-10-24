@@ -33,7 +33,7 @@ export function DodgyLogo({
   dodgeRadius = 160,
   className = "",
   src,
-  alt = "OG Bot - AI Music Creator Mascot",
+  alt = "0G B0T - AI Music Creator Mascot",
   imageClassName = "rounded-2xl",
   aspectRatio = "1 / 1",
   glow = true,

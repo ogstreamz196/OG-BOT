@@ -216,7 +216,7 @@ export function AccountChecklistModal() {
 
           <Step n={3} title="Link Telegram" done={tgDone} doneText="Connected">
             <p className="text-xs text-muted-foreground">
-              Get pinged the second your track is ready, plus OG Bot on Telegram.
+              Get pinged the second your track is ready, plus 0G B0T on Telegram.
             </p>
             <Button onClick={linkTelegram} disabled={busy !== null} className="h-11 w-full">
               {busy === "tg" ? (

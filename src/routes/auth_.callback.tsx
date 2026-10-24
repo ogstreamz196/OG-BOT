@@ -6,10 +6,10 @@ export const Route = createFileRoute("/auth_/callback")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Signing you in | OG BOT — AI Songs & Diss Tracks" },
-      { name: "description", content: "Finishing sign-in to OG BOT." },
-      { property: "og:title", content: "Signing you in | OG BOT — AI Songs & Diss Tracks" },
-      { property: "og:description", content: "Finishing sign-in to OG BOT." },
+      { title: "Signing you in | 0G B0T — AI Songs & Diss Tracks" },
+      { name: "description", content: "Finishing sign-in to 0G B0T." },
+      { property: "og:title", content: "Signing you in | 0G B0T — AI Songs & Diss Tracks" },
+      { property: "og:description", content: "Finishing sign-in to 0G B0T." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
@@ -70,7 +70,7 @@ function AuthCallback() {
             </a>
           </>
         ) : (
-          <p className="text-foreground">Signing you in to OG BOT…</p>
+          <p className="text-foreground">Signing you in to 0G B0T…</p>
         )}
       </div>
     </div>

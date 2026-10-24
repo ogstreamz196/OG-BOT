@@ -40,17 +40,17 @@ export const Route = createFileRoute("/_authenticated/messenger")({
   }),
   head: () => ({
     meta: [
-      { title: "OG Bot Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
+      { title: "0G B0T Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
       {
         name: "description",
         content:
-          "Step into the Battle Zone and trade insults with foul-mouth OG Bot. Earn OG Coins, then get a savage AI diss track cooked about you.",
+          "Step into the Battle Zone and trade insults with foul-mouth 0G B0T. Earn OG Coins, then get a savage AI diss track cooked about you.",
       },
-      { property: "og:title", content: "OG Bot Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
+      { property: "og:title", content: "0G B0T Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
       {
         property: "og:description",
         content:
-          "Step into the Battle Zone and trade insults with foul-mouth OG Bot. Earn OG Coins, then get a savage AI diss track cooked about you.",
+          "Step into the Battle Zone and trade insults with foul-mouth 0G B0T. Earn OG Coins, then get a savage AI diss track cooked about you.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://ogbot.co.uk/messenger" },
@@ -238,7 +238,7 @@ function MessengerPage() {
               ) : (
                 <img
                   src={ogBotLogo.small}
-                  alt="OG Bot"
+                  alt="0G B0T"
                   className="relative h-8 w-8 rounded-full object-cover ring-1 ring-primary/60 sm:h-9 sm:w-9"
                 />
               )}
@@ -350,12 +350,12 @@ function MessengerPage() {
             <AlertDialogTitle>
               {pendingMode === "community"
                 ? "Enter the OG Battle Zone?"
-                : "Switch to OG Bot Loner Mode?"}
+                : "Switch to 0G B0T Loner Mode?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingMode === "community"
-                ? "You'll leave your private chat and step into the OG Battle Zone — everyone vs OG Bot. Anything you send is visible to everyone."
-                : "You'll leave the OG Battle Zone and return to a private 1-on-1 chat with OG Bot. Only you can see Loner Mode messages."}
+                ? "You'll leave your private chat and step into the OG Battle Zone — everyone vs 0G B0T. Anything you send is visible to everyone."
+                : "You'll leave the OG Battle Zone and return to a private 1-on-1 chat with 0G B0T. Only you can see Loner Mode messages."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

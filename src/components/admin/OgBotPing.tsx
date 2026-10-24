@@ -57,7 +57,7 @@ export function OgBotPing() {
     <AdminSection
       padding="p-4"
       icon={<Activity className="h-5 w-5 text-primary" />}
-      title="OG Bot host"
+      title="0G B0T host"
       subtitle={subtitle}
       action={badge}
     >

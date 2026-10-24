@@ -25,13 +25,13 @@ const TONE_BRIEF: Record<CatchTone, string> = {
 
 type Kind = "opener" | "closer" | "roast" | "trade_hold";
 const TRADE_HOLD_PROMPT = (tone: CatchTone) =>
-  `Write 12 brand-new, varied one-line messages OG Bot (a UK chat bot) sends instantly when a user asks for a trading signal, before the analysis arrives. Each must: start with ⏳, contain the exact token {m} once where the market name goes, tell the user to hold on while you check the charts, and say the honest signal is coming in the next message. Style: ${TONE_BRIEF[tone]}. Under 28 words each, all different structures, no numbering, no quotes, no prices or predictions. Output one per line, nothing else.`;
+  `Write 12 brand-new, varied one-line messages 0G B0T (a UK chat bot) sends instantly when a user asks for a trading signal, before the analysis arrives. Each must: start with ⏳, contain the exact token {m} once where the market name goes, tell the user to hold on while you check the charts, and say the honest signal is coming in the next message. Style: ${TONE_BRIEF[tone]}. Under 28 words each, all different structures, no numbering, no quotes, no prices or predictions. Output one per line, nothing else.`;
 
 async function generateBatch(kind: Kind, tone: CatchTone): Promise<string[]> {
   const prompt =
     kind === "trade_hold"
       ? TRADE_HOLD_PROMPT(tone)
-      : `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "ROASTS / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for OG Bot, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
+      : `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "ROASTS / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for 0G B0T, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
   for (const t of [...freeFallbackTargets(), ...aiChatTargets("catchphrases")]) {
     try {
       const res = await fetch(t.url, {

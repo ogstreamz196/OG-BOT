@@ -142,7 +142,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
       const res = await postFn({ data: { guestId, content: text.trim() } });
       if (!res.ok) {
         if (res.reason === "limit") onNeedAccount();
-        else toast("OG Bot's swamped — try again in a minute.");
+        else toast("0G B0T's swamped — try again in a minute.");
       } else {
         setText("");
         const earned = res.award?.earnedTenths ?? 0;
@@ -256,7 +256,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
                   key={m.id}
                   kind={isBot ? "bot" : "user"}
                   mine={m.mine}
-                  name={isBot ? "OG Bot" : m.display_name || "OG member"}
+                  name={isBot ? "0G B0T" : m.display_name || "OG member"}
                   time={m.created_at ? time(m.created_at) : ""}
                   content={m.content}
                   vip={!isBot && m.vip}
@@ -285,7 +285,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
           )}
         </div>
 
-        {sending ? <ArenaTyping label="OG Bot is cooking a comeback…" /> : null}
+        {sending ? <ArenaTyping label="0G B0T is cooking a comeback…" /> : null}
 
         {remaining > 0 ? (
           <ArenaComposer

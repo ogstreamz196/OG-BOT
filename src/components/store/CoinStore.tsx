@@ -775,7 +775,7 @@ export function CoinStore({
                   <p className="og-st-muted mt-1 text-xs sm:text-sm">
                     {hasVipRole
                       ? "All styles, foul-mouth mode and 13% cashback are yours."
-                      : "Every style, unfiltered OG Bot, gold status and double cashback."}
+                      : "Every style, unfiltered 0G B0T, gold status and double cashback."}
                   </p>
                 </div>
                 <div className="og-store__balance grid h-12 w-12 shrink-0 place-items-center p-0">
@@ -869,7 +869,7 @@ export function CoinStore({
                     ["Chat + 29 languages", "✓", "✓"],
                     ["Music styles & moods", "6", "All"],
                     ["Request styles/languages", "🔒", "✓"],
-                    ["Foul-mouth OG Bot", "🔒", "✓"],
+                    ["Foul-mouth 0G B0T", "🔒", "✓"],
                     ["Priority replies", "🔒", "✓"],
                     ["OG VIP ID + gold badge", "🔒", "✓"],
                     ["Daily 10-coin safety net", "🔒", "✓"],

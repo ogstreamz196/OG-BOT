@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SPREADSHEET_ID = "1viHaEm53iWMCDEn9hEKI43YIu4amQ4djrgyn5iTa3Ls";
-const DRIVE_FOLDER_ID = "1d5obQLuq7gLf2w-0f0Nk83KICyyGlxTo"; // OG BOT / Track Generations
+const DRIVE_FOLDER_ID = "1d5obQLuq7gLf2w-0f0Nk83KICyyGlxTo"; // 0G B0T / Track Generations
 const SHEETS_BASE = "https://connector-gateway.lovable.dev/google_sheets/v4";
 const DRIVE_BASE = "https://connector-gateway.lovable.dev/google_drive/drive/v3";
 const DRIVE_UPLOAD = "https://connector-gateway.lovable.dev/google_drive/upload/drive/v3";
@@ -206,7 +206,7 @@ async function buildUserSnapshot(
       ]),
     },
     {
-      heading: "=== OG BOT MESSAGES ===",
+      heading: "=== 0G B0T MESSAGES ===",
       columns: ["created_at", "role", "content"],
       rows: (msgsRes.data ?? []).map((m: { created_at: string; role: string; content: string }) => [
         m.created_at,

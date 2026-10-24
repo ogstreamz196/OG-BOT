@@ -51,7 +51,7 @@ export function ReviewDialog({
             Review your brief
           </DialogTitle>
           <DialogDescription>
-            Final check before OG Bot creates the track. Creation and rendering are free.
+            Final check before 0G B0T creates the track. Creation and rendering are free.
           </DialogDescription>
         </DialogHeader>
 

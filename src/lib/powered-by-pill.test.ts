@@ -22,12 +22,12 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const PILL_PATTERNS = [
-  /MusicHUB\s*[·•‧.|-]\s*Powered by OG Bot/gi,
-  /Powered by OG Bot/gi,
+  /MusicHUB\s*[·•‧.|-]\s*Powered by 0G B0T/gi,
+  /Powered by 0G B0T/gi,
   /<PoweredByOgBot\b/g,
 ];
 
-describe("Powered by OG Bot pill uniqueness", () => {
+describe("Powered by 0G B0T pill uniqueness", () => {
   const files = walk(ROUTES_DIR).filter((f) => !f.endsWith(".gen.ts"));
 
   it.each(files)("%s renders the pill at most once", (file) => {

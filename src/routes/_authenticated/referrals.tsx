@@ -38,15 +38,15 @@ export const Route = createFileRoute("/_authenticated/referrals")({
   component: ReferralsPage,
   head: () => ({
     meta: [
-      { title: "Earn Dashboard | OG BOT — AI Songs & Diss Tracks" },
+      { title: "Earn Dashboard | 0G B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
-        content: "Track referral earnings, Community releases, and listening activity in OG BOT.",
+        content: "Track referral earnings, Community releases, and listening activity in 0G B0T.",
       },
-      { property: "og:title", content: "Earn Dashboard | OG BOT — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Earn Dashboard | 0G B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Track referral earnings, Community releases, and listening activity in OG BOT.",
+        content: "Track referral earnings, Community releases, and listening activity in 0G B0T.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -572,7 +572,7 @@ function ReferralsPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 truncate text-sm font-bold">
-                        {isBackpay ? "OG Bot" : (tx.referee_name ?? "Referred user")}
+                        {isBackpay ? "0G B0T" : (tx.referee_name ?? "Referred user")}
                         {isReversal ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[0.7rem] font-black uppercase tracking-[0.16em] text-amber-300">
                             Refunded

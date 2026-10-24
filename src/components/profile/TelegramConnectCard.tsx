@@ -18,8 +18,8 @@ const PERKS = [
   { icon: Coins, title: "Wallet on the go", text: "Check your balance and top up in one tap." },
   {
     icon: MessageCircle,
-    title: "OG Bot in your pocket",
-    text: "Chat with the same OG Bot brain anywhere.",
+    title: "0G B0T in your pocket",
+    text: "Chat with the same 0G B0T brain anywhere.",
   },
 ];
 
@@ -63,7 +63,7 @@ export function TelegramConnectCard() {
           <Send className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-lg font-bold leading-tight">OG Bot on Telegram</h2>
+          <h2 className="font-display text-lg font-bold leading-tight">0G B0T on Telegram</h2>
           {status.isLoading ? (
             <p className="text-xs text-muted-foreground">Checking connection…</p>
           ) : linked ? (
@@ -92,7 +92,7 @@ export function TelegramConnectCard() {
         {linked ? (
           <Button asChild variant="outline" className="w-full">
             <a href={`https://t.me/${BOT}`} target="_blank" rel="noopener noreferrer">
-              <Send className="mr-2 h-4 w-4" /> Open OG Bot
+              <Send className="mr-2 h-4 w-4" /> Open 0G B0T
             </a>
           </Button>
         ) : (

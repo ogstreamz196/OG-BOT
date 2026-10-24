@@ -38,7 +38,7 @@ export async function shareTrack({
   songId?: string;
   url?: string;
 }): Promise<void> {
-  const text = `🎧 “${title}” — made with OG BOT\nListen here: ${url}`;
+  const text = `🎧 “${title}” — made with 0G B0T\nListen here: ${url}`;
   const nav = typeof navigator !== "undefined" ? navigator : undefined;
   const logoFile = await fetchLogoFile();
 

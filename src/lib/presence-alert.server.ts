@@ -44,7 +44,7 @@ export async function alertBossPresence(userId: string, kind: "app" | "battle") 
     const text =
       kind === "battle"
         ? `<b>⚔️ ${name} is in Battle Zone</b>\n<a href="https://www.ogbot.co.uk/messenger">Jump in and have some fun!</a>`
-        : `<b>🟢 ${name} just opened OG BOT</b>`;
+        : `<b>🟢 ${name} just opened 0G B0T</b>`;
     const chats = [...new Set((bosses ?? []).map((b) => b.telegram_chat_id).filter(Boolean))];
     await Promise.all(
       chats.map((chat_id) => telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" })),

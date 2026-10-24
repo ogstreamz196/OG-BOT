@@ -37,7 +37,7 @@ export const runTransferReadiness = createServerFn({ method: "POST" })
     secret("Payments", "STRIPE_SECRET_KEY", "Stripe card checkout key");
     secret("Payments", "PAYMENTS_LIVE_WEBHOOK_SECRET", "Live payment webhook secret", false);
     secret("Music", "SUNO_API_KEY", "Suno song generation");
-    secret("Telegram", "OG_BOT_TOKEN", "OG Bot Telegram token");
+    secret("Telegram", "OG_BOT_TOKEN", "0G B0T Telegram token");
     secret("Telegram", "TELEGRAM_API_KEY", "Telegram connector (workspace-linked)");
     secret("AI", "GEMINI_API_KEY", "Paid Gemini fallback and live web search", false);
 

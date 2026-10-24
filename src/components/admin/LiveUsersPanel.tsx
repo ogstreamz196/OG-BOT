@@ -34,14 +34,14 @@ export function LiveUsersPanel() {
 
   const send = useMutation({
     mutationFn: async (vars: { target: string; content: string; targetLabel: string }) => {
-      const toastId = toast.loading(`Posting to ${vars.targetLabel}'s OG Bot…`);
+      const toastId = toast.loading(`Posting to ${vars.targetLabel}'s 0G B0T…`);
       try {
         const { data, error } = await supabase.rpc("dev_send_og_message_as_bot", {
           target_user_id: vars.target,
           message_content: vars.content,
         });
         if (error) throw error;
-        toast.success(`Delivered to ${vars.targetLabel}'s OG Bot history`, { id: toastId });
+        toast.success(`Delivered to ${vars.targetLabel}'s 0G B0T history`, { id: toastId });
         return data;
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Send failed", { id: toastId });
@@ -105,7 +105,7 @@ export function LiveUsersPanel() {
           {!selected ? (
             <div className="m-auto flex flex-col items-center gap-2 text-muted-foreground">
               <ShieldAlert className="h-6 w-6" />
-              <p>Select an online user to speak as OG Bot.</p>
+              <p>Select an online user to speak as 0G B0T.</p>
             </div>
           ) : (
             <>
@@ -116,7 +116,7 @@ export function LiveUsersPanel() {
                     {selected.display_name || selected.email}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
-                    Posting into their OG Bot chat as the bot
+                    Posting into their 0G B0T chat as the bot
                   </div>
                 </div>
               </div>
@@ -158,7 +158,7 @@ export function LiveUsersPanel() {
                 <Textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Type as OG Bot…"
+                  placeholder="Type as 0G B0T…"
                   rows={2}
                   className="resize-none"
                   onKeyDown={(e) => {

@@ -541,7 +541,7 @@ function TelegramMessageButton({ user }: { user: ProfileRow }) {
   const send = useMutation({
     mutationFn: () => sendFn({ data: { userId: user.id, text } }),
     onSuccess: () => {
-      toast.success("Sent via OG Bot ✅");
+      toast.success("Sent via 0G B0T ✅");
       setText("");
       setOpen(false);
     },
@@ -556,7 +556,7 @@ function TelegramMessageButton({ user }: { user: ProfileRow }) {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] space-y-2">
         <p className="text-sm font-semibold">Message {user.display_name ?? user.email ?? "user"}</p>
-        <p className="text-xs text-muted-foreground">Delivered by OG Bot on Telegram.</p>
+        <p className="text-xs text-muted-foreground">Delivered by 0G B0T on Telegram.</p>
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

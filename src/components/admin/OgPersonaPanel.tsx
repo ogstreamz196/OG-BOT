@@ -69,7 +69,7 @@ export function OgPersonaPanel() {
         setContent.mutateAsync({ key: "og_persona.voice", value: voice }),
         setContent.mutateAsync({ key: "og_persona.dictionary", value: dictionary }),
       ]);
-      toast.success("OG Bot persona updated. New messages will use it instantly.");
+      toast.success("0G B0T persona updated. New messages will use it instantly.");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -90,7 +90,7 @@ export function OgPersonaPanel() {
     <div className="max-w-3xl space-y-6">
       <p className="flex items-start gap-2 text-sm text-muted-foreground">
         <Bot className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        Script, voice and dictionary control how OG Bot talks everywhere: the OG Bot page, the
+        Script, voice and dictionary control how 0G B0T talks everywhere: the 0G B0T page, the
         widget and Telegram. Saving applies to the next message.
       </p>
 
@@ -102,7 +102,7 @@ export function OgPersonaPanel() {
           <div>
             <p className="text-sm font-semibold">Foul mouth mode (your chats)</p>
             <p className="text-xs text-muted-foreground">
-              Your own setting, not everyone's. When ON, OG Bot drops the language filter and talks
+              Your own setting, not everyone's. When ON, 0G B0T drops the language filter and talks
               raw in your chats. Members flip their own switch.
             </p>
           </div>

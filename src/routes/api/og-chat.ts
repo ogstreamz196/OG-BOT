@@ -42,7 +42,7 @@ export const Route = createFileRoute("/api/og-chat")({
               const reply = await runOgChat(input, { userId }, (d) => send({ t: "delta", d }));
               send({ t: "done", ...reply });
             } catch (e) {
-              send({ t: "error", message: (e as Error).message || "OG Bot couldn't respond" });
+              send({ t: "error", message: (e as Error).message || "0G B0T couldn't respond" });
             } finally {
               controller.close();
             }

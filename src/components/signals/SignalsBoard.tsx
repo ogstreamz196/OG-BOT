@@ -113,7 +113,7 @@ export function SignalsBoard() {
       {board.data?.open && board.data.staffOnly && (
         <p className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-300">
           OG Signals is switched off for members. You can see it because you're staff; turn it on in
-          Boss → OG Bot → Signals.
+          Boss → 0G B0T → Signals.
         </p>
       )}
 
@@ -135,7 +135,7 @@ export function SignalsBoard() {
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Built from live charts by the same engine as OG Bot's Telegram signals. Confidence is how
+        Built from live charts by the same engine as 0G B0T's Telegram signals. Confidence is how
         strongly the indicators agree, not a win rate. Risk 1–2% per trade. Not financial advice.
       </p>
       <div className="mt-3 flex justify-center">

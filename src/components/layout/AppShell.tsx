@@ -43,7 +43,7 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-1 shadow-sm backdrop-blur-md"
-      aria-label="OG Streamz powered by OG Bot"
+      aria-label="OG Streamz powered by 0G B0T"
     >
       <img
         src={ogStreamzLogo}
@@ -55,7 +55,7 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
       </span>
       <img
         src={ogBotLogo.small}
-        alt="OG Bot"
+        alt="0G B0T"
         className={`${compact ? "h-6 w-6" : "h-7 w-7"} rounded-full object-cover ring-1 ring-primary/40`}
       />
     </div>
@@ -65,7 +65,7 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
 const routeTitles: Record<string, string> = {
   "/": "Home",
   "/library": "Music",
-  "/messenger": "OG Bot",
+  "/messenger": "0G B0T",
   "/buy-coins": "Buy Coins",
   "/settings": "Settings",
   "/profile": "Settings",

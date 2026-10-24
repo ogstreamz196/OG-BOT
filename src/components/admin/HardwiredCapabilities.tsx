@@ -51,7 +51,7 @@ export function HardwiredCapabilities() {
           </AccordionTrigger>
           <AccordionContent className="px-5 pb-5">
             <p className="mb-3 text-xs text-muted-foreground">
-              Read-only. These capabilities are permanently hard-wired into the OG Bot runtime and
+              Read-only. These capabilities are permanently hard-wired into the 0G B0T runtime and
               cannot be toggled from this surface.
             </p>
             <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

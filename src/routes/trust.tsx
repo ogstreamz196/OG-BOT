@@ -5,13 +5,13 @@ export const Route = createFileRoute("/trust")({
   component: TrustPage,
   head: () => ({
     meta: [
-      { title: "Trust & Privacy | OG BOT — AI Songs & Diss Tracks" },
+      { title: "Trust & Privacy | 0G B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
           "How OG Studio handles your account, songs, and personal data. Maintained by the OG Studio team.",
       },
-      { property: "og:title", content: "Trust & Privacy | OG BOT — AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Trust & Privacy | 0G B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:
@@ -115,7 +115,7 @@ function TrustPage() {
           <Section icon={Cookie} title="Cookies, storage &amp; analytics">
             <p>
               We use first-party browser storage to keep you signed in and remember preferences such
-              as your OG bot mode. We do not use cross-site advertising trackers.
+              as your 0G B0T mode. We do not use cross-site advertising trackers.
             </p>
           </Section>
 

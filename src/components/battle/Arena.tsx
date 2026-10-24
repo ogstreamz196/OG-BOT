@@ -46,13 +46,13 @@ export function ArenaHeader({
   return (
     <header className={`ar-header ${className ?? ""}`}>
       <span className="ar-avatar" data-thinking={thinking ? "true" : "false"}>
-        <img src={ogBotLogo} alt="OG Bot" width={80} height={80} decoding="async" />
+        <img src={ogBotLogo} alt="0G B0T" width={80} height={80} decoding="async" />
       </span>
       <div className="min-w-0">
-        {compact ? null : <p className="ar-title truncate">OG BOT Battle Zone</p>}
+        {compact ? null : <p className="ar-title truncate">0G B0T Battle Zone</p>}
         <p className="ar-silver mt-1 flex min-w-0 items-center gap-1.5 text-[0.7rem] font-bold">
           <span className="ar-live-dot shrink-0" aria-hidden />
-          <span className="truncate">{thinking ? "OG Bot is cooking a comeback…" : subtitle}</span>
+          <span className="truncate">{thinking ? "0G B0T is cooking a comeback…" : subtitle}</span>
         </p>
       </div>
       <div className="col-span-2 flex items-center justify-between gap-1 sm:col-span-1 sm:justify-end sm:gap-2">
@@ -193,7 +193,7 @@ export function ArenaMessage({
   return (
     <div className={`ar-row ${mine ? "ar-row--mine" : ""}`}>
       <span className={`ar-face ${isBot ? "ar-face--bot" : vip ? "ar-face--vip" : ""}`}>
-        {isBot ? <img src={ogBotLogo} alt="OG Bot" width={40} height={40} /> : initials(shownName)}
+        {isBot ? <img src={ogBotLogo} alt="0G B0T" width={40} height={40} /> : initials(shownName)}
       </span>
       <div
         className={`ar-bubble ${isBot ? "ar-bubble--bot" : "ar-bubble--user"} ${vip && !isBot ? "ar-bubble--vip" : ""}`}
@@ -244,7 +244,7 @@ export function ArenaEmpty({ loading }: { loading?: boolean }) {
         </p>
       ) : (
         <>
-          <h3>😈 Think you can handle OG Bot?</h3>
+          <h3>😈 Think you can handle 0G B0T?</h3>
           <p>Drop your first roast. Let's see if you can take the heat or bank some OG Coins.</p>
         </>
       )}
@@ -280,7 +280,7 @@ export const ArenaComposer = forwardRef<
     pending,
     disabled,
     maxLength,
-    placeholder = "Fire your next shot at OG Bot...",
+    placeholder = "Fire your next shot at 0G B0T...",
   },
   ref,
 ) {
@@ -342,7 +342,7 @@ export function ArenaVipPromo({ open, onClose }: { open: boolean; onClose: () =>
         <ul className="ar-white mt-3 space-y-1.5 text-left text-sm">
           <li>👑 Your own gold OG VIP ID in the Battle Zone</li>
           <li>💸 13% lifetime cashback when your referrals spend coins</li>
-          <li>🤬 Foul-mouth OG Bot, unfiltered</li>
+          <li>🤬 Foul-mouth 0G B0T, unfiltered</li>
         </ul>
         <div className="mt-4 grid gap-2">
           <Link to="/store" hash="section-vip" className="ar-vip-cta" onClick={onClose}>

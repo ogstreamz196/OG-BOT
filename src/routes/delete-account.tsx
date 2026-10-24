@@ -4,16 +4,16 @@ export const Route = createFileRoute("/delete-account")({
   component: DeleteAccountPage,
   head: () => ({
     meta: [
-      { title: "Delete your OG BOT account | AI Songs & Diss Tracks" },
+      { title: "Delete your 0G B0T account | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
-          "How to delete your OG BOT account and associated data, what is removed and what is kept.",
+          "How to delete your 0G B0T account and associated data, what is removed and what is kept.",
       },
-      { property: "og:title", content: "Delete your OG BOT account | AI Songs & Diss Tracks" },
+      { property: "og:title", content: "Delete your 0G B0T account | AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Steps to permanently delete your OG BOT account and data.",
+        content: "Steps to permanently delete your 0G B0T account and data.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -24,9 +24,9 @@ export const Route = createFileRoute("/delete-account")({
 function DeleteAccountPage() {
   return (
     <main className="mx-auto max-w-2xl px-5 py-12 text-foreground">
-      <h1 className="font-display text-3xl font-bold">Delete your OG BOT account</h1>
+      <h1 className="font-display text-3xl font-bold">Delete your 0G B0T account</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        App: OG BOT (og.bot) — developer: OG Studio
+        App: 0G B0T (og.bot) — developer: OG Studio
       </p>
       <h2 className="mt-8 text-xl font-semibold">In the app or on the website</h2>
       <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">

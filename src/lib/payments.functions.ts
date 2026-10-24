@@ -460,7 +460,7 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
       }
 
       const customerId = await resolveOrCreateCustomer(stripe, { email, userId });
-      const description = `Full track unlock — ${song.title || "OG Bot track"}`;
+      const description = `Full track unlock — ${song.title || "0G B0T track"}`;
 
       const session = await stripe.checkout.sessions.create({
         line_items: [
