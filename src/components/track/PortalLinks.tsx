@@ -55,7 +55,7 @@ export function PortalLinks() {
             className={img}
             loading="lazy"
           />
-          <span className={label}>Music Hub</span>
+          <span className={label}>Make a Track</span>
         </Link>
         <Link to="/sports" className={tile}>
           <img

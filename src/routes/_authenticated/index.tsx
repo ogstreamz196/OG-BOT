@@ -337,7 +337,7 @@ function DashboardHome() {
               imageAlt="OG B0T Make a Track badge"
               eyebrow="AI studio"
               badge="Instant"
-              title="Music Hub"
+              title="Make a Track"
               description={
                 isVip
                   ? "Your idea. Real vocals. Cover art. Done."
@@ -868,7 +868,7 @@ function EmptyRecent() {
       <div>
         <p className="text-base font-semibold">No songs yet</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Generate your first personalised track in Music Hub.
+          Tap Make a Track to create your first personalised track.
         </p>
       </div>
       <Link

@@ -45,7 +45,7 @@ export function WelcomeSeoFallback() {
           <h2 className="text-xl font-bold">Choose your mode</h2>
           <h3 className="mt-3 font-semibold">Battle Zone</h3>
           <p className="text-muted-foreground">Roast OG B0T. Bank coins for every hit.</p>
-          <h3 className="mt-3 font-semibold">Music Hub</h3>
+          <h3 className="mt-3 font-semibold">Make a Track</h3>
           <p className="text-muted-foreground">Your idea. Real vocals. Cover art. Done.</p>
           <h3 className="mt-3 font-semibold">Sports Guide</h3>
           <p className="text-muted-foreground">Daily fixtures, fight cards and TV listings.</p>
