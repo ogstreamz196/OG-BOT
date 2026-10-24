@@ -6,6 +6,8 @@ export type PublicSharedTrack = {
   title: string;
   lyrics: string | null;
   audioUrl: string;
+  /** The track's cover art, when it has one. */
+  coverUrl?: string | null;
   /** Being remade after an edit: no audio yet, the page checks back. */
   pending?: boolean;
 };
@@ -16,7 +18,7 @@ export const getPublicSharedTrack = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: song, error } = await supabaseAdmin
       .from("songs")
-      .select("id,title,lyrics,audio_path,status,is_public,revealed")
+      .select("id,title,lyrics,audio_path,status,is_public,revealed,cover_url")
       .eq("id", data.songId)
       .eq("is_public", true)
       .neq("revealed", false)
@@ -45,6 +47,7 @@ export const getPublicSharedTrack = createServerFn({ method: "GET" })
       title: song.title || "OG B0T track",
       lyrics: song.lyrics,
       audioUrl: signed.signedUrl,
+      coverUrl: /^https:\/\//.test(song.cover_url ?? "") ? song.cover_url : null,
     };
   });
 
