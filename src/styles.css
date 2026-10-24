@@ -1779,10 +1779,22 @@ main:has(.boss-ui) .flex-wrap > .flex-1 {
 main:has(.boss-ui) .grid > * {
   min-width: 0;
 }
+/* Boss pages sit on a plain solid page instead of the wallpaper. This used
+   to be painted with a 100vmax box-shadow around .boss-ui, which made one
+   huge layer on long pages (the member list): phones couldn't draw it, so
+   everything below the first screen went missing and the wallpaper showed
+   through. The page background itself is solid now, nothing oversized. */
 .boss-ui {
   --boss-solid: oklch(0.15 0.03 275);
   background-color: var(--boss-solid);
-  box-shadow: 0 0 0 100vmax var(--boss-solid);
+}
+body:has(.boss-ui) {
+  background-color: oklch(0.15 0.03 275);
+}
+body:has(.boss-ui)::before,
+body:has(.boss-ui)::after,
+body:has(.boss-ui) .og-backdrop {
+  display: none;
 }
 
 @media print {
