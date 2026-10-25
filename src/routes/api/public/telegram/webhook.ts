@@ -7,6 +7,9 @@ import type { UserContextSummary } from "@/lib/og-persona-public";
 import { SPORTS_GUIDE_CHAT_ID, detectSport, detectEventTime } from "@/lib/sports-guide-parse";
 import {
   BACK_BUTTON,
+  HOLDING_BUTTON,
+  HOLDING_TEXT,
+  SCALP_BUTTON,
   ONE_MINUTE_RE,
   SIGNAL_BUTTONS,
   SIGNALS_BUTTON,
@@ -1531,7 +1534,7 @@ const GROUP_HELP =
   "🎯 <b>/roast</b> @someone to set me on them\n" +
   "👋 New members get initiated the second they walk in\n" +
   "💬 <b>/og</b> then a proper question\n" +
-  "📈 <b>/signal</b> gold or btc, holding or scalp (<code>/signal gold scalp</code>)\n\n" +
+  "📈 <b>/signal</b> gold or btc for a scalp, add holding for 1-hour (<code>/signal gold holding</code>)\n\n" +
   "I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
 
 const CONNECT_NUDGE =
@@ -1638,16 +1641,17 @@ async function isBossTelegramUser(
   return (await isAdmin(admin, profile.id)).admin;
 }
 
-const GROUP_SIGNAL_TEXT = "📈 <b>Live signals</b>\nPick one 👇";
+const GROUP_SIGNAL_TEXT =
+  "📈 <b>Live signals</b>\nTap a coin for a ⚡ scalp (5-minute chart), or 🕐 holding for 1-hour 👇";
 const GROUP_SIGNAL_BUTTONS = {
   inline_keyboard: [
     [
-      { text: "🥇 Gold · Holding", callback_data: "gsig:XAU:1h" },
-      { text: "🥇 Gold · Scalp", callback_data: "gsig:XAU:5m" },
+      { text: "🥇 Gold", callback_data: "gsig:XAU:5m" },
+      { text: "₿ BTC", callback_data: "gsig:BTC:5m" },
     ],
     [
-      { text: "₿ BTC · Holding", callback_data: "gsig:BTC:1h" },
-      { text: "₿ BTC · Scalp", callback_data: "gsig:BTC:5m" },
+      { text: "🕐 Gold · Holding", callback_data: "gsig:XAU:1h" },
+      { text: "🕐 BTC · Holding", callback_data: "gsig:BTC:1h" },
     ],
   ],
 };
@@ -1821,7 +1825,8 @@ async function handleGroupMessage(
         await answer(GROUP_SIGNAL_TEXT, { reply_markup: GROUP_SIGNAL_BUTTONS });
         return Response.json({ ok: true, group: "signals" });
       }
-      ask = signalRequest(pair, /\b(scalp|5\s?m)\b/i.test(arg) ? "5m" : "1h");
+      // A scalp unless they ask for holding.
+      ask = signalRequest(pair, /\b(hold|holding|1\s?h|swing)\b/i.test(arg) ? "1h" : "5m");
     } else if (cmd === "roast") {
       return battle(arg ? `roast ${arg}` : "roast me");
     } else if (PRIVATE_COMMANDS.has(cmd)) {
@@ -2019,7 +2024,7 @@ async function handleTelegramUpdate(
     // away too; anything the member actually wrote stays.
     const tapped =
       trimmed !== text.trim() ||
-      [MENU, SIGNALS_BUTTON, SITE, BACK_BUTTON].includes(trimmed) ||
+      [MENU, SIGNALS_BUTTON, SITE, BACK_BUTTON, HOLDING_BUTTON, SCALP_BUTTON].includes(trimmed) ||
       Object.hasOwn(SIGNAL_BUTTONS, trimmed) ||
       OLD_MENU_BUTTONS.has(trimmed) ||
       /^\/(menu|signals|help|sports|balance|tracks|library|buy|me|vault|vip)(@\w+)?$/i.test(
@@ -2036,6 +2041,17 @@ async function handleTelegramUpdate(
       await setKeys(chat_id, SIGNALS_TEXT, kb(signalButtonRows(isBoss)));
       await tidyScreens(chat_id);
       return Response.json({ ok: true, signals: "menu" });
+    }
+    // Holding swaps the coin buttons for 1-hour signals; Scalp swaps back.
+    if (trimmed === HOLDING_BUTTON || trimmed === SCALP_BUTTON) {
+      const holding = trimmed === HOLDING_BUTTON;
+      await setKeys(
+        chat_id,
+        holding ? HOLDING_TEXT : SIGNALS_TEXT,
+        kb(signalButtonRows(isBoss, holding ? "holding" : "scalp")),
+      );
+      await tidyScreens(chat_id);
+      return Response.json({ ok: true, signals: holding ? "holding" : "scalp" });
     }
     // A signal button in the bottom bar: straight to the live signal.
     const signalButton = Object.hasOwn(SIGNAL_BUTTONS, trimmed) ? SIGNAL_BUTTONS[trimmed] : null;

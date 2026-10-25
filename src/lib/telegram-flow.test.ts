@@ -154,8 +154,12 @@ vi.mock("@/lib/foul-access.server", () => ({
   },
 }));
 vi.mock("@/lib/trade-hold.server", () => ({ pickTradeHold: async () => "Hold on…" }));
+const signalAsks: string[] = [];
 vi.mock("@/lib/trade-signal-context.server", () => ({
-  buildTradeSignal: async () => ({ reply: "📈 GOLD SCALP card", plan: {}, expiresAt: null }),
+  buildTradeSignal: async (ask: string) => {
+    signalAsks.push(ask);
+    return { reply: "📈 GOLD SCALP card", plan: {}, expiresAt: null };
+  },
 }));
 const recordSignal = vi.fn(async () => undefined);
 vi.mock("@/lib/trade-signal-tracker.server", () => ({ recordSignal }));
@@ -275,6 +279,7 @@ describe("telegram bot flow", () => {
     ai.requests.length = 0;
     ai.battles.length = 0;
     for (const rows of Object.values(stored)) rows.length = 0;
+    signalAsks.length = 0;
     linked.clear();
     linked.add(CHAT);
     vi.clearAllMocks();
@@ -291,12 +296,12 @@ describe("telegram bot flow", () => {
     await type("📈 Signals");
     expect(deleted.has(intro.id)).toBe(true);
     const signalsBar = barHolder();
-    expect(barButtons()).toContain("🥇 Gold · Scalp");
+    expect(barButtons()).toEqual(["🥇 Gold", "₿ BTC", "🕐 Holding", "⬅️ Back"]);
 
     // Run signals back to back: the signal buttons are never deleted.
-    await type("🥇 Gold · Scalp");
-    await type("₿ BTC · Holding");
-    await type("🥇 Gold · Scalp");
+    await type("🥇 Gold");
+    await type("₿ BTC");
+    await type("🥇 Gold");
     expect(deleted.has(signalsBar.id)).toBe(false);
     expect(barHolder().id).toBe(signalsBar.id);
     // Each new signal wipes out the last; "hold on" lines go on the next tap.
@@ -451,7 +456,7 @@ describe("telegram bot flow", () => {
   test("a new signal wipes the last card and the updates under it, but not menus or chat", async () => {
     await type("/start");
     await type("📈 Signals");
-    await type("🥇 Gold · Scalp");
+    await type("🥇 Gold");
     const first = sent.filter((m) => m.text.includes("GOLD SCALP card")).at(-1)!;
     // The watcher posts an update under the card (it marks it as part of the signal).
     const update = { id: nextId++, text: "📊 Gold BUY · TP1 hit" };
@@ -461,14 +466,43 @@ describe("telegram bot flow", () => {
     const question = nextId;
     await type("what's the gold price doing?");
 
-    await type("₿ BTC · Holding");
+    await type("₿ BTC");
     expect(deleted.has(first.id)).toBe(true);
     expect(deleted.has(update.id)).toBe(true);
     expect(deleted.has(question)).toBe(false);
     expect(showing("GOLD SCALP card")).toHaveLength(1);
     // The signal buttons are still there.
-    expect(barButtons()).toContain("🥇 Gold · Scalp");
+    expect(barButtons()).toContain("🥇 Gold");
     expect(liveBars()).toHaveLength(1);
+  });
+
+  test("signals: tap a coin for its scalp; Holding switches the coins to 1-hour and back", async () => {
+    await type("/start");
+    await type("📈 Signals");
+    await type("🥇 Gold");
+    expect(signalAsks.at(-1)).toBe("XAUUSD signal 5m");
+    await type("₿ BTC");
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+
+    const scalpBar = barHolder();
+    await type("🕐 Holding");
+    expect(barButtons()).toEqual(["🥇 Gold · Holding", "₿ BTC · Holding", "⚡ Scalp", "⬅️ Back"]);
+    expect(barHolder().text).toContain("Holding signals");
+    // The bar changed: the old one's message goes, only one bar left.
+    expect(deleted.has(scalpBar.id)).toBe(true);
+    expect(liveBars()).toHaveLength(1);
+    // The switch tap itself is tidied away; no signal was asked for.
+    expect(signalAsks).toHaveLength(2);
+    await type("₿ BTC · Holding");
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 1h");
+
+    await type("⚡ Scalp");
+    expect(barButtons()).toEqual(["🥇 Gold", "₿ BTC", "🕐 Holding", "⬅️ Back"]);
+    await type("⬅️ Back");
+    expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
+    // An old four-button bar still on someone's screen keeps working.
+    await type("🥇 Gold · Scalp");
+    expect(signalAsks.at(-1)).toBe("XAUUSD signal 5m");
   });
 
   describe("in a group", () => {
@@ -855,7 +889,14 @@ describe("telegram bot flow", () => {
       await inGroup("/signal");
       const picker = groupSent().at(-1)!;
       const data = buttons(picker).map((b) => b.callback_data);
-      expect(data).toEqual(["gsig:XAU:1h", "gsig:XAU:5m", "gsig:BTC:1h", "gsig:BTC:5m"]);
+      // Coins first (scalps), holding underneath.
+      expect(buttons(picker).map((b) => b.text)).toEqual([
+        "🥇 Gold",
+        "₿ BTC",
+        "🕐 Gold · Holding",
+        "🕐 BTC · Holding",
+      ]);
+      expect(data).toEqual(["gsig:XAU:5m", "gsig:BTC:5m", "gsig:XAU:1h", "gsig:BTC:1h"]);
 
       await post({
         callback_query: {
@@ -871,7 +912,10 @@ describe("telegram bot flow", () => {
       // Tagged to whoever tapped.
       expect(tags(card)).toEqual([["@Imran", CHAT]]);
 
-      await inGroup("/signal btc scalp");
+      await inGroup("/signal btc");
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+      await inGroup("/signal gold holding");
+      expect(signalAsks.at(-1)).toBe("XAUUSD signal 1h");
       // Each new signal wipes the last in the group too.
       expect(deleted.has(card.id)).toBe(true);
       expect(groupSent().filter((m) => m.text.includes("card") && !deleted.has(m.id))).toHaveLength(
