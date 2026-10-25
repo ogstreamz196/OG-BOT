@@ -1538,6 +1538,9 @@ const CONNECT_NUDGE =
   "👋 I don't know you yet. Connect your Telegram to OG B0T and I'm all yours. " +
   "Free account, takes a minute 👇";
 
+const SLOW_MODE = (seconds: number) =>
+  `🐌 Easy, spam merchant. You're on slow mode: I'll answer you again in ${seconds}s.`;
+
 const connectButton = async () => ({
   inline_keyboard: [
     [{ text: "🔗 Connect to OG B0T", url: `https://t.me/${await botUsername()}?start=connect` }],
@@ -1778,25 +1781,25 @@ async function handleGroupMessage(
     return Response.json({ ok: true, group: "nudged" });
   };
   // A roast battle, Battle Zone style.
+  // A roast battle, Battle Zone style. A burst of messages gets one reply (to
+  // the latest), and spammers go on slow mode (see telegram-group-battle).
   const battle = async (line: string) => {
     if (!(await linkedProfileId(admin, fromId))) return nudge();
-    void tg("sendChatAction", {
-      chat_id,
-      action: "typing",
-      ...(thread ? { message_thread_id: thread } : {}),
-    });
-    const { groupBattleReply } = await import("@/lib/telegram-group-battle.server");
-    const clapback = await groupBattleReply(admin, {
+    const { groupBattleTurn } = await import("@/lib/telegram-group-battle.server");
+    const turn = await groupBattleTurn(admin, {
       chatId: chat_id,
+      userId: fromId,
+      messageId: msg.message_id,
       name: ctx.name ?? null,
       text: line,
       quoted: ctx.quoted,
-    }).catch((e) => {
+    }).catch((e: unknown) => {
       console.warn("[telegram] group battle failed", e);
-      return null;
+      return { kind: "quiet" as const };
     });
-    if (clapback) await sendGroupBattleLine(chat_id, clapback, ctx);
-    return Response.json({ ok: true, group: clapback ? "battle" : "quiet" });
+    if (turn.kind === "reply") await sendGroupBattleLine(chat_id, turn.text, ctx);
+    if (turn.kind === "slow") await sendGroupBattleLine(chat_id, SLOW_MODE(turn.seconds), ctx);
+    return Response.json({ ok: true, group: turn.kind === "reply" ? "battle" : turn.kind });
   };
 
   let ask: string;

@@ -1,5 +1,12 @@
 import { createHash } from "crypto";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
+
+// Group battles normally wait 2.5s for more from the same person; not here.
+let timing: { settleMs: number };
+beforeAll(async () => {
+  ({ timing } = await import("@/lib/telegram-group-battle.server"));
+  timing.settleMs = 0;
+});
 
 // Plays a member's taps through the real webhook against a fake Telegram and
 // a fake database, and checks the bottom bar is never deleted from under them.
@@ -741,6 +748,82 @@ describe("telegram bot flow", () => {
         },
       });
       expect(ai.battles).toHaveLength(2);
+    });
+
+    test("a burst of messages gets one reply, to the latest, covering all of it", async () => {
+      timing.settleMs = 30;
+      try {
+        // Three quick messages, each landing while the one before is still
+        // waiting to see if more are coming.
+        const gap = () => new Promise((r) => setTimeout(r, 5));
+        const burst = [inGroup("oi")];
+        await gap();
+        burst.push(inGroup("you there?"));
+        await gap();
+        burst.push(inGroup("answer me you rusty kettle"));
+        await Promise.all(burst);
+      } finally {
+        timing.settleMs = 0;
+      }
+      expect(ai.battles).toHaveLength(1);
+      expect(battleTurn(0)).toBe(
+        "Imran sent 3 messages in a row — answer the lot in one reply:\n" +
+          "Imran: oi\nImran: you there?\nImran: answer me you rusty kettle",
+      );
+      const replies = groupSent();
+      expect(replies).toHaveLength(1);
+      // It answers the newest of the three.
+      const latest = Math.max(
+        ...stored.telegram_group_lines
+          .filter((l) => l.role === "user")
+          .map((l) => Number(l.telegram_message_id)),
+      );
+      expect(repliesTo(replies[0])).toBe(latest);
+
+      // Their next message is a fresh turn, with the earlier ones as memory.
+      await inGroup("well?");
+      expect(battleTurn(1)).toBe("Imran: well?");
+      expect(battleSystem(1)).toContain("- Imran: oi | you there? | answer me you rusty kettle");
+    });
+
+    test("a spammer goes on slow mode: one countdown, then quiet until it's up", async () => {
+      for (let i = 1; i <= 5; i++) await inGroup(`spam ${i}`);
+      expect(ai.battles).toHaveLength(5);
+      // Sixth in a minute: slow mode, with the countdown, tagged and threaded.
+      const sixth = nextId;
+      await inGroup("spam 6");
+      expect(ai.battles).toHaveLength(5);
+      const notice = groupSent().at(-1)!;
+      expect(notice.text).toMatch(/^@Imran 🐌 .*slow mode: I'll answer you again in (29|30)s\.$/);
+      expect(tags(notice)).toEqual([["@Imran", CHAT]]);
+      expect(repliesTo(notice)).toBe(sixth);
+      // More spam: nothing at all, not even another notice.
+      const shown = groupSent().length;
+      await inGroup("spam 7");
+      await inGroup("spam 8");
+      expect(groupSent()).toHaveLength(shown);
+      expect(ai.battles).toHaveLength(5);
+      // Slow mode is just for them: someone else still gets answers.
+      linked.add(7007);
+      await post({
+        message: {
+          message_id: nextId++,
+          text: "leave him alone",
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: 7007, first_name: "Dave" },
+        },
+      });
+      expect(ai.battles).toHaveLength(6);
+
+      // Once the 30s are up, their next message is answered, with what they
+      // said while waiting.
+      for (const l of stored.telegram_group_lines)
+        if (l.role === "bot" && l.telegram_user_id === CHAT)
+          l.created_at = new Date(Date.now() - 31_000).toISOString();
+      await inGroup("ok I'll behave");
+      expect(ai.battles).toHaveLength(7);
+      expect(battleTurn(6)).toContain("Imran: spam 7");
+      expect(battleTurn(6)).toContain("Imran: ok I'll behave");
     });
 
     test("a group gets at most its hourly share of roasts", async () => {
