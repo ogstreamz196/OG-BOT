@@ -1418,7 +1418,7 @@ type GroupMessage = {
   reply_to_message?: { text?: string; from?: { is_bot?: boolean; username?: string } };
   message_thread_id?: number;
   is_topic_message?: boolean;
-  new_chat_members?: { is_bot?: boolean; username?: string }[];
+  new_chat_members?: { is_bot?: boolean; username?: string; first_name?: string }[];
   group_chat_created?: boolean;
   supergroup_chat_created?: boolean;
 };
@@ -1439,10 +1439,23 @@ const GROUP_NOTE =
 
 const GROUP_HELP =
   "🤖 <b>OG B0T in the group</b>\n\n" +
-  "💬 <b>/og</b> then your question, or reply to any of my messages\n" +
-  "📈 <b>/signal</b> gold or btc, holding or scalp (<code>/signal gold scalp</code>)\n" +
-  "🔥 <b>/roast</b> @someone, if you dare\n\n" +
-  "Link your OG B0T account in my DM first. Coins, VIP, the Vault and your tracks stay private in there.";
+  "🔥 Reply to me or @ me and it's a roast battle. Gang up if you want, I'll take the lot of you.\n" +
+  "🎯 <b>/roast</b> @someone to set me on them\n" +
+  "👋 New members get initiated the second they walk in\n" +
+  "💬 <b>/og</b> then a proper question\n" +
+  "📈 <b>/signal</b> gold or btc, holding or scalp (<code>/signal gold scalp</code>)\n\n" +
+  "/og and /signal need your OG B0T account linked in my DM. Coins, VIP, the Vault and your tracks stay private in there.";
+
+/** Sends a roast-battle line in a group (plain text, as the AI wrote it). */
+async function sendGroupBattleLine(chat_id: number, text: string, ctx: GroupContext) {
+  const res = await tg("sendMessage", {
+    chat_id,
+    text: text.slice(0, 4000),
+    disable_web_page_preview: true,
+    ...groupSendExtra(ctx),
+  });
+  await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
+}
 
 const GROUP_HELLO = "<b>OG B0T's in the chat.</b> Behave yourselves. Or don't.\n\n";
 const GROUP_NOT_BOSS = "🚫 Only the Boss can add OG B0T to groups. I'm off ✌️";
@@ -1537,6 +1550,18 @@ async function handleGroupMessage(
     return Response.json({ ok: true, group: "hello" });
   }
 
+  // New people joined: OG B0T initiates them, Battle Zone style.
+  const newcomers = (msg.new_chat_members ?? []).filter((u) => !u.is_bot);
+  if (newcomers.length) {
+    const { newMemberRoast } = await import("@/lib/telegram-group-battle.server");
+    const roast = await newMemberRoast(admin, chat_id, newcomers).catch((e) => {
+      console.warn("[telegram] new member roast failed", e);
+      return null;
+    });
+    if (roast) await sendGroupBattleLine(chat_id, roast, { replyTo: msg.message_id, thread });
+    return Response.json({ ok: true, group: roast ? "initiated" : "quiet" });
+  }
+
   const text = typeof msg.text === "string" ? msg.text.trim() : "";
   if (!text || msg.from?.is_bot) return ignored();
   const command = /^\/([a-z_]+)(?:@(\w+))?(?:\s+([\s\S]*))?$/i.exec(text);
@@ -1561,6 +1586,26 @@ async function handleGroupMessage(
   };
   const answer = (body: string, extra: Record<string, unknown> = {}) =>
     reply(chat_id, body, { ...groupSendExtra(ctx), ...extra });
+  // Roast battles are open to everyone in the group, account or not.
+  const battle = async (line: string) => {
+    void tg("sendChatAction", {
+      chat_id,
+      action: "typing",
+      ...(thread ? { message_thread_id: thread } : {}),
+    });
+    const { groupBattleReply } = await import("@/lib/telegram-group-battle.server");
+    const clapback = await groupBattleReply(admin, {
+      chatId: chat_id,
+      name: ctx.name ?? null,
+      text: line,
+      quoted: ctx.quoted,
+    }).catch((e) => {
+      console.warn("[telegram] group battle failed", e);
+      return null;
+    });
+    if (clapback) await sendGroupBattleLine(chat_id, clapback, ctx);
+    return Response.json({ ok: true, group: clapback ? "battle" : "quiet" });
+  };
 
   let ask: string;
   if (command) {
@@ -1583,7 +1628,7 @@ async function handleGroupMessage(
       }
       ask = signalRequest(pair, /\b(scalp|5\s?m)\b/i.test(arg) ? "5m" : "1h");
     } else if (cmd === "roast") {
-      ask = `Roast ${arg || ctx.name || "me"}. A few lines, no mercy.`;
+      return battle(arg ? `roast ${arg}` : "roast me");
     } else if (PRIVATE_COMMANDS.has(cmd)) {
       await answer("🔒 That's between you and me. Ask me in our DM 👇", {
         reply_markup: await dmButton("💬 Open my DM"),
@@ -1594,16 +1639,17 @@ async function handleGroupMessage(
       return ignored();
     }
   } else if (repliedToMe || mentioned) {
-    ask = withoutMention(text);
-    if (!ask) {
+    const line = withoutMention(text);
+    if (!line) {
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
     }
+    return battle(line);
   } else {
     return ignored();
   }
 
-  // Answers come from the member's own account.
+  // /og and /signal answers come from the member's own account.
   const { data: profile } = await admin
     .from("profiles")
     .select("id")

@@ -22,7 +22,8 @@ const who = { roles: [] as string[], foulAllowed: true, foulOn: true };
 const linked = new Set<number>([CHAT]);
 const inserts: { table: string; row: unknown }[] = [];
 const calls: { method: string; body: Record<string, unknown> }[] = [];
-const ai = { requests: [] as { messages: { role: string; content: string }[] }[] };
+type AiRequest = { messages: { role: string; content: string }[] };
+const ai = { requests: [] as AiRequest[], battles: [] as AiRequest[] };
 
 vi.mock("@/lib/telegram-api.server", () => ({
   escapeTelegramHtml: (s: string) => s,
@@ -54,6 +55,9 @@ vi.mock("@/lib/telegram-api.server", () => ({
 // member is linked, everything else is empty.
 type Row = Record<string, unknown>;
 const screens: Row[] = [];
+// Tables kept for real (rows in insert order, each with a rising created_at).
+const stored: Record<string, Row[]> = { telegram_group_lines: [] };
+let clock = Date.now();
 function query(table: string) {
   const filters: [string, (v: unknown) => boolean][] = [];
   let op: "select" | "delete" | "write" = "select";
@@ -63,7 +67,8 @@ function query(table: string) {
     order: () => q,
     limit: () => q,
     gt: () => q,
-    gte: () => q,
+    gte: (col: string, v: unknown) => (filters.push([col, (x) => String(x) >= String(v)]), q),
+    lt: (col: string, v: unknown) => (filters.push([col, (x) => String(x) < String(v)]), q),
     not: () => q,
     or: () => q,
     eq: (col: string, v: unknown) => (filters.push([col, (x) => x === v]), q),
@@ -74,6 +79,7 @@ function query(table: string) {
     insert: (row: unknown) => {
       op = "write";
       inserts.push({ table, row });
+      stored[table]?.push({ ...(row as Row), created_at: new Date(++clock).toISOString() });
       return q;
     },
     upsert: (row: Row) => {
@@ -91,6 +97,14 @@ function query(table: string) {
     then: (resolve: (v: unknown) => void) => {
       const match = (r: Row) => filters.every(([c, f]) => f(r[c]));
       let data: unknown = single ? null : [];
+      let count = 0;
+      const rows = stored[table];
+      if (rows && op === "delete") {
+        for (let i = rows.length - 1; i >= 0; i--) if (match(rows[i])) rows.splice(i, 1);
+      } else if (rows && op === "select") {
+        data = rows.filter(match);
+        count = (data as Row[]).length;
+      }
       if (table === "telegram_screen_messages") {
         if (op === "delete") {
           for (let i = screens.length - 1; i >= 0; i--) if (match(screens[i])) screens.splice(i, 1);
@@ -102,7 +116,7 @@ function query(table: string) {
         data = single ? (ok ? { id: "u1" } : null) : ok ? [{ id: "u1" }] : [];
       }
       if (table === "user_roles") data = who.roles.map((role) => ({ role }));
-      resolve({ data, error: null, count: 0 });
+      resolve({ data, error: null, count });
     },
   };
   return q;
@@ -129,7 +143,15 @@ vi.mock("@/lib/trade-signal-tracker.server", () => ({ recordSignal }));
 vi.mock("@/lib/ai-endpoint.server", () => ({
   aiChatTarget: () => ({}),
   liveFactsMessage: (_r: string, t: string) => t,
-  fetchAiChat: async () => ({ response: new Response("{}") }),
+  // Battle replies (Battle Zone style) come through fetchAiChat.
+  fetchAiChat: async (req: { messages: { role: string; content: string }[] }) => {
+    ai.battles.push(req);
+    return {
+      response: new Response(
+        JSON.stringify({ choices: [{ message: { content: `BATTLE ${ai.battles.length}` } }] }),
+      ),
+    };
+  },
   streamAiChat: async (
     req: { messages: { role: string; content: string }[] },
     _id: string,
@@ -140,6 +162,10 @@ vi.mock("@/lib/ai-endpoint.server", () => ({
     onDelta?.("OG reply");
     return { text: "OG reply" };
   },
+}));
+vi.mock("@/lib/battle-lexicon.server", () => ({
+  learnBattleWords: async () => undefined,
+  learnedSlangBlock: async () => "",
 }));
 vi.mock("@/lib/og-smarts.server", () => ({
   startGrounding: () => ({
@@ -227,6 +253,8 @@ describe("telegram bot flow", () => {
     inserts.length = 0;
     calls.length = 0;
     ai.requests.length = 0;
+    ai.battles.length = 0;
+    stored.telegram_group_lines.length = 0;
     linked.clear();
     linked.add(CHAT);
     vi.clearAllMocks();
@@ -526,13 +554,119 @@ describe("telegram bot flow", () => {
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 
-    test("replying to OG B0T carries on the conversation", async () => {
+    const battleSystem = (i: number) => ai.battles[i].messages[0].content;
+    const battleTurn = (i: number) => ai.battles[i].messages.at(-1)!.content;
+
+    test("replies and @mentions are a Battle Zone roast battle, open to everyone", async () => {
+      const asked = nextId;
       await inGroup("you're mid", { reply_to: { text: "Arsenal by two, easy.", fromBot: true } });
-      const msgs = ai.requests[0].messages;
-      expect(msgs.at(-2)).toEqual({ role: "assistant", content: "Arsenal by two, easy." });
-      expect(msgs.at(-1)!.content).toBe("you're mid");
-      await inGroup("oi @OGStreamzBot roast this guy");
-      expect(ai.requests[1].messages.at(-1)!.content).toBe("oi roast this guy");
+      expect(ai.requests).toHaveLength(0); // not the /og question path
+      expect(battleSystem(0)).toContain("FULL FOUL MOUTH MODE");
+      expect(battleSystem(0)).toContain("TELEGRAM GROUP");
+      // The message they replied to is the context, then their line by name.
+      expect(ai.battles[0].messages.at(-2)).toEqual({
+        role: "assistant",
+        content: "Arsenal by two, easy.",
+      });
+      expect(battleTurn(0)).toBe("Imran: you're mid");
+      const clapback = groupSent().at(-1)!;
+      expect(clapback.text).toBe("BATTLE 1");
+      expect(repliesTo(clapback)).toBe(asked);
+      // Plain text: the AI's words never go through HTML parsing.
+      expect(clapback.body?.parse_mode).toBeUndefined();
+
+      // Someone with no OG B0T account can battle too.
+      await post({
+        message: {
+          message_id: nextId++,
+          text: "oi @OGStreamzBot you're a toaster with wifi",
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: FRIEND, first_name: "Dave" },
+        },
+      });
+      expect(battleTurn(1)).toBe("Dave: oi you're a toaster with wifi");
+      expect(groupSent().at(-1)!.text).toBe("BATTLE 2");
+    });
+
+    test("when they gang up it takes them all on, with their own lines", async () => {
+      await inGroup("you're mid", { reply_to: { text: "x", fromBot: true } });
+      expect(battleSystem(0)).not.toContain("GANGING UP");
+      await post({
+        message: {
+          message_id: nextId++,
+          text: "@OGStreamzBot your circuits are cheap as chips",
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: FRIEND, first_name: "Dave" },
+        },
+      });
+      expect(battleSystem(1)).toContain("GANGING UP on you (Imran, Dave)");
+      expect(battleSystem(1)).toContain("- Imran: you're mid");
+      // The earlier exchange is in the conversation too.
+      expect(ai.battles[1].messages.map((m) => m.content)).toContain("Imran: you're mid");
+      expect(ai.battles[1].messages.map((m) => m.content)).toContain("BATTLE 1");
+    });
+
+    test("/roast sets it on someone, account or not", async () => {
+      await inGroup("/roast @dave", { from: FRIEND });
+      expect(battleTurn(0)).toBe("Imran: roast @dave");
+      await inGroup("/roast");
+      expect(battleTurn(1)).toBe("Imran: roast me");
+    });
+
+    test("new members get roasted by name the moment they join", async () => {
+      const joined = nextId;
+      await post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: 555, first_name: "Kez" },
+          new_chat_members: [
+            { is_bot: false, first_name: "Kez", username: "kez_99" },
+            { is_bot: true, username: "SomeOtherBot" },
+          ],
+        },
+      });
+      expect(battleSystem(0)).toContain("FULL FOUL MOUTH MODE");
+      expect(battleTurn(0)).toContain("[Kez @kez_99 just joined the group.]");
+      expect(battleTurn(0)).not.toContain("SomeOtherBot");
+      const roast = groupSent().at(-1)!;
+      expect(roast.text).toBe("BATTLE 1");
+      expect(repliesTo(roast)).toBe(joined);
+      // Only bots joining: nothing to roast.
+      await post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: 555 },
+          new_chat_members: [{ is_bot: true, username: "SomeOtherBot" }],
+        },
+      });
+      expect(ai.battles).toHaveLength(1);
+    });
+
+    test("a group gets at most its hourly share of roasts", async () => {
+      const now = new Date().toISOString();
+      for (let i = 0; i < 120; i++)
+        stored.telegram_group_lines.push({
+          chat_id: GROUP,
+          role: "bot",
+          name: "OG B0T",
+          content: "x",
+          created_at: now,
+        });
+      await inGroup("come on then", { reply_to: { text: "x", fromBot: true } });
+      expect(ai.battles).toHaveLength(0);
+      expect(groupSent()).toHaveLength(0);
+      // Another group isn't affected.
+      await post({
+        message: {
+          message_id: nextId++,
+          text: "/roast me",
+          chat: { id: -100888, type: "group" },
+          from: { id: CHAT, first_name: "Imran" },
+        },
+      });
+      expect(ai.battles).toHaveLength(1);
     });
 
     test("signals: picker buttons, a tap or a typed pair; a snapshot, not followed", async () => {
