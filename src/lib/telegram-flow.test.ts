@@ -21,11 +21,13 @@ const who = { roles: [] as string[], foulAllowed: true, foulOn: true };
 // Telegram users with a linked account (a private chat id is the user id).
 const linked = new Set<number>([CHAT]);
 const inserts: { table: string; row: unknown }[] = [];
+const calls: { method: string; body: Record<string, unknown> }[] = [];
 const ai = { requests: [] as { messages: { role: string; content: string }[] }[] };
 
 vi.mock("@/lib/telegram-api.server", () => ({
   escapeTelegramHtml: (s: string) => s,
   telegramApi: async (method: string, body: Record<string, unknown>) => {
+    calls.push({ method, body });
     if (method === "sendMessage") {
       const id = nextId++;
       sent.push({
@@ -223,6 +225,7 @@ describe("telegram bot flow", () => {
     edits.length = 0;
     screens.length = 0;
     inserts.length = 0;
+    calls.length = 0;
     ai.requests.length = 0;
     linked.clear();
     linked.add(CHAT);
@@ -449,7 +452,40 @@ describe("telegram bot flow", () => {
     const repliesTo = (m: Sent) =>
       (m.body?.reply_parameters as { message_id?: number } | undefined)?.message_id;
 
+    const addBot = (by: number, how: "added" | "created" = "added") =>
+      post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "group" },
+          from: { id: by },
+          ...(how === "added"
+            ? { new_chat_members: [{ is_bot: true, username: "OGStreamzBot" }] }
+            : { group_chat_created: true }),
+        },
+      });
+    const left = () => calls.filter((c) => c.method === "leaveChat" && c.body.chat_id === GROUP);
+
+    test("only the Boss can add it: anyone else's add makes it leave", async () => {
+      // A member with an account, but not the Boss.
+      await addBot(CHAT);
+      expect(groupSent().at(-1)!.text).toContain("Only the Boss can add OG B0T");
+      expect(left()).toHaveLength(1);
+      // Someone with no account at all, and a new group created with the bot in it.
+      await addBot(FRIEND);
+      await addBot(FRIEND, "created");
+      expect(left()).toHaveLength(3);
+      expect(groupSent().some((m) => m.text.includes("/signal"))).toBe(false);
+
+      // The Boss adding it, either way: it stays and says hello.
+      who.roles = ["boss"];
+      await addBot(CHAT);
+      await addBot(CHAT, "created");
+      expect(left()).toHaveLength(3);
+      expect(groupSent().filter((m) => m.text.includes("OG B0T's in the chat"))).toHaveLength(2);
+    });
+
     test("says hello when added, and ignores ordinary chat", async () => {
+      who.roles = ["boss"];
       await post({
         message: {
           message_id: nextId++,

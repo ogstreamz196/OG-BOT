@@ -1419,6 +1419,8 @@ type GroupMessage = {
   message_thread_id?: number;
   is_topic_message?: boolean;
   new_chat_members?: { is_bot?: boolean; username?: string }[];
+  group_chat_created?: boolean;
+  supergroup_chat_created?: boolean;
 };
 
 function groupSendExtra(g: GroupContext) {
@@ -1443,6 +1445,22 @@ const GROUP_HELP =
   "Link your OG B0T account in my DM first. Coins, VIP, the Vault and your tracks stay private in there.";
 
 const GROUP_HELLO = "<b>OG B0T's in the chat.</b> Behave yourselves. Or don't.\n\n";
+const GROUP_NOT_BOSS = "🚫 Only the Boss can add OG B0T to groups. I'm off ✌️";
+
+/** Whether this Telegram user is linked to a Boss (or admin) account. */
+async function isBossTelegramUser(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  telegramUserId: number | undefined,
+): Promise<boolean> {
+  if (!telegramUserId) return false;
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("telegram_chat_id", telegramUserId)
+    .maybeSingle();
+  if (!profile) return false;
+  return (await isAdmin(admin, profile.id)).admin;
+}
 
 const GROUP_SIGNAL_TEXT = "📈 <b>Live signals</b>\nPick one 👇";
 const GROUP_SIGNAL_BUTTONS = {
@@ -1502,9 +1520,20 @@ async function handleGroupMessage(
   const me = (await botUsername()).toLowerCase();
   const thread = msg.is_topic_message ? msg.message_thread_id : undefined;
 
-  // Just added to the group: say hello and how it works.
-  if (msg.new_chat_members?.some((u) => u.is_bot && u.username?.toLowerCase() === me)) {
-    await reply(chat_id, GROUP_HELLO + GROUP_HELP, thread ? { message_thread_id: thread } : {}, 0);
+  // Just added to a group (or a group was created with OG B0T in it). Only
+  // the Boss can do that: anyone else gets a line and the bot leaves.
+  const addedMe =
+    msg.new_chat_members?.some((u) => u.is_bot && u.username?.toLowerCase() === me) ||
+    msg.group_chat_created ||
+    msg.supergroup_chat_created;
+  if (addedMe) {
+    const inTopic = thread ? { message_thread_id: thread } : {};
+    if (!(await isBossTelegramUser(admin, msg.from?.id))) {
+      await reply(chat_id, GROUP_NOT_BOSS, inTopic, 0);
+      await tg("leaveChat", { chat_id });
+      return Response.json({ ok: true, group: "left_not_boss" });
+    }
+    await reply(chat_id, GROUP_HELLO + GROUP_HELP, inTopic, 0);
     return Response.json({ ok: true, group: "hello" });
   }
 
