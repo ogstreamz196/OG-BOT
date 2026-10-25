@@ -225,6 +225,13 @@
       "when": 1792900786851,
       "tag": "0031_telegram_group_lines",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792902657829,
+      "tag": "0032_telegram_connect",
+      "breakpoints": true
     }
   ]
 }

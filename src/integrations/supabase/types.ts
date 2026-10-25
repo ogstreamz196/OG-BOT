@@ -1777,6 +1777,42 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_connect_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          telegram_first_name: string | null
+          telegram_user_id: number
+          telegram_username: string | null
+          token_hash: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          telegram_first_name?: string | null
+          telegram_user_id: number
+          telegram_username?: string | null
+          token_hash: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          telegram_first_name?: string | null
+          telegram_user_id?: number
+          telegram_username?: string | null
+          token_hash?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       telegram_dm_queue: {
         Row: {
           attempts: number
@@ -1875,6 +1911,24 @@ export type Database = {
           id?: number
           name?: string | null
           role?: string
+        }
+        Relationships: []
+      }
+      telegram_group_nudges: {
+        Row: {
+          chat_id: number
+          nudged_at: string
+          telegram_user_id: number
+        }
+        Insert: {
+          chat_id: number
+          nudged_at?: string
+          telegram_user_id: number
+        }
+        Update: {
+          chat_id?: number
+          nudged_at?: string
+          telegram_user_id?: number
         }
         Relationships: []
       }
