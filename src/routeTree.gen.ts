@@ -80,6 +80,7 @@ import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
 import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
+import { Route as ApiPublicSignalScanRouteImport } from './routes/api/public/signal-scan'
 import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
 import { Route as ApiPublicTradeSignalWatchRouteImport } from './routes/api/public/trade-signal-watch'
@@ -470,6 +471,11 @@ const ApiPublicNewUserAlertRoute = ApiPublicNewUserAlertRouteImport.update({
   path: '/api/public/new-user-alert',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSignalScanRoute = ApiPublicSignalScanRouteImport.update({
+  id: '/api/public/signal-scan',
+  path: '/api/public/signal-scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSportsGuideRemindersRoute =
   ApiPublicSportsGuideRemindersRouteImport.update({
     id: '/api/public/sports-guide-reminders',
@@ -610,6 +616,7 @@ export interface FileRoutesByFullPath {
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
@@ -694,6 +701,7 @@ export interface FileRoutesByTo {
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
@@ -780,6 +788,7 @@ export interface FileRoutesById {
   '/_authenticated/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
@@ -866,6 +875,7 @@ export interface FileRouteTypes {
     | '/buy-coins/return'
     | '/library/$songId'
     | '/api/public/new-user-alert'
+    | '/api/public/signal-scan'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
@@ -950,6 +960,7 @@ export interface FileRouteTypes {
     | '/buy-coins/return'
     | '/library/$songId'
     | '/api/public/new-user-alert'
+    | '/api/public/signal-scan'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
@@ -1035,6 +1046,7 @@ export interface FileRouteTypes {
     | '/_authenticated/buy-coins/return'
     | '/_authenticated/library/$songId'
     | '/api/public/new-user-alert'
+    | '/api/public/signal-scan'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
@@ -1088,6 +1100,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
+  ApiPublicSignalScanRoute: typeof ApiPublicSignalScanRoute
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
   ApiPublicTradeSignalWatchRoute: typeof ApiPublicTradeSignalWatchRoute
@@ -1594,6 +1607,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNewUserAlertRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/signal-scan': {
+      id: '/api/public/signal-scan'
+      path: '/api/public/signal-scan'
+      fullPath: '/api/public/signal-scan'
+      preLoaderRoute: typeof ApiPublicSignalScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sports-guide-reminders': {
       id: '/api/public/sports-guide-reminders'
       path: '/api/public/sports-guide-reminders'
@@ -1819,6 +1839,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
+  ApiPublicSignalScanRoute: ApiPublicSignalScanRoute,
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
   ApiPublicTradeSignalWatchRoute: ApiPublicTradeSignalWatchRoute,
