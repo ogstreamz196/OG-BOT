@@ -123,7 +123,7 @@ async function sendTrackAudio(chat_id: number, songId: string) {
 async function handleCallbackQuery(cq: {
   id: string;
   data?: string;
-  from?: { id?: number; first_name?: string };
+  from?: { id?: number; first_name?: string; username?: string };
   message?: {
     chat?: { id?: number };
     message_id?: number;
@@ -168,6 +168,7 @@ async function handleCallbackQuery(cq: {
         replyTo: cq.message?.message_id,
         thread: cq.message?.is_topic_message ? cq.message.message_thread_id : undefined,
         name: cq.from?.first_name,
+        user: cq.from,
       },
     );
     return Response.json({ ok: true, group: "signal" });
@@ -1075,8 +1076,10 @@ async function runChatAI(
   roles: string[],
   group?: GroupContext,
 ) {
-  // In a group, OG B0T answers the member's message in the thread.
+  // In a group, OG B0T answers the member's message in the thread, starting
+  // with a mention of them.
   const threaded = group ? groupSendExtra(group) : {};
+  const mentioned = (text: string) => withMentions(text, group?.user ? [group.user] : []);
   // Resolve short follow-ups before entering generic chat. The card itself
   // comes from live candles and the deterministic engine, not an AI model.
   const trade = await import("@/lib/trade-signal");
@@ -1132,10 +1135,10 @@ async function runChatAI(
       const chunks = signal.reply.match(/[\s\S]{1,3800}/g) ?? [signal.reply];
       let firstMessageId: number | null = null;
       const cardIds: number[] = [];
-      for (const text of chunks) {
+      for (const [i, text] of chunks.entries()) {
         const sent = await tg("sendMessage", {
           chat_id,
-          text,
+          ...(i === 0 ? mentioned(text) : { text }),
           disable_web_page_preview: true,
           ...threaded,
         });
@@ -1340,11 +1343,29 @@ async function runChatAI(
     // The reply streams in: first words go out straight away and the message
     // grows as OG Bot writes; it's set to the final text at the end.
     const { createLiveReply } = await import("@/lib/telegram-live-reply");
+    // The first message carries the mention (kept on every edit).
+    let firstLiveId: number | null = null;
     const live = createLiveReply({
-      send: (text) =>
-        tg("sendMessage", { chat_id, text, disable_web_page_preview: true, ...threaded }),
+      send: async (text) => {
+        const first = firstLiveId === null;
+        const res = await tg("sendMessage", {
+          chat_id,
+          ...(first ? mentioned(text) : { text }),
+          disable_web_page_preview: true,
+          ...threaded,
+        });
+        if (first)
+          firstLiveId =
+            (res as { result?: { message_id?: number } } | null)?.result?.message_id ?? null;
+        return res;
+      },
       edit: (message_id, text) =>
-        tg("editMessageText", { chat_id, message_id, text, disable_web_page_preview: true }),
+        tg("editMessageText", {
+          chat_id,
+          message_id,
+          ...(message_id === firstLiveId ? mentioned(text) : { text }),
+          disable_web_page_preview: true,
+        }),
       onFirst: () => clearInterval(typingTimer),
     });
     const { text: streamed } = await streamAiChat(
@@ -1410,10 +1431,10 @@ async function runChatAI(
       // Nothing went out live: send it the normal way.
       // Telegram caps messages at ~4096 chars
       const chunks = replyText.match(/[\s\S]{1,3800}/g) ?? [replyText];
-      for (const c of chunks) {
+      for (const [i, c] of chunks.entries()) {
         const res = await tg("sendMessage", {
           chat_id,
-          text: c,
+          ...(i === 0 ? mentioned(c) : { text: c }),
           disable_web_page_preview: true,
           ...threaded,
         });
@@ -1449,7 +1470,33 @@ type GroupContext = {
   quoted?: string;
   /** The member's Telegram first name. */
   name?: string;
+  /** Who's being answered: their name in the reply is a tap-able mention. */
+  user?: TgUser;
 };
+
+type TgUser = { id?: number; first_name?: string; username?: string };
+
+/**
+ * Starts a group message with a mention of each person it's for (a tap-able
+ * name that notifies them, as a Telegram "text_mention"), so everyone can see
+ * who OG B0T is answering. Plain text only: entities replace parse_mode.
+ */
+function withMentions(text: string, users: TgUser[] = []) {
+  let prefix = "";
+  const entities: Record<string, unknown>[] = [];
+  for (const u of users) {
+    if (!u.id) continue;
+    const label = `@${(u.username || u.first_name || "you").trim()}`;
+    entities.push({
+      type: "text_mention",
+      offset: prefix.length,
+      length: label.length,
+      user: { id: u.id },
+    });
+    prefix += `${label} `;
+  }
+  return entities.length ? { text: prefix + text, entities } : { text };
+}
 
 type GroupMessage = {
   message_id: number;
@@ -1487,9 +1534,9 @@ const GROUP_HELP =
   "📈 <b>/signal</b> gold or btc, holding or scalp (<code>/signal gold scalp</code>)\n\n" +
   "I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
 
-const CONNECT_NUDGE = (names: string[]) =>
-  `👋 ${names.map((n) => esc(n)).join(", ")}, I don't know you yet. ` +
-  "Connect your Telegram to OG B0T and I'm all yours. Free account, takes a minute 👇";
+const CONNECT_NUDGE =
+  "👋 I don't know you yet. Connect your Telegram to OG B0T and I'm all yours. " +
+  "Free account, takes a minute 👇";
 
 const connectButton = async () => ({
   inline_keyboard: [
@@ -1562,7 +1609,7 @@ async function sendGroupBattleLine(
 ) {
   const res = await tg("sendMessage", {
     chat_id,
-    text: text.slice(0, 4000),
+    ...withMentions(text.slice(0, 3900), ctx.user ? [ctx.user] : []),
     disable_web_page_preview: true,
     ...groupSendExtra(ctx),
     ...extra,
@@ -1676,12 +1723,15 @@ async function handleGroupMessage(
     });
     const connect = unknown.length ? { reply_markup: await connectButton() } : {};
     const joined = { replyTo: msg.message_id, thread };
-    if (roast) await sendGroupBattleLine(chat_id, roast, joined, connect);
-    else if (unknown.length)
-      await reply(chat_id, CONNECT_NUDGE(unknown.map((u) => u.first_name ?? "you")), {
-        ...groupSendExtra(joined),
-        ...connect,
-      });
+    if (!roast && !unknown.length) return Response.json({ ok: true, group: "quiet" });
+    const res = await tg("sendMessage", {
+      chat_id,
+      ...withMentions(roast ? roast.slice(0, 3900) : CONNECT_NUDGE, roast ? newcomers : unknown),
+      disable_web_page_preview: true,
+      ...groupSendExtra(joined),
+      ...connect,
+    });
+    await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
     for (const u of unknown) if (u.id) await markNudged(admin, chat_id, u.id);
     return Response.json({ ok: true, group: roast ? "initiated" : "quiet" });
   }
@@ -1706,6 +1756,7 @@ async function handleGroupMessage(
     replyTo: msg.message_id,
     thread,
     name: msg.from?.first_name,
+    user: msg.from,
     quoted: repliedToMe ? msg.reply_to_message?.text?.slice(0, 1500) : undefined,
   };
   const answer = (body: string, extra: Record<string, unknown> = {}) =>
@@ -1717,7 +1768,13 @@ async function handleGroupMessage(
   const nudge = async () => {
     if (!fromId || !(await shouldNudge(admin, chat_id, fromId)))
       return Response.json({ ok: true, group: "quiet_unknown" });
-    await answer(CONNECT_NUDGE([ctx.name ?? "you"]), { reply_markup: await connectButton() });
+    const res = await tg("sendMessage", {
+      chat_id,
+      ...withMentions(CONNECT_NUDGE, ctx.user ? [ctx.user] : []),
+      ...groupSendExtra(ctx),
+      reply_markup: await connectButton(),
+    });
+    await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
     return Response.json({ ok: true, group: "nudged" });
   };
   // A roast battle, Battle Zone style.

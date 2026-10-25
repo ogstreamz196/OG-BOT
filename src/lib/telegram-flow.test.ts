@@ -492,6 +492,11 @@ describe("telegram bot flow", () => {
     const groupSent = () => sent.filter((m) => m.chat === GROUP);
     const repliesTo = (m: Sent) =>
       (m.body?.reply_parameters as { message_id?: number } | undefined)?.message_id;
+    /** Who a group message tags: [label, Telegram user id] for each mention. */
+    const tags = (m: Sent) =>
+      ((m.body?.entities ?? []) as { offset: number; length: number; user: { id: number } }[])
+        .filter((e) => (e as { type?: string }).type === "text_mention")
+        .map((e) => [m.text.slice(e.offset, e.offset + e.length), e.user.id]);
 
     const addBot = (by: number, how: "added" | "created" = "added") =>
       post({
@@ -594,8 +599,12 @@ describe("telegram bot flow", () => {
       const asked = nextId;
       await inGroup("/og@OGStreamzBot what's my coin balance and who wins tonight?");
       const answer = groupSent().at(-1)!;
-      expect(answer.text).toContain("OG reply");
+      expect(answer.text).toMatch(/^@Imran .*OG reply/);
+      expect(tags(answer)).toEqual([["@Imran", CHAT]]);
       expect(repliesTo(answer)).toBe(asked);
+      // The streamed edits keep the tag too.
+      const edits = calls.filter((c) => c.method === "editMessageText" && c.body.chat_id === GROUP);
+      for (const e of edits) expect(String(e.body.text)).toMatch(/^@Imran /);
       const prompt = ai.requests[0].messages.map((m) => m.content).join("\n");
       expect(prompt).toContain("GROUP CHAT");
       expect(prompt).not.toContain("PRIVATE-MEMORY");
@@ -623,7 +632,9 @@ describe("telegram bot flow", () => {
       });
       expect(battleTurn(0)).toBe("Imran: you're mid");
       const clapback = groupSent().at(-1)!;
-      expect(clapback.text).toBe("BATTLE 1");
+      // A reply to their message that starts by tagging them.
+      expect(clapback.text).toBe("@Imran BATTLE 1");
+      expect(tags(clapback)).toEqual([["@Imran", CHAT]]);
       expect(repliesTo(clapback)).toBe(asked);
       // Plain text: the AI's words never go through HTML parsing.
       expect(clapback.body?.parse_mode).toBeUndefined();
@@ -654,7 +665,8 @@ describe("telegram bot flow", () => {
       const said = nextId;
       await asFriend("who's this bot then");
       const nudge = groupSent().at(-1)!;
-      expect(nudge.text).toContain("Kez, I don't know you yet");
+      expect(nudge.text).toMatch(/^@Kez 👋 I don't know you yet/);
+      expect(tags(nudge)).toEqual([["@Kez", FRIEND]]);
       expect(repliesTo(nudge)).toBe(said);
       expect(buttons(nudge)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
       // Nothing about them is sent to the AI or kept.
@@ -700,7 +712,8 @@ describe("telegram bot flow", () => {
       expect(battleTurn(0)).toContain("[Kez @kez_99 just joined the group.]");
       expect(battleTurn(0)).not.toContain("SomeOtherBot");
       const roast = groupSent().at(-1)!;
-      expect(roast.text).toBe("BATTLE 1");
+      expect(roast.text).toBe("@kez_99 BATTLE 1");
+      expect(tags(roast)).toEqual([["@kez_99", FRIEND]]);
       expect(repliesTo(roast)).toBe(joined);
       expect(buttons(roast)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
       // That counts as today's ask: their first message isn't nagged again.
@@ -716,7 +729,7 @@ describe("telegram bot flow", () => {
           new_chat_members: [{ id: CHAT, is_bot: false, first_name: "Imran" }],
         },
       });
-      expect(groupSent().at(-1)!.text).toBe("BATTLE 2");
+      expect(groupSent().at(-1)!.text).toBe("@Imran BATTLE 2");
       expect(groupSent().at(-1)!.markup).toBeUndefined();
       // Only bots joining: nothing to say.
       await post({
@@ -772,6 +785,8 @@ describe("telegram bot flow", () => {
       const card = groupSent().find((m) => m.text.includes("GOLD SCALP card"))!;
       expect(card).toBeTruthy();
       expect(repliesTo(card)).toBe(picker.id);
+      // Tagged to whoever tapped.
+      expect(tags(card)).toEqual([["@Imran", CHAT]]);
 
       await inGroup("/signal btc scalp");
       // Each new signal wipes the last in the group too.
