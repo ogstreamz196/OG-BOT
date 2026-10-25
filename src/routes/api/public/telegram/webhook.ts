@@ -123,11 +123,55 @@ async function sendTrackAudio(chat_id: number, songId: string) {
 async function handleCallbackQuery(cq: {
   id: string;
   data?: string;
-  from?: { id?: number };
-  message?: { chat?: { id?: number }; message_id?: number; text?: string };
+  from?: { id?: number; first_name?: string };
+  message?: {
+    chat?: { id?: number };
+    message_id?: number;
+    text?: string;
+    message_thread_id?: number;
+    is_topic_message?: boolean;
+  };
 }) {
   const answer = (text: string) =>
     tg("answerCallbackQuery", { callback_query_id: cq.id, ...(text ? { text } : {}) });
+  // A signal button in a group: the member who tapped gets the signal there.
+  const groupSignal = /^gsig:(XAU|BTC):(1h|5m)$/.exec(cq.data ?? "");
+  if (groupSignal) {
+    const chatId = cq.message?.chat?.id;
+    if (!chatId || chatId > 0) {
+      await answer("");
+      return Response.json({ ok: true, ignored: true });
+    }
+    const admin = await loadAdmin();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("telegram_chat_id", cq.from?.id ?? 0)
+      .maybeSingle();
+    if (!profile) {
+      await tg("answerCallbackQuery", {
+        callback_query_id: cq.id,
+        text: "Link your OG B0T account in my DM first.",
+        show_alert: true,
+      });
+      return Response.json({ ok: true, unlinked: true });
+    }
+    await answer("Checking the live charts…");
+    const { roles } = await isAdmin(admin, profile.id);
+    await runChatAI(
+      admin,
+      profile.id,
+      chatId,
+      signalRequest(groupSignal[1] as "XAU" | "BTC", groupSignal[2] as "1h" | "5m"),
+      roles,
+      {
+        replyTo: cq.message?.message_id,
+        thread: cq.message?.is_topic_message ? cq.message.message_thread_id : undefined,
+        name: cq.from?.first_name,
+      },
+    );
+    return Response.json({ ok: true, group: "signal" });
+  }
   if (cq.data?.startsWith("signals:")) {
     const action = parseSignalAction(cq.data);
     const chatId = cq.message?.chat?.id;
@@ -629,7 +673,10 @@ Just type to chat with me, same brain as the in-app messenger. Or use the button
 👤 <b>You</b>
 /me  your linked profile
 /menu  the OG Menu
-/clear  wipe this chat and start fresh`;
+/clear  wipe this chat and start fresh
+
+👥 <b>Groups</b>
+Add me to a group chat: /og asks me anything, /signal drops a live signal, /roast if you dare.`;
 
 const HELP_ADMIN = `${HELP_USER}
 
@@ -985,13 +1032,17 @@ async function runChatAI(
   chat_id: number,
   userText: string,
   roles: string[],
+  group?: GroupContext,
 ) {
+  // In a group, OG B0T answers the member's message in the thread.
+  const threaded = group ? groupSendExtra(group) : {};
   // Resolve short follow-ups before entering generic chat. The card itself
   // comes from live candles and the deterministic engine, not an AI model.
   const trade = await import("@/lib/trade-signal");
   let tradeText = trade.resolveTradeRequest(userText, []);
   const staff = ["admin", "boss", "dev"].some((role) => roles.includes(role));
   if (
+    !group &&
     !tradeText &&
     /\b(signals?|setups?|entry|entries|sl|tp|scalp|swing|bullish|bearish)\b/i.test(userText)
   ) {
@@ -1025,8 +1076,13 @@ async function runChatAI(
       const hold = movedFromOneMinute
         ? `1 min calls are Boss-only (too noisy at that speed), so here's the 5 min scalp.\n${picked}`
         : picked;
-      const held = await tg("sendMessage", { chat_id, text: hold, disable_web_page_preview: true });
-      await rememberScreen(chat_id, held);
+      const held = await tg("sendMessage", {
+        chat_id,
+        text: hold,
+        disable_web_page_preview: true,
+        ...threaded,
+      });
+      if (!group) await rememberScreen(chat_id, held);
       const signal = await signalJob;
       const ttl = signal.expiresAt
         ? Math.max(1, Date.parse(signal.expiresAt) - Date.now() - 5 * 60_000)
@@ -1036,10 +1092,15 @@ async function runChatAI(
       let firstMessageId: number | null = null;
       const cardIds: number[] = [];
       for (const text of chunks) {
-        const sent = await tg("sendMessage", { chat_id, text, disable_web_page_preview: true });
+        const sent = await tg("sendMessage", {
+          chat_id,
+          text,
+          disable_web_page_preview: true,
+          ...threaded,
+        });
         if (!sent) throw new Error("Signal delivery failed");
         // "No trade right now" cards aren't followed, so the next screen clears them.
-        if (!signal.plan) await rememberScreen(chat_id, sent);
+        if (!signal.plan && !group) await rememberScreen(chat_id, sent);
         const id = (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
         firstMessageId ??= id;
         if (id) cardIds.push(id);
@@ -1049,6 +1110,11 @@ async function runChatAI(
       if (signal.plan) {
         // A new signal wipes out the last one (see replaceOldSignals).
         await replaceOldSignals(chat_id, cardIds);
+      }
+      // Group signals are a snapshot: the follow-ups and the member's chat
+      // history belong to their private chat.
+      if (group) return;
+      if (signal.plan) {
         const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
         await recordSignal({
           userId: profileId,
@@ -1088,11 +1154,14 @@ async function runChatAI(
   // Trade requests never get here (they take the signal path above).
   const { startGrounding, checkFigures } = await import("@/lib/og-smarts.server");
   const grounding = startGrounding(admin as never, profileId, userText, false);
+  // In a group everyone can read the reply: nothing from the member's account,
+  // memory, private history, promo codes or the paid Sports Guide goes in.
   const vp = await import("@/lib/vip-promo.server");
   const { loadUserDossier } = await import("@/lib/og-user-dossier.server");
   const { buildSportsGuideContext } = await import("@/lib/sports-guide-context.server");
   // The full account dossier is heavy — only load it when they ask about their account.
   const wantsAccount =
+    !group &&
     /\b(coin|coins|balance|vip|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
       userText,
     );
@@ -1113,22 +1182,26 @@ async function runChatAI(
           .select("key, value")
           .in("key", ["og_persona.script", "og_persona.voice", "og_persona.dictionary"]),
     ),
-    admin
-      .from("og_messages")
-      .select("role, content")
-      .eq("user_id", profileId)
-      .order("created_at", { ascending: false })
-      .limit(20),
+    group
+      ? Promise.resolve({ data: [] as { role: string; content: string }[] })
+      : admin
+          .from("og_messages")
+          .select("role, content")
+          .eq("user_id", profileId)
+          .order("created_at", { ascending: false })
+          .limit(20),
     wantsAccount ? loadUserDossier(admin, profileId).catch(() => null) : Promise.resolve(null),
-    vp.detectPromoIntent(userText)
+    !group && vp.detectPromoIntent(userText)
       ? vp
           .getOrCreateVipPromo(admin, profileId, { isPaidVip: roles.includes("vip") })
           .catch(() => null)
       : Promise.resolve(null),
-    buildSportsGuideContext(admin, profileId, userText).catch((e) => {
-      console.warn("[telegram] sports guide context failed", e);
-      return "";
-    }),
+    group
+      ? Promise.resolve("")
+      : buildSportsGuideContext(admin, profileId, userText).catch((e) => {
+          console.warn("[telegram] sports guide context failed", e);
+          return "";
+        }),
   ]);
   const profile = profileRes.data;
   if (!profile) {
@@ -1146,14 +1219,23 @@ async function runChatAI(
   );
   const foulMouth = foul.on;
 
-  const userCtx: UserContextSummary = {
-    display_name: profile.display_name,
-    email: profile.email,
-    coin_balance: profile.coin_balance ?? 0,
-    is_admin: isAdminUser,
-    is_vip: isVip,
-    page_context: "telegram",
-  };
+  const userCtx: UserContextSummary = group
+    ? {
+        display_name: group.name ?? profile.display_name,
+        email: null,
+        coin_balance: 0,
+        is_admin: false,
+        is_vip: isVip,
+        page_context: "a Telegram group chat",
+      }
+    : {
+        display_name: profile.display_name,
+        email: profile.email,
+        coin_balance: profile.coin_balance ?? 0,
+        is_admin: isAdminUser,
+        is_vip: isVip,
+        page_context: "telegram",
+      };
 
   const promoNote = promo ? vp.promoPromptNote(promo) : "";
   const sportsNote = sportsBlock ? `${sportsBlock}\n\n` : "";
@@ -1180,21 +1262,29 @@ async function runChatAI(
       dossier,
     }) +
     catchphraseNote(catchphrases) +
-    memoryNote(memories) +
+    (group ? GROUP_NOTE : memoryNote(memories)) +
     (footballBlock ? `\n\n${footballBlock}` : "");
 
-  const history = trade
-    .cleanTradeHistory(((historyRes.data ?? []) as { role: string; content: string }[]).reverse())
-    .map((m) => ({
-      role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: m.content,
-    }));
+  const history = group
+    ? // Replying to one of OG B0T's group messages: that message is the context.
+      group.quoted
+      ? [{ role: "assistant" as const, content: group.quoted }]
+      : []
+    : trade
+        .cleanTradeHistory(
+          ((historyRes.data ?? []) as { role: string; content: string }[]).reverse(),
+        )
+        .map((m) => ({
+          role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+          content: m.content,
+        }));
 
-  // Save user message without holding up the reply.
-  void admin
-    .from("og_messages")
-    .insert({ user_id: profileId, role: "user", content: userText })
-    .then(() => {});
+  // Save user message without holding up the reply (private chat only).
+  if (!group)
+    void admin
+      .from("og_messages")
+      .insert({ user_id: profileId, role: "user", content: userText })
+      .then(() => {});
 
   try {
     let currentUserText = userText;
@@ -1210,7 +1300,8 @@ async function runChatAI(
     // grows as OG Bot writes; it's set to the final text at the end.
     const { createLiveReply } = await import("@/lib/telegram-live-reply");
     const live = createLiveReply({
-      send: (text) => tg("sendMessage", { chat_id, text, disable_web_page_preview: true }),
+      send: (text) =>
+        tg("sendMessage", { chat_id, text, disable_web_page_preview: true, ...threaded }),
       edit: (message_id, text) =>
         tg("editMessageText", { chat_id, message_id, text, disable_web_page_preview: true }),
       onFirst: () => clearInterval(typingTimer),
@@ -1248,10 +1339,12 @@ async function runChatAI(
         },
       );
     }
-    // Remember anything lasting the member just told us (never blocks the reply).
-    void import("@/lib/og-memory.server").then((m) =>
-      m.learnFromMessage(admin as never, profileId, userText, memories),
-    );
+    // Remember anything lasting the member just told us (never blocks the
+    // reply). Memory only ever learns from private chat.
+    if (!group)
+      void import("@/lib/og-memory.server").then((m) =>
+        m.learnFromMessage(admin as never, profileId, userText, memories),
+      );
     if (foulMouth) {
       const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
       replyText = ensureFoulFlavour(replyText);
@@ -1259,13 +1352,15 @@ async function runChatAI(
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
 
     // Save the reply while it goes out, rather than before.
-    const saved = admin
-      .from("og_messages")
-      .insert({ user_id: profileId, role: "assistant", content: replyText })
-      .then(
-        () => {},
-        (e: unknown) => console.warn("[telegram] saving reply failed", e),
-      );
+    const saved = group
+      ? Promise.resolve()
+      : admin
+          .from("og_messages")
+          .insert({ user_id: profileId, role: "assistant", content: replyText })
+          .then(
+            () => {},
+            (e: unknown) => console.warn("[telegram] saving reply failed", e),
+          );
 
     // Show the final text in the live message (and any overflow after it).
     const sentLive = await live.finish(replyText);
@@ -1279,6 +1374,7 @@ async function runChatAI(
           chat_id,
           text: c,
           disable_web_page_preview: true,
+          ...threaded,
         });
         await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
       }
@@ -1293,6 +1389,206 @@ async function runChatAI(
   } finally {
     clearInterval(typingTimer);
   }
+}
+
+/* ── Groups ───────────────────────────────────────────────────────────── */
+// OG B0T in Telegram groups. With Telegram's default privacy mode the bot only
+// sees commands, replies to its own messages and service messages; it answers
+// /og, /signal, /roast and /help, a reply to one of its messages, and an
+// @mention (seen when it's a group admin). Everything else is ignored, even
+// when it can see it. Only linked members get answers, and account things
+// (coins, VIP, Vault, tracks, the paid Sports Guide) stay in the private chat.
+
+type GroupContext = {
+  /** The member's message being answered. */
+  replyTo?: number;
+  /** Forum topic, so answers land in the right one. */
+  thread?: number;
+  /** Text of OG B0T's own message the member replied to. */
+  quoted?: string;
+  /** The member's Telegram first name. */
+  name?: string;
+};
+
+type GroupMessage = {
+  message_id: number;
+  text?: string;
+  chat: { id: number; type?: string };
+  from?: { id?: number; is_bot?: boolean; first_name?: string; username?: string };
+  reply_to_message?: { text?: string; from?: { is_bot?: boolean; username?: string } };
+  message_thread_id?: number;
+  is_topic_message?: boolean;
+  new_chat_members?: { is_bot?: boolean; username?: string }[];
+};
+
+function groupSendExtra(g: GroupContext) {
+  return {
+    ...(g.replyTo
+      ? { reply_parameters: { message_id: g.replyTo, allow_sending_without_reply: true } }
+      : {}),
+    ...(g.thread ? { message_thread_id: g.thread } : {}),
+  };
+}
+
+const GROUP_NOTE =
+  "\n\nGROUP CHAT: you're answering one person in a Telegram group, and everyone in it can read your reply. " +
+  "Never mention their coins, VIP status, account, email, purchases or anything else private; if they ask, tell them to DM you. " +
+  "Keep it short and punchy, a few lines at most.";
+
+const GROUP_HELP =
+  "🤖 <b>OG B0T in the group</b>\n\n" +
+  "💬 <b>/og</b> then your question, or reply to any of my messages\n" +
+  "📈 <b>/signal</b> gold or btc, holding or scalp (<code>/signal gold scalp</code>)\n" +
+  "🔥 <b>/roast</b> @someone, if you dare\n\n" +
+  "Link your OG B0T account in my DM first. Coins, VIP, the Vault and your tracks stay private in there.";
+
+const GROUP_HELLO = "<b>OG B0T's in the chat.</b> Behave yourselves. Or don't.\n\n";
+
+const GROUP_SIGNAL_TEXT = "📈 <b>Live signals</b>\nPick one 👇";
+const GROUP_SIGNAL_BUTTONS = {
+  inline_keyboard: [
+    [
+      { text: "🥇 Gold · Holding", callback_data: "gsig:XAU:1h" },
+      { text: "🥇 Gold · Scalp", callback_data: "gsig:XAU:5m" },
+    ],
+    [
+      { text: "₿ BTC · Holding", callback_data: "gsig:BTC:1h" },
+      { text: "₿ BTC · Scalp", callback_data: "gsig:BTC:5m" },
+    ],
+  ],
+};
+
+// Commands about the member's own account: answered in the DM only.
+const PRIVATE_COMMANDS = new Set([
+  "balance",
+  "buy",
+  "vip",
+  "vault",
+  "tracks",
+  "library",
+  "me",
+  "menu",
+  "clear",
+  "sports",
+  "stats",
+  "users",
+  "user",
+  "find",
+  "inspect",
+  "whois",
+  "addcoins",
+  "setcoins",
+  "broadcast",
+]);
+
+const BOT_USERNAME_FALLBACK = "OGStreamzBot";
+function botUsername(): Promise<string> {
+  return cached("telegram-bot-username", 6 * 3_600_000, async () => {
+    const me = (await tg("getMe", {})) as { result?: { username?: string } } | null;
+    return me?.result?.username || BOT_USERNAME_FALLBACK;
+  });
+}
+
+const dmButton = async (text: string) => ({
+  inline_keyboard: [[{ text, url: `https://t.me/${await botUsername()}` }]],
+});
+
+async function handleGroupMessage(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  msg: GroupMessage,
+): Promise<Response> {
+  const chat_id = msg.chat.id;
+  const ignored = () => Response.json({ ok: true, ignored: "group" });
+  const me = (await botUsername()).toLowerCase();
+  const thread = msg.is_topic_message ? msg.message_thread_id : undefined;
+
+  // Just added to the group: say hello and how it works.
+  if (msg.new_chat_members?.some((u) => u.is_bot && u.username?.toLowerCase() === me)) {
+    await reply(chat_id, GROUP_HELLO + GROUP_HELP, thread ? { message_thread_id: thread } : {}, 0);
+    return Response.json({ ok: true, group: "hello" });
+  }
+
+  const text = typeof msg.text === "string" ? msg.text.trim() : "";
+  if (!text || msg.from?.is_bot) return ignored();
+  const command = /^\/([a-z_]+)(?:@(\w+))?(?:\s+([\s\S]*))?$/i.exec(text);
+  // Another bot's command.
+  if (command?.[2] && command[2].toLowerCase() !== me) return ignored();
+  const repliedToMe =
+    !!msg.reply_to_message?.from?.is_bot &&
+    msg.reply_to_message.from.username?.toLowerCase() === me;
+  const mention = new RegExp(`@${me}\\b`, "gi");
+  const mentioned = new RegExp(`@${me}\\b`, "i").test(text);
+  const withoutMention = (t: string) =>
+    t
+      .replace(mention, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+  const ctx: GroupContext = {
+    replyTo: msg.message_id,
+    thread,
+    name: msg.from?.first_name,
+    quoted: repliedToMe ? msg.reply_to_message?.text?.slice(0, 1500) : undefined,
+  };
+  const answer = (body: string, extra: Record<string, unknown> = {}) =>
+    reply(chat_id, body, { ...groupSendExtra(ctx), ...extra });
+
+  let ask: string;
+  if (command) {
+    const cmd = command[1].toLowerCase();
+    const arg = withoutMention(command[3] ?? "");
+    if (cmd === "og" || cmd === "ask") {
+      if (!arg) {
+        await answer(GROUP_HELP);
+        return Response.json({ ok: true, group: "help" });
+      }
+      ask = arg;
+    } else if (cmd === "start" || cmd === "help") {
+      await answer(GROUP_HELP);
+      return Response.json({ ok: true, group: "help" });
+    } else if (cmd === "signal" || cmd === "signals") {
+      const pair = /\b(gold|xau)/i.test(arg) ? "XAU" : /\b(btc|bitcoin)/i.test(arg) ? "BTC" : null;
+      if (!pair) {
+        await answer(GROUP_SIGNAL_TEXT, { reply_markup: GROUP_SIGNAL_BUTTONS });
+        return Response.json({ ok: true, group: "signals" });
+      }
+      ask = signalRequest(pair, /\b(scalp|5\s?m)\b/i.test(arg) ? "5m" : "1h");
+    } else if (cmd === "roast") {
+      ask = `Roast ${arg || ctx.name || "me"}. A few lines, no mercy.`;
+    } else if (PRIVATE_COMMANDS.has(cmd)) {
+      await answer("🔒 That's between you and me. Ask me in our DM 👇", {
+        reply_markup: await dmButton("💬 Open my DM"),
+      });
+      return Response.json({ ok: true, group: "private" });
+    } else {
+      // Not one of ours (another bot's command without its @name).
+      return ignored();
+    }
+  } else if (repliedToMe || mentioned) {
+    ask = withoutMention(text);
+    if (!ask) {
+      await answer(GROUP_HELP);
+      return Response.json({ ok: true, group: "help" });
+    }
+  } else {
+    return ignored();
+  }
+
+  // Answers come from the member's own account.
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("telegram_chat_id", msg.from?.id ?? 0)
+    .maybeSingle();
+  if (!profile) {
+    await answer("🔗 Link your OG B0T account in my DM first, then I'm all yours.", {
+      reply_markup: await dmButton("🔗 Link in my DM"),
+    });
+    return Response.json({ ok: true, group: "unlinked" });
+  }
+  const { roles } = await isAdmin(admin, profile.id);
+  await runChatAI(admin, profile.id, chat_id, ask, roles, ctx);
+  return Response.json({ ok: true, group: "answered" });
 }
 
 function startMatchKind(text: string | undefined): string {
@@ -1388,6 +1684,11 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         }
 
         try {
+          // Groups get their own, quieter handling (see handleGroupMessage).
+          if (msg.chat?.type === "group" || msg.chat?.type === "supergroup") {
+            if (!update?.message) return Response.json({ ok: true, ignored: "group_edit" });
+            return await handleGroupMessage(admin, msg);
+          }
           return await handleTelegramUpdate(admin, chat_id, text, msg);
         } catch (err) {
           console.error("[telegram] handler error", err);

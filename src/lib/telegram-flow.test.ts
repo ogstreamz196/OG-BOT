@@ -5,13 +5,23 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 // a fake database, and checks the bottom bar is never deleted from under them.
 
 const CHAT = 4242;
-type Sent = { id: number; text: string; markup?: Record<string, unknown> };
+type Sent = {
+  id: number;
+  text: string;
+  markup?: Record<string, unknown>;
+  chat?: number;
+  body?: Record<string, unknown>;
+};
 const sent: Sent[] = [];
 const deleted = new Set<number>();
 const edits: { id: number; markup: Record<string, unknown> }[] = [];
 let nextId = 100;
 // Who the linked member is, and their foul mouth state.
 const who = { roles: [] as string[], foulAllowed: true, foulOn: true };
+// Telegram users with a linked account (a private chat id is the user id).
+const linked = new Set<number>([CHAT]);
+const inserts: { table: string; row: unknown }[] = [];
+const ai = { requests: [] as { messages: { role: string; content: string }[] }[] };
 
 vi.mock("@/lib/telegram-api.server", () => ({
   escapeTelegramHtml: (s: string) => s,
@@ -22,6 +32,8 @@ vi.mock("@/lib/telegram-api.server", () => ({
         id,
         text: String(body.text),
         markup: body.reply_markup as Record<string, unknown>,
+        chat: body.chat_id as number,
+        body,
       });
       return { ok: true, result: { message_id: id } };
     }
@@ -57,7 +69,11 @@ function query(table: string) {
     maybeSingle: () => ((single = true), q),
     delete: () => ((op = "delete"), q),
     update: () => ((op = "write"), q),
-    insert: () => ((op = "write"), q),
+    insert: (row: unknown) => {
+      op = "write";
+      inserts.push({ table, row });
+      return q;
+    },
     upsert: (row: Row) => {
       op = "write";
       if (table === "telegram_screen_messages") {
@@ -78,7 +94,11 @@ function query(table: string) {
           for (let i = screens.length - 1; i >= 0; i--) if (match(screens[i])) screens.splice(i, 1);
         } else data = screens.filter(match);
       }
-      if (table === "profiles" && op === "select") data = single ? { id: "u1" } : [{ id: "u1" }];
+      if (table === "profiles" && op === "select") {
+        const tgId = filters.find(([c]) => c === "telegram_chat_id");
+        const ok = !tgId || [...linked].some((id) => tgId[1](id));
+        data = single ? (ok ? { id: "u1" } : null) : ok ? [{ id: "u1" }] : [];
+      }
       if (table === "user_roles") data = who.roles.map((role) => ({ role }));
       resolve({ data, error: null, count: 0 });
     },
@@ -101,7 +121,50 @@ vi.mock("@/lib/trade-hold.server", () => ({ pickTradeHold: async () => "Hold on�
 vi.mock("@/lib/trade-signal-context.server", () => ({
   buildTradeSignal: async () => ({ reply: "📈 GOLD SCALP card", plan: {}, expiresAt: null }),
 }));
-vi.mock("@/lib/trade-signal-tracker.server", () => ({ recordSignal: async () => undefined }));
+const recordSignal = vi.fn(async () => undefined);
+vi.mock("@/lib/trade-signal-tracker.server", () => ({ recordSignal }));
+// The chat AI: a canned streamed answer, with the request kept for checks.
+vi.mock("@/lib/ai-endpoint.server", () => ({
+  aiChatTarget: () => ({}),
+  liveFactsMessage: (_r: string, t: string) => t,
+  fetchAiChat: async () => ({ response: new Response("{}") }),
+  streamAiChat: async (
+    req: { messages: { role: string; content: string }[] },
+    _id: string,
+    _o: unknown,
+    onDelta?: (d: string) => void,
+  ) => {
+    ai.requests.push(req);
+    onDelta?.("OG reply");
+    return { text: "OG reply" };
+  },
+}));
+vi.mock("@/lib/og-smarts.server", () => ({
+  startGrounding: () => ({
+    memories: Promise.resolve([{ fact: "PRIVATE-MEMORY" }]),
+    football: Promise.resolve(""),
+    research: Promise.resolve(null),
+  }),
+  checkFigures: async (t: string) => t,
+}));
+vi.mock("@/lib/og-memory", () => ({
+  memoryNote: (m: unknown[]) => (m.length ? "\nMEMORY: PRIVATE-MEMORY" : ""),
+}));
+const learnFromMessage = vi.fn(async () => undefined);
+vi.mock("@/lib/og-memory.server", () => ({ learnFromMessage }));
+const loadUserDossier = vi.fn(async () => "PRIVATE-DOSSIER");
+vi.mock("@/lib/og-user-dossier.server", () => ({ loadUserDossier }));
+vi.mock("@/lib/vip-promo.server", () => ({ detectPromoIntent: () => false }));
+const buildSportsGuideContext = vi.fn(async () => "PAID-SPORTS-GUIDE");
+vi.mock("@/lib/sports-guide-context.server", () => ({
+  buildSportsGuideContext,
+  quickSportsReply: async () => "⚽ <b>OG Sports Guide</b>",
+}));
+vi.mock("@/lib/og-catchphrases.server", () => ({
+  pickCatchphrases: async () => [],
+  catchphraseNote: () => "",
+  toneFor: () => "og",
+}));
 
 process.env.TELEGRAM_API_KEY = "test-key";
 const secret = createHash("sha256").update("telegram-webhook:test-key").digest("base64url");
@@ -159,6 +222,11 @@ describe("telegram bot flow", () => {
     deleted.clear();
     edits.length = 0;
     screens.length = 0;
+    inserts.length = 0;
+    ai.requests.length = 0;
+    linked.clear();
+    linked.add(CHAT);
+    vi.clearAllMocks();
     Object.assign(who, { roles: [], foulAllowed: true, foulOn: true });
   });
 
@@ -350,5 +418,143 @@ describe("telegram bot flow", () => {
     // The signal buttons are still there.
     expect(barButtons()).toContain("🥇 Gold · Scalp");
     expect(liveBars()).toHaveLength(1);
+  });
+
+  describe("in a group", () => {
+    const GROUP = -100777;
+    const FRIEND = 9001; // in the group, no OG B0T account
+    const inGroup = (
+      text: string,
+      opts: { from?: number; reply_to?: { text: string; fromBot?: boolean } } = {},
+    ) =>
+      post({
+        message: {
+          message_id: nextId++,
+          text,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: opts.from ?? CHAT, first_name: "Imran" },
+          ...(opts.reply_to
+            ? {
+                reply_to_message: {
+                  text: opts.reply_to.text,
+                  from: opts.reply_to.fromBot
+                    ? { is_bot: true, username: "OGStreamzBot" }
+                    : { is_bot: false, username: "someone" },
+                },
+              }
+            : {}),
+        },
+      });
+    const groupSent = () => sent.filter((m) => m.chat === GROUP);
+    const repliesTo = (m: Sent) =>
+      (m.body?.reply_parameters as { message_id?: number } | undefined)?.message_id;
+
+    test("says hello when added, and ignores ordinary chat", async () => {
+      await post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: CHAT },
+          new_chat_members: [{ is_bot: true, username: "OGStreamzBot" }],
+        },
+      });
+      expect(groupSent()).toHaveLength(1);
+      expect(groupSent()[0].text).toContain("/signal");
+      // No bottom bar in groups.
+      expect(groupSent()[0].markup).toBeUndefined();
+
+      await inGroup("anyone up for five-a-side tonight?");
+      await inGroup("/start@SomeOtherBot");
+      await inGroup("lol", { reply_to: { text: "who's in", fromBot: false } });
+      expect(groupSent()).toHaveLength(1);
+      expect(ai.requests).toHaveLength(0);
+    });
+
+    test("/og answers in the thread without anything private", async () => {
+      const asked = nextId;
+      await inGroup("/og@OGStreamzBot what's my coin balance and who wins tonight?");
+      const answer = groupSent().at(-1)!;
+      expect(answer.text).toContain("OG reply");
+      expect(repliesTo(answer)).toBe(asked);
+      const prompt = ai.requests[0].messages.map((m) => m.content).join("\n");
+      expect(prompt).toContain("GROUP CHAT");
+      expect(prompt).not.toContain("PRIVATE-MEMORY");
+      expect(prompt).not.toContain("PRIVATE-DOSSIER");
+      expect(prompt).not.toContain("PAID-SPORTS-GUIDE");
+      expect(prompt).toContain("User is currently on: a Telegram group chat.");
+      expect(prompt).toContain("User role: VIP.");
+      // Nothing from the group goes into the member's private history or memory.
+      expect(loadUserDossier).not.toHaveBeenCalled();
+      expect(buildSportsGuideContext).not.toHaveBeenCalled();
+      expect(learnFromMessage).not.toHaveBeenCalled();
+      expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
+    });
+
+    test("replying to OG B0T carries on the conversation", async () => {
+      await inGroup("you're mid", { reply_to: { text: "Arsenal by two, easy.", fromBot: true } });
+      const msgs = ai.requests[0].messages;
+      expect(msgs.at(-2)).toEqual({ role: "assistant", content: "Arsenal by two, easy." });
+      expect(msgs.at(-1)!.content).toBe("you're mid");
+      await inGroup("oi @OGStreamzBot roast this guy");
+      expect(ai.requests[1].messages.at(-1)!.content).toBe("oi roast this guy");
+    });
+
+    test("signals: picker buttons, a tap or a typed pair; a snapshot, not followed", async () => {
+      await inGroup("/signal");
+      const picker = groupSent().at(-1)!;
+      const data = buttons(picker).map((b) => b.callback_data);
+      expect(data).toEqual(["gsig:XAU:1h", "gsig:XAU:5m", "gsig:BTC:1h", "gsig:BTC:5m"]);
+
+      await post({
+        callback_query: {
+          id: "cb",
+          data: "gsig:XAU:5m",
+          from: { id: CHAT, first_name: "Imran" },
+          message: { message_id: picker.id, chat: { id: GROUP } },
+        },
+      });
+      const card = groupSent().find((m) => m.text.includes("GOLD SCALP card"))!;
+      expect(card).toBeTruthy();
+      expect(repliesTo(card)).toBe(picker.id);
+
+      await inGroup("/signal btc scalp");
+      // Each new signal wipes the last in the group too.
+      expect(deleted.has(card.id)).toBe(true);
+      expect(groupSent().filter((m) => m.text.includes("card") && !deleted.has(m.id))).toHaveLength(
+        1,
+      );
+      // Group signals aren't followed or saved to anyone's private history.
+      expect(recordSignal).not.toHaveBeenCalled();
+      expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
+    });
+
+    test("account commands point to the DM; people without an account are asked to link", async () => {
+      for (const cmd of ["/balance", "/vault", "/sports arsenal", "/vip@OGStreamzBot"]) {
+        await inGroup(cmd);
+        const m = groupSent().at(-1)!;
+        expect(m.text, cmd).toContain("Ask me in our DM");
+        expect(buttons(m)[0].url).toBe("https://t.me/OGStreamzBot");
+      }
+      await inGroup("/og hello", { from: FRIEND });
+      expect(groupSent().at(-1)!.text).toContain("Link your OG B0T account");
+      await post({
+        callback_query: {
+          id: "cb",
+          data: "gsig:BTC:1h",
+          from: { id: FRIEND },
+          message: { message_id: 1, chat: { id: GROUP } },
+        },
+      });
+      expect(ai.requests).toHaveLength(0);
+      expect(groupSent().some((m) => m.text.includes("card"))).toBe(false);
+    });
+  });
+
+  test("private chat still uses memory and saves history", async () => {
+    await type("who am I?");
+    const prompt = ai.requests[0].messages.map((m) => m.content).join("\n");
+    expect(prompt).toContain("PRIVATE-MEMORY");
+    expect(inserts.filter((i) => i.table === "og_messages").length).toBeGreaterThan(0);
+    expect(learnFromMessage).toHaveBeenCalled();
   });
 });
