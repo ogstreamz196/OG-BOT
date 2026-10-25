@@ -239,6 +239,13 @@
       "when": 1792921583196,
       "tag": "0033_telegram_group_lines_users",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792942546942,
+      "tag": "0034_signal_broadcasts",
+      "breakpoints": true
     }
   ]
 }

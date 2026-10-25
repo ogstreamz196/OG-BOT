@@ -1226,6 +1226,42 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_broadcasts: {
+        Row: {
+          confidence_pct: number
+          created_at: string
+          direction: string
+          entry: number
+          expires_at: string
+          id: string
+          market: string
+          message_id: number | null
+          timeframe: string
+        }
+        Insert: {
+          confidence_pct: number
+          created_at?: string
+          direction: string
+          entry: number
+          expires_at: string
+          id?: string
+          market: string
+          message_id?: number | null
+          timeframe: string
+        }
+        Update: {
+          confidence_pct?: number
+          created_at?: string
+          direction?: string
+          entry?: number
+          expires_at?: string
+          id?: string
+          market?: string
+          message_id?: number | null
+          timeframe?: string
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           key: string
