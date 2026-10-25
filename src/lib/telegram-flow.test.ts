@@ -56,7 +56,11 @@ vi.mock("@/lib/telegram-api.server", () => ({
 type Row = Record<string, unknown>;
 const screens: Row[] = [];
 // Tables kept for real (rows in insert order, each with a rising created_at).
-const stored: Record<string, Row[]> = { telegram_group_lines: [] };
+const stored: Record<string, Row[]> = {
+  telegram_group_lines: [],
+  telegram_group_nudges: [],
+  telegram_connect_tokens: [],
+};
 let clock = Date.now();
 function query(table: string) {
   const filters: [string, (v: unknown) => boolean][] = [];
@@ -84,6 +88,14 @@ function query(table: string) {
     },
     upsert: (row: Row) => {
       op = "write";
+      if (table === "telegram_group_nudges") {
+        const rows = stored[table];
+        const i = rows.findIndex(
+          (r) => r.chat_id === row.chat_id && r.telegram_user_id === row.telegram_user_id,
+        );
+        if (i >= 0) rows[i] = row;
+        else rows.push(row);
+      }
       if (table === "telegram_screen_messages") {
         const i = screens.findIndex(
           (r) => r.chat_id === row.chat_id && r.message_id === row.message_id,
@@ -102,8 +114,9 @@ function query(table: string) {
       if (rows && op === "delete") {
         for (let i = rows.length - 1; i >= 0; i--) if (match(rows[i])) rows.splice(i, 1);
       } else if (rows && op === "select") {
-        data = rows.filter(match);
-        count = (data as Row[]).length;
+        const hit = rows.filter(match);
+        count = hit.length;
+        data = single ? (hit[0] ?? null) : hit;
       }
       if (table === "telegram_screen_messages") {
         if (op === "delete") {
@@ -254,7 +267,7 @@ describe("telegram bot flow", () => {
     calls.length = 0;
     ai.requests.length = 0;
     ai.battles.length = 0;
-    stored.telegram_group_lines.length = 0;
+    for (const rows of Object.values(stored)) rows.length = 0;
     linked.clear();
     linked.add(CHAT);
     vi.clearAllMocks();
@@ -492,6 +505,8 @@ describe("telegram bot flow", () => {
         },
       });
     const left = () => calls.filter((c) => c.method === "leaveChat" && c.body.chat_id === GROUP);
+    const battleSystem = (i: number) => ai.battles[i].messages[0].content;
+    const battleTurn = (i: number) => ai.battles[i].messages.at(-1)!.content;
 
     test("only the Boss can add it: anyone else's add makes it leave", async () => {
       // A member with an account, but not the Boss.
@@ -512,7 +527,29 @@ describe("telegram bot flow", () => {
       expect(groupSent().filter((m) => m.text.includes("OG B0T's in the chat"))).toHaveLength(2);
     });
 
-    test("says hello when added, and ignores ordinary chat", async () => {
+    const DAVE = 7007; // another member with an OG B0T account
+    const asFriend = (text: string, extra: Record<string, unknown> = {}) =>
+      post({
+        message: {
+          message_id: nextId++,
+          text,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: FRIEND, first_name: "Kez" },
+          ...extra,
+        },
+      });
+    const asDave = (text: string) =>
+      post({
+        message: {
+          message_id: nextId++,
+          text,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: DAVE, first_name: "Dave" },
+        },
+      });
+    const connectUrl = "https://t.me/OGStreamzBot?start=connect";
+
+    test("says hello when added; answers what its members say, not chats between people", async () => {
       who.roles = ["boss"];
       await post({
         message: {
@@ -527,11 +564,30 @@ describe("telegram bot flow", () => {
       // No bottom bar in groups.
       expect(groupSent()[0].markup).toBeUndefined();
 
+      // Anything a connected member says gets an answer.
+      const asked = nextId;
       await inGroup("anyone up for five-a-side tonight?");
+      expect(battleTurn(0)).toBe("Imran: anyone up for five-a-side tonight?");
+      expect(repliesTo(groupSent().at(-1)!)).toBe(asked);
+      // Not: another bot's command, or people replying to each other.
       await inGroup("/start@SomeOtherBot");
       await inGroup("lol", { reply_to: { text: "who's in", fromBot: false } });
-      expect(groupSent()).toHaveLength(1);
-      expect(ai.requests).toHaveLength(0);
+      expect(ai.battles).toHaveLength(1);
+      // Unless they @ it in the reply.
+      await inGroup("@OGStreamzBot settle this", {
+        reply_to: { text: "who's in", fromBot: false },
+      });
+      expect(battleTurn(1)).toBe("Imran: settle this");
+      // Stickers, photos and the like are left alone.
+      await post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: CHAT, first_name: "Imran" },
+          sticker: { file_id: "x" },
+        },
+      });
+      expect(ai.battles).toHaveLength(2);
     });
 
     test("/og answers in the thread without anything private", async () => {
@@ -554,10 +610,7 @@ describe("telegram bot flow", () => {
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 
-    const battleSystem = (i: number) => ai.battles[i].messages[0].content;
-    const battleTurn = (i: number) => ai.battles[i].messages.at(-1)!.content;
-
-    test("replies and @mentions are a Battle Zone roast battle, open to everyone", async () => {
+    test("replies and @mentions are a Battle Zone roast battle", async () => {
       const asked = nextId;
       await inGroup("you're mid", { reply_to: { text: "Arsenal by two, easy.", fromBot: true } });
       expect(ai.requests).toHaveLength(0); // not the /og question path
@@ -574,31 +627,15 @@ describe("telegram bot flow", () => {
       expect(repliesTo(clapback)).toBe(asked);
       // Plain text: the AI's words never go through HTML parsing.
       expect(clapback.body?.parse_mode).toBeUndefined();
-
-      // Someone with no OG B0T account can battle too.
-      await post({
-        message: {
-          message_id: nextId++,
-          text: "oi @OGStreamzBot you're a toaster with wifi",
-          chat: { id: GROUP, type: "supergroup" },
-          from: { id: FRIEND, first_name: "Dave" },
-        },
-      });
-      expect(battleTurn(1)).toBe("Dave: oi you're a toaster with wifi");
-      expect(groupSent().at(-1)!.text).toBe("BATTLE 2");
+      await inGroup("oi @OGStreamzBot you're a toaster with wifi");
+      expect(battleTurn(1)).toBe("Imran: oi you're a toaster with wifi");
     });
 
     test("when they gang up it takes them all on, with their own lines", async () => {
-      await inGroup("you're mid", { reply_to: { text: "x", fromBot: true } });
+      linked.add(DAVE);
+      await inGroup("you're mid");
       expect(battleSystem(0)).not.toContain("GANGING UP");
-      await post({
-        message: {
-          message_id: nextId++,
-          text: "@OGStreamzBot your circuits are cheap as chips",
-          chat: { id: GROUP, type: "supergroup" },
-          from: { id: FRIEND, first_name: "Dave" },
-        },
-      });
+      await asDave("your circuits are cheap as chips");
       expect(battleSystem(1)).toContain("GANGING UP on you (Imran, Dave)");
       expect(battleSystem(1)).toContain("- Imran: you're mid");
       // The earlier exchange is in the conversation too.
@@ -606,23 +643,56 @@ describe("telegram bot flow", () => {
       expect(ai.battles[1].messages.map((m) => m.content)).toContain("BATTLE 1");
     });
 
-    test("/roast sets it on someone, account or not", async () => {
-      await inGroup("/roast @dave", { from: FRIEND });
+    test("/roast sets it on someone", async () => {
+      await inGroup("/roast @dave");
       expect(battleTurn(0)).toBe("Imran: roast @dave");
       await inGroup("/roast");
       expect(battleTurn(1)).toBe("Imran: roast me");
     });
 
-    test("new members get roasted by name the moment they join", async () => {
+    test("someone it doesn't know is asked to connect, once a day, and otherwise left alone", async () => {
+      const said = nextId;
+      await asFriend("who's this bot then");
+      const nudge = groupSent().at(-1)!;
+      expect(nudge.text).toContain("Kez, I don't know you yet");
+      expect(repliesTo(nudge)).toBe(said);
+      expect(buttons(nudge)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
+      // Nothing about them is sent to the AI or kept.
+      expect(ai.battles).toHaveLength(0);
+      expect(stored.telegram_group_lines).toHaveLength(0);
+
+      // Whatever they try next, no more asking (and no answers) today.
+      await asFriend("hello??");
+      await asFriend("/roast me");
+      await asFriend("/og what's the score");
+      await asFriend("@OGStreamzBot oi");
+      expect(groupSent()).toHaveLength(1);
+      expect(ai.battles).toHaveLength(0);
+      expect(ai.requests).toHaveLength(0);
+
+      // A day later they're asked again.
+      stored.telegram_group_nudges[0].nudged_at = new Date(
+        Date.now() - 25 * 3_600_000,
+      ).toISOString();
+      await asFriend("still here");
+      expect(groupSent()).toHaveLength(2);
+
+      // Once they've connected, they get answers like everyone else.
+      linked.add(FRIEND);
+      await asFriend("right, I'm in");
+      expect(battleTurn(0)).toBe("Kez: right, I'm in");
+    });
+
+    test("new members are roasted by name; ones it doesn't know get the connect button", async () => {
       const joined = nextId;
       await post({
         message: {
           message_id: nextId++,
           chat: { id: GROUP, type: "supergroup" },
-          from: { id: 555, first_name: "Kez" },
+          from: { id: FRIEND, first_name: "Kez" },
           new_chat_members: [
-            { is_bot: false, first_name: "Kez", username: "kez_99" },
-            { is_bot: true, username: "SomeOtherBot" },
+            { id: FRIEND, is_bot: false, first_name: "Kez", username: "kez_99" },
+            { id: 4, is_bot: true, username: "SomeOtherBot" },
           ],
         },
       });
@@ -632,16 +702,32 @@ describe("telegram bot flow", () => {
       const roast = groupSent().at(-1)!;
       expect(roast.text).toBe("BATTLE 1");
       expect(repliesTo(roast)).toBe(joined);
-      // Only bots joining: nothing to roast.
+      expect(buttons(roast)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
+      // That counts as today's ask: their first message isn't nagged again.
+      await asFriend("rude");
+      expect(groupSent()).toHaveLength(1);
+
+      // A member who's already connected joining: roasted, no button.
+      await post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: CHAT, first_name: "Imran" },
+          new_chat_members: [{ id: CHAT, is_bot: false, first_name: "Imran" }],
+        },
+      });
+      expect(groupSent().at(-1)!.text).toBe("BATTLE 2");
+      expect(groupSent().at(-1)!.markup).toBeUndefined();
+      // Only bots joining: nothing to say.
       await post({
         message: {
           message_id: nextId++,
           chat: { id: GROUP, type: "supergroup" },
           from: { id: 555 },
-          new_chat_members: [{ is_bot: true, username: "SomeOtherBot" }],
+          new_chat_members: [{ id: 4, is_bot: true, username: "SomeOtherBot" }],
         },
       });
-      expect(ai.battles).toHaveLength(1);
+      expect(ai.battles).toHaveLength(2);
     });
 
     test("a group gets at most its hourly share of roasts", async () => {
@@ -654,7 +740,7 @@ describe("telegram bot flow", () => {
           content: "x",
           created_at: now,
         });
-      await inGroup("come on then", { reply_to: { text: "x", fromBot: true } });
+      await inGroup("come on then");
       expect(ai.battles).toHaveLength(0);
       expect(groupSent()).toHaveLength(0);
       // Another group isn't affected.
@@ -698,15 +784,13 @@ describe("telegram bot flow", () => {
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 
-    test("account commands point to the DM; people without an account are asked to link", async () => {
+    test("account commands point to the DM; signal taps need a connected account", async () => {
       for (const cmd of ["/balance", "/vault", "/sports arsenal", "/vip@OGStreamzBot"]) {
         await inGroup(cmd);
         const m = groupSent().at(-1)!;
         expect(m.text, cmd).toContain("Ask me in our DM");
         expect(buttons(m)[0].url).toBe("https://t.me/OGStreamzBot");
       }
-      await inGroup("/og hello", { from: FRIEND });
-      expect(groupSent().at(-1)!.text).toContain("Link your OG B0T account");
       await post({
         callback_query: {
           id: "cb",
@@ -715,9 +799,41 @@ describe("telegram bot flow", () => {
           message: { message_id: 1, chat: { id: GROUP } },
         },
       });
+      const alert = calls.filter((c) => c.method === "answerCallbackQuery").at(-1)!;
+      expect(alert.body.show_alert).toBe(true);
       expect(ai.requests).toHaveLength(0);
       expect(groupSent().some((m) => m.text.includes("card"))).toBe(false);
     });
+  });
+
+  test("connect from Telegram: a one-time ogbot.co.uk link, in the private chat only", async () => {
+    const STRANGER = 31337;
+    const dm = (text: string) =>
+      post({
+        message: {
+          message_id: nextId++,
+          text,
+          chat: { id: STRANGER, type: "private" },
+          from: { id: STRANGER, first_name: "Kez", username: "kez_99" },
+        },
+      });
+    await dm("/start connect");
+    const link = sent.at(-1)!;
+    expect(link.chat).toBe(STRANGER);
+    const url = buttons(link)[0].url!;
+    expect(url).toMatch(/^https:\/\/ogbot\.co\.uk\/tg-connect#tc_[A-Za-z0-9_-]{43}$/);
+    // Saved for that Telegram user, as a hash only.
+    expect(stored.telegram_connect_tokens).toHaveLength(1);
+    expect(stored.telegram_connect_tokens[0]).toMatchObject({
+      telegram_user_id: STRANGER,
+      telegram_username: "kez_99",
+    });
+    expect(JSON.stringify(stored.telegram_connect_tokens)).not.toContain(url.split("#")[1]);
+
+    // A plain /start gets the intro and the link too.
+    await dm("/start");
+    expect(sent.at(-2)!.text).toContain("OG B0T here");
+    expect(buttons(sent.at(-1)!)[0].url).toMatch(/tg-connect#tc_/);
   });
 
   test("private chat still uses memory and saves history", async () => {
