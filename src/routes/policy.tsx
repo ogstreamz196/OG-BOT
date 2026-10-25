@@ -115,7 +115,11 @@ function PolicyPage() {
             <p>
               <strong className="text-foreground">Messages:</strong> chats you send to the OG B0T
               assistant and Battle Zone, and messages you send through the Telegram bot if you
-              connect it.
+              connect it. In Telegram groups OG B0T has been added to, the messages people send to
+              it and its replies are kept with the sender&apos;s first name for 24 hours, so it can
+              keep up with the roast battle, then deleted; they are never linked to an account.
+              When someone joins one of those groups, their first name and username are used for a
+              welcome roast.
             </p>
             <p>
               <strong className="text-foreground">OG B0T&apos;s memory:</strong> short notes OG B0T
