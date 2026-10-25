@@ -31,6 +31,7 @@ import { Route as SitemapTracksDotxmlRouteImport } from './routes/sitemap-tracks
 import { Route as SportsGuideRouteImport } from './routes/sports-guide'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TgRouteImport } from './routes/tg'
+import { Route as TgConnectRouteImport } from './routes/tg-connect'
 import { Route as TrustRouteImport } from './routes/trust'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -194,6 +195,11 @@ const TermsRoute = TermsRouteImport.update({
 const TgRoute = TgRouteImport.update({
   id: '/tg',
   path: '/tg',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TgConnectRoute = TgConnectRouteImport.update({
+  id: '/tg-connect',
+  path: '/tg-connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrustRoute = TrustRouteImport.update({
@@ -558,6 +564,7 @@ export interface FileRoutesByFullPath {
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
   '/tg': typeof TgRoute
+  '/tg-connect': typeof TgConnectRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -640,6 +647,7 @@ export interface FileRoutesByTo {
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
   '/tg': typeof TgRoute
+  '/tg-connect': typeof TgConnectRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -725,6 +733,7 @@ export interface FileRoutesById {
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
   '/tg': typeof TgRoute
+  '/tg-connect': typeof TgConnectRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -811,6 +820,7 @@ export interface FileRouteTypes {
     | '/sports-guide'
     | '/terms'
     | '/tg'
+    | '/tg-connect'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -893,6 +903,7 @@ export interface FileRouteTypes {
     | '/sports-guide'
     | '/terms'
     | '/tg'
+    | '/tg-connect'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -977,6 +988,7 @@ export interface FileRouteTypes {
     | '/sports-guide'
     | '/terms'
     | '/tg'
+    | '/tg-connect'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -1062,6 +1074,7 @@ export interface RootRouteChildren {
   SportsGuideRoute: typeof SportsGuideRoute
   TermsRoute: typeof TermsRoute
   TgRoute: typeof TgRoute
+  TgConnectRoute: typeof TgConnectRoute
   TrustRoute: typeof TrustRoute
   WelcomeRoute: typeof WelcomeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -1229,6 +1242,13 @@ declare module '@tanstack/react-router' {
       path: '/tg'
       fullPath: '/tg'
       preLoaderRoute: typeof TgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tg-connect': {
+      id: '/tg-connect'
+      path: '/tg-connect'
+      fullPath: '/tg-connect'
+      preLoaderRoute: typeof TgConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trust': {
@@ -1784,6 +1804,7 @@ const rootRouteChildren: RootRouteChildren = {
   SportsGuideRoute: SportsGuideRoute,
   TermsRoute: TermsRoute,
   TgRoute: TgRoute,
+  TgConnectRoute: TgConnectRoute,
   TrustRoute: TrustRoute,
   WelcomeRoute: WelcomeRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,

@@ -151,7 +151,7 @@ async function handleCallbackQuery(cq: {
     if (!profile) {
       await tg("answerCallbackQuery", {
         callback_query_id: cq.id,
-        text: "Link your OG B0T account in my DM first.",
+        text: "You're not connected to OG B0T yet. Send me /start in a private chat and I'll give you the link.",
         show_alert: true,
       });
       return Response.json({ ok: true, unlinked: true });
@@ -565,6 +565,47 @@ const LINK_STEPS =
   "1. Open ogbot.co.uk and sign in\n" +
   "2. Go to Settings → <b>Connect Telegram</b>\n" +
   "3. Tap your personal link, it brings you straight back here";
+
+/**
+ * Someone without an OG B0T account, in their private chat with the bot: a
+ * one-time link to ogbot.co.uk that links this Telegram to the account they
+ * sign in to or create (see telegram-connect.server.ts). Private chats only,
+ * so the link is only ever seen by its owner.
+ */
+async function sendConnectLink(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  chat_id: number,
+  msg: { chat?: { type?: string }; from?: { id?: number; username?: string; first_name?: string } },
+  heading = "🔗 <b>Connect your Telegram</b>",
+) {
+  const own = msg.chat?.type === "private" && Number(msg.from?.id) === chat_id;
+  const { createConnectToken, SITE_CONNECT_URL } = await import("@/lib/telegram-connect.server");
+  const token = own
+    ? await createConnectToken(admin, {
+        id: chat_id,
+        username: msg.from?.username,
+        first_name: msg.from?.first_name,
+      })
+    : null;
+  if (!token) {
+    await reply(chat_id, `${heading}\n\n${LINK_STEPS}`, { reply_markup: UNLINKED_KEYBOARD });
+    return;
+  }
+  await reply(
+    chat_id,
+    `${heading}\n\nTap below and create your free OG B0T account, or sign in if you've got one. ` +
+      "This Telegram links itself, and I'm all yours.\n\n" +
+      "<i>The link works once, for 24 hours. Don't share it.</i>",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔗 Create account or sign in", url: `${SITE_CONNECT_URL}#${token}` }],
+        ],
+      },
+    },
+    24 * 3_600_000,
+  );
+}
 
 // The one line left holding the main bar once the intro has cleared.
 const MAIN_KEYS_TEXT = "🤖 <b>OG B0T</b> · type anything or tap below 👇";
@@ -1418,7 +1459,7 @@ type GroupMessage = {
   reply_to_message?: { text?: string; from?: { is_bot?: boolean; username?: string } };
   message_thread_id?: number;
   is_topic_message?: boolean;
-  new_chat_members?: { is_bot?: boolean; username?: string; first_name?: string }[];
+  new_chat_members?: { id?: number; is_bot?: boolean; username?: string; first_name?: string }[];
   group_chat_created?: boolean;
   supergroup_chat_created?: boolean;
 };
@@ -1439,20 +1480,92 @@ const GROUP_NOTE =
 
 const GROUP_HELP =
   "🤖 <b>OG B0T in the group</b>\n\n" +
-  "🔥 Reply to me or @ me and it's a roast battle. Gang up if you want, I'll take the lot of you.\n" +
+  "🔥 Say anything and I'll come for you. Gang up if you want, I'll take the lot of you.\n" +
   "🎯 <b>/roast</b> @someone to set me on them\n" +
   "👋 New members get initiated the second they walk in\n" +
   "💬 <b>/og</b> then a proper question\n" +
   "📈 <b>/signal</b> gold or btc, holding or scalp (<code>/signal gold scalp</code>)\n\n" +
-  "/og and /signal need your OG B0T account linked in my DM. Coins, VIP, the Vault and your tracks stay private in there.";
+  "I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
+
+const CONNECT_NUDGE = (names: string[]) =>
+  `👋 ${names.map((n) => esc(n)).join(", ")}, I don't know you yet. ` +
+  "Connect your Telegram to OG B0T and I'm all yours. Free account, takes a minute 👇";
+
+const connectButton = async () => ({
+  inline_keyboard: [
+    [{ text: "🔗 Connect to OG B0T", url: `https://t.me/${await botUsername()}?start=connect` }],
+  ],
+});
+
+/** The OG B0T account linked to this Telegram user, if any. */
+async function linkedProfileId(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  telegramUserId: number | undefined,
+): Promise<string | null> {
+  if (!telegramUserId) return null;
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("telegram_chat_id", telegramUserId)
+    .maybeSingle();
+  return (data?.id as string | undefined) ?? null;
+}
+
+// Asked to connect at most once a day per group (telegram_group_nudges; this
+// map stands in until that table exists).
+const NUDGE_EVERY_MS = 24 * 3_600_000;
+const NUDGES = "telegram_group_nudges" as never;
+const nudgedFallback = new Map<string, number>();
+
+async function markNudged(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  chatId: number,
+  userId: number,
+) {
+  const { error } = await admin
+    .from(NUDGES)
+    .upsert(
+      { chat_id: chatId, telegram_user_id: userId, nudged_at: new Date().toISOString() } as never,
+      { onConflict: "chat_id,telegram_user_id" },
+    );
+  if (error) nudgedFallback.set(`${chatId}:${userId}`, Date.now());
+}
+
+/** Whether to ask this person to connect now; records it if so. */
+async function shouldNudge(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  chatId: number,
+  userId: number,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from(NUDGES)
+    .select("nudged_at")
+    .eq("chat_id" as never, chatId)
+    .eq("telegram_user_id" as never, userId)
+    .maybeSingle();
+  const last = error
+    ? nudgedFallback.get(`${chatId}:${userId}`)
+    : data
+      ? Date.parse((data as { nudged_at: string }).nudged_at)
+      : undefined;
+  if (last && Date.now() - last < NUDGE_EVERY_MS) return false;
+  await markNudged(admin, chatId, userId);
+  return true;
+}
 
 /** Sends a roast-battle line in a group (plain text, as the AI wrote it). */
-async function sendGroupBattleLine(chat_id: number, text: string, ctx: GroupContext) {
+async function sendGroupBattleLine(
+  chat_id: number,
+  text: string,
+  ctx: GroupContext,
+  extra: Record<string, unknown> = {},
+) {
   const res = await tg("sendMessage", {
     chat_id,
     text: text.slice(0, 4000),
     disable_web_page_preview: true,
     ...groupSendExtra(ctx),
+    ...extra,
   });
   await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
 }
@@ -1550,15 +1663,26 @@ async function handleGroupMessage(
     return Response.json({ ok: true, group: "hello" });
   }
 
-  // New people joined: OG B0T initiates them, Battle Zone style.
+  // New people joined: OG B0T initiates them, Battle Zone style. Anyone without
+  // an OG B0T account gets a Connect button with it.
   const newcomers = (msg.new_chat_members ?? []).filter((u) => !u.is_bot);
   if (newcomers.length) {
+    const unknown: typeof newcomers = [];
+    for (const u of newcomers) if (!(await linkedProfileId(admin, u.id))) unknown.push(u);
     const { newMemberRoast } = await import("@/lib/telegram-group-battle.server");
     const roast = await newMemberRoast(admin, chat_id, newcomers).catch((e) => {
       console.warn("[telegram] new member roast failed", e);
       return null;
     });
-    if (roast) await sendGroupBattleLine(chat_id, roast, { replyTo: msg.message_id, thread });
+    const connect = unknown.length ? { reply_markup: await connectButton() } : {};
+    const joined = { replyTo: msg.message_id, thread };
+    if (roast) await sendGroupBattleLine(chat_id, roast, joined, connect);
+    else if (unknown.length)
+      await reply(chat_id, CONNECT_NUDGE(unknown.map((u) => u.first_name ?? "you")), {
+        ...groupSendExtra(joined),
+        ...connect,
+      });
+    for (const u of unknown) if (u.id) await markNudged(admin, chat_id, u.id);
     return Response.json({ ok: true, group: roast ? "initiated" : "quiet" });
   }
 
@@ -1586,8 +1710,19 @@ async function handleGroupMessage(
   };
   const answer = (body: string, extra: Record<string, unknown> = {}) =>
     reply(chat_id, body, { ...groupSendExtra(ctx), ...extra });
-  // Roast battles are open to everyone in the group, account or not.
+
+  // OG B0T answers everyone connected to OG B0T. Anyone else is asked to
+  // connect (once a day per group) and otherwise left alone.
+  const fromId = msg.from?.id;
+  const nudge = async () => {
+    if (!fromId || !(await shouldNudge(admin, chat_id, fromId)))
+      return Response.json({ ok: true, group: "quiet_unknown" });
+    await answer(CONNECT_NUDGE([ctx.name ?? "you"]), { reply_markup: await connectButton() });
+    return Response.json({ ok: true, group: "nudged" });
+  };
+  // A roast battle, Battle Zone style.
   const battle = async (line: string) => {
+    if (!(await linkedProfileId(admin, fromId))) return nudge();
     void tg("sendChatAction", {
       chat_id,
       action: "typing",
@@ -1638,31 +1773,23 @@ async function handleGroupMessage(
       // Not one of ours (another bot's command without its @name).
       return ignored();
     }
-  } else if (repliedToMe || mentioned) {
+  } else {
+    // Anything else said in the group gets an answer, unless it's a reply to
+    // someone else (people talking to each other) without an @mention.
+    if (msg.reply_to_message && !repliedToMe && !mentioned) return ignored();
     const line = withoutMention(text);
     if (!line) {
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
     }
     return battle(line);
-  } else {
-    return ignored();
   }
 
   // /og and /signal answers come from the member's own account.
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("telegram_chat_id", msg.from?.id ?? 0)
-    .maybeSingle();
-  if (!profile) {
-    await answer("🔗 Link your OG B0T account in my DM first, then I'm all yours.", {
-      reply_markup: await dmButton("🔗 Link in my DM"),
-    });
-    return Response.json({ ok: true, group: "unlinked" });
-  }
-  const { roles } = await isAdmin(admin, profile.id);
-  await runChatAI(admin, profile.id, chat_id, ask, roles, ctx);
+  const profileId = await linkedProfileId(admin, fromId);
+  if (!profileId) return nudge();
+  const { roles } = await isAdmin(admin, profileId);
+  await runChatAI(admin, profileId, chat_id, ask, roles, ctx);
   return Response.json({ ok: true, group: "answered" });
 }
 
@@ -2172,18 +2299,18 @@ async function handleTelegramUpdate(
       return Response.json({ ok: true, site: true });
     }
     if (/^\/start\b/i.test(unlinkedText)) {
-      await reply(
-        chat_id,
-        `${INTRO_TEXT}\n\n${LINK_STEPS}`,
-        { reply_markup: UNLINKED_KEYBOARD },
-        0,
-      );
+      await reply(chat_id, INTRO_TEXT, { reply_markup: UNLINKED_KEYBOARD }, 0);
+      await sendConnectLink(admin, chat_id, msg);
       return Response.json({ ok: true, missing_token: true });
     }
-    await reply(chat_id, `👋 <b>Nearly there.</b>\n\n${LINK_STEPS}`, {
-      reply_markup: UNLINKED_KEYBOARD,
-    });
+    await sendConnectLink(admin, chat_id, msg, "👋 <b>Nearly there.</b>");
     return Response.json({ ok: true, unlinked_reply: true });
+  }
+
+  // "Connect" from a group (t.me/…?start=connect): their own one-time link.
+  if (startMatch[1].toLowerCase() === "connect") {
+    await sendConnectLink(admin, chat_id, msg);
+    return Response.json({ ok: true, connect_link: true });
   }
 
   const rawToken = startMatch[1].toLowerCase();

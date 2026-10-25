@@ -115,11 +115,13 @@ function PolicyPage() {
             <p>
               <strong className="text-foreground">Messages:</strong> chats you send to the OG B0T
               assistant and Battle Zone, and messages you send through the Telegram bot if you
-              connect it. In Telegram groups OG B0T has been added to, the messages people send to
-              it and its replies are kept with the sender&apos;s first name for 24 hours, so it can
-              keep up with the roast battle, then deleted; they are never linked to an account.
-              When someone joins one of those groups, their first name and username are used for a
-              welcome roast.
+              connect it. In Telegram groups OG B0T has been added to, it reads what&apos;s said so
+              it can answer people who have connected their Telegram to OG B0T. Their messages and
+              its replies are kept with the sender&apos;s first name for 24 hours, so it can keep up
+              with the roast battle, then deleted. Messages from people who haven&apos;t connected
+              are not kept; we only note when OG B0T last asked them to connect, so it asks at most
+              once a day. When someone joins one of those groups, their first name and username
+              are used for a welcome roast.
             </p>
             <p>
               <strong className="text-foreground">OG B0T&apos;s memory:</strong> short notes OG B0T
