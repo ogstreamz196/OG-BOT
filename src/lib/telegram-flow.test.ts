@@ -23,6 +23,8 @@ const sent: Sent[] = [];
 const deleted = new Set<number>();
 const edits: { id: number; markup: Record<string, unknown> }[] = [];
 let nextId = 100;
+// What getMe says about Group Privacy (true = it sees every group message).
+const botReadsAll = { value: true };
 // Who the linked member is, and their foul mouth state.
 const who = { roles: [] as string[], foulAllowed: true, foulOn: true };
 // Telegram users with a linked account (a private chat id is the user id).
@@ -36,6 +38,11 @@ vi.mock("@/lib/telegram-api.server", () => ({
   escapeTelegramHtml: (s: string) => s,
   telegramApi: async (method: string, body: Record<string, unknown>) => {
     calls.push({ method, body });
+    if (method === "getMe")
+      return {
+        ok: true,
+        result: { username: "OGStreamzBot", can_read_all_group_messages: botReadsAll.value },
+      };
     if (method === "sendMessage") {
       const id = nextId++;
       sent.push({
@@ -782,6 +789,56 @@ describe("telegram bot flow", () => {
         },
       });
       expect(ai.battles).toHaveLength(2);
+    });
+
+    test("no / needed: plain words work like the commands", async () => {
+      await inGroup("signal gold");
+      expect(signalAsks.at(-1)).toBe("XAUUSD signal 5m");
+      await inGroup("Signals btc holding");
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 1h");
+      // Asking for one in their own words gets a card too.
+      await inGroup("gold scalp?");
+      expect(signalAsks).toHaveLength(3);
+      expect(ai.battles).toHaveLength(0);
+
+      await inGroup("signal");
+      expect(buttons(groupSent().at(-1)!).map((b) => b.callback_data)).toContain("gsig:XAU:5m");
+      await inGroup("help");
+      expect(groupSent().at(-1)!.text).toContain("OG B0T in the group");
+      await inGroup("roast @dave");
+      expect(battleTurn(0)).toBe("Imran: roast @dave");
+      await inGroup("og who wins tonight");
+      expect(ai.requests.at(-1)!.messages.at(-1)!.content).toBe("who wins tonight");
+      await inGroup("@OGStreamzBot signal btc");
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+
+      // Just chatting, or "help" as part of a sentence: a roast battle.
+      await inGroup("help me pick a five-a-side team");
+      expect(battleTurn(1)).toBe("Imran: help me pick a five-a-side team");
+      await inGroup("the signal on this train is shocking");
+      expect(battleTurn(2)).toBe("Imran: the signal on this train is shocking");
+      // A command word in a reply to someone else is still their conversation.
+      const before = groupSent().length;
+      await inGroup("signal gold", { reply_to: { text: "what's gold doing", fromBot: false } });
+      expect(groupSent()).toHaveLength(before);
+    });
+
+    test("tells the Boss when Group Privacy is stopping it hearing plain messages", async () => {
+      const { forgetCached } = await import("@/lib/server-cache");
+      who.roles = ["boss"];
+      botReadsAll.value = false;
+      forgetCached("telegram-bot-info");
+      try {
+        await addBot(CHAT);
+        expect(groupSent().at(-1)!.text).toContain("Group Privacy → Turn off");
+        botReadsAll.value = true;
+        forgetCached("telegram-bot-info");
+        await addBot(CHAT);
+        expect(groupSent().at(-1)!.text).not.toContain("Group Privacy");
+      } finally {
+        botReadsAll.value = true;
+        forgetCached("telegram-bot-info");
+      }
     });
 
     test("a burst of messages gets one reply, to the latest, covering all of it", async () => {

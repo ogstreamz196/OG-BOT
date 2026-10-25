@@ -1529,12 +1529,12 @@ const GROUP_NOTE =
   "Keep it short and punchy, a few lines at most.";
 
 const GROUP_HELP =
-  "🤖 <b>OG B0T in the group</b>\n\n" +
+  "🤖 <b>OG B0T in the group</b>\nNo / needed, just type.\n\n" +
   "🔥 Say anything and I'll come for you. Gang up if you want, I'll take the lot of you.\n" +
-  "🎯 <b>/roast</b> @someone to set me on them\n" +
+  "🎯 <b>roast</b> @someone to set me on them\n" +
   "👋 New members get initiated the second they walk in\n" +
-  "💬 <b>/og</b> then a proper question\n" +
-  "📈 <b>/signal</b> gold or btc for a scalp, add holding for 1-hour (<code>/signal gold holding</code>)\n\n" +
+  "💬 <b>og</b> then a proper question\n" +
+  "📈 <b>signal gold</b> or <b>signal btc</b> for a scalp, add <b>holding</b> for 1-hour\n\n" +
   "I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
 
 const CONNECT_NUDGE =
@@ -1656,6 +1656,19 @@ const GROUP_SIGNAL_BUTTONS = {
   ],
 };
 
+/**
+ * A group message that starts with a command word, typed without the "/":
+ * "signal gold", "roast @dave", "og who wins tonight", or just "help".
+ */
+function plainCommand(line: string): { 1: string; 3: string } | null {
+  const m = /^(signals?|roast|og|ask|help)\b[\s,:!.?-]*([\s\S]*)$/i.exec(line);
+  if (!m) return null;
+  const cmd = m[1].toLowerCase();
+  // "help me with…" is a question, not the help card.
+  if (cmd === "help" && m[2].trim()) return null;
+  return { 1: cmd, 3: m[2] };
+}
+
 // Commands about the member's own account: answered in the DM only.
 const PRIVATE_COMMANDS = new Set([
   "balance",
@@ -1680,12 +1693,29 @@ const PRIVATE_COMMANDS = new Set([
 ]);
 
 const BOT_USERNAME_FALLBACK = "OGStreamzBot";
-function botUsername(): Promise<string> {
-  return cached("telegram-bot-username", 6 * 3_600_000, async () => {
-    const me = (await tg("getMe", {})) as { result?: { username?: string } } | null;
-    return me?.result?.username || BOT_USERNAME_FALLBACK;
+/** The bot's username, and whether Telegram lets it see every group message. */
+function botInfo(): Promise<{ username: string; readsAll: boolean | null }> {
+  return cached("telegram-bot-info", 6 * 3_600_000, async () => {
+    const me = (await tg("getMe", {})) as {
+      result?: { username?: string; can_read_all_group_messages?: boolean };
+    } | null;
+    return {
+      username: me?.result?.username || BOT_USERNAME_FALLBACK,
+      readsAll:
+        typeof me?.result?.can_read_all_group_messages === "boolean"
+          ? me.result.can_read_all_group_messages
+          : null,
+    };
   });
 }
+const botUsername = async () => (await botInfo()).username;
+
+// With Group Privacy on (BotFather's default) Telegram only passes a bot "/"
+// commands and replies to its own messages; plain chat never arrives.
+const GROUP_PRIVACY_NOTE =
+  "\n\n⚠️ <b>Boss:</b> Telegram's only showing me /commands and replies right now. " +
+  "In @BotFather: your bot → Bot Settings → Group Privacy → Turn off, then remove me and add me back " +
+  "(or make me a group admin) so I can hear everyone without the /.";
 
 const dmButton = async (text: string) => ({
   inline_keyboard: [[{ text, url: `https://t.me/${await botUsername()}` }]],
@@ -1713,7 +1743,13 @@ async function handleGroupMessage(
       await tg("leaveChat", { chat_id });
       return Response.json({ ok: true, group: "left_not_boss" });
     }
-    await reply(chat_id, GROUP_HELLO + GROUP_HELP, inTopic, 0);
+    const { readsAll } = await botInfo();
+    await reply(
+      chat_id,
+      GROUP_HELLO + GROUP_HELP + (readsAll === false ? GROUP_PRIVACY_NOTE : ""),
+      inTopic,
+      0,
+    );
     return Response.json({ ok: true, group: "hello" });
   }
 
@@ -1745,9 +1781,9 @@ async function handleGroupMessage(
 
   const text = typeof msg.text === "string" ? msg.text.trim() : "";
   if (!text || msg.from?.is_bot) return ignored();
-  const command = /^\/([a-z_]+)(?:@(\w+))?(?:\s+([\s\S]*))?$/i.exec(text);
+  const slash = /^\/([a-z_]+)(?:@(\w+))?(?:\s+([\s\S]*))?$/i.exec(text);
   // Another bot's command.
-  if (command?.[2] && command[2].toLowerCase() !== me) return ignored();
+  if (slash?.[2] && slash[2].toLowerCase() !== me) return ignored();
   const repliedToMe =
     !!msg.reply_to_message?.from?.is_bot &&
     msg.reply_to_message.from.username?.toLowerCase() === me;
@@ -1758,6 +1794,13 @@ async function handleGroupMessage(
       .replace(mention, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
+  // People replying to each other (without an @mention) are left to it.
+  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned) return ignored();
+  // No "/" needed: "signal gold", "roast Dave", "help" and "og …" work as
+  // they are, the same as the commands.
+  const command: { 1: string; 3?: string } | null = slash
+    ? { 1: slash[1], 3: slash[3] }
+    : plainCommand(withoutMention(text));
 
   const ctx: GroupContext = {
     replyTo: msg.message_id,
@@ -1839,15 +1882,17 @@ async function handleGroupMessage(
       return ignored();
     }
   } else {
-    // Anything else said in the group gets an answer, unless it's a reply to
-    // someone else (people talking to each other) without an @mention.
-    if (msg.reply_to_message && !repliedToMe && !mentioned) return ignored();
+    // Anything else said in the group gets an answer.
     const line = withoutMention(text);
     if (!line) {
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
     }
-    return battle(line);
+    // Asking for a signal in their own words ("gold scalp?", "btc signal")
+    // gets a signal card; everything else is a roast battle.
+    const trade = await import("@/lib/trade-signal");
+    if (!trade.resolveTradeRequest(line, [])) return battle(line);
+    ask = line;
   }
 
   // /og and /signal answers come from the member's own account.
