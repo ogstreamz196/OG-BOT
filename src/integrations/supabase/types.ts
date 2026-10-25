@@ -1895,6 +1895,8 @@ export type Database = {
           id: number
           name: string | null
           role: string
+          telegram_message_id: number | null
+          telegram_user_id: number | null
         }
         Insert: {
           chat_id: number
@@ -1903,6 +1905,8 @@ export type Database = {
           id?: number
           name?: string | null
           role: string
+          telegram_message_id?: number | null
+          telegram_user_id?: number | null
         }
         Update: {
           chat_id?: number
@@ -1911,6 +1915,8 @@ export type Database = {
           id?: number
           name?: string | null
           role?: string
+          telegram_message_id?: number | null
+          telegram_user_id?: number | null
         }
         Relationships: []
       }
