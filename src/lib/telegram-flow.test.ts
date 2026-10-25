@@ -570,7 +570,7 @@ describe("telegram bot flow", () => {
       await addBot(FRIEND);
       await addBot(FRIEND, "created");
       expect(left()).toHaveLength(3);
-      expect(groupSent().some((m) => m.text.includes("/signal"))).toBe(false);
+      expect(groupSent().some((m) => m.text.includes("OG B0T in the group"))).toBe(false);
 
       // The Boss adding it, either way: it stays and says hello.
       who.roles = ["boss"];
@@ -613,7 +613,7 @@ describe("telegram bot flow", () => {
         },
       });
       expect(groupSent()).toHaveLength(1);
-      expect(groupSent()[0].text).toContain("/signal");
+      expect(groupSent()[0].text).toContain("No / needed, just type.");
       // No bottom bar in groups.
       expect(groupSent()[0].markup).toBeUndefined();
 
