@@ -6,8 +6,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 type Admin = SupabaseClient<Database>;
 
+// Only clear sports words: everyday ones (play, game, watch, card, what time)
+// used to hijack normal chat into Sports Guide listings.
 const SPORTS_INTENT_RE =
-  /\b(sports?|fixtures?|match(es)?|games?|kick[\s-]?off|ko|fight(s|ing)?|fight night|card|bout|race|grand prix|f1|ufc|boxing|mma|wwe|darts|tennis|cricket|nba|nfl|football|soccer|premier league|champions league|ucl|epl|la ?liga|serie a|bundesliga|vs\.?|versus|play|plays|playing|next match|next game|against|on tonight|on today|on tv|channel|channels|sky sports|tnt|dazn|bt sport|amazon prime|what time|when is|where can i watch|watch)\b/i;
+  /\b(sports? guide|fixtures?|kick[\s-]?off|fight night|grand prix|f1|ufc|boxing|mma|wwe|darts|tennis|cricket|nba|nfl|football|soccer|premier league|champions league|ucl|epl|la ?liga|serie a|bundesliga|sky sports|tnt sports|dazn|bt sport|where can i watch|what channel)\b/i;
 
 const STOP = new Set(
   "the a an and or of to in on at for is are was be what when where which who how time today tonight tomorrow game match fixture fixtures channel channels watch playing play sport sports show showing can i me my you u it its any there this that with vs versus kick off live tv on bro mate pls please".split(

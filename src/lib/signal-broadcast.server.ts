@@ -104,7 +104,7 @@ export async function scanAndBroadcast(
 /** Posts to the signals channel with the signals bot. Null when not set up or it failed. */
 export async function postToSignalsChannel(text: string): Promise<number | null> {
   const token = process.env.SIGNALS_BOT_TOKEN;
-  const chatId = process.env.SIGNALS_CHANNEL_ID;
+  const chatId = normaliseChannelId(process.env.SIGNALS_CHANNEL_ID);
   if (!token || !chatId) return null;
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -131,3 +131,11 @@ export async function postToSignalsChannel(text: string): Promise<number | null>
 
 export const signalsChannelReady = () =>
   !!process.env.SIGNALS_BOT_TOKEN && !!process.env.SIGNALS_CHANNEL_ID;
+
+/** Accepts "4356305046", "-1004356305046" or "@name"; bare digits become a channel id. */
+export function normaliseChannelId(raw: string | undefined): string | undefined {
+  const v = raw?.trim();
+  if (!v) return undefined;
+  if (/^\d+$/.test(v)) return `-100${v}`;
+  return v;
+}
