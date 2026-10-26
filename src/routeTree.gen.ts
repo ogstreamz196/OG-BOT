@@ -89,6 +89,7 @@ import { Route as ApiPublicCarromRegisterGuestRouteImport } from './routes/api/p
 import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicTradeBotWebhookRouteImport } from './routes/api/public/trade-bot/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as ApiPublicV1VaultCredentialsRouteImport } from './routes/api/public/v1/vault/credentials'
@@ -522,6 +523,12 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicTradeBotWebhookRoute =
+  ApiPublicTradeBotWebhookRouteImport.update({
+    id: '/api/public/trade-bot/webhook',
+    path: '/api/public/trade-bot/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   id: '/lovable/email/auth/preview',
   path: '/lovable/email/auth/preview',
@@ -628,6 +635,7 @@ export interface FileRoutesByFullPath {
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
@@ -713,6 +721,7 @@ export interface FileRoutesByTo {
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
@@ -800,6 +809,7 @@ export interface FileRoutesById {
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
@@ -887,6 +897,7 @@ export interface FileRouteTypes {
     | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
+    | '/api/public/trade-bot/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/api/public/v1/vault/credentials'
@@ -972,6 +983,7 @@ export interface FileRouteTypes {
     | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
+    | '/api/public/trade-bot/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/api/public/v1/vault/credentials'
@@ -1058,6 +1070,7 @@ export interface FileRouteTypes {
     | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
+    | '/api/public/trade-bot/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/api/public/v1/vault/credentials'
@@ -1108,6 +1121,7 @@ export interface RootRouteChildren {
   ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicTradeBotWebhookRoute: typeof ApiPublicTradeBotWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   ApiPublicV1VaultCredentialsRoute: typeof ApiPublicV1VaultCredentialsRoute
@@ -1670,6 +1684,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/trade-bot/webhook': {
+      id: '/api/public/trade-bot/webhook'
+      path: '/api/public/trade-bot/webhook'
+      fullPath: '/api/public/trade-bot/webhook'
+      preLoaderRoute: typeof ApiPublicTradeBotWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/auth/preview': {
       id: '/lovable/email/auth/preview'
       path: '/lovable/email/auth/preview'
@@ -1847,6 +1868,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicTradeBotWebhookRoute: ApiPublicTradeBotWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   ApiPublicV1VaultCredentialsRoute: ApiPublicV1VaultCredentialsRoute,
