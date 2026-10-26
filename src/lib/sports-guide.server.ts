@@ -41,6 +41,7 @@ export function eventInstant(postedAtIso: string, hhmm: string): Date {
  * delete the copies straight away. Any post Telegram can't forward is gone
  * from the source group, so we remove it from the feed too.
  */
+const SWEEP_DISABLED = true;
 export async function sweepDeletedSportsGuidePosts(): Promise<number> {
   // Disabled: the probe forwarded channel posts into the Boss's DM every
   // 5 minutes, which flooded their Telegram with Sports Guide messages.
