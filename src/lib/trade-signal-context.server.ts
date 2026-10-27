@@ -445,6 +445,20 @@ export type SignalFeeds = {
   entry?: "stop";
 };
 
+/** What a "no signal" card says: one of these, picked at random. */
+export const NO_SIGNAL_LINES = [
+  "Fuck all worth trading right now. Come back later.",
+  "Chart's a dog's dinner. No signal, keep your money in your pocket.",
+  "Nothing. Nada. Sit on your hands, you impatient bastard.",
+  "Market's doing fuck all useful. No trade, try later.",
+  "No setup, no signal. Don't force it, you degenerate.",
+  "Chop city. I'm not handing you a signal just to watch you get rinsed.",
+  "Bugger all here. Check back in a bit.",
+  "No clean trade. Put the phone down and touch some grass.",
+];
+
+export const MARKET_SHUT_LINE = "Market's shut, you muppet. No signal till it opens.";
+
 /** The last line of every signal card. */
 export const SIGNAL_DISCLAIMER =
   "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.";
@@ -763,14 +777,13 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         : "market now";
   const trendLine = trends.length ? [`📊 Trend: ${trends.join("  ")}`] : [];
   // No clean setup: say so plainly instead of handing out levels to trade.
+  // Nothing worth trading: short and rude, not an essay.
   const waitCard = [
-    `⏸ No trade right now · ${inst.label} · ${entryLabel}`,
-    "",
-    plan.waitReason ?? "",
-    `Leaning ${plan.direction}, but I'd sit this one out.`,
-    ...trendLine,
-    "",
-    "🔁 Ask again later, or try another timeframe.",
+    `⏸ No signal · ${inst.label} · ${entryLabel}`,
+    // Market shut (gold at the weekend): say that, not "the chart's a mess".
+    /\bclosed\b/i.test(plan.waitReason ?? "")
+      ? MARKET_SHUT_LINE
+      : NO_SIGNAL_LINES[Math.floor(Math.random() * NO_SIGNAL_LINES.length)],
   ].join("\n");
   // The levels first, one per line, then only what changes the decision.
   // No confidence %: members read it as a win rate.

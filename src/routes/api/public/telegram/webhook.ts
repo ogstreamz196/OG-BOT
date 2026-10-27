@@ -1204,7 +1204,7 @@ async function runChatAI(
         }
         const sent = await tg("sendMessage", message);
         if (!sent) throw new Error("Signal delivery failed");
-        // "No trade right now" cards aren't followed, so the next screen clears them.
+        // "No signal" cards aren't followed, so the next screen clears them.
         if (!signal.plan && !group) await rememberScreen(chat_id, sent);
         const id = (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
         firstMessageId ??= id;

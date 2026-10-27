@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MARKET_SHUT_LINE,
+  NO_SIGNAL_LINES,
   buildTradeSignalContext,
   buildTradeSignal,
   plainForTelegram,
@@ -300,8 +302,14 @@ describe("accuracy wiring", () => {
     const { buildTradeSignal: build } = await import("./trade-signal-context.server");
     stubFetch(goldFeed([]));
     const signal = await build("gold signal");
-    expect(signal.reply).toMatch(/^⏸ No trade right now · XAU\/USD \(Gold\) · 1H/);
-    expect(signal.reply).toContain("closed for the weekend");
+    // Short and rude: the heading and one line. The market's shut, so it says
+    // that rather than one of the random "no setup" lines.
+    expect(signal.reply).toBe(`⏸ No signal · XAU/USD (Gold) · 1H\n${MARKET_SHUT_LINE}`);
+    expect(
+      NO_SIGNAL_LINES.every(
+        (l) => l.length < 90 && /fuck|bastard|bugger|dog|degenerate|rinsed|grass/i.test(l),
+      ),
+    ).toBe(true);
     expect(signal.reply).not.toMatch(/Entry:|SL:/);
     expect(signal.plan).toBeUndefined();
     expect(signal.block).toContain("Verdict: WAIT");
