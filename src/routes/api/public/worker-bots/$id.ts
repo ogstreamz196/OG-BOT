@@ -5,7 +5,7 @@ export const Route = createFileRoute('/api/public/worker-bots/$id')({server:{han
   const f=await import('@/lib/telegram-fleet.server');
   if(!f.equalSecret(request.headers.get('X-Telegram-Bot-Api-Secret-Token') ?? '',f.fleetSecret(params.id,key))) return new Response('Unauthorized',{status:401});
   const {supabaseAdmin:admin}=await import('@/integrations/supabase/client.server');
-  const {data:bot}=await admin.from('telegram_worker_bots').select(f.FLEET_COLUMNS).eq('id',params.id).eq('enabled',true).maybeSingle();
+  const {data:bot}=await admin.from('telegram_worker_bots').select(`${f.FLEET_COLUMNS},created_by`).eq('id',params.id).eq('enabled',true).maybeSingle();
   if(!bot) return Response.json({ok:true});
   const update=await request.json().catch(()=>null) as {update_id?:number;message?:{message_id:number;text?:string;chat:{id:number;type:string};from?:{is_bot?:boolean};reply_to_message?:{from?:{id?:number}};message_thread_id?:number};my_chat_member?:{chat:{id:number;type:string};new_chat_member?:{status?:string}}}|null;
   if(!Number.isSafeInteger(update?.update_id)) return new Response('Invalid update',{status:400});
@@ -34,7 +34,7 @@ export const Route = createFileRoute('/api/public/worker-bots/$id')({server:{han
     const sent=await f.fleetApi<{message_id:number}>(bot.id,'sendMessage',{chat_id:msg.chat.id,text:reply},key);
     if(signal.plan && sent.ok && sent.result) {
       const {recordSignal}=await import('@/lib/trade-signal-tracker.server');
-      await recordSignal({userId:null,chatId:msg.chat.id,messageId:sent.result.message_id,card:reply,plan:signal.plan,senderWorker:bot.id});
+      await recordSignal({userId:bot.created_by,chatId:msg.chat.id,messageId:sent.result.message_id,card:reply,plan:signal.plan,senderWorker:bot.id});
     }
   } else {
     reply=await f.assistantReply(bot,msg.text.slice(0,2000));
