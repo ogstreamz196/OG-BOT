@@ -5,7 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 // (signal-broadcast.server.ts). A {"ping": true} body posts a test line instead.
 const PING_TEXT =
   "🏓 Ping test from OG B0T signals. If you can read this, the signals bot can post here. " +
-  "90% scalp alerts will land in this channel.";
+  "Top scalp alerts will land in this channel.";
 
 export const Route = createFileRoute("/api/public/signal-scan")({
   server: {
@@ -40,6 +40,13 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const result = await scanAndBroadcast(supabaseAdmin, {
             build: buildTradeSignal,
             post: postToSignalsChannel,
+            follow: async (signal, messageId, card) => {
+              if (!signal.plan || !target || !/^-\d+$/.test(target)) return;
+              const { data: owner } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin").limit(1).maybeSingle();
+              if (!owner) return;
+              const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
+              await recordSignal({userId: owner.user_id, chatId: Number(target), messageId, card, plan: signal.plan as import("@/lib/trade-signal-context.server").SignalPlan, senderWorker: "trade"});
+            },
             now: Date.now,
           });
           return Response.json({ ok: true, ...result });

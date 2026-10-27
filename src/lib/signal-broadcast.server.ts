@@ -38,6 +38,7 @@ export type ScanDeps = {
   build: (ask: string) => Promise<Built>;
   /** Posts to the channel; resolves with the message id, or null if it didn't go. */
   post: (text: string) => Promise<number | null>;
+  follow?: (signal: Built, messageId: number, card: string) => Promise<void>;
   now: () => number;
 };
 
@@ -81,8 +82,10 @@ export async function scanAndBroadcast(
     const last = ((live ?? []) as { direction: string }[])[0];
     if (last && last.direction === plan.direction) continue;
 
-    const messageId = await deps.post(channelCard(signal.reply));
+    const card = channelCard(signal.reply);
+    const messageId = await deps.post(card);
     if (messageId === null) continue;
+    await deps.follow?.(signal, messageId, card);
     await admin.from(POSTS).insert({
       market: plan.market,
       timeframe: "5M",

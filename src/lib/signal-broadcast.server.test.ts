@@ -81,6 +81,15 @@ describe("auto-posted scalp signals", () => {
     expect((await scanAndBroadcast(db, d)).posted).toEqual([]);
   });
 
+  test("successfully posted signals register the exact delivered message for follow-ups", async () => {
+    const { db } = fakeDb();
+    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: { reply: "" } });
+    const followed: number[] = [];
+    d.follow = async (_signal, id) => { followed.push(id); };
+    await scanAndBroadcast(db, d);
+    expect(followed).toEqual([1]);
+  });
+
   test("no repeats while a post is valid, unless it flips; posts again once it expires", async () => {
     const { db } = fakeDb();
     const gold = { XAU: card("XAUUSD", "BUY", 90, 60), BTC: { reply: "" } };

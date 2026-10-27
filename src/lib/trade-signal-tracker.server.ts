@@ -226,7 +226,10 @@ async function senderCall<T = unknown>(
   if (row.sender_worker) {
     const w = await import("./telegram-worker.server");
     if (row.sender_worker === "trade") {
-      if (row.chat_id && !(await w.workerAllowed(await db(), row.chat_id, "trade"))) return null;
+      if (row.chat_id) {
+        const group = await w.managedGroup(await db(), row.chat_id);
+        if (group && (!group.og_bot_present || !group.active_workers.includes("trade"))) return null;
+      }
       const res = await w.workerApi<T>(method, body);
       return res?.ok ? (res.result ?? null) : null;
     }
