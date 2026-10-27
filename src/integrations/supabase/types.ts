@@ -2079,6 +2079,77 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_worker_bots: {
+        Row: {
+          bot_id: number
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          instructions: string
+          name: string
+          role: string
+          token_ciphertext: string
+          updated_at: string
+          username: string
+          webhook_connected: boolean
+        }
+        Insert: {
+          bot_id: number
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name: string
+          role?: string
+          token_ciphertext: string
+          updated_at?: string
+          username: string
+          webhook_connected?: boolean
+        }
+        Update: {
+          bot_id?: number
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name?: string
+          role?: string
+          token_ciphertext?: string
+          updated_at?: string
+          username?: string
+          webhook_connected?: boolean
+        }
+        Relationships: []
+      }
+      telegram_worker_updates: {
+        Row: {
+          created_at: string
+          update_id: number
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          update_id: number
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          update_id?: number
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_worker_updates_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_worker_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tiktok_renders: {
         Row: {
           created_at: string
@@ -2138,6 +2209,7 @@ export type Database = {
           message_id: number | null
           pip: number | null
           quality: string
+          sender_worker: string | null
           status: string
           stop: number
           style: string
@@ -2172,6 +2244,7 @@ export type Database = {
           message_id?: number | null
           pip?: number | null
           quality: string
+          sender_worker?: string | null
           status?: string
           stop: number
           style: string
@@ -2206,6 +2279,7 @@ export type Database = {
           message_id?: number | null
           pip?: number | null
           quality?: string
+          sender_worker?: string | null
           status?: string
           stop?: number
           style?: string
