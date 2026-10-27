@@ -460,8 +460,14 @@ export const NO_SIGNAL_LINES = [
 export const MARKET_SHUT_LINE = "Market's shut, you muppet. No signal till it opens.";
 
 /** The last line of every signal card. */
-export const SIGNAL_DISCLAIMER =
-  "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.";
+export const SIGNAL_DISCLAIMERS = [
+  "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.",
+  "⚠️ NOT FINANCIAL ADVICE, DICKHEAD. RISK 1–2% MAX OR CRY ABOUT IT LATER.",
+  "⚠️ STILL NOT FINANCIAL ADVICE, YOU MUPPET. 1–2% RISK, NOT YOUR RENT MONEY.",
+  "⚠️ NOT FINANCIAL ADVICE. BET THE HOUSE AND YOU DESERVE WHAT'S COMING. 1–2% RISK.",
+  "⚠️ AIN'T FINANCIAL ADVICE, YOU DEGENERATE. RISK 1–2% AND KEEP YOUR KNICKERS ON.",
+  "⚠️ NOT FINANCIAL ADVICE. BLOW YOUR ACCOUNT AND THAT'S ON YOU, SUNSHINE. 1–2% RISK.",
+];
 
 /** What a sent signal needs for outcome tracking (see trade-signal-tracker.server.ts). */
 export type SignalPlan = {
@@ -805,7 +811,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     `❌ Cancel if ${cancelIf}`,
     `⏳ Valid till ${validShort} UK`,
     "",
-    SIGNAL_DISCLAIMER,
+    // A different one each time, so it doesn't read like a broken record.
+    SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
   ].join("\n");
   const wait = plan.verdict === "wait";
   const reply = wait ? waitCard : tradeCard;
