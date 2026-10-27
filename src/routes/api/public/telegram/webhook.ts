@@ -145,6 +145,10 @@ async function handleCallbackQuery(cq: {
       await answer("");
       return Response.json({ ok: true, ignored: true });
     }
+    if (isTradeBotChat(chatId)) {
+      await answer("Signals in here come from @Og_tradebot 📈");
+      return Response.json({ ok: true, ignored: "trade_chat" });
+    }
     const admin = await loadAdmin();
     const { data: profile } = await admin
       .from("profiles")
@@ -1717,6 +1721,26 @@ const GROUP_PRIVACY_NOTE =
   "In @BotFather: your bot → Bot Settings → Group Privacy → Turn off, then remove me and add me back " +
   "(or make me a group admin) so I can hear everyone without the /.";
 
+/** The OG trade bot's own chat (SIGNALS_CHANNEL_ID, default the OG TRADE B0T group). */
+function isTradeBotChat(chatId: number): boolean {
+  const raw = (process.env.SIGNALS_CHANNEL_ID ?? "4356305046").replace(/^-100/, "").replace(/^-/, "");
+  const id = String(chatId).replace(/^-100/, "").replace(/^-/, "");
+  return !!raw && id === raw;
+}
+
+const INSULT_RE =
+  /\b(fuck(?:ing|er|ed)?|shit(?:e|head|bag)?|crap|dick(?:head)?|twat|wanker|prick|muppet|idiot|moron|bellend|bell-end|knob(?:head)?|gobshite|plonker|tosser|prat|melt|clown|stupid|dumb|useless|rubbish|trash|garbage|scam(?:mer)?|fraud|fake|bitch|bastard|pussyhole|numpty|pillock|wrong again|shit signals?)\b/i;
+/** Whether a message reads as an insult. */
+export function looksLikeInsult(text: string): boolean {
+  return INSULT_RE.test(text);
+}
+
+const DEFEND_TRADE_BOT_NOTE =
+  "[OG B0T NOTE: this was aimed at @Og_tradebot, your trading brother. Step in and defend him: roast this person hard for disrespecting him, back his signals up, stay foul and funny. Don't give any signal, levels or prices yourself.]";
+
+const TRADE_CHAT_SIGNAL_DODGE =
+  "📈 Signals in here are @Og_tradebot's job, that's his manor. I don't draw trendlines, I roast clowns. Ask him 👊";
+
 const dmButton = async (text: string) => ({
   inline_keyboard: [[{ text, url: `https://t.me/${await botUsername()}` }]],
 });
@@ -1794,8 +1818,18 @@ async function handleGroupMessage(
       .replace(mention, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
+  // The OG trade bot's chat: signals are its job; OG B0T is the fun, the
+  // brains and the trade bot's minder. Anyone insulting the trade bot (a
+  // reply to it, an @mention or by name) gets OG B0T stepping in.
+  const tradeChat = isTradeBotChat(chat_id);
+  const atTradeBot =
+    (!!msg.reply_to_message?.from?.is_bot &&
+      /og_?tradebot/i.test(msg.reply_to_message.from.username ?? "")) ||
+    /@og_tradebot\b|\btrade\s?bot\b/i.test(text);
+  const defend = tradeChat && !slash && atTradeBot && looksLikeInsult(text);
   // People replying to each other (without an @mention) are left to it.
-  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned) return ignored();
+  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !defend)
+    return ignored();
   // No "/" needed: "signal gold", "roast Dave", "help" and "og …" work as
   // they are, the same as the commands.
   const command: { 1: string; 3?: string } | null = slash
@@ -1862,6 +1896,9 @@ async function handleGroupMessage(
     } else if (cmd === "start" || cmd === "help") {
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
+    } else if ((cmd === "signal" || cmd === "signals") && tradeChat) {
+      await answer(TRADE_CHAT_SIGNAL_DODGE);
+      return Response.json({ ok: true, group: "signals_to_trade_bot" });
     } else if (cmd === "signal" || cmd === "signals") {
       const pair = /\b(gold|xau)/i.test(arg) ? "XAU" : /\b(btc|bitcoin)/i.test(arg) ? "BTC" : null;
       if (!pair) {
@@ -1888,10 +1925,14 @@ async function handleGroupMessage(
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
     }
+    if (defend) return battle(`${line}\n\n${DEFEND_TRADE_BOT_NOTE}`);
     // Asking for a signal in their own words ("gold scalp?", "btc signal")
     // gets a signal card; everything else is a roast battle.
     const trade = await import("@/lib/trade-signal");
-    if (!trade.resolveTradeRequest(line, [])) return battle(line);
+    const tradeAsk = trade.resolveTradeRequest(line, []);
+    // In the trade bot's chat, trade talk is the trade bot's: OG B0T stays out.
+    if (tradeChat && tradeAsk) return ignored();
+    if (!tradeAsk) return battle(line);
     ask = line;
   }
 
