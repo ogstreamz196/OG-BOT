@@ -267,6 +267,20 @@
       "when": 1793073474451,
       "tag": "0037_atomic_telegram_worker_assignment",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793099990566,
+      "tag": "0038_signal_results",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793099999770,
+      "tag": "0039_signal_chat_messages",
+      "breakpoints": true
     }
   ]
 }

@@ -1262,6 +1262,30 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_chat_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          kind: string
+          market: string | null
+          message_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          kind: string
+          market?: string | null
+          message_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          kind?: string
+          market?: string | null
+          message_id?: number
+        }
+        Relationships: []
+      }
       signal_results: {
         Row: {
           best_target: number
