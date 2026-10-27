@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Called every minute by pg_cron (see the signal_broadcasts migration): posts
-// any 90% gold or bitcoin scalp to the signals channel
+// Called every minute by pg_cron (see the signal_broadcasts migration), and
+// scanning again every 15 seconds through the minute: posts any top gold or
+// bitcoin scalp to the signals channel
 // (signal-broadcast.server.ts). A {"ping": true} body posts a test line instead.
 const PING_TEXT =
   "🏓 Ping test from OG B0T signals. If you can read this, the signals bot can post here. " +
@@ -36,19 +37,43 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           return Response.json({ ok: messageId !== null, ping: messageId !== null });
         }
         const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
+        const { repeatWithin } = await import("@/lib/repeat-within");
         try {
-          const result = await scanAndBroadcast(supabaseAdmin, {
-            build: buildTradeSignal,
-            post: postToSignalsChannel,
-            follow: async (signal, messageId, card) => {
-              if (!signal.plan || !target || !/^-\d+$/.test(target)) return;
-              const { data: owner } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin").limit(1).maybeSingle();
-              if (!owner) return;
-              const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
-              await recordSignal({userId: owner.user_id, chatId: Number(target), messageId, card, plan: signal.plan as import("@/lib/trade-signal-context.server").SignalPlan, senderWorker: "trade"});
-            },
-            now: Date.now,
-          });
+          // Every 15 seconds through the minute, so a top setup goes out as
+          // soon as it appears rather than at the next minute.
+          const passes = await repeatWithin(
+            () =>
+              scanAndBroadcast(supabaseAdmin, {
+                build: buildTradeSignal,
+                post: postToSignalsChannel,
+                follow: async (signal, messageId, card) => {
+                  if (!signal.plan || !target || !/^-\d+$/.test(target)) return;
+                  const { data: owner } = await supabaseAdmin
+                    .from("user_roles")
+                    .select("user_id")
+                    .eq("role", "admin")
+                    .limit(1)
+                    .maybeSingle();
+                  if (!owner) return;
+                  const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
+                  await recordSignal({
+                    userId: owner.user_id,
+                    chatId: Number(target),
+                    messageId,
+                    card,
+                    plan: signal.plan as import("@/lib/trade-signal-context.server").SignalPlan,
+                    senderWorker: "trade",
+                  });
+                },
+                now: Date.now,
+              }),
+            { everyMs: 15_000, lastStartMs: 30_000 },
+          );
+          const result = {
+            checked: passes.reduce((n, p) => n + p.checked, 0),
+            posted: passes.flatMap((p) => p.posted),
+            passes: passes.length,
+          };
           return Response.json({ ok: true, ...result });
         } catch (e) {
           console.error("[signals] scan failed", e);

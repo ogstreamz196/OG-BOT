@@ -228,7 +228,8 @@ async function senderCall<T = unknown>(
     if (row.sender_worker === "trade") {
       if (row.chat_id) {
         const group = await w.managedGroup(await db(), row.chat_id);
-        if (group && (!group.og_bot_present || !group.active_workers.includes("trade"))) return null;
+        if (group && (!group.og_bot_present || !group.active_workers.includes("trade")))
+          return null;
       }
       const res = await w.workerApi<T>(method, body);
       return res?.ok ? (res.result ?? null) : null;
@@ -297,6 +298,9 @@ const opposite = (direction: Row["direction"], bias: string) =>
  * fills, targets, stops, trend flips and time-ups, member messages and the
  * live line. Returns counts for the cron log.
  */
+/** What may be announced from the minute still forming (good news only). */
+const EARLY_EVENTS = new Set(["filled", "tp1", "tp2", "tp3"]);
+
 export async function watchSignals(now = Date.now()): Promise<{ active: number; events: number }> {
   const admin = await db();
   const { data, error } = await admin
@@ -331,19 +335,33 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const from = Math.floor(created / MINUTE) * MINUTE + MINUTE;
         const seen = row.last_candle_at ? Date.parse(row.last_candle_at) : -Infinity;
         const fresh = closed.filter((c) => c.t >= from && c.t > seen);
-        const result = advanceSignal(
-          {
-            direction: row.direction,
-            entryType: row.feeds.entry === "stop" ? "stop" : "limit",
-            entry: Number(row.entry),
-            stop: Number(row.stop),
-            targets: [Number(row.tp1), Number(row.tp2), Number(row.tp3)],
-            status: row.status,
-            expiresAt: Date.parse(row.expires_at),
-          },
-          fresh,
-          now,
-        );
+        const tracked = {
+          direction: row.direction,
+          entryType: (row.feeds.entry === "stop" ? "stop" : "limit") as "stop" | "limit",
+          entry: Number(row.entry),
+          stop: Number(row.stop),
+          targets: [Number(row.tp1), Number(row.tp2), Number(row.tp3)] as [number, number, number],
+          status: row.status,
+          expiresAt: Date.parse(row.expires_at),
+        };
+        let result = advanceSignal(tracked, fresh, now);
+        // The minute still forming: fills and profit hits are announced the
+        // moment price trades there, not when the minute closes. Only that
+        // good news is taken early; anything touching a stop waits for the
+        // closed candle, so a wick can't call a trade off early.
+        let peekedAt: number | null = null;
+        const forming = shiftCandles(
+          raw.filter((c) => c.t + MINUTE > now && c.t >= from && c.t > seen),
+          offset,
+        ).at(-1);
+        if (forming && isActive(result.status)) {
+          const peek = advanceSignal({ ...tracked, status: result.status }, [forming], now);
+          if (peek.events.length && peek.events.every((e) => EARLY_EVENTS.has(e.kind))) {
+            result = { status: peek.status, events: [...result.events, ...peek.events] };
+            // That minute is done with: its closed candle isn't judged again.
+            peekedAt = forming.t;
+          }
+        }
         let status = result.status;
         const lines = result.events.map((e) =>
           eventLine(
@@ -376,7 +394,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           row.best_target,
           ...result.events.map((e) => targetsReached(e.kind as SignalStatus)),
         );
-        if (fresh.length) update.last_candle_at = new Date(fresh[fresh.length - 1].t).toISOString();
+        const lastJudged = peekedAt ?? (fresh.length ? fresh[fresh.length - 1].t : null);
+        if (lastJudged !== null) update.last_candle_at = new Date(lastJudged).toISOString();
         if (Number.isFinite(lastPrice)) update.last_price = lastPrice;
         if (status !== row.status) update.status = status;
         if (best !== row.best_target) update.best_target = best;

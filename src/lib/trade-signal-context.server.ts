@@ -648,7 +648,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     return result;
   }
 
-  const volume = volumeRatio(entryCandles);
+  // A proxy feed's volume (the PAX Gold token for gold) says nothing about
+  // the real market, so it never counts for or against a signal there.
+  const volume = inst.spot ? NaN : volumeRatio(entryCandles);
   const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
