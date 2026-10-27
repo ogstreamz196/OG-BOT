@@ -570,6 +570,18 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
 }
 
 /**
+ * An ask that names no market: whichever of gold and bitcoin has the stronger
+ * setup right now, as an ask naming it (gold when neither has one). Both
+ * builds are cached, so building the winner again costs nothing.
+ */
+export async function bestMarketAsk(userText: string): Promise<string> {
+  const asks = ["XAUUSD", "BTCUSD"].map((code) => `${code} signal ${userText}`);
+  const built = await Promise.all(asks.map((ask) => buildTradeSignal(ask).catch(() => null)));
+  const strength = (s: TradeSignalResult | null) => s?.plan?.confidencePct ?? -1;
+  return strength(built[1]) > strength(built[0]) ? asks[1] : asks[0];
+}
+
+/**
  * The prompt block plus when the signal stops being valid (null when no
  * signal was built), so the app can expire it at exactly the stated time.
  */

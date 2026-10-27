@@ -1124,6 +1124,13 @@ async function runChatAI(
       .limit(20);
     tradeText = trade.resolveTradeRequest(userText, recent ?? []);
   }
+  // "Whats a good trade right now": no market named, so the stronger of gold
+  // and bitcoin.
+  if (!tradeText && trade.isAnyMarketAsk(userText)) {
+    void tg("sendChatAction", { chat_id, action: "typing" });
+    const { bestMarketAsk } = await import("@/lib/trade-signal-context.server");
+    tradeText = await bestMarketAsk(userText);
+  }
   // 1-minute calls are Boss-only (see ONE_MINUTE_RE); members get the 15-minute read.
   const movedFromOneMinute = !!tradeText && !staff && ONE_MINUTE_RE.test(tradeText);
   if (tradeText && movedFromOneMinute) tradeText = withoutOneMinute(tradeText);
@@ -1991,7 +1998,8 @@ async function handleGroupMessage(
     // Asking for a signal in their own words ("gold scalp?", "btc signal")
     // gets a signal card; everything else is a roast battle.
     const trade = await import("@/lib/trade-signal");
-    const tradeAsk = trade.resolveTradeRequest(line, []);
+    const tradeAsk =
+      trade.resolveTradeRequest(line, []) ?? (trade.isAnyMarketAsk(line) ? line : null);
     // Chatting to the chart slave itself: that's its conversation.
     if (
       !tradeAsk &&
