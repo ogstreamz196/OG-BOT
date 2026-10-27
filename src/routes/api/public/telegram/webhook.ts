@@ -1205,8 +1205,7 @@ async function runChatAI(
         // A new signal wipes out the last one (see replaceOldSignals).
         await replaceOldSignals(chat_id, cardIds);
       }
-      // Group signals are a snapshot: the follow-ups and the member's chat
-      // history belong to their private chat.
+      // Track group cards too; never save group chatter to private history.
       if (signal.plan) {
         const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
         await recordSignal({
@@ -1219,8 +1218,6 @@ async function runChatAI(
         });
       }
       if (group) return;
-      {
-      }
       const content = signal.expiresAt
         ? trade.tagSignalExpiry(signal.reply, signal.expiresAt)
         : signal.reply;
@@ -1556,7 +1553,7 @@ type GroupMessage = {
   message_id: number;
   text?: string;
   from?: { id?: number; is_bot?: boolean; first_name?: string; username?: string };
-  reply_to_message?: { text?: string; from?: { is_bot?: boolean; username?: string } };
+  reply_to_message?: { text?: string; from?: { id?: number; is_bot?: boolean; username?: string } };
   left_chat_member?: { is_bot?: boolean; username?: string };
   chat: { id: number; type?: string; title?: string };
   message_thread_id?: number;

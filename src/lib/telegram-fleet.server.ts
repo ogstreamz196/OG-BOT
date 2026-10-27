@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { supabaseAdmin as admin } from '@/integrations/supabase/client.server';
 
-export type FleetBot = { id: string; bot_id: number; name: string; username: string; role: 'trade' | 'assistant'; instructions: string; enabled: boolean; webhook_connected: boolean };
+export type FleetBot = { id: string; bot_id: number; name: string; username: string; role: string; instructions: string; enabled: boolean; webhook_connected: boolean };
 export const FLEET_COLUMNS = 'id,bot_id,name,username,role,instructions,enabled,webhook_connected';
 export function fleetSecret(id: string, key: string) { return createHash('sha256').update(`worker:${id}:${key}`).digest('base64url'); }
 export function equalSecret(a: string, b: string) { const x = Buffer.from(a); const y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x,y); }

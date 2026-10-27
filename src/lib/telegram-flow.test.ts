@@ -1027,8 +1027,9 @@ describe("telegram bot flow", () => {
       expect(groupSent().filter((m) => m.text.includes("card") && !deleted.has(m.id))).toHaveLength(
         1,
       );
-      // Group signals aren't followed or saved to anyone's private history.
-      expect(recordSignal).not.toHaveBeenCalled();
+      // Group cards are followed at the delivered chat/message, without private history.
+      expect(recordSignal).toHaveBeenCalledTimes(3);
+      expect(recordSignal.mock.calls.every(([opts]) => opts.chatId === GROUP && opts.messageId > 0)).toBe(true);
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 
