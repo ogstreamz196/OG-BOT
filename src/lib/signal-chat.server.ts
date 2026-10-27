@@ -18,10 +18,28 @@ import { workerApi } from "./telegram-worker.server";
 type Admin = any;
 const TABLE = "signal_chat_messages";
 
-/** Whether this chat is the signals chat the alerts go to. */
-export function isSignalsChat(chatId: number | string | null | undefined): boolean {
+let resolved: { raw: string; id: number | null } | null = null;
+
+/**
+ * The signals chat's numeric id. SIGNALS_CHANNEL_ID may be saved as digits or
+ * as an @name; an @name is looked up once with the trade bot (getChat).
+ */
+export async function signalsChatId(): Promise<number | null> {
   const target = normaliseChannelId(process.env.SIGNALS_CHANNEL_ID);
-  return !!target && chatId != null && String(chatId) === target;
+  if (!target) return null;
+  if (/^-?\d+$/.test(target)) return Number(target);
+  if (resolved?.raw === target) return resolved.id;
+  const res = await workerApi<{ id?: number }>("getChat", { chat_id: target });
+  const id = res?.ok && typeof res.result?.id === "number" ? res.result.id : null;
+  // Only a real answer is remembered; a failed lookup is tried again next time.
+  if (id !== null) resolved = { raw: target, id };
+  return id;
+}
+
+/** Whether this chat is the signals chat the alerts go to. */
+export async function isSignalsChat(chatId: number | null | undefined): Promise<boolean> {
+  if (chatId == null) return false;
+  return (await signalsChatId()) === Number(chatId);
 }
 
 /** Remembers a message the signal flow posted in the signals chat. Never throws. */
@@ -84,14 +102,21 @@ export async function clearOlderPair(admin: Admin, chatId: number, market: strin
   }
 }
 
-/** Sends today's score as the last message in the chat, replacing the old one. */
-export async function refreshScore(admin: Admin, chatId: number, now = Date.now()) {
+/**
+ * Sends today's score as the last message in the chat, replacing the old one.
+ * Says what happened ("posted", or why not), for the watcher's response.
+ */
+export async function refreshScore(
+  admin: Admin,
+  chatId: number,
+  now = Date.now(),
+): Promise<string> {
   try {
     // Without the table the old scoreboard couldn't be removed: post none.
     const { error: missing } = await admin.from(TABLE).select("message_id").limit(1);
-    if (missing) return;
+    if (missing) return "skipped: signal_chat_messages can't be read";
     const text = await todayScore(admin, now);
-    if (!text) return;
+    if (!text) return "skipped: signal_results can't be read";
     const sent = await workerApi<{ message_id?: number }>("sendMessage", {
       chat_id: chatId,
       text,
@@ -99,7 +124,11 @@ export async function refreshScore(admin: Admin, chatId: number, now = Date.now(
       disable_web_page_preview: true,
     });
     const id = sent?.ok ? sent.result?.message_id : undefined;
-    if (!id) return;
+    if (!id) {
+      const why = sent?.description ?? "no answer from Telegram";
+      console.warn(`[signals] score not posted: ${why}`);
+      return `failed: trade bot couldn't post (${why})`;
+    }
     await trackSignalMessage(admin, chatId, id, null, "score");
     // Only the newest scoreboard stays (two refreshes at once settle on one).
     const { data: all, error } = await admin
@@ -107,7 +136,7 @@ export async function refreshScore(admin: Admin, chatId: number, now = Date.now(
       .select("message_id")
       .eq("chat_id", chatId)
       .eq("kind", "score");
-    if (error) return;
+    if (error) return "posted";
     const ids = ((all ?? []) as { message_id: number }[]).map((r) => Number(r.message_id));
     const newest = Math.max(id, ...ids);
     const old = ids.filter((m) => m !== newest).slice(-100);
@@ -115,16 +144,19 @@ export async function refreshScore(admin: Admin, chatId: number, now = Date.now(
       await workerApi("deleteMessages", { chat_id: chatId, message_ids: old });
       await admin.from(TABLE).delete().eq("chat_id", chatId).in("message_id", old);
     }
+    return "posted";
   } catch (e) {
     console.warn("[signals] score refresh failed", (e as Error).message);
+    return `failed: ${(e as Error).message}`;
   }
 }
 
 /** At UK midnight the score starts a fresh day (called by the minute watcher). */
-export async function rollScoreDay(admin: Admin, now = Date.now()) {
-  const target = normaliseChannelId(process.env.SIGNALS_CHANNEL_ID);
-  if (!target || !/^-?\d+$/.test(target) || !process.env.SIGNALS_BOT_TOKEN) return;
-  const chatId = Number(target);
+export async function rollScoreDay(admin: Admin, now = Date.now()): Promise<string> {
+  if (!process.env.SIGNALS_CHANNEL_ID || !process.env.SIGNALS_BOT_TOKEN)
+    return "skipped: signals bot or chat not set up";
+  const chatId = await signalsChatId();
+  if (chatId === null) return "skipped: the trade bot can't find the signals chat";
   try {
     const { data, error } = await admin
       .from(TABLE)
@@ -133,12 +165,14 @@ export async function rollScoreDay(admin: Admin, now = Date.now()) {
       .eq("kind", "score")
       .order("created_at", { ascending: false })
       .limit(1);
-    if (error) return;
+    if (error) return "skipped: signal_chat_messages can't be read";
     const last = ((data ?? []) as { created_at: string }[])[0];
     // No score yet, or yesterday's still showing: post today's.
     if (!last || Date.parse(last.created_at) < ukDayStart(now))
-      await refreshScore(admin, chatId, now);
-  } catch {
-    /* tried again next minute */
+      return await refreshScore(admin, chatId, now);
+    return "up to date";
+  } catch (e) {
+    // Tried again next minute.
+    return `failed: ${(e as Error).message}`;
   }
 }
