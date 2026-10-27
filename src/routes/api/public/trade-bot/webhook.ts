@@ -91,8 +91,13 @@ export const Route = createFileRoute("/api/public/trade-bot/webhook")({
             (!!msg.reply_to_message?.from?.is_bot &&
               me.test(msg.reply_to_message.from.username ?? "")) ||
             /@og_?trade_?bot\b/i.test(text);
-          const { resolveTradeRequest } = await import("@/lib/trade-signal");
-          if (!toMe || w.looksLikeInsult(text) || resolveTradeRequest(text, []))
+          const { resolveTradeRequest, isAnyMarketAsk } = await import("@/lib/trade-signal");
+          if (
+            !toMe ||
+            w.looksLikeInsult(text) ||
+            resolveTradeRequest(text, []) ||
+            isAnyMarketAsk(text)
+          )
             return Response.json({ ok: true });
         } else if (msg.chat?.type !== "private") {
           return Response.json({ ok: true });
@@ -115,10 +120,13 @@ export const Route = createFileRoute("/api/public/trade-bot/webhook")({
 
         await w.workerApi("sendChatAction", { chat_id: chatId, action: "typing" });
         try {
-          const { buildTradeSignal, plainForTelegram } =
+          const { buildTradeSignal, bestMarketAsk, plainForTelegram } =
             await import("@/lib/trade-signal-context.server");
+          const { isAnyMarketAsk } = await import("@/lib/trade-signal");
           // In groups OG B0T handles signal asks; in a private chat they're ours.
-          const signal = inGroup ? { reply: "" } : await buildTradeSignal(text);
+          const signal = inGroup
+            ? { reply: "" }
+            : await buildTradeSignal(isAnyMarketAsk(text) ? await bestMarketAsk(text) : text);
           if (signal.reply) {
             await say(chatId, plainForTelegram(signal.reply), threaded);
             return Response.json({ ok: true });

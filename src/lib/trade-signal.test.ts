@@ -6,6 +6,7 @@ import {
   detectStyle,
   detectTradeIntent,
   resolveTradeRequest,
+  isAnyMarketAsk,
   ema,
   parseInstrument,
   readFrame,
@@ -469,5 +470,29 @@ describe("scaleTargets (Quick Scalp, Potentially, Greedy Runner)", () => {
       expect((p - q) * s).toBeGreaterThanOrEqual(0.5 - 1e-9);
       expect((g - p) * s).toBeGreaterThanOrEqual(0.5 - 1e-9);
     }
+  });
+});
+
+describe("isAnyMarketAsk", () => {
+  it("catches signal asks that name no market", () => {
+    for (const t of [
+      "Whats a good trade right now",
+      "That means give me signal",
+      "signal?",
+      "any setups",
+      "what should i buy",
+      "need a scalp",
+    ])
+      expect(isAnyMarketAsk(t), t).toBe(true);
+  });
+  it("leaves named markets and ordinary chat alone", () => {
+    for (const t of [
+      "Btc signal",
+      "my phone has no signal",
+      "suck ur dad",
+      "you trade insults like a toddler",
+      "",
+    ])
+      expect(isAnyMarketAsk(t), t).toBe(false);
   });
 });

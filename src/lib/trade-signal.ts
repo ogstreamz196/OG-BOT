@@ -223,6 +223,22 @@ export function detectTradeIntent(text: string | null | undefined): Instrument |
   return TRADE_WORDS.test(text) || bare ? inst : null;
 }
 
+const ANY_MARKET_ASK = new RegExp(
+  [
+    String.raw`^\W*(?:a\s+)?(?:signals?|setups?|scalps?|trades?)\W*(?:pl[sz]e?|please)?\W*$`,
+    String.raw`\b(?:give|send|drop|show|post|gimme|any|where'?s)\b[^.?!]{0,25}\b(?:signals?|setups?|scalps?|trades?|entry|entries)\b`,
+    String.raw`\b(?:want|need)\s+(?:a\s+|some\s+)?(?:signals?|setups?|scalps?)\b`,
+    String.raw`\b(?:good|best|decent|top|nice)\s+(?:trades?|signals?|setups?|scalps?|entry|entries)\b`,
+    String.raw`\bwhat\s+(?:should|do|can|shall)\s+i\s+(?:buy|sell|trade)\b`,
+  ].join("|"),
+  "i",
+);
+
+/** A signal ask that names no market ("whats a good trade right now", "give me signal"). */
+export function isAnyMarketAsk(text: string | null | undefined): boolean {
+  return !!text && !parseInstrument(text) && ANY_MARKET_ASK.test(text);
+}
+
 /** Resolve a short follow-up from recent USER messages, never old assistant levels. */
 export function resolveTradeRequest(
   text: string,
