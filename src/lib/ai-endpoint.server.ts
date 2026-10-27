@@ -268,7 +268,16 @@ async function chatPlan(
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
   const free = freeFallbackTargets(!!opts.foulMouth);
-  if (opts.freeOnly) return { free, paid: [], pro: false };
+  if (opts.freeOnly) {
+    // Free or nothing, so try every free model before giving up: for Foul
+    // Mouth the tested swearing model first, then the other free ones (the
+    // caller tops up the swearing if they come out soft).
+    if (!opts.foulMouth) return { free, paid: [], pro: false };
+    const key = (t: AiChatTarget) => `${t.url}|${t.model}|${JSON.stringify(t.headers)}`;
+    const seen = new Set(free.map(key));
+    const more = freeFallbackTargets(false).filter((t) => !seen.has(key(t)));
+    return { free: [...free, ...more], paid: [], pro: false };
+  }
   let pro = !opts.cheap && (hasMedia(body) || needsProAnswer(body));
   // Foul Mouth keeps its tested routing (the swearing model first) so OG Bot's
   // voice never softens; smart routing only re-routes clean chat.

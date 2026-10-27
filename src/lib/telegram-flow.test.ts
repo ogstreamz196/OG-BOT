@@ -186,7 +186,10 @@ vi.mock("@/lib/trade-signal-context.server", () => ({
     return { reply: "📈 GOLD SCALP card", plan: {}, expiresAt: null };
   },
 }));
-const recordSignal = vi.fn(async (_opts: { chatId: number; messageId: number | null; senderWorker?: string | null }) => undefined);
+const recordSignal = vi.fn(
+  async (_opts: { chatId: number; messageId: number | null; senderWorker?: string | null }) =>
+    undefined,
+);
 vi.mock("@/lib/trade-signal-tracker.server", () => ({ recordSignal }));
 // The chat AI: a canned streamed answer, with the request kept for checks.
 vi.mock("@/lib/ai-endpoint.server", () => ({
@@ -218,6 +221,13 @@ vi.mock("@/lib/ai-endpoint.server", () => ({
     onDelta?.("OG reply");
     return { text: "OG reply" };
   },
+}));
+// Roasts are topped up with swearing when a softer free model answered; the
+// top-up has its own tests, so here it just passes the text through.
+const ensureFoulFlavour = vi.fn((t: string) => t);
+vi.mock("@/lib/og-persona.server", async (real) => ({
+  ...(await real<object>()),
+  ensureFoulFlavour,
 }));
 vi.mock("@/lib/battle-lexicon.server", () => ({
   learnBattleWords: async () => undefined,
@@ -956,10 +966,12 @@ describe("telegram bot flow", () => {
       });
       expect(ai.battleOpts).toHaveLength(2);
       for (const o of ai.battleOpts) expect(o).toMatchObject({ foulMouth: true, freeOnly: true });
+      // Every roast is kept foul, whichever free model answered.
+      expect(ensureFoulFlavour).toHaveBeenCalledTimes(2);
 
       ai.down = true;
       await inGroup("oi, you there?");
-      expect(groupSent().at(-1)!.text).toMatch(/^Imran, 🥵 .*Try me again in a minute\.$/);
+      expect(groupSent().at(-1)!.text).toMatch(/^Imran, 🥵 .*come at me again\.$/);
       // Not on every message: once every couple of minutes per group.
       const n = groupSent().length;
       await inGroup("hello??");
@@ -1029,7 +1041,11 @@ describe("telegram bot flow", () => {
       );
       // Group cards are followed at the delivered chat/message, without private history.
       expect(recordSignal).toHaveBeenCalledTimes(3);
-      expect(recordSignal.mock.calls.every(([opts]) => opts.chatId === GROUP && opts.messageId != null && opts.messageId > 0)).toBe(true);
+      expect(
+        recordSignal.mock.calls.every(
+          ([opts]) => opts.chatId === GROUP && opts.messageId != null && opts.messageId > 0,
+        ),
+      ).toBe(true);
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 

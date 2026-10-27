@@ -140,6 +140,34 @@ describe("Foul Mouth chat routing", () => {
     expect(hits).not.toContain("gemini");
   });
 
+  it("free only + Foul Mouth: the swearing model first, then the other free models, never Gemini", async () => {
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        const who = url.includes("openrouter")
+          ? "openrouter"
+          : url.includes("groq")
+            ? "groq"
+            : "gemini";
+        hits.push(who);
+        // The free swearing model is out of free requests for the day.
+        if (who === "openrouter") return new Response("rate limited", { status: 429 });
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "alright dickhead" }] },
+      "u",
+      { foulMouth: true, freeOnly: true },
+    );
+    expect(provider).toBe("groq");
+    expect(hits[0]).toBe("openrouter");
+    expect(hits).not.toContain("gemini");
+  });
+
   it("still tries Groq first for ordinary chat", async () => {
     process.env.GROQ_API_KEY = "q";
     process.env.GEMINI_API_KEY = "g";
