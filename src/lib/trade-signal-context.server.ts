@@ -779,8 +779,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     `${plan.direction === "BUY" ? "🟢" : "🔴"} ${plan.direction} · ${inst.label}`,
     `⏱ ${entryLabel} · ${plan.quality}`,
     "",
+    // Stop loss first, so nobody enters without knowing where they're out.
+    `🛑 Stop Loss: ${fmt(plan.stop)}`,
     `▶️ Entry: ${fmt(plan.entry)}  (${entryHow})`,
-    `🛑 Cut The Bleed (GTFO): ${fmt(plan.stop)}`,
     ...plan.targets.map((t, i) => `🎯 ${targetNames[i]}: ${fmt(t)}`),
     "",
     ...cautions.map((c) => `⚠️ ${c}`),
