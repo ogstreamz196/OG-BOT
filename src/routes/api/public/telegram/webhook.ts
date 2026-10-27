@@ -1872,6 +1872,9 @@ async function handleGroupMessage(
     } else if (cmd === "start" || cmd === "help") {
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
+    } else if ((cmd === "signal" || cmd === "signals") && tradeChat) {
+      await answer(TRADE_CHAT_SIGNAL_DODGE);
+      return Response.json({ ok: true, group: "signals_to_trade_bot" });
     } else if (cmd === "signal" || cmd === "signals") {
       const pair = /\b(gold|xau)/i.test(arg) ? "XAU" : /\b(btc|bitcoin)/i.test(arg) ? "BTC" : null;
       if (!pair) {
@@ -1898,10 +1901,14 @@ async function handleGroupMessage(
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
     }
+    if (defend) return battle(`${line}\n\n${DEFEND_TRADE_BOT_NOTE}`);
     // Asking for a signal in their own words ("gold scalp?", "btc signal")
     // gets a signal card; everything else is a roast battle.
     const trade = await import("@/lib/trade-signal");
-    if (!trade.resolveTradeRequest(line, [])) return battle(line);
+    const tradeAsk = trade.resolveTradeRequest(line, []);
+    // In the trade bot's chat, trade talk is the trade bot's: OG B0T stays out.
+    if (tradeChat && tradeAsk) return ignored();
+    if (!tradeAsk) return battle(line);
     ask = line;
   }
 
