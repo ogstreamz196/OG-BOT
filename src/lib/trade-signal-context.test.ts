@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  SIGNAL_DISCLAIMERS,
   MARKET_SHUT_LINE,
   NO_SIGNAL_LINES,
   buildTradeSignalContext,
@@ -122,11 +123,9 @@ describe("buildTradeSignalContext", () => {
     );
     expect(signal.reply).not.toMatch(/\d+% confidence|TP\d|SL:/);
     expect(signal.reply).not.toContain("@");
-    expect(
-      signal.reply.endsWith(
-        "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.",
-      ),
-    ).toBe(true);
+    // Ends with one of the foul disclaimers, picked at random each time.
+    expect(SIGNAL_DISCLAIMERS).toContain(signal.reply.split("\n").at(-1));
+    expect(new Set(SIGNAL_DISCLAIMERS).size).toBeGreaterThan(4);
     expect(signal.expiresAt).not.toBeNull();
   });
 

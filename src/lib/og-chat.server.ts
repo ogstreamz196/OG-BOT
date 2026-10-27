@@ -204,6 +204,11 @@ export async function runOgChat(
     tradeNote ? Promise.resolve("") : grounding.football,
   ]);
   const footballNote = footballBlock ? `\n\n${footballBlock}` : "";
+  // "How much did we make today?": the bot's own results book.
+  const sr = await import("@/lib/signal-results.server");
+  const resultsNote = sr.asksAboutResults(latestUserMsg?.content ?? "")
+    ? await sr.signalResultsNote(supabaseAdmin)
+    : "";
   const system =
     baseSystem +
     intensityNote +
@@ -213,7 +218,8 @@ export async function runOgChat(
     cp.catchphraseNote(phrases) +
     dissNote +
     tradeNote +
-    footballNote;
+    footballNote +
+    resultsNote;
 
   // 1b. Learn fresh insults from the latest user message (fire-and-forget upsert).
   let newlyLearned: string[] = [];

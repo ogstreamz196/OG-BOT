@@ -10,11 +10,22 @@ const MINUTE_START = NOW - 40_000;
 type Row = Record<string, unknown>;
 const rows: Row[] = [];
 const sent: string[] = [];
+const results: Row[] = [];
 let candles: { t: number; o: number; h: number; l: number; c: number }[] = [];
 
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
-    from: () => {
+    from: (table: string) => {
+      if (table === "signal_results") {
+        const r = {
+          select: () => r,
+          eq: () => r,
+          maybeSingle: async () => ({ data: results[0] ?? null, error: null }),
+          insert: async (row: Row) => (results.push(row), { error: null }),
+          update: (p: Row) => (Object.assign(results[0], p), r),
+        };
+        return r;
+      }
       let patch: Row | null = null;
       let id: unknown;
       const q = {
@@ -55,6 +66,7 @@ const bar = (t: number, l: number, h: number) => ({ t, o: 100, h, l, c: (l + h) 
 
 beforeEach(() => {
   sent.length = 0;
+  results.length = 0;
   rows.length = 0;
   rows.push({
     id: "s1",
@@ -124,5 +136,38 @@ describe("watchSignals: profit hits as they happen", () => {
     await watchSignals(MINUTE_START + MIN + 5_000);
     expect(rows[0].status).toBe("stopped");
     expect(sent[0]).toContain("Stop Loss hit");
+  });
+});
+
+describe("watchSignals: the results book", () => {
+  test("a target hit is booked as a win, in points to the furthest target", async () => {
+    const { watchSignals } = await import("./trade-signal-tracker.server");
+    candles = [bar(MINUTE_START - 2 * MIN, 99, 101), bar(MINUTE_START - MIN, 99, 109)];
+    await watchSignals(NOW);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      outcome: "win",
+      best_target: 2,
+      pips: 8,
+      unit: "points",
+      market: "BTCUSD",
+    });
+  });
+
+  test("the stop loss first is booked as a loss", async () => {
+    const { watchSignals } = await import("./trade-signal-tracker.server");
+    candles = [bar(MINUTE_START - MIN, 94, 101)];
+    await watchSignals(NOW);
+    expect(results[0]).toMatchObject({ outcome: "loss", pips: -5 });
+  });
+
+  test("running out of time posts nothing and books nothing", async () => {
+    const { watchSignals } = await import("./trade-signal-tracker.server");
+    rows[0].expires_at = new Date(MINUTE_START - 30_000).toISOString();
+    candles = [bar(MINUTE_START - MIN, 99, 101)];
+    await watchSignals(NOW);
+    expect(rows[0].status).toBe("expired");
+    expect(sent).toHaveLength(0);
+    expect(results).toHaveLength(0);
   });
 });

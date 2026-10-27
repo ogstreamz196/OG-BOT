@@ -363,12 +363,15 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           }
         }
         let status = result.status;
-        const lines = result.events.map((e) =>
-          eventLine(
-            { ...row, last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price },
-            e,
-          ),
-        );
+        // Running out of time isn't news: the status changes, nothing is posted.
+        const lines = result.events
+          .filter((e) => e.kind !== "expired")
+          .map((e) =>
+            eventLine(
+              { ...row, last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price },
+              e,
+            ),
+          );
 
         // Before TP1, a flip in the higher-timeframe trend calls the setup off.
         const update: Record<string, unknown> = { last_checked_at: new Date(now).toISOString() };
@@ -428,6 +431,25 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           .from(TABLE)
           .update(update as never)
           .eq("id" as never, row.id);
+        // Into the results book: a target hit (a win) or the stop loss first (a loss).
+        const decided = result.events.find((e) => /^tp[123]$|^stopped$/.test(e.kind));
+        if (decided) {
+          const { recordResult } = await import("./signal-results.server");
+          await recordResult(
+            admin,
+            {
+              ...row,
+              entry: Number(row.entry),
+              stop: Number(row.stop),
+              tp1: Number(row.tp1),
+              tp2: Number(row.tp2),
+              tp3: Number(row.tp3),
+            },
+            best,
+            result.events.some((e) => e.kind === "stopped"),
+            decided.at,
+          );
+        }
         if (upErr) console.warn("[signals] update failed", row.id, upErr.message);
         if (lines.length) {
           eventCount += lines.length;

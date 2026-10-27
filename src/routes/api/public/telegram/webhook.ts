@@ -1351,6 +1351,10 @@ async function runChatAI(
     pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth)),
   ]);
 
+  // "How much did we make today?": the bot's own results book.
+  const sr = await import("@/lib/signal-results.server");
+  const resultsNote = sr.asksAboutResults(userText) ? await sr.signalResultsNote(admin) : "";
+
   const system =
     sportsNote +
     promoNote +
@@ -1368,7 +1372,8 @@ async function runChatAI(
     }) +
     catchphraseNote(catchphrases) +
     (group ? GROUP_NOTE : memoryNote(memories)) +
-    (footballBlock ? `\n\n${footballBlock}` : "");
+    (footballBlock ? `\n\n${footballBlock}` : "") +
+    resultsNote;
 
   const history = group
     ? // Replying to one of OG B0T's group messages: that message is the context.
