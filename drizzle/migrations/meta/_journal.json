@@ -274,6 +274,13 @@
       "when": 1793099990566,
       "tag": "0038_signal_results",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793099999770,
+      "tag": "0039_signal_chat_messages",
+      "breakpoints": true
     }
   ]
 }
