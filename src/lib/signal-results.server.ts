@@ -246,3 +246,43 @@ export async function signalResultsNote(admin: Admin, now = Date.now()): Promise
     return "";
   }
 }
+
+/* ── Today's score, shown at the bottom of the signals chat ───────────── */
+
+/** The one-message scoreboard: today's wins, losses and pips per market (UK day). */
+export function scoreText(rows: ResultRow[]): string {
+  if (!rows.length) return "📊 TODAY'S SCORE · nothing closed yet. Patience, you muppets.";
+  const wins = rows.filter((r) => r.outcome === "win").length;
+  const losses = rows.length - wins;
+  const byMarket = new Map<string, { label: string; unit: string; pips: number }>();
+  for (const r of rows) {
+    const m = byMarket.get(r.market) ?? { label: r.label, unit: r.unit, pips: 0 };
+    m.pips += Number(r.pips);
+    byMarket.set(r.market, m);
+  }
+  const sign = (n: number) =>
+    `${n >= 0 ? "+" : "−"}${Math.abs(Math.round(n * 10) / 10).toFixed(1)}`;
+  const markets = [...byMarket.values()].map(
+    (m) => `${m.pips >= 0 ? "🟢" : "🔴"} ${m.label} ${sign(m.pips)} ${m.unit}`,
+  );
+  return `📊 TODAY'S SCORE · ✅ ${wins} won · 🛑 ${losses} lost\n${markets.join(" · ")}`;
+}
+
+/** Today's scoreboard text, or null when the results can't be read. */
+export async function todayScore(admin: Admin, now = Date.now()): Promise<string | null> {
+  const [, from] = resultPeriods(now)[0];
+  try {
+    const { data, error } = await admin
+      .from(RESULTS)
+      .select("setup_key, market, label, direction, outcome, best_target, pips, unit, decided_at")
+      .gte("decided_at", new Date(from).toISOString())
+      .limit(1000);
+    if (error) return null;
+    return scoreText((data ?? []) as ResultRow[]);
+  } catch {
+    return null;
+  }
+}
+
+/** UK midnight at the start of today, for telling when the score needs a fresh day. */
+export const ukDayStart = (now: number) => resultPeriods(now)[0][1];
