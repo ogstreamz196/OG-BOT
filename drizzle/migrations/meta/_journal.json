@@ -260,6 +260,13 @@
       "when": 1793073400214,
       "tag": "0036_telegram_website_workers",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793073474451,
+      "tag": "0037_atomic_telegram_worker_assignment",
+      "breakpoints": true
     }
   ]
 }

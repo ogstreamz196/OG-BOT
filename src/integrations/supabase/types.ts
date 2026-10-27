@@ -3217,6 +3217,10 @@ export type Database = {
         Args: { p_key: string; p_value: string }
         Returns: string
       }
+      set_telegram_worker: {
+        Args: { p_chat: number; p_on: boolean; p_worker: string }
+        Returns: Json
+      }
       set_vault_pass_admin: {
         Args: {
           admin_notes?: string
