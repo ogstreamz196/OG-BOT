@@ -1802,11 +1802,9 @@ async function handleGroupMessage(
     (!!msg.reply_to_message?.from?.is_bot &&
       /og_?tradebot/i.test(msg.reply_to_message.from.username ?? "")) ||
     /@og_tradebot\b|\btrade\s?bot\b/i.test(text);
-  if (tradeChat && !slash && atTradeBot && looksLikeInsult(text)) {
-    ctx_defend = true;
-  }
+  const defend = tradeChat && !slash && atTradeBot && looksLikeInsult(text);
   // People replying to each other (without an @mention) are left to it.
-  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !ctx_defend)
+  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !defend)
     return ignored();
   // No "/" needed: "signal gold", "roast Dave", "help" and "og …" work as
   // they are, the same as the commands.
