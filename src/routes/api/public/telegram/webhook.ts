@@ -145,6 +145,10 @@ async function handleCallbackQuery(cq: {
       await answer("");
       return Response.json({ ok: true, ignored: true });
     }
+    if (isTradeBotChat(chatId)) {
+      await answer("Signals in here come from @Og_tradebot 📈");
+      return Response.json({ ok: true, ignored: "trade_chat" });
+    }
     const admin = await loadAdmin();
     const { data: profile } = await admin
       .from("profiles")
