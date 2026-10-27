@@ -1262,6 +1262,51 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_results: {
+        Row: {
+          best_target: number
+          decided_at: string
+          direction: string
+          id: string
+          label: string
+          market: string
+          outcome: string
+          pips: number
+          setup_key: string
+          signal_id: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          best_target?: number
+          decided_at: string
+          direction: string
+          id?: string
+          label: string
+          market: string
+          outcome: string
+          pips: number
+          setup_key: string
+          signal_id?: string | null
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          best_target?: number
+          decided_at?: string
+          direction?: string
+          id?: string
+          label?: string
+          market?: string
+          outcome?: string
+          pips?: number
+          setup_key?: string
+          signal_id?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           key: string
