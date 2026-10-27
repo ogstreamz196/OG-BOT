@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireFleetBoss as boss } from "./telegram-fleet-access";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const connectionSchema = z.object({
@@ -30,13 +31,6 @@ export const fleetActionSchema = z.object({
     .regex(/^-\d{5,16}$/)
     .optional(),
 });
-async function boss(context: { userId: string; supabase: any }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Error("Forbidden");
-}
 export const listFleet = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
