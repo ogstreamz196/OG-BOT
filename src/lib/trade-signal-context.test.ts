@@ -296,6 +296,39 @@ describe("accuracy wiring", () => {
     expect(spot.block).toMatch(/chart moved \+12\.\d+ onto the Swissquote spot price/);
   });
 
+  it("never marks gold down for the gold token's thin volume (bitcoin's volume still counts)", async () => {
+    // The last three candles trade a tenth of the usual volume.
+    const thin = (b: ReturnType<typeof bars>) =>
+      binanceRows(b).map((r, i, all) => {
+        const row = [...r];
+        row[5] = i >= all.length - 3 ? "1" : "10";
+        return row;
+      });
+    const feed = (start: number) =>
+      vi.fn(async (url: string) => {
+        if (url.includes("swissquote")) return ok([]);
+        const interval = new URL(url).searchParams.get("interval");
+        if (!url.includes("binance") || !url.includes("klines"))
+          return new Response("no", { status: 404 });
+        const ms = interval === "1d" ? 24 * HOUR : HOUR;
+        return ok(thin(bars(1000, start, start / 10000, ms)));
+      });
+    const light = /Volume is light/;
+    vi.resetModules();
+    stubFetch(feed(70000));
+    const btc = await (
+      await import("./trade-signal-context.server")
+    ).buildTradeSignal("btc signal");
+    expect(btc.summary!.cautions.some((c) => light.test(c))).toBe(true);
+    vi.resetModules();
+    stubFetch(feed(2000));
+    const gold = await (
+      await import("./trade-signal-context.server")
+    ).buildTradeSignal("gold signal");
+    expect(gold.summary).toBeDefined();
+    expect(gold.summary!.cautions.some((c) => light.test(c))).toBe(false);
+  });
+
   it("says no trade while gold is shut for the weekend, and tracks nothing", async () => {
     setNow("2026-10-24T12:00:00Z");
     vi.resetModules();
