@@ -48,6 +48,19 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                 post: postToSignalsChannel,
                 follow: async (signal, messageId, card) => {
                   if (!signal.plan || !target || !/^-\d+$/.test(target)) return;
+                  // Clutter free: this pair's older alert and its updates go.
+                  const sc = await import("@/lib/signal-chat.server");
+                  const chatId = Number(target);
+                  await sc.clearOlderPair(supabaseAdmin, chatId, signal.plan.market, messageId);
+                  await sc.trackSignalMessage(
+                    supabaseAdmin,
+                    chatId,
+                    messageId,
+                    signal.plan.market,
+                    "card",
+                  );
+                  // Today's score goes back to the bottom, under the new alert.
+                  await sc.refreshScore(supabaseAdmin, chatId);
                   const { data: owner } = await supabaseAdmin
                     .from("user_roles")
                     .select("user_id")

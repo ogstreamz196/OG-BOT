@@ -21,6 +21,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             lastStartMs: 36_000,
           });
           const events = passes.reduce((n, p) => n + p.events, 0);
+          // At UK midnight the signals chat's score starts a fresh day.
+          const { rollScoreDay } = await import("@/lib/signal-chat.server");
+          await rollScoreDay(supabaseAdmin);
           return Response.json({
             ok: true,
             passes: passes.length,

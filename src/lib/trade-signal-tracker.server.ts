@@ -267,6 +267,12 @@ async function sendFollowUp(row: Row, text: string) {
       } as never,
       { onConflict: "chat_id,message_id" },
     );
+    // In the signals chat: remembered by pair, and today's score moves under it.
+    const sc = await import("./signal-chat.server");
+    if (sc.isSignalsChat(row.chat_id)) {
+      await sc.trackSignalMessage(admin, row.chat_id, sent.message_id, row.market, "update");
+      await sc.refreshScore(admin, row.chat_id);
+    }
     // Marked as part of this signal, so the member's next signal wipes it too.
     await admin
       .from("telegram_screen_messages" as never)
