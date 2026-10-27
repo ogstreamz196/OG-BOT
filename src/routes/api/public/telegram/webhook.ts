@@ -1585,6 +1585,10 @@ const CONNECT_NUDGE =
   "👋 I don't know you yet. Connect your Telegram to OG B0T and I'm all yours. " +
   "Free account, takes a minute 👇";
 
+// Group roasts only use free AI; when it's down, this instead of a paid answer.
+const ROAST_BUSY =
+  "🥵 Too many of you mugs at once, my roasting brain's overheating. Try me again in a minute.";
+
 const SLOW_MODE = (seconds: number) =>
   `🐌 Easy, spam merchant. You're on slow mode: I'll answer you again in ${seconds}s.`;
 
@@ -1910,6 +1914,7 @@ async function handleGroupMessage(
     });
     if (turn.kind === "reply") await sendGroupBattleLine(chat_id, turn.text, ctx);
     if (turn.kind === "slow") await sendGroupBattleLine(chat_id, SLOW_MODE(turn.seconds), ctx);
+    if (turn.kind === "busy") await sendGroupBattleLine(chat_id, ROAST_BUSY, ctx);
     return Response.json({ ok: true, group: turn.kind === "reply" ? "battle" : turn.kind });
   };
 

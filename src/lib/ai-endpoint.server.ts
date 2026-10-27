@@ -254,6 +254,8 @@ export type AiChatOpts = {
   smart?: boolean;
   /** Background jobs (memory notes): free tiers first, whatever the length. */
   cheap?: boolean;
+  /** Never the paid tier (Telegram group roasts): free models or nothing. */
+  freeOnly?: boolean;
 };
 
 /** Which models to try, in order, and whether the paid tier goes first. */
@@ -266,6 +268,7 @@ async function chatPlan(
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
   const free = freeFallbackTargets(!!opts.foulMouth);
+  if (opts.freeOnly) return { free, paid: [], pro: false };
   let pro = !opts.cheap && (hasMedia(body) || needsProAnswer(body));
   // Foul Mouth keeps its tested routing (the swearing model first) so OG Bot's
   // voice never softens; smart routing only re-routes clean chat.
