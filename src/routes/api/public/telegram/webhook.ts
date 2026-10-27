@@ -21,6 +21,18 @@ import {
 } from "@/lib/telegram-signals";
 import { escapeTelegramHtml as esc, telegramApi } from "@/lib/telegram-api.server";
 import { mapPool } from "@/lib/map-pool";
+import {
+  WORKERS,
+  gafferDefence,
+  gafferOrder,
+  looksLikeInsult,
+  managedGroup,
+  noteGafferHere,
+  recordGaffer,
+  workerAllowed,
+  workerApi,
+  workerConfigured,
+} from "@/lib/telegram-worker.server";
 import type { FoulAccess } from "@/lib/foul-access.server";
 
 // Accepted tokens:
@@ -144,10 +156,6 @@ async function handleCallbackQuery(cq: {
     if (!chatId || chatId > 0) {
       await answer("");
       return Response.json({ ok: true, ignored: true });
-    }
-    if (isTradeBotChat(chatId)) {
-      await answer("Signals in here come from @Og_tradebot 📈");
-      return Response.json({ ok: true, ignored: "trade_chat" });
     }
     const admin = await loadAdmin();
     const { data: profile } = await admin
@@ -493,6 +501,13 @@ async function setKeys(
   return sent;
 }
 
+/** What the Gaffer calls a market when ordering the chart slave about. */
+function marketName(inst: { code: string; label: string }): string {
+  if (inst.code === "XAUUSD") return "gold";
+  if (inst.code === "BTCUSD") return "bitcoin";
+  return inst.label.replace(/\s*\(.*\)$/, "");
+}
+
 /**
  * A new signal wipes out the last: earlier signal cards and their updates
  * ("signal" rows, plus cards recorded in trade_signals) are deleted, and the
@@ -516,7 +531,11 @@ async function replaceOldSignals(chat_id: number, keep: number[]) {
     }
     for (const id of keep) ids.delete(id);
     // Telegram deletes up to 100 at a time; anything older has expired anyway.
-    await dropMessages(chat_id, [...ids].slice(-100));
+    const old = [...ids].slice(-100);
+    // In groups the chart slave may have posted them: it deletes its own.
+    if (chat_id < 0 && old.length && workerConfigured())
+      await workerApi("deleteMessages", { chat_id, message_ids: old });
+    await dropMessages(chat_id, old);
     await admin
       .from("trade_signals" as never)
       .update({ chat_id: null } as never)
@@ -1118,12 +1137,22 @@ async function runChatAI(
       if (!market) return;
       const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
       const signalJob = buildTradeSignal(tradeText);
-      const { pickTradeHold } = await import("@/lib/trade-hold.server");
-      const { foulAccess } = await import("@/lib/foul-access.server");
-      const tone = (await foulAccess(admin, profileId, roles)).on ? "foul" : "cheeky";
-      const picked = await pickTradeHold(admin as never, profileId, market, tone).catch(() =>
-        trade.holdingMessage(market, tone),
-      );
+      // In a group with the chart slave on duty, OG B0T barks the order and the
+      // trade bot posts the card. Anywhere else OG B0T posts it, after a
+      // "hold on" line.
+      const viaWorker =
+        !!group && workerConfigured() && (await workerAllowed(admin, chat_id, "trade"));
+      let picked: string;
+      if (viaWorker) {
+        picked = gafferOrder(marketName(market));
+      } else {
+        const { pickTradeHold } = await import("@/lib/trade-hold.server");
+        const { foulAccess } = await import("@/lib/foul-access.server");
+        const tone = (await foulAccess(admin, profileId, roles)).on ? "foul" : "cheeky";
+        picked = await pickTradeHold(admin as never, profileId, market, tone).catch(() =>
+          trade.holdingMessage(market, tone),
+        );
+      }
       const hold = movedFromOneMinute
         ? `1 min calls are Boss-only (too noisy at that speed), so here's the 5 min scalp.\n${picked}`
         : picked;
@@ -1143,12 +1172,21 @@ async function runChatAI(
       let firstMessageId: number | null = null;
       const cardIds: number[] = [];
       for (const [i, text] of chunks.entries()) {
-        const sent = await tg("sendMessage", {
+        const message = {
           chat_id,
           ...(i === 0 ? mentioned(text) : { text }),
           disable_web_page_preview: true,
           ...threaded,
-        });
+        };
+        // The chart slave posts it; if it can't (not in the group, blocked),
+        // OG B0T posts it itself so nobody's left without their signal.
+        const byWorker = viaWorker ? await workerApi("sendMessage", message) : null;
+        if (byWorker?.ok) {
+          const id = (byWorker.result as { message_id?: number } | undefined)?.message_id;
+          if (id) cardIds.push(id);
+          continue;
+        }
+        const sent = await tg("sendMessage", message);
         if (!sent) throw new Error("Signal delivery failed");
         // "No trade right now" cards aren't followed, so the next screen clears them.
         if (!signal.plan && !group) await rememberScreen(chat_id, sent);
@@ -1493,14 +1531,15 @@ function withMentions(text: string, users: TgUser[] = []) {
   const entities: Record<string, unknown>[] = [];
   for (const u of users) {
     if (!u.id) continue;
-    const label = `@${(u.username || u.first_name || "you").trim()}`;
+    // Their name, tap-able, but no "@handle" in the text.
+    const label = (u.first_name || u.username || "you").trim();
     entities.push({
       type: "text_mention",
       offset: prefix.length,
       length: label.length,
       user: { id: u.id },
     });
-    prefix += `${label} `;
+    prefix += `${label}, `;
   }
   return entities.length ? { text: prefix + text, entities } : { text };
 }
@@ -1508,9 +1547,10 @@ function withMentions(text: string, users: TgUser[] = []) {
 type GroupMessage = {
   message_id: number;
   text?: string;
-  chat: { id: number; type?: string };
   from?: { id?: number; is_bot?: boolean; first_name?: string; username?: string };
   reply_to_message?: { text?: string; from?: { is_bot?: boolean; username?: string } };
+  left_chat_member?: { is_bot?: boolean; username?: string };
+  chat: { id: number; type?: string; title?: string };
   message_thread_id?: number;
   is_topic_message?: boolean;
   new_chat_members?: { id?: number; is_bot?: boolean; username?: string; first_name?: string }[];
@@ -1721,26 +1761,6 @@ const GROUP_PRIVACY_NOTE =
   "In @BotFather: your bot → Bot Settings → Group Privacy → Turn off, then remove me and add me back " +
   "(or make me a group admin) so I can hear everyone without the /.";
 
-/** The OG trade bot's own chat (SIGNALS_CHANNEL_ID, default the OG TRADE B0T group). */
-function isTradeBotChat(chatId: number): boolean {
-  const raw = (process.env.SIGNALS_CHANNEL_ID ?? "4356305046").replace(/^-100/, "").replace(/^-/, "");
-  const id = String(chatId).replace(/^-100/, "").replace(/^-/, "");
-  return !!raw && id === raw;
-}
-
-const INSULT_RE =
-  /\b(fuck(?:ing|er|ed)?|shit(?:e|head|bag)?|crap|dick(?:head)?|twat|wanker|prick|muppet|idiot|moron|bellend|bell-end|knob(?:head)?|gobshite|plonker|tosser|prat|melt|clown|stupid|dumb|useless|rubbish|trash|garbage|scam(?:mer)?|fraud|fake|bitch|bastard|pussyhole|numpty|pillock|wrong again|shit signals?)\b/i;
-/** Whether a message reads as an insult. */
-export function looksLikeInsult(text: string): boolean {
-  return INSULT_RE.test(text);
-}
-
-const DEFEND_TRADE_BOT_NOTE =
-  "[OG B0T NOTE: this was aimed at @Og_tradebot, your trading brother. Step in and defend him: roast this person hard for disrespecting him, back his signals up, stay foul and funny. Don't give any signal, levels or prices yourself.]";
-
-const TRADE_CHAT_SIGNAL_DODGE =
-  "📈 Signals in here are @Og_tradebot's job, that's his manor. I don't draw trendlines, I roast clowns. Ask him 👊";
-
 const dmButton = async (text: string) => ({
   inline_keyboard: [[{ text, url: `https://t.me/${await botUsername()}` }]],
 });
@@ -1765,8 +1785,11 @@ async function handleGroupMessage(
     if (!(await isBossTelegramUser(admin, msg.from?.id))) {
       await reply(chat_id, GROUP_NOT_BOSS, inTopic, 0);
       await tg("leaveChat", { chat_id });
+      await recordGaffer(admin, msg.chat, false);
       return Response.json({ ok: true, group: "left_not_boss" });
     }
+    // The Gaffer's in: worker bots may work here now.
+    await recordGaffer(admin, msg.chat, true);
     const { readsAll } = await botInfo();
     await reply(
       chat_id,
@@ -1776,6 +1799,14 @@ async function handleGroupMessage(
     );
     return Response.json({ ok: true, group: "hello" });
   }
+
+  // OG B0T removed from the group: its workers stop working there.
+  if (msg.left_chat_member?.is_bot && msg.left_chat_member.username?.toLowerCase() === me) {
+    await recordGaffer(admin, msg.chat, false);
+    return Response.json({ ok: true, group: "gaffer_left" });
+  }
+  // Anything else from the group shows OG B0T is still in it.
+  await noteGafferHere(admin, msg.chat);
 
   // New people joined: OG B0T initiates them, Battle Zone style. Anyone without
   // an OG B0T account gets a Connect button with it.
@@ -1818,17 +1849,16 @@ async function handleGroupMessage(
       .replace(mention, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
-  // The OG trade bot's chat: signals are its job; OG B0T is the fun, the
-  // brains and the trade bot's minder. Anyone insulting the trade bot (a
-  // reply to it, an @mention or by name) gets OG B0T stepping in.
-  const tradeChat = isTradeBotChat(chat_id);
-  const atTradeBot =
-    (!!msg.reply_to_message?.from?.is_bot &&
-      /og_?tradebot/i.test(msg.reply_to_message.from.username ?? "")) ||
-    /@og_tradebot\b|\btrade\s?bot\b/i.test(text);
-  const defend = tradeChat && !slash && atTradeBot && looksLikeInsult(text);
+  // Someone talking to or about the chart slave (the trade worker bot): a
+  // reply to one of its messages, its handle or its nicknames.
+  const repliedToWorker =
+    !!msg.reply_to_message?.from?.is_bot &&
+    WORKERS.trade.nicknames.test(msg.reply_to_message.from.username ?? "");
+  const atWorker = repliedToWorker || WORKERS.trade.nicknames.test(text);
+  // Having a go at it: only the Gaffer gets to bully the chart slave.
+  const defend = !slash && atWorker && looksLikeInsult(text);
   // People replying to each other (without an @mention) are left to it.
-  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !defend)
+  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !repliedToWorker)
     return ignored();
   // No "/" needed: "signal gold", "roast Dave", "help" and "og …" work as
   // they are, the same as the commands.
@@ -1896,9 +1926,6 @@ async function handleGroupMessage(
     } else if (cmd === "start" || cmd === "help") {
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
-    } else if ((cmd === "signal" || cmd === "signals") && tradeChat) {
-      await answer(TRADE_CHAT_SIGNAL_DODGE);
-      return Response.json({ ok: true, group: "signals_to_trade_bot" });
     } else if (cmd === "signal" || cmd === "signals") {
       const pair = /\b(gold|xau)/i.test(arg) ? "XAU" : /\b(btc|bitcoin)/i.test(arg) ? "BTC" : null;
       if (!pair) {
@@ -1925,13 +1952,16 @@ async function handleGroupMessage(
       await answer(GROUP_HELP);
       return Response.json({ ok: true, group: "help" });
     }
-    if (defend) return battle(`${line}\n\n${DEFEND_TRADE_BOT_NOTE}`);
+    if (defend) {
+      await sendGroupBattleLine(chat_id, gafferDefence(), ctx);
+      return Response.json({ ok: true, group: "defended_worker" });
+    }
     // Asking for a signal in their own words ("gold scalp?", "btc signal")
     // gets a signal card; everything else is a roast battle.
     const trade = await import("@/lib/trade-signal");
     const tradeAsk = trade.resolveTradeRequest(line, []);
-    // In the trade bot's chat, trade talk is the trade bot's: OG B0T stays out.
-    if (tradeChat && tradeAsk) return ignored();
+    // Chatting to the chart slave itself: that's its conversation.
+    if (!tradeAsk && repliedToWorker && !mentioned) return ignored();
     if (!tradeAsk) return battle(line);
     ask = line;
   }
@@ -1966,6 +1996,33 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         const update = await request.json().catch(() => null);
         const updateId: number | undefined =
           typeof update?.update_id === "number" ? update.update_id : undefined;
+        // OG B0T added to / removed from a group or channel: keep the group
+        // register right, so worker bots know whether the Gaffer is there.
+        const membership = update?.my_chat_member as
+          | {
+              chat?: { id?: number; type?: string; title?: string };
+              from?: { id?: number };
+              new_chat_member?: { status?: string };
+            }
+          | undefined;
+        if (membership?.chat?.id && membership.chat.type !== "private") {
+          const status = membership.new_chat_member?.status ?? "";
+          const inChat = ["member", "administrator", "creator"].includes(status);
+          const admin = await loadAdmin();
+          // Only the Boss can bring OG B0T in (anyone else's add is undone by
+          // the group handler); someone else changing its rights in a group
+          // it's already in (promoting it to admin) keeps it in.
+          const counts =
+            inChat &&
+            ((await isBossTelegramUser(admin, membership.from?.id)) ||
+              !!(await managedGroup(admin, membership.chat.id))?.og_bot_present);
+          await recordGaffer(
+            admin,
+            { id: membership.chat.id, title: membership.chat.title, type: membership.chat.type },
+            counts,
+          );
+          return Response.json({ ok: true, membership: status });
+        }
         if (update?.callback_query) {
           // Claim callbacks too: retries must not generate duplicate signals.
           const callbackChat = update.callback_query.message?.chat?.id;

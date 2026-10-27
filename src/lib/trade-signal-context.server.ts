@@ -293,7 +293,12 @@ export async function higherTrend(
       : (readFrame("1H", hourly.data)?.bias ?? null);
   }
   const daily = await candles(inst, "1d");
-  return readFrame(timeframe === "4H" ? "Weekly" : "Daily", timeframe === "4H" ? aggregate(daily.data, 24 * 7) : daily.data)?.bias ?? null;
+  return (
+    readFrame(
+      timeframe === "4H" ? "Weekly" : "Daily",
+      timeframe === "4H" ? aggregate(daily.data, 24 * 7) : daily.data,
+    )?.bias ?? null
+  );
 }
 
 /* ── Live price, calendar and crypto positioning (all soft-fail) ─────── */
@@ -321,7 +326,8 @@ export async function livePrice(inst: Instrument): Promise<number> {
     const k = inst.kraken;
     tries.push([
       "Kraken",
-      async () => parseKrakenTicker(await getJson(`https://api.kraken.com/0/public/Ticker?pair=${k}`)),
+      async () =>
+        parseKrakenTicker(await getJson(`https://api.kraken.com/0/public/Ticker?pair=${k}`)),
     ]);
   }
   if (inst.yahoo) {
@@ -439,6 +445,10 @@ export type SignalFeeds = {
   entry?: "stop";
 };
 
+/** The last line of every signal card. */
+export const SIGNAL_DISCLAIMER =
+  "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.";
+
 /** What a sent signal needs for outcome tracking (see trade-signal-tracker.server.ts). */
 export type SignalPlan = {
   market: string;
@@ -543,9 +553,7 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
  * The prompt block plus when the signal stops being valid (null when no
  * signal was built), so the app can expire it at exactly the stated time.
  */
-export async function buildTradeSignal(
-  userText: string,
-): Promise<TradeSignalResult> {
+export async function buildTradeSignal(userText: string): Promise<TradeSignalResult> {
   const inst = detectTradeIntent(userText);
   if (!inst) return { block: "", expiresAt: null, reply: "" };
   const style: Style = detectStyle(userText);
@@ -745,10 +753,6 @@ export async function buildTradeSignal(
           minute: "2-digit",
         }).format(valid.until)
       : ukTime(valid.until);
-  const recordShort = record?.replace(
-    /^last (\d+) days, (\d+) signals filled: TP1 hit on (\d+) \((\d+)%\).*$/,
-    "last $1 days, TP1 hit $3 of $2 ($4%)",
-  );
   const rrs = plan.rr.split(" / ").map((r) => r.replace(/\.0$/, ""));
   const side = plan.direction === "BUY" ? "buy" : "sell";
   const entryHow =
@@ -768,23 +772,24 @@ export async function buildTradeSignal(
     "",
     "🔁 Ask again later, or try another timeframe.",
   ].join("\n");
+  // The levels first, one per line, then only what changes the decision.
+  // No confidence %: members read it as a win rate.
+  const targetNames = ["Quick Scalp", "Potentially", "Greedy Runner"];
   const tradeCard = [
     `${plan.direction === "BUY" ? "🟢" : "🔴"} ${plan.direction} · ${inst.label}`,
-    `⏱ ${entryLabel} · ${plan.confidencePct}% confidence · ${plan.quality}`,
+    `⏱ ${entryLabel} · ${plan.quality}`,
     "",
     `▶️ Entry: ${fmt(plan.entry)}  (${entryHow})`,
-    `🛑 SL: ${fmt(plan.stop)}  (${dist(plan.entry, plan.stop)})`,
-    ...plan.targets.map((t, i) => `🎯 TP${i + 1}: ${fmt(t)}${rrs[i] ? `  (${rrs[i]})` : ""}`),
+    `🛑 Cut The Bleed (GTFO): ${fmt(plan.stop)}`,
+    ...plan.targets.map((t, i) => `🎯 ${targetNames[i]}: ${fmt(t)}`),
     "",
     ...cautions.map((c) => `⚠️ ${c}`),
     ...(newsLines.length ? [`📅 ${newsLines.join("\n📅 ")}`] : []),
     ...trendLine,
     `❌ Cancel if ${cancelIf}`,
     `⏳ Valid till ${validShort} UK`,
-    ...(recordShort ? [`📈 ${recordShort[0].toUpperCase()}${recordShort.slice(1)}`] : []),
-    ...(tested ? [`🧪 ${tested}`] : []),
     "",
-    "🔔 I'll update you here · Not financial advice",
+    SIGNAL_DISCLAIMER,
   ].join("\n");
   const wait = plan.verdict === "wait";
   const reply = wait ? waitCard : tradeCard;

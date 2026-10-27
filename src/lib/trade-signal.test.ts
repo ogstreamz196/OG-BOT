@@ -23,6 +23,7 @@ import {
   sessionRead,
   type Candle,
   type FrameRead,
+  scaleTargets,
 } from "./trade-signal";
 
 /** Steady trend with a gentle wiggle so swings exist. */
@@ -74,21 +75,46 @@ describe("parseInstrument", () => {
 describe("detectTradeIntent", () => {
   it("resolves the reported BTC follow-up without inheriting old prices", () => {
     const now = Date.UTC(2026, 9, 23, 22, 48);
-    expect(resolveTradeRequest("Give me a signal", [{
-      role: "user", content: "Is btcusd bullish or bearish im down 25k this week",
-      created_at: new Date(now - 60_000).toISOString(),
-    }], now)).toBe("BTCUSD Give me a signal");
+    expect(
+      resolveTradeRequest(
+        "Give me a signal",
+        [
+          {
+            role: "user",
+            content: "Is btcusd bullish or bearish im down 25k this week",
+            created_at: new Date(now - 60_000).toISOString(),
+          },
+        ],
+        now,
+      ),
+    ).toBe("BTCUSD Give me a signal");
   });
 
   it("does not infer a market from stale, assistant-only or unrelated history", () => {
     const now = Date.UTC(2026, 9, 23, 22, 48);
-    const old = { role: "user", content: "BTC signal", created_at: new Date(now - 31 * 60_000).toISOString() };
+    const old = {
+      role: "user",
+      content: "BTC signal",
+      created_at: new Date(now - 31 * 60_000).toISOString(),
+    };
     expect(resolveTradeRequest("Give me a signal", [old], now)).toBeNull();
-    expect(resolveTradeRequest("Give me a signal", [{ ...old, role: "assistant", created_at: new Date(now).toISOString() }], now)).toBeNull();
-    expect(resolveTradeRequest("Give me a signal", [
-      { ...old, content: "what time is the game", created_at: new Date(now).toISOString() },
-      { ...old, created_at: new Date(now - 60_000).toISOString() },
-    ], now)).toBeNull();
+    expect(
+      resolveTradeRequest(
+        "Give me a signal",
+        [{ ...old, role: "assistant", created_at: new Date(now).toISOString() }],
+        now,
+      ),
+    ).toBeNull();
+    expect(
+      resolveTradeRequest(
+        "Give me a signal",
+        [
+          { ...old, content: "what time is the game", created_at: new Date(now).toISOString() },
+          { ...old, created_at: new Date(now - 60_000).toISOString() },
+        ],
+        now,
+      ),
+    ).toBeNull();
     expect(resolveTradeRequest("ETH signal", [old], now)).toBe("ETH signal");
   });
 
@@ -155,8 +181,9 @@ describe("buildPlan", () => {
     expect(plan.targets[0]).toBeGreaterThan(plan.entry!);
     expect(plan.targets[1]).toBeGreaterThan(plan.targets[0]);
     expect(plan.targets[2]).toBeGreaterThanOrEqual(plan.targets[1]);
-    // 1R target mirrors the stop distance
-    expect(plan.targets[0] - plan.entry!).toBeCloseTo(plan.entry! - plan.stop!);
+    // Quick Scalp sits at 0.8R: 20% closer than the engine's 1R TP1.
+    expect(plan.targets[0] - plan.entry!).toBeCloseTo((plan.entry! - plan.stop!) * 0.8);
+    expect(plan.rr.startsWith("1:0.8 /")).toBe(true);
   });
 
   it("calls SELL in an aligned downtrend", () => {
@@ -411,5 +438,36 @@ describe("signal expiry tag", () => {
     expect(out).toHaveLength(4);
     expect(out[1].content).toBe(EXPIRED_SIGNAL_NOTE);
     expect(out[3].content).toBe("SELL 70000");
+  });
+});
+
+describe("scaleTargets (Quick Scalp, Potentially, Greedy Runner)", () => {
+  it("BUY: 80% of TP1, 60% of the way TP1→TP2, 85% of the way TP2→TP3", () => {
+    const [q, p, g] = scaleTargets("BUY", 100, [110, 120, 140], 0.01);
+    expect(q).toBeCloseTo(108);
+    expect(p).toBeCloseTo(116);
+    expect(g).toBeCloseTo(137);
+    expect(100 < q && q < p && p < g).toBe(true);
+  });
+  it("SELL mirrors it", () => {
+    const [q, p, g] = scaleTargets("SELL", 100, [90, 80, 60], 0.01);
+    expect(q).toBeCloseTo(92);
+    expect(p).toBeCloseTo(84);
+    expect(g).toBeCloseTo(63);
+    expect(100 > q && q > p && p > g).toBe(true);
+  });
+  it("stays strictly in order even when the engine's levels bunch up or cross", () => {
+    for (const [dir, t] of [
+      ["BUY", [110, 110, 110]],
+      ["BUY", [110, 105, 103]],
+      ["SELL", [90, 90, 95]],
+      ["BUY", [100, 100, 100]],
+    ] as const) {
+      const [q, p, g] = scaleTargets(dir, 100, [...t] as [number, number, number], 0.5);
+      const s = dir === "BUY" ? 1 : -1;
+      expect((q - 100) * s).toBeGreaterThanOrEqual(0.5);
+      expect((p - q) * s).toBeGreaterThanOrEqual(0.5 - 1e-9);
+      expect((g - p) * s).toBeGreaterThanOrEqual(0.5 - 1e-9);
+    }
   });
 });

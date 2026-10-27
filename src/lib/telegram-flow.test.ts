@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 
 // Group battles normally wait 2.5s for more from the same person; not here.
 let timing: { settleMs: number };
@@ -74,12 +74,14 @@ const stored: Record<string, Row[]> = {
   telegram_group_lines: [],
   telegram_group_nudges: [],
   telegram_connect_tokens: [],
+  telegram_managed_groups: [],
 };
 let clock = Date.now();
 function query(table: string) {
   const filters: [string, (v: unknown) => boolean][] = [];
   let op: "select" | "delete" | "write" = "select";
   let single = false;
+  let patch: Row | null = null;
   const q = {
     select: () => q,
     order: () => q,
@@ -93,11 +95,20 @@ function query(table: string) {
     in: (col: string, vs: unknown[]) => (filters.push([col, (x) => vs.includes(x)]), q),
     maybeSingle: () => ((single = true), q),
     delete: () => ((op = "delete"), q),
-    update: () => ((op = "write"), q),
+    update: (p: Row) => {
+      op = "write";
+      patch = p;
+      return q;
+    },
     insert: (row: unknown) => {
       op = "write";
       inserts.push({ table, row });
-      stored[table]?.push({ ...(row as Row), created_at: new Date(++clock).toISOString() });
+      stored[table]?.push({
+        // The register's column default: every worker switched on.
+        ...(table === "telegram_managed_groups" ? { active_workers: ["trade"] } : {}),
+        ...(row as Row),
+        created_at: new Date(++clock).toISOString(),
+      });
       return q;
     },
     upsert: (row: Row) => {
@@ -125,7 +136,9 @@ function query(table: string) {
       let data: unknown = single ? null : [];
       let count = 0;
       const rows = stored[table];
-      if (rows && op === "delete") {
+      if (rows && patch) {
+        for (const r of rows) if (match(r)) Object.assign(r, patch);
+      } else if (rows && op === "delete") {
         for (let i = rows.length - 1; i >= 0; i--) if (match(rows[i])) rows.splice(i, 1);
       } else if (rows && op === "select") {
         const hit = rows.filter(match);
@@ -647,12 +660,12 @@ describe("telegram bot flow", () => {
       const asked = nextId;
       await inGroup("/og@OGStreamzBot what's my coin balance and who wins tonight?");
       const answer = groupSent().at(-1)!;
-      expect(answer.text).toMatch(/^@Imran .*OG reply/);
-      expect(tags(answer)).toEqual([["@Imran", CHAT]]);
+      expect(answer.text).toMatch(/^Imran, .*OG reply/);
+      expect(tags(answer)).toEqual([["Imran", CHAT]]);
       expect(repliesTo(answer)).toBe(asked);
       // The streamed edits keep the tag too.
       const edits = calls.filter((c) => c.method === "editMessageText" && c.body.chat_id === GROUP);
-      for (const e of edits) expect(String(e.body.text)).toMatch(/^@Imran /);
+      for (const e of edits) expect(String(e.body.text)).toMatch(/^Imran, /);
       const prompt = ai.requests[0].messages.map((m) => m.content).join("\n");
       expect(prompt).toContain("GROUP CHAT");
       expect(prompt).not.toContain("PRIVATE-MEMORY");
@@ -681,8 +694,8 @@ describe("telegram bot flow", () => {
       expect(battleTurn(0)).toBe("Imran: you're mid");
       const clapback = groupSent().at(-1)!;
       // A reply to their message that starts by tagging them.
-      expect(clapback.text).toBe("@Imran BATTLE 1");
-      expect(tags(clapback)).toEqual([["@Imran", CHAT]]);
+      expect(clapback.text).toBe("Imran, BATTLE 1");
+      expect(tags(clapback)).toEqual([["Imran", CHAT]]);
       expect(repliesTo(clapback)).toBe(asked);
       // Plain text: the AI's words never go through HTML parsing.
       expect(clapback.body?.parse_mode).toBeUndefined();
@@ -713,8 +726,8 @@ describe("telegram bot flow", () => {
       const said = nextId;
       await asFriend("who's this bot then");
       const nudge = groupSent().at(-1)!;
-      expect(nudge.text).toMatch(/^@Kez 👋 I don't know you yet/);
-      expect(tags(nudge)).toEqual([["@Kez", FRIEND]]);
+      expect(nudge.text).toMatch(/^Kez, 👋 I don't know you yet/);
+      expect(tags(nudge)).toEqual([["Kez", FRIEND]]);
       expect(repliesTo(nudge)).toBe(said);
       expect(buttons(nudge)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
       // Nothing about them is sent to the AI or kept.
@@ -760,8 +773,8 @@ describe("telegram bot flow", () => {
       expect(battleTurn(0)).toContain("[Kez @kez_99 just joined the group.]");
       expect(battleTurn(0)).not.toContain("SomeOtherBot");
       const roast = groupSent().at(-1)!;
-      expect(roast.text).toBe("@kez_99 BATTLE 1");
-      expect(tags(roast)).toEqual([["@kez_99", FRIEND]]);
+      expect(roast.text).toBe("Kez, BATTLE 1");
+      expect(tags(roast)).toEqual([["Kez", FRIEND]]);
       expect(repliesTo(roast)).toBe(joined);
       expect(buttons(roast)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
       // That counts as today's ask: their first message isn't nagged again.
@@ -777,7 +790,7 @@ describe("telegram bot flow", () => {
           new_chat_members: [{ id: CHAT, is_bot: false, first_name: "Imran" }],
         },
       });
-      expect(groupSent().at(-1)!.text).toBe("@Imran BATTLE 2");
+      expect(groupSent().at(-1)!.text).toBe("Imran, BATTLE 2");
       expect(groupSent().at(-1)!.markup).toBeUndefined();
       // Only bots joining: nothing to say.
       await post({
@@ -885,8 +898,8 @@ describe("telegram bot flow", () => {
       await inGroup("spam 6");
       expect(ai.battles).toHaveLength(5);
       const notice = groupSent().at(-1)!;
-      expect(notice.text).toMatch(/^@Imran 🐌 .*slow mode: I'll answer you again in (29|30)s\.$/);
-      expect(tags(notice)).toEqual([["@Imran", CHAT]]);
+      expect(notice.text).toMatch(/^Imran, 🐌 .*slow mode: I'll answer you again in (29|30)s\.$/);
+      expect(tags(notice)).toEqual([["Imran", CHAT]]);
       expect(repliesTo(notice)).toBe(sixth);
       // More spam: nothing at all, not even another notice.
       const shown = groupSent().length;
@@ -967,7 +980,7 @@ describe("telegram bot flow", () => {
       expect(card).toBeTruthy();
       expect(repliesTo(card)).toBe(picker.id);
       // Tagged to whoever tapped.
-      expect(tags(card)).toEqual([["@Imran", CHAT]]);
+      expect(tags(card)).toEqual([["Imran", CHAT]]);
 
       await inGroup("/signal btc");
       expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
@@ -1002,6 +1015,184 @@ describe("telegram bot flow", () => {
       expect(alert.body.show_alert).toBe(true);
       expect(ai.requests).toHaveLength(0);
       expect(groupSent().some((m) => m.text.includes("card"))).toBe(false);
+    });
+
+    describe("the Gaffer and its chart slave (the OG Trade Bot)", () => {
+      // Calls made as the trade bot (its own token, straight to Telegram).
+      const worker = {
+        calls: [] as { method: string; body: Record<string, unknown> }[],
+        down: false,
+      };
+      const workerSent = () =>
+        worker.calls.filter((c) => c.method === "sendMessage").map((c) => c.body);
+      beforeEach(() => {
+        worker.calls.length = 0;
+        worker.down = false;
+        process.env.SIGNALS_BOT_TOKEN = "worker-token";
+        vi.stubGlobal("fetch", async (url: string, init: { body: string }) => {
+          const m = /\/botworker-token\/(\w+)$/.exec(String(url));
+          if (!m) throw new Error(`unexpected fetch ${url}`);
+          const body = JSON.parse(init.body);
+          worker.calls.push({ method: m[1], body });
+          const id = nextId++;
+          if (m[1] === "sendMessage") body._id = id;
+          if (worker.down)
+            return new Response(
+              JSON.stringify({ ok: false, description: "Forbidden: bot is not a member" }),
+              { status: 403 },
+            );
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              result: m[1] === "sendMessage" ? { message_id: id } : true,
+            }),
+          );
+        });
+      });
+      afterEach(() => {
+        vi.unstubAllGlobals();
+        delete process.env.SIGNALS_BOT_TOKEN;
+      });
+      const register = (chatId: number) =>
+        stored.telegram_managed_groups.find((g) => g.chat_id === chatId);
+      const bossAddsGaffer = async () => {
+        who.roles = ["boss"];
+        await addBot(CHAT);
+        who.roles = [];
+      };
+
+      test("the Boss adding OG B0T registers the group with the trade bot on duty", async () => {
+        await bossAddsGaffer();
+        expect(register(GROUP)).toMatchObject({ og_bot_present: true, active_workers: ["trade"] });
+        expect(register(GROUP)!.og_bot_added_at).toBeTruthy();
+        // OG B0T kicked out: its workers stop.
+        await post({
+          message: {
+            message_id: nextId++,
+            chat: { id: GROUP, type: "group" },
+            from: { id: CHAT },
+            left_chat_member: { is_bot: true, username: "OGStreamzBot" },
+          },
+        });
+        expect(register(GROUP)!.og_bot_present).toBe(false);
+      });
+
+      test("Telegram's added/removed updates keep the register right", async () => {
+        const membership = (status: string, from: number) =>
+          post({
+            my_chat_member: {
+              chat: { id: -100555, type: "supergroup", title: "The Lads" },
+              from: { id: from },
+              new_chat_member: { status },
+            },
+          });
+        // Someone other than the Boss adding it doesn't count.
+        await membership("member", FRIEND);
+        expect(register(-100555)).toMatchObject({ og_bot_present: false, chat_title: "The Lads" });
+        who.roles = ["boss"];
+        await membership("member", CHAT);
+        who.roles = [];
+        expect(register(-100555)!.og_bot_present).toBe(true);
+        // Promoted to admin by someone else in a group it's already in: still in.
+        await membership("administrator", FRIEND);
+        expect(register(-100555)!.og_bot_present).toBe(true);
+        await membership("kicked", FRIEND);
+        expect(register(-100555)!.og_bot_present).toBe(false);
+      });
+
+      test("a signal: OG B0T barks the order, the chart slave posts the card straight after", async () => {
+        await bossAddsGaffer();
+        const before = groupSent().length;
+        const asked = nextId;
+        await inGroup("signal gold");
+        // OG B0T: one order, no card, no @handles.
+        const fromGaffer = groupSent().slice(before);
+        expect(fromGaffer).toHaveLength(1);
+        expect(fromGaffer[0].text).toMatch(/chart (slave|boy)|intern/i);
+        expect(fromGaffer[0].text).toContain("gold");
+        expect(fromGaffer[0].text).not.toContain("@");
+        expect(repliesTo(fromGaffer[0])).toBe(asked);
+        // The trade bot: the card, threaded to the ask, tagging the asker by name.
+        const cards = workerSent();
+        expect(cards).toHaveLength(1);
+        expect(cards[0].chat_id).toBe(GROUP);
+        expect(String(cards[0].text)).toMatch(/^Imran, 📈 GOLD SCALP card/);
+        expect((cards[0].reply_parameters as { message_id: number }).message_id).toBe(asked);
+        // The order went out before the card (message ids only go up).
+        expect(fromGaffer[0].id).toBeLessThan(Number(cards[0]._id));
+
+        // The next signal wipes the last card: the trade bot deletes its own.
+        const firstCardId = Number(screens.find((r) => r.kind === "signal")?.message_id);
+        await inGroup("signal btc");
+        expect(
+          worker.calls.some(
+            (c) =>
+              c.method === "deleteMessages" &&
+              (c.body.message_ids as number[]).includes(firstCardId),
+          ),
+        ).toBe(true);
+      });
+
+      test("if the chart slave can't post, OG B0T posts the card itself", async () => {
+        await bossAddsGaffer();
+        worker.down = true;
+        await inGroup("signal gold");
+        expect(groupSent().some((m) => m.text.includes("GOLD SCALP card"))).toBe(true);
+      });
+
+      test("trade bot switched off, or OG B0T not in: no orders, OG B0T does it the old way", async () => {
+        await bossAddsGaffer();
+        register(GROUP)!.active_workers = [];
+        await inGroup("signal gold");
+        expect(workerSent()).toHaveLength(0);
+        expect(groupSent().some((m) => m.text.includes("GOLD SCALP card"))).toBe(true);
+        expect(groupSent().some((m) => /chart (slave|boy)|intern/i.test(m.text))).toBe(false);
+
+        register(GROUP)!.active_workers = ["trade"];
+        register(GROUP)!.og_bot_present = false;
+        await inGroup("signal btc");
+        expect(workerSent()).toHaveLength(0);
+      });
+
+      test("someone having a go at the chart slave gets OG B0T stepping in", async () => {
+        await bossAddsGaffer();
+        const asked = nextId;
+        await inGroup("your signals are shit mate", {
+          reply_to: { text: "📈 card", fromBot: false },
+        });
+        // (a reply to a person: left alone)
+        expect(ai.battles).toHaveLength(0);
+        await post({
+          message: {
+            message_id: nextId++,
+            text: "your signals are shit mate",
+            chat: { id: GROUP, type: "supergroup" },
+            from: { id: CHAT, first_name: "Imran" },
+            reply_to_message: { text: "📈 card", from: { is_bot: true, username: "Og_tradebot" } },
+          },
+        });
+        const defence = groupSent().at(-1)!;
+        expect(defence.text).toMatch(/^Imran, .*(chart (slave|boy)|intern)/i);
+        expect(defence.text).not.toContain("@");
+        expect(repliesTo(defence)).toBe(asked + 1);
+        expect(ai.battles).toHaveLength(0);
+        // By nickname, without replying to it.
+        await inGroup("the chart boy is a useless muppet");
+        expect(groupSent().at(-1)!.text).toMatch(/chart|intern|melt|dickhead|clown/i);
+        expect(ai.battles).toHaveLength(0);
+        // Just chatting to the chart slave: its own conversation, OG B0T stays out.
+        const n = groupSent().length;
+        await post({
+          message: {
+            message_id: nextId++,
+            text: "cheers for that one",
+            chat: { id: GROUP, type: "supergroup" },
+            from: { id: CHAT, first_name: "Imran" },
+            reply_to_message: { text: "📈 card", from: { is_bot: true, username: "Og_tradebot" } },
+          },
+        });
+        expect(groupSent()).toHaveLength(n);
+      });
     });
   });
 

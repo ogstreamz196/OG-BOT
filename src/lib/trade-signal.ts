@@ -232,7 +232,8 @@ export function resolveTradeRequest(
   if (detectTradeIntent(text)) return text;
   if (parseInstrument(text) || !TRADE_WORDS.test(text)) return null;
   // Only explicit signal follow-ups inherit a market; ordinary requests don't.
-  if (!/\b(signals?|setups?|entry|entries|sl|tp|scalp|swing|bullish|bearish)\b/i.test(text)) return null;
+  if (!/\b(signals?|setups?|entry|entries|sl|tp|scalp|swing|bullish|bearish)\b/i.test(text))
+    return null;
   for (const message of recent) {
     if (message.role !== "user") continue;
     const age = now - Date.parse(message.created_at);
@@ -481,6 +482,36 @@ const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
  * short-term momentum wait for price to confirm, and setups with no room to
  * run or no trend are marked "wait".
  */
+/**
+ * The targets members get, from the engine's three (entry → TP1 → TP2 → TP3):
+ * Quick Scalp 20% closer to the entry than TP1, Potentially 60% of the way
+ * from TP1 to TP2, Greedy Runner 85% of the way from TP2 to TP3. Each new
+ * target sits inside its own band, so they can't cross; the guard below keeps
+ * them strictly in order (at least `minStep` apart, past the entry) even when
+ * the engine's levels bunch up.
+ */
+export function scaleTargets(
+  direction: "BUY" | "SELL",
+  entry: number,
+  [tp1, tp2, tp3]: [number, number, number],
+  minStep: number,
+): [number, number, number] {
+  const s = direction === "BUY" ? 1 : -1;
+  // Work in "distance in the trade's favour", so BUY and SELL are one sum.
+  const d = (px: number) => (px - entry) * s;
+  const d1 = d(tp1);
+  const d2 = d(tp2);
+  const d3 = d(tp3);
+  let quick = d1 * 0.8;
+  let potentially = d1 + 0.6 * (d2 - d1);
+  let runner = d2 + 0.85 * (d3 - d2);
+  const step = Math.max(minStep, 0);
+  quick = Math.max(quick, step);
+  potentially = Math.max(potentially, quick + step);
+  runner = Math.max(runner, potentially + step);
+  return [entry + quick * s, entry + potentially * s, entry + runner * s];
+}
+
 export function buildPlan(
   higher: FrameRead,
   middle: FrameRead,
@@ -492,7 +523,8 @@ export function buildPlan(
   opts: EngineOptions = {},
 ): TradePlan {
   const classic = !!opts.classic;
-  const price = priceNow != null && Number.isFinite(priceNow) && priceNow > 0 ? priceNow : entry.close;
+  const price =
+    priceNow != null && Number.isFinite(priceNow) && priceNow > 0 ? priceNow : entry.close;
   const a = entry.atr;
   const tol = a * 0.3;
   const sw = swings(entryCandles.slice(-200));
@@ -541,7 +573,8 @@ export function buildPlan(
   // and moving further away), e.g. a SELL while the entry-frame MACD is
   // positive and rising.
   const momentumAgainst =
-    !classic && (long ? entry.macdHist < 0 && !entry.macdRising : entry.macdHist > 0 && entry.macdRising);
+    !classic &&
+    (long ? entry.macdHist < 0 && !entry.macdRising : entry.macdHist > 0 && entry.macdRising);
   const vol = opts.volumeRatio ?? NaN;
   const lightVolume = !classic && Number.isFinite(vol) && vol < LIGHT_VOLUME;
   const session = classic ? undefined : opts.session;
@@ -594,6 +627,7 @@ export function buildPlan(
   const stop = long ? entryPx - risk : entryPx + risk;
   const at = (r: number) => (long ? entryPx + risk * r : entryPx - risk * r);
   const t1 = at(1);
+  let t1s = t1;
   // Opposing levels in the trade's way, nearest first.
   const ahead = long ? resistance.filter((r) => r > entryPx) : support.filter((s) => s < entryPx);
   const inR = (lvl: number) => Math.abs(lvl - entryPx) / risk;
@@ -610,6 +644,11 @@ export function buildPlan(
     const lvl3 = ahead.find((l) => inR(l) >= inR(t2) + 0.5);
     t3 = lvl3 ?? at(Math.max(3, inR(t2) + 1));
   }
+  // Targets members are shown and followed on: pulled in from the engine's
+  // levels so they're hit more often (classic keeps the old ones to compare).
+  if (!classic)
+    [t1s, t2, t3] = scaleTargets(long ? "BUY" : "SELL", entryPx, [t1, t2, t3], a * 0.05);
+  const rr1 = Math.abs(t1s - entryPx) / risk;
   const rr3 = Math.abs(t3 - entryPx) / risk;
   const rr2 = Math.abs(t2 - entryPx) / risk;
   const room = ahead.length ? inR(ahead[0]) : Infinity;
@@ -637,15 +676,16 @@ export function buildPlan(
       waitReason = `Not enough room: the next ${long ? "resistance" : "support"} is only ${room.toFixed(1)}R away.`;
   }
 
-  const fmtR = (r: number) => (Number.isInteger(Math.round(r * 10) / 10) ? r.toFixed(0) : r.toFixed(1));
+  const fmtR = (r: number) =>
+    Number.isInteger(Math.round(r * 10) / 10) ? r.toFixed(0) : r.toFixed(1);
   return {
     direction: long ? "BUY" : "SELL",
     entry: entryPx,
     entryType,
     entryNote,
     stop,
-    targets: [t1, t2, t3],
-    rr: `1:1 / 1:${fmtR(rr2)} / 1:${fmtR(rr3)}`,
+    targets: [t1s, t2, t3],
+    rr: `1:${fmtR(rr1)} / 1:${fmtR(rr2)} / 1:${fmtR(rr3)}`,
     confidence,
     confidencePct,
     caution,
@@ -669,7 +709,11 @@ export function buildPlan(
 
 const ukHour = (d: Date) =>
   Number(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(d),
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(d),
   );
 
 /**
@@ -680,7 +724,10 @@ const ukHour = (d: Date) =>
  */
 export function sessionRead(inst: Instrument, now = Date.now()): SessionRead {
   const d = new Date(now);
-  const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short" }).format(d);
+  const day = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+  }).format(d);
   const hour = ukHour(d);
   if (inst.asset === "crypto") {
     return day === "Sat" || day === "Sun"
@@ -688,8 +735,7 @@ export function sessionRead(inst: Instrument, now = Date.now()): SessionRead {
       : { penalty: 0 };
   }
   if (inst.asset === "stock" || inst.asset === "index") return { penalty: 0 };
-  const shut =
-    day === "Sat" || (day === "Fri" && hour >= 22) || (day === "Sun" && hour < 23);
+  const shut = day === "Sat" || (day === "Fri" && hour >= 22) || (day === "Sun" && hour < 23);
   if (shut)
     return {
       closed: `The ${inst.label} market is closed for the weekend (opens Sunday 11pm UK). Wait for the open.`,
@@ -726,7 +772,11 @@ export function framesFor(
   sets: CandleSets,
   style: Style,
   fast?: FastFrame,
-): { frames: [FrameRead | null, FrameRead | null, FrameRead | null]; entryCandles: Candle[]; middleCandles: Candle[] } {
+): {
+  frames: [FrameRead | null, FrameRead | null, FrameRead | null];
+  entryCandles: Candle[];
+  middleCandles: Candle[];
+} {
   const { daily, hourly, fifteen, five, minute } = sets;
   const h4 = aggregate(hourly, 4);
   if (style === "swing") {
@@ -742,7 +792,11 @@ export function framesFor(
     // 1H trend, 15M structure, entry timed on 1- or 5-minute candles.
     const entry = fast === "1m" ? minute : five;
     return {
-      frames: [readFrame("1H", hourly), readFrame("15M", fifteen), readFrame(fast.toUpperCase(), entry)],
+      frames: [
+        readFrame("1H", hourly),
+        readFrame("15M", fifteen),
+        readFrame(fast.toUpperCase(), entry),
+      ],
       entryCandles: entry,
       middleCandles: fifteen,
     };

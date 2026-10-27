@@ -19,6 +19,16 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           await import("@/lib/signal-broadcast.server");
         // Not set up yet: don't spend time building signals nobody will see.
         if (!signalsChannelReady()) return Response.json({ ok: true, skipped: "not_configured" });
+        // Golden rule: if the target is a group OG B0T isn't in, the trade
+        // bot doesn't post there (channels aren't groups, so they're fine).
+        const { normaliseChannelId } = await import("@/lib/signal-broadcast.server");
+        const target = normaliseChannelId(process.env.SIGNALS_CHANNEL_ID);
+        if (target && /^-?\d+$/.test(target)) {
+          const { managedGroup } = await import("@/lib/telegram-worker.server");
+          const group = await managedGroup(supabaseAdmin, Number(target));
+          if (group && group.chat_type !== "channel" && !group.og_bot_present)
+            return Response.json({ ok: true, skipped: "gaffer_not_in_group" });
+        }
         // {"ping": true}: a one-off test post, to check the bot and channel.
         const body = (await request.json().catch(() => null)) as { ping?: boolean } | null;
         if (body?.ping) {
