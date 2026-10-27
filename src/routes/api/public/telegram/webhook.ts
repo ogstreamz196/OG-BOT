@@ -1717,6 +1717,26 @@ const GROUP_PRIVACY_NOTE =
   "In @BotFather: your bot → Bot Settings → Group Privacy → Turn off, then remove me and add me back " +
   "(or make me a group admin) so I can hear everyone without the /.";
 
+/** The OG trade bot's own chat (SIGNALS_CHANNEL_ID, default the OG TRADE B0T group). */
+function isTradeBotChat(chatId: number): boolean {
+  const raw = (process.env.SIGNALS_CHANNEL_ID ?? "4356305046").replace(/^-100/, "").replace(/^-/, "");
+  const id = String(chatId).replace(/^-100/, "").replace(/^-/, "");
+  return !!raw && id === raw;
+}
+
+const INSULT_RE =
+  /\b(fuck(?:ing|er|ed)?|shit(?:e|head|bag)?|crap|dick(?:head)?|twat|wanker|prick|muppet|idiot|moron|bellend|bell-end|knob(?:head)?|gobshite|plonker|tosser|prat|melt|clown|stupid|dumb|useless|rubbish|trash|garbage|scam(?:mer)?|fraud|fake|bitch|bastard|pussyhole|numpty|pillock|wrong again|shit signals?)\b/i;
+/** Whether a message reads as an insult. */
+export function looksLikeInsult(text: string): boolean {
+  return INSULT_RE.test(text);
+}
+
+const DEFEND_TRADE_BOT_NOTE =
+  "[OG B0T NOTE: this was aimed at @Og_tradebot, your trading brother. Step in and defend him: roast this person hard for disrespecting him, back his signals up, stay foul and funny. Don't give any signal, levels or prices yourself.]";
+
+const TRADE_CHAT_SIGNAL_DODGE =
+  "📈 Signals in here are @Og_tradebot's job, that's his manor. I don't draw trendlines, I roast clowns. Ask him 👊";
+
 const dmButton = async (text: string) => ({
   inline_keyboard: [[{ text, url: `https://t.me/${await botUsername()}` }]],
 });
