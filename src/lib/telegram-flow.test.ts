@@ -32,7 +32,12 @@ const linked = new Set<number>([CHAT]);
 const inserts: { table: string; row: unknown }[] = [];
 const calls: { method: string; body: Record<string, unknown> }[] = [];
 type AiRequest = { messages: { role: string; content: string }[] };
-const ai = { requests: [] as AiRequest[], battles: [] as AiRequest[] };
+const ai = {
+  requests: [] as AiRequest[],
+  battles: [] as AiRequest[],
+  battleOpts: [] as Record<string, unknown>[],
+  down: false,
+};
 
 vi.mock("@/lib/telegram-api.server", () => ({
   escapeTelegramHtml: (s: string) => s,
@@ -188,8 +193,15 @@ vi.mock("@/lib/ai-endpoint.server", () => ({
   aiChatTarget: () => ({}),
   liveFactsMessage: (_r: string, t: string) => t,
   // Battle replies (Battle Zone style) come through fetchAiChat.
-  fetchAiChat: async (req: { messages: { role: string; content: string }[] }) => {
+  fetchAiChat: async (
+    req: { messages: { role: string; content: string }[] },
+    _id: string,
+    opts: Record<string, unknown>,
+  ) => {
     ai.battles.push(req);
+    ai.battleOpts.push(opts);
+    // Every free model down: the router gives up (free-only never pays).
+    if (ai.down) throw new Error("All AI providers are busy");
     return {
       response: new Response(
         JSON.stringify({ choices: [{ message: { content: `BATTLE ${ai.battles.length}` } }] }),
@@ -298,6 +310,8 @@ describe("telegram bot flow", () => {
     calls.length = 0;
     ai.requests.length = 0;
     ai.battles.length = 0;
+    ai.battleOpts.length = 0;
+    ai.down = false;
     for (const rows of Object.values(stored)) rows.length = 0;
     signalAsks.length = 0;
     linked.clear();
@@ -928,6 +942,28 @@ describe("telegram bot flow", () => {
       expect(ai.battles).toHaveLength(7);
       expect(battleTurn(6)).toContain("Imran: spam 7");
       expect(battleTurn(6)).toContain("Imran: ok I'll behave");
+    });
+
+    test("roasts only ever use free AI; when it's down the group hears 'busy', not a paid answer", async () => {
+      await inGroup("come at me");
+      await post({
+        message: {
+          message_id: nextId++,
+          chat: { id: GROUP, type: "supergroup" },
+          from: { id: 555, first_name: "Kez" },
+          new_chat_members: [{ id: CHAT, is_bot: false, first_name: "Imran" }],
+        },
+      });
+      expect(ai.battleOpts).toHaveLength(2);
+      for (const o of ai.battleOpts) expect(o).toMatchObject({ foulMouth: true, freeOnly: true });
+
+      ai.down = true;
+      await inGroup("oi, you there?");
+      expect(groupSent().at(-1)!.text).toMatch(/^Imran, 🥵 .*Try me again in a minute\.$/);
+      // Not on every message: once every couple of minutes per group.
+      const n = groupSent().length;
+      await inGroup("hello??");
+      expect(groupSent()).toHaveLength(n);
     });
 
     test("a group gets at most its hourly share of roasts", async () => {

@@ -161,7 +161,9 @@ async function battleAnswer(
   const lex = await import("@/lib/battle-lexicon.server");
   const slang = await lex.learnedSlangBlock(admin);
   const { fetchAiChat } = await import("@/lib/ai-endpoint.server");
-  const { response } = await fetchAiChat(
+  // Free models only: group roasts never spend on paid AI. If they're all
+  // down, there's no answer (the caller says it's busy, at most now and then).
+  const reply = await fetchAiChat(
     {
       temperature: 1.05,
       messages: [
@@ -179,9 +181,10 @@ async function battleAnswer(
       ],
     },
     `telegram-group:${chatId}`,
-    { foulMouth: true },
-  );
-  if (!response.ok) return null;
+    { foulMouth: true, freeOnly: true },
+  ).catch(() => null);
+  const response = reply?.response;
+  if (!response?.ok) return null;
   const json = (await response.json().catch(() => ({}))) as {
     choices?: { message?: { content?: string } }[];
   };
@@ -192,7 +195,19 @@ async function battleAnswer(
 export type BattleTurn =
   | { kind: "reply"; text: string }
   | { kind: "slow"; seconds: number }
+  /** The free AI didn't answer; say so (at most every couple of minutes per group). */
+  | { kind: "busy" }
   | { kind: "quiet" };
+
+// When the free models are down, a group hears "busy" once, not on every line.
+const BUSY_EVERY_MS = 2 * 60_000;
+const busySaid = new Map<number, number>();
+function busyNotice(chatId: number): BattleTurn {
+  const last = busySaid.get(chatId) ?? 0;
+  if (Date.now() - last < BUSY_EVERY_MS) return { kind: "quiet" };
+  busySaid.set(chatId, Date.now());
+  return { kind: "busy" };
+}
 
 /**
  * A battle turn: `name` (Telegram user `userId`) came at OG B0T with `text`
@@ -276,7 +291,7 @@ export async function groupBattleTurn(
           pending.map((l) => `${who}: ${l.content}`).join("\n"),
   };
   const answer = await battleAnswer(admin, chatId, history, turn, name);
-  if (!answer) return { kind: "quiet" };
+  if (!answer) return busyNotice(chatId);
   await saveLine(admin, chatId, {
     role: "bot",
     name: "OG B0T",

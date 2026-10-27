@@ -102,6 +102,44 @@ describe("Foul Mouth chat routing", () => {
     expect(hits).toEqual(["openrouter", "gemini"]);
   });
 
+  it("free only (group roasts): never touches Gemini, even when the free model fails", async () => {
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.OPENROUTER_BACKUP_API_KEY = "b";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
+        if (url.includes("openrouter")) throw new DOMException("timed out", "TimeoutError");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    await expect(
+      fetchAiChat({ messages: [{ role: "user", content: "alright dickhead" }] }, "u", {
+        foulMouth: true,
+        freeOnly: true,
+      }),
+    ).rejects.toThrow();
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits).not.toContain("gemini");
+
+    // And when the free model answers, that's the answer.
+    hits.length = 0;
+    stubFetch(
+      vi.fn(async (url: string) => {
+        hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "alright dickhead" }] },
+      "u",
+      { foulMouth: true, freeOnly: true },
+    );
+    expect(provider).not.toBe("gemini");
+    expect(hits).not.toContain("gemini");
+  });
+
   it("still tries Groq first for ordinary chat", async () => {
     process.env.GROQ_API_KEY = "q";
     process.env.GEMINI_API_KEY = "g";
