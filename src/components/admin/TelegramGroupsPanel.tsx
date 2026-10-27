@@ -14,6 +14,7 @@ import {
   syncTelegramGroup,
   type GroupRow,
 } from "@/lib/telegram-groups.functions";
+import { listFleet } from "@/lib/telegram-fleet.functions";
 import { AdminSection } from "./AdminSection";
 
 const KEY = ["telegram-managed-groups"];
@@ -28,6 +29,8 @@ export function TelegramGroupsPanel() {
   const pingFn = useServerFn(pingTelegramGroup);
   const workerFn = useServerFn(setGroupWorker);
   const connectFn = useServerFn(connectTradeBotWebhook);
+  const fleetFn = useServerFn(listFleet);
+  const fleet = useQuery({ queryKey: ["telegram-worker-fleet"], queryFn: () => fleetFn() });
   const qc = useQueryClient();
   const q = useQuery({ queryKey: KEY, queryFn: () => listFn(), staleTime: 15_000 });
   const [busy, setBusy] = useState<string | null>(null);
@@ -71,16 +74,16 @@ export function TelegramGroupsPanel() {
       else toast.error(`OG B0T couldn't post: ${r.gafferProblem ?? "unknown"}. ${trade}.`);
     });
 
-  const toggle = (g: GroupRow, on: boolean) =>
+  const toggle = (g: GroupRow, on: boolean, worker = "trade") =>
     run(`worker:${g.chatId}`, async () => {
-      await workerFn({ data: { chatId: g.chatId, worker: "trade", on } });
+      await workerFn({ data: { chatId: g.chatId, worker, on } });
       toast.success(`Trade Bot ${on ? "on" : "off"} in ${g.title ?? g.chatId}`);
     });
 
   const connect = () =>
     run("connect", async () => {
       const r = await connectFn();
-      toast.success(`Trade Bot connected${r.botUsername ? ` (${r.botUsername})` : ""}`);
+      toast.success("Trade worker connected");
     });
 
   const data = q.data;
@@ -178,6 +181,18 @@ export function TelegramGroupsPanel() {
                   aria-label={`Trade Bot in ${g.title ?? g.chatId}`}
                 />
               </label>
+              {fleet.data?.map((bot) => (
+                <label key={bot.id} className="flex items-center gap-2 text-sm">
+                  <Bot className="h-4 w-4" />
+                  {bot.name}
+                  <Switch
+                    aria-label={`${bot.name} in ${g.title ?? g.chatId}`}
+                    checked={g.workers.includes(bot.id)}
+                    onCheckedChange={(on) => void toggle(g, on, bot.id)}
+                    disabled={!!busy || !bot.enabled || !g.gafferPresent}
+                  />
+                </label>
+              ))}
               <div className="flex gap-2">
                 <Button
                   size="sm"

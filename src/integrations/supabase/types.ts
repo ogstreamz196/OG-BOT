@@ -1974,6 +1974,36 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_managed_groups: {
+        Row: {
+          active_workers: Json
+          chat_id: number
+          chat_title: string | null
+          chat_type: string
+          og_bot_added_at: string | null
+          og_bot_present: boolean
+          updated_at: string
+        }
+        Insert: {
+          active_workers?: Json
+          chat_id: number
+          chat_title?: string | null
+          chat_type?: string
+          og_bot_added_at?: string | null
+          og_bot_present?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active_workers?: Json
+          chat_id?: number
+          chat_title?: string | null
+          chat_type?: string
+          og_bot_added_at?: string | null
+          og_bot_present?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       telegram_processed_updates: {
         Row: {
           chat_id: number | null
@@ -2049,6 +2079,77 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_worker_bots: {
+        Row: {
+          bot_id: number
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          instructions: string
+          name: string
+          role: string
+          token_ciphertext: string
+          updated_at: string
+          username: string
+          webhook_connected: boolean
+        }
+        Insert: {
+          bot_id: number
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name: string
+          role?: string
+          token_ciphertext: string
+          updated_at?: string
+          username: string
+          webhook_connected?: boolean
+        }
+        Update: {
+          bot_id?: number
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name?: string
+          role?: string
+          token_ciphertext?: string
+          updated_at?: string
+          username?: string
+          webhook_connected?: boolean
+        }
+        Relationships: []
+      }
+      telegram_worker_updates: {
+        Row: {
+          created_at: string
+          update_id: number
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          update_id: number
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          update_id?: number
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_worker_updates_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_worker_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tiktok_renders: {
         Row: {
           created_at: string
@@ -2108,6 +2209,7 @@ export type Database = {
           message_id: number | null
           pip: number | null
           quality: string
+          sender_worker: string | null
           status: string
           stop: number
           style: string
@@ -2142,6 +2244,7 @@ export type Database = {
           message_id?: number | null
           pip?: number | null
           quality: string
+          sender_worker?: string | null
           status?: string
           stop: number
           style: string
@@ -2176,6 +2279,7 @@ export type Database = {
           message_id?: number | null
           pip?: number | null
           quality?: string
+          sender_worker?: string | null
           status?: string
           stop?: number
           style?: string
@@ -3112,6 +3216,10 @@ export type Database = {
       set_site_content: {
         Args: { p_key: string; p_value: string }
         Returns: string
+      }
+      set_telegram_worker: {
+        Args: { p_chat: number; p_on: boolean; p_worker: string }
+        Returns: Json
       }
       set_vault_pass_admin: {
         Args: {

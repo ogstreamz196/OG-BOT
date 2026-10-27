@@ -87,7 +87,9 @@ export const setGroupWorker = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => ({
     chatId: chatIdOf(d),
-    worker: (d as { worker?: unknown })?.worker === "trade" ? ("trade" as const) : null,
+    worker: /^(trade|[a-f0-9-]{36})$/.test(String((d as { worker?: unknown })?.worker))
+      ? String((d as { worker?: unknown }).worker)
+      : null,
     on: !!(d as { on?: unknown })?.on,
   }))
   .handler(async ({ context, data }) => {
@@ -97,15 +99,21 @@ export const setGroupWorker = createServerFn({ method: "POST" })
     const { managedGroup } = await import("@/lib/telegram-worker.server");
     const group = await managedGroup(supabaseAdmin, data.chatId);
     if (!group) throw new Error("Group not found. Sync it first.");
-    const workers = new Set(group.active_workers ?? []);
-    if (data.on) workers.add(data.worker);
-    else workers.delete(data.worker);
-    const { error } = await supabaseAdmin
-      .from("telegram_managed_groups" as never)
-      .update({ active_workers: [...workers], updated_at: new Date().toISOString() } as never)
-      .eq("chat_id" as never, data.chatId as never);
+    if (data.worker !== "trade") {
+      const { data: bot } = await supabaseAdmin
+        .from("telegram_worker_bots")
+        .select("id")
+        .eq("id", data.worker)
+        .maybeSingle();
+      if (!bot) throw new Error("Unknown worker");
+    }
+    const { data: workers, error } = await supabaseAdmin.rpc("set_telegram_worker", {
+      p_chat: data.chatId,
+      p_worker: data.worker,
+      p_on: data.on,
+    });
     if (error) throw new Error(error.message);
-    return { workers: [...workers] };
+    return { workers };
   });
 
 /** Asks Telegram whether each bot is in the chat, and updates the register. */

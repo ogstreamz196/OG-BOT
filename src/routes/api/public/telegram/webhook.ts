@@ -1140,11 +1140,13 @@ async function runChatAI(
       // In a group with the chart slave on duty, OG B0T barks the order and the
       // trade bot posts the card. Anywhere else OG B0T posts it, after a
       // "hold on" line.
-      const viaWorker =
-        !!group && workerConfigured() && (await workerAllowed(admin, chat_id, "trade"));
+      const fleet = await import("@/lib/telegram-fleet.server");
+      const registeredWorker = group ? (await fleet.chatFleet(chat_id)).find(bot=>bot.role === "trade") : undefined;
+      const credentialKey = process.env['TELEGRAM_CREDENTIAL_KEY'];
+      const viaWorker = !!registeredWorker || (!!group && workerConfigured() && (await workerAllowed(admin, chat_id, "trade")));
       let picked: string;
       if (viaWorker) {
-        picked = gafferOrder(marketName(market));
+        picked = registeredWorker ? `Oi ${registeredWorker.name}, put your crayons down and give this mug the ${marketName(market)} levels. Chop fucking chop.` : gafferOrder(marketName(market));
       } else {
         const { pickTradeHold } = await import("@/lib/trade-hold.server");
         const { foulAccess } = await import("@/lib/foul-access.server");
@@ -1171,6 +1173,7 @@ async function runChatAI(
       const chunks = signal.reply.match(/[\s\S]{1,3800}/g) ?? [signal.reply];
       let firstMessageId: number | null = null;
       const cardIds: number[] = [];
+      let senderWorker: string | null = null;
       for (const [i, text] of chunks.entries()) {
         const message = {
           chat_id,
@@ -1180,10 +1183,12 @@ async function runChatAI(
         };
         // The chart slave posts it; if it can't (not in the group, blocked),
         // OG B0T posts it itself so nobody's left without their signal.
-        const byWorker = viaWorker ? await workerApi("sendMessage", message) : null;
+        const byWorker = registeredWorker && credentialKey ? await fleet.fleetApi(registeredWorker.id, "sendMessage", message, credentialKey) : viaWorker ? await workerApi("sendMessage", message) : null;
         if (byWorker?.ok) {
           const id = (byWorker.result as { message_id?: number } | undefined)?.message_id;
           if (id) cardIds.push(id);
+          firstMessageId ??= id ?? null;
+          senderWorker = registeredWorker?.id ?? "trade";
           continue;
         }
         const sent = await tg("sendMessage", message);
@@ -1200,9 +1205,7 @@ async function runChatAI(
         // A new signal wipes out the last one (see replaceOldSignals).
         await replaceOldSignals(chat_id, cardIds);
       }
-      // Group signals are a snapshot: the follow-ups and the member's chat
-      // history belong to their private chat.
-      if (group) return;
+      // Track group cards too; never save group chatter to private history.
       if (signal.plan) {
         const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
         await recordSignal({
@@ -1211,8 +1214,10 @@ async function runChatAI(
           messageId: chunks.length === 1 ? firstMessageId : null,
           card: signal.reply,
           plan: signal.plan,
+          senderWorker,
         });
       }
+      if (group) return;
       const content = signal.expiresAt
         ? trade.tagSignalExpiry(signal.reply, signal.expiresAt)
         : signal.reply;
@@ -1548,7 +1553,7 @@ type GroupMessage = {
   message_id: number;
   text?: string;
   from?: { id?: number; is_bot?: boolean; first_name?: string; username?: string };
-  reply_to_message?: { text?: string; from?: { is_bot?: boolean; username?: string } };
+  reply_to_message?: { text?: string; from?: { id?: number; is_bot?: boolean; username?: string } };
   left_chat_member?: { is_bot?: boolean; username?: string };
   chat: { id: number; type?: string; title?: string };
   message_thread_id?: number;
@@ -1855,10 +1860,12 @@ async function handleGroupMessage(
       .trim();
   // Someone talking to or about the chart slave (the trade worker bot): a
   // reply to one of its messages, its handle or its nicknames.
-  const repliedToWorker =
-    !!msg.reply_to_message?.from?.is_bot &&
-    WORKERS.trade.nicknames.test(msg.reply_to_message.from.username ?? "");
-  const atWorker = repliedToWorker || WORKERS.trade.nicknames.test(text);
+  const fleet = await import("@/lib/telegram-fleet.server");
+  const roomWorkers = await fleet.chatFleet(chat_id);
+  const repliedToWorker = !!msg.reply_to_message?.from?.is_bot && (
+    WORKERS.trade.nicknames.test(msg.reply_to_message.from.username ?? "") ||
+    roomWorkers.some(bot => bot.bot_id === msg.reply_to_message?.from?.id));
+  const atWorker = repliedToWorker || WORKERS.trade.nicknames.test(text) || roomWorkers.some(bot => text.toLowerCase().includes(bot.name.toLowerCase()));
   // Having a go at it: only the Gaffer gets to bully the chart slave.
   const defend = !slash && atWorker && looksLikeInsult(text);
   // People replying to each other (without an @mention) are left to it.
@@ -1966,8 +1973,21 @@ async function handleGroupMessage(
     const trade = await import("@/lib/trade-signal");
     const tradeAsk = trade.resolveTradeRequest(line, []);
     // Chatting to the chart slave itself: that's its conversation.
-    if (!tradeAsk && repliedToWorker && !mentioned) return ignored();
-    if (!tradeAsk) return battle(line);
+    if (!tradeAsk && repliedToWorker && !mentioned && !roomWorkers.some(bot => bot.bot_id === msg.reply_to_message?.from?.id)) return ignored();
+    if (!tradeAsk) {
+      const fleet = await import("@/lib/telegram-fleet.server");
+      const bots = await fleet.chatFleet(chat_id);
+      const bot = bots.find(b => b.role === "assistant" && (line.toLowerCase().includes(b.name.toLowerCase()) || msg.reply_to_message?.from?.id === b.bot_id));
+      const key = process.env['TELEGRAM_CREDENTIAL_KEY'];
+      if (bot && key) {
+        if (looksLikeInsult(line)) { await sendGroupBattleLine(chat_id, gafferDefence(), ctx); return Response.json({ok:true, group:"defended_worker"}); }
+        await answer(`Oi ${bot.name}, stop fucking about and sort this one out.`);
+        const text = await fleet.assistantReply(bot, line);
+        await fleet.fleetApi(bot.id, "sendMessage", {chat_id,text,...groupSendExtra(ctx)},key);
+        return Response.json({ok:true, group:"worker_answered"});
+      }
+      return battle(line);
+    }
     ask = line;
   }
 

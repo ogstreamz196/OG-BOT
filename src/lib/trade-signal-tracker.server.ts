@@ -32,6 +32,7 @@ const MINUTE = 60_000;
 type Row = {
   id: string;
   user_id: string;
+  sender_worker: string | null;
   chat_id: number | null;
   message_id: number | null;
   market: string;
@@ -68,6 +69,7 @@ async function db() {
 /** Stores a signal just sent to a member so it can be followed. Never throws. */
 export async function recordSignal(opts: {
   userId: string;
+  senderWorker?: string | null;
   chatId: number;
   messageId: number | null;
   card: string;
@@ -80,6 +82,7 @@ export async function recordSignal(opts: {
     const admin = await db();
     const { error } = await admin.from(TABLE).insert({
       user_id: opts.userId,
+      sender_worker: opts.senderWorker ?? null,
       chat_id: opts.chatId,
       message_id: opts.messageId,
       market: plan.market,
@@ -171,19 +174,19 @@ function formatter(row: Row) {
   return { fmt, move };
 }
 
-function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string }): string {
+export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string }): string {
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
       return `✅ Filled at ${fmt(row.entry)} · Cut The Bleed at ${fmt(row.stop)}`;
     case "tp1":
-      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}) · move your stop to ${fmt(row.entry)}`;
+      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}) · bank it, you greedy bastard. Move your stop to ${fmt(row.entry)}`;
     case "tp2":
-      return `🎯 Potentially hit (${move(row.entry, row.tp2)}) · Greedy Runner next at ${fmt(row.tp3)}`;
+      return `🎯 Potentially hit (${move(row.entry, row.tp2)}) · another bag secured, you jammy bastard. Greedy Runner next at ${fmt(row.tp3)}`;
     case "tp3":
-      return `🏁 Greedy Runner hit (${move(row.entry, row.tp3)}) · trade done`;
+      return `🏁 Greedy Runner hit (${move(row.entry, row.tp3)}) · job fucking done. Bank it, don't get cocky`;
     case "stopped":
-      return `🛑 Bled out at the stop (${move(row.entry, row.stop)}) · don't chase it`;
+      return `🛑 Bled out at the stop (${move(row.entry, row.stop)}) · cut the fucking loss. Don't chase it`;
     case "breakeven":
       return `⚖️ Back to entry after the Quick Scalp · closed at breakeven`;
     case "unfilled":
@@ -215,10 +218,37 @@ function liveLine(row: Row, price: number, now: number): string {
   return `📍 ${fmt(price)}${vsEntry} · ${STATUS_TEXT[row.status] ?? ""} · ${when}`;
 }
 
+async function senderCall<T = unknown>(
+  row: Row,
+  method: string,
+  body: Record<string, unknown>,
+): Promise<T | null> {
+  if (row.sender_worker) {
+    const w = await import("./telegram-worker.server");
+    if (row.sender_worker === "trade") {
+      if (row.chat_id) {
+        const group = await w.managedGroup(await db(), row.chat_id);
+        if (group && (!group.og_bot_present || !group.active_workers.includes("trade"))) return null;
+      }
+      const res = await w.workerApi<T>(method, body);
+      return res?.ok ? (res.result ?? null) : null;
+    }
+    const f = await import("./telegram-fleet.server");
+    const key = process.env["TELEGRAM_CREDENTIAL_KEY"];
+    if (!key) return null;
+    if (row.chat_id && row.chat_id < 0 && !(await f.fleetAllowed(row.sender_worker, row.chat_id)))
+      return null;
+    const res = await f.fleetApi<T>(row.sender_worker, method, body, key);
+    return res.ok ? (res.result ?? null) : null;
+  }
+  const { telegramCall } = await import("./telegram-api.server");
+  return telegramCall<T>(method, body);
+}
+
 async function sendFollowUp(row: Row, text: string) {
   if (!row.chat_id) return;
   const { telegramCall } = await import("./telegram-api.server");
-  const sent = await telegramCall<{ message_id?: number }>("sendMessage", {
+  const sent = await senderCall<{ message_id?: number }>(row, "sendMessage", {
     chat_id: row.chat_id,
     text: `📊 ${row.label} ${row.direction}\n${text}`,
     disable_web_page_preview: true,
@@ -366,7 +396,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               now - (row.last_edit_at ? Date.parse(row.last_edit_at) : 0) >= LIVE_EDIT_MS));
         if (editDue) {
           const { telegramCall } = await import("./telegram-api.server");
-          await telegramCall("editMessageText", {
+          await senderCall(row, "editMessageText", {
             chat_id: row.chat_id,
             message_id: row.message_id,
             text: `${row.card}\n\n${liveLine({ ...row, status }, lastPrice, now)}`,
