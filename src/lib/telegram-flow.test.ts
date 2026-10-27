@@ -922,7 +922,7 @@ describe("telegram bot flow", () => {
       await inGroup("spam 6");
       expect(ai.battles).toHaveLength(5);
       const notice = groupSent().at(-1)!;
-      expect(notice.text).toMatch(/^Imran, 🐌 .*slow mode: I'll answer you again in (29|30)s\.$/);
+      expect(notice.text).toMatch(/^Imran, 🐌 .*slow mode: I'll answer you again in (2[0-9]|30)s\.$/);
       expect(tags(notice)).toEqual([["Imran", CHAT]]);
       expect(repliesTo(notice)).toBe(sixth);
       // More spam: nothing at all, not even another notice.

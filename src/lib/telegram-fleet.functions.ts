@@ -46,7 +46,7 @@ export const listFleet = createServerFn({ method: "GET" })
   });
 export const saveFleetBot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(connectionSchema)
+  .validator(connectionSchema)
   .handler(async ({ context, data }) => {
     await boss(context);
     const key = process.env["TELEGRAM_CREDENTIAL_KEY"];
@@ -147,7 +147,7 @@ export const saveFleetBot = createServerFn({ method: "POST" })
   });
 export const fleetAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(fleetActionSchema)
+  .validator(fleetActionSchema)
   .handler(async ({ context, data }) => {
     await boss(context);
     const key = process.env["TELEGRAM_CREDENTIAL_KEY"];
