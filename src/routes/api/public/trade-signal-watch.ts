@@ -23,12 +23,13 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           const events = passes.reduce((n, p) => n + p.events, 0);
           // At UK midnight the signals chat's score starts a fresh day.
           const { rollScoreDay } = await import("@/lib/signal-chat.server");
-          await rollScoreDay(supabaseAdmin);
+          const score = await rollScoreDay(supabaseAdmin);
           return Response.json({
             ok: true,
             passes: passes.length,
             events,
             active: passes.at(-1)?.active ?? 0,
+            score,
           });
         } catch (e) {
           console.error("[signals] watch failed", e);

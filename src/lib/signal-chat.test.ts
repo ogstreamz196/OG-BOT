@@ -8,7 +8,12 @@ let nextId = 500;
 vi.mock("./telegram-worker.server", () => ({
   workerApi: async (method: string, body: Record<string, any>) => {
     calls.push({ method, body });
-    return method === "sendMessage" ? { ok: true, result: { message_id: nextId++ } } : { ok: true };
+    if (method === "sendMessage") return { ok: true, result: { message_id: nextId++ } };
+    if (method === "getChat")
+      return body.chat_id === "@ogsignals"
+        ? { ok: true, result: { id: -1009999 } }
+        : { ok: false, description: "Bad Request: chat not found" };
+    return { ok: true };
   },
 }));
 
@@ -133,7 +138,24 @@ describe("isSignalsChat", () => {
   test("matches the signals chat however its id was saved", async () => {
     const { isSignalsChat } = await import("./signal-chat.server");
     process.env.SIGNALS_CHANNEL_ID = "1234";
-    expect(isSignalsChat(-1001234)).toBe(true);
-    expect(isSignalsChat(42)).toBe(false);
+    expect(await isSignalsChat(-1001234)).toBe(true);
+    expect(await isSignalsChat(42)).toBe(false);
+    // Saved as an @name: the trade bot looks up the number.
+    process.env.SIGNALS_CHANNEL_ID = "@ogsignals";
+    expect(await isSignalsChat(-1009999)).toBe(true);
+  });
+});
+
+describe("rollScoreDay says why", () => {
+  test("posted, up to date, or the reason it couldn't", async () => {
+    const { rollScoreDay } = await import("./signal-chat.server");
+    expect(await rollScoreDay(fakeAdmin())).toBe("posted");
+    expect(await rollScoreDay(fakeAdmin())).toBe("up to date");
+    process.env.SIGNALS_CHANNEL_ID = "@nowhere";
+    expect(await rollScoreDay(fakeAdmin())).toBe(
+      "skipped: the trade bot can't find the signals chat",
+    );
+    delete process.env.SIGNALS_BOT_TOKEN;
+    expect(await rollScoreDay(fakeAdmin())).toBe("skipped: signals bot or chat not set up");
   });
 });

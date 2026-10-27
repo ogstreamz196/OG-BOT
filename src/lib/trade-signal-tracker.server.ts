@@ -269,7 +269,7 @@ async function sendFollowUp(row: Row, text: string) {
     );
     // In the signals chat: remembered by pair, and today's score moves under it.
     const sc = await import("./signal-chat.server");
-    if (sc.isSignalsChat(row.chat_id)) {
+    if (await sc.isSignalsChat(row.chat_id)) {
       await sc.trackSignalMessage(admin, row.chat_id, sent.message_id, row.market, "update");
       await sc.refreshScore(admin, row.chat_id);
     }
