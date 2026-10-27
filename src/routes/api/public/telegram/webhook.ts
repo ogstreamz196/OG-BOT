@@ -1794,8 +1794,20 @@ async function handleGroupMessage(
       .replace(mention, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
+  // The OG trade bot's chat: signals are its job; OG B0T is the fun, the
+  // brains and the trade bot's minder. Anyone insulting the trade bot (a
+  // reply to it, an @mention or by name) gets OG B0T stepping in.
+  const tradeChat = isTradeBotChat(chat_id);
+  const atTradeBot =
+    (!!msg.reply_to_message?.from?.is_bot &&
+      /og_?tradebot/i.test(msg.reply_to_message.from.username ?? "")) ||
+    /@og_tradebot\b|\btrade\s?bot\b/i.test(text);
+  if (tradeChat && !slash && atTradeBot && looksLikeInsult(text)) {
+    ctx_defend = true;
+  }
   // People replying to each other (without an @mention) are left to it.
-  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned) return ignored();
+  if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !ctx_defend)
+    return ignored();
   // No "/" needed: "signal gold", "roast Dave", "help" and "og …" work as
   // they are, the same as the commands.
   const command: { 1: string; 3?: string } | null = slash
