@@ -54,6 +54,11 @@
 
 ## Pending
 
+- [ ] Apply managed-group migration and encrypted website-managed bot registry
+- [ ] Add Boss bot connection, replacement, disable, ping and webhook controls
+- [ ] Wire registered workers into Gaffer dispatch and track exact signal outcomes as the sending bot
+- [ ] Verify Telegram tests and signed-in Boss controls
+
 - [x] Add Telegram Signals menu with XAU/BTC and 1h/15m/1m live signals; 53 tests pass, live BTC 1m and XAU 1h delivered and read back
 - [x] Diagnose and fix Telegram trade-signal generation; verify live market fallback and delivery
 - [x] Use the supplied OG-STREAMZ artwork on Welcome back and enlarge both welcome and sign-in logos
