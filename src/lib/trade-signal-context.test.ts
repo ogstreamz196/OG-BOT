@@ -111,7 +111,9 @@ describe("buildTradeSignalContext", () => {
     expect(entry).toBeDefined();
     expect(stop).toBeDefined();
     expect(signal.reply).toContain(`Entry: ${entry}`);
-    expect(signal.reply).toContain(`🛑 Cut The Bleed (GTFO): ${stop}`);
+    // Stop loss first, then the entry, then the three targets.
+    expect(signal.reply).toContain(`🛑 Stop Loss: ${stop}\n▶️ Entry: ${entry}`);
+    expect(signal.reply).toMatch(/▶️ Entry: [^\n]+\n🎯 Quick Scalp: /);
     // The Telegram card: renamed targets, no confidence %, the new sign-off.
     expect(signal.reply).toMatch(
       /🎯 Quick Scalp: [\d.]+\n🎯 Potentially: [\d.]+\n🎯 Greedy Runner: [\d.]+/,
@@ -260,7 +262,7 @@ describe("buildTradeSignalContext", () => {
     expect(out).not.toContain("SIGNAL ENGINE");
     const signal = await buildTradeSignal("usdcad entry");
     expect(signal.expiresAt).toBeNull();
-    expect(signal.reply).not.toMatch(/Entry:|Cut The Bleed|Quick Scalp/);
+    expect(signal.reply).not.toMatch(/Entry:|Stop Loss|Quick Scalp/);
   });
 });
 

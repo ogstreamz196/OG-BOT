@@ -178,7 +178,7 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
-      return `✅ Filled at ${fmt(row.entry)} · Cut The Bleed at ${fmt(row.stop)}`;
+      return `✅ Filled at ${fmt(row.entry)} · Stop Loss at ${fmt(row.stop)}`;
     case "tp1":
       return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}) · bank it, you greedy bastard. Move your stop to ${fmt(row.entry)}`;
     case "tp2":
@@ -186,7 +186,7 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
     case "tp3":
       return `🏁 Greedy Runner hit (${move(row.entry, row.tp3)}) · job fucking done. Bank it, don't get cocky`;
     case "stopped":
-      return `🛑 Bled out at the stop (${move(row.entry, row.stop)}) · cut the fucking loss. Don't chase it`;
+      return `🛑 Stop Loss hit (${move(row.entry, row.stop)}) · cut the fucking loss. Don't chase it`;
     case "breakeven":
       return `⚖️ Back to entry after the Quick Scalp · closed at breakeven`;
     case "unfilled":
