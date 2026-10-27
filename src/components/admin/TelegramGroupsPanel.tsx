@@ -30,7 +30,7 @@ export function TelegramGroupsPanel() {
   const workerFn = useServerFn(setGroupWorker);
   const connectFn = useServerFn(connectTradeBotWebhook);
   const fleetFn = useServerFn(listFleet);
-  const fleet = useQuery({queryKey: ["telegram-worker-fleet"], queryFn: () => fleetFn()});
+  const fleet = useQuery({ queryKey: ["telegram-worker-fleet"], queryFn: () => fleetFn() });
   const qc = useQueryClient();
   const q = useQuery({ queryKey: KEY, queryFn: () => listFn(), staleTime: 15_000 });
   const [busy, setBusy] = useState<string | null>(null);
@@ -181,7 +181,18 @@ export function TelegramGroupsPanel() {
                   aria-label={`Trade Bot in ${g.title ?? g.chatId}`}
                 />
               </label>
-              {fleet.data?.map(bot => <label key={bot.id} className="flex items-center gap-2 text-sm"><Bot className="h-4 w-4" />{bot.name}<Switch aria-label={`${bot.name} in ${g.title ?? g.chatId}`} checked={g.workers.includes(bot.id)} onCheckedChange={on=>void toggle(g,on,bot.id)} disabled={!!busy || !bot.enabled || !g.gafferPresent}/></label>)}
+              {fleet.data?.map((bot) => (
+                <label key={bot.id} className="flex items-center gap-2 text-sm">
+                  <Bot className="h-4 w-4" />
+                  {bot.name}
+                  <Switch
+                    aria-label={`${bot.name} in ${g.title ?? g.chatId}`}
+                    checked={g.workers.includes(bot.id)}
+                    onCheckedChange={(on) => void toggle(g, on, bot.id)}
+                    disabled={!!busy || !bot.enabled || !g.gafferPresent}
+                  />
+                </label>
+              ))}
               <div className="flex gap-2">
                 <Button
                   size="sm"

@@ -68,12 +68,12 @@ export function TelegramWebhookStatus({ autoRegister = true }: Props = {}) {
       setLastSetAt(stamp);
       if (!opts?.silent) {
         toast.success(
-          r.botUsername ? `Webhook registered on @${r.botUsername}` : "Webhook registered",
+          "telegram og bot webhook registered",
           { description: r.url },
         );
       } else {
         toast.success(
-          r.botUsername ? `Auto-fixed webhook on @${r.botUsername}` : "Auto-fixed Telegram webhook",
+          "telegram og bot webhook connected",
         );
       }
       q.refetch();

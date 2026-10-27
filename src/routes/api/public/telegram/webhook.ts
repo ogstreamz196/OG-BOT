@@ -1860,10 +1860,12 @@ async function handleGroupMessage(
       .trim();
   // Someone talking to or about the chart slave (the trade worker bot): a
   // reply to one of its messages, its handle or its nicknames.
-  const repliedToWorker =
-    !!msg.reply_to_message?.from?.is_bot &&
-    WORKERS.trade.nicknames.test(msg.reply_to_message.from.username ?? "");
-  const atWorker = repliedToWorker || WORKERS.trade.nicknames.test(text);
+  const fleet = await import("@/lib/telegram-fleet.server");
+  const roomWorkers = await fleet.chatFleet(chat_id);
+  const repliedToWorker = !!msg.reply_to_message?.from?.is_bot && (
+    WORKERS.trade.nicknames.test(msg.reply_to_message.from.username ?? "") ||
+    roomWorkers.some(bot => bot.bot_id === msg.reply_to_message?.from?.id));
+  const atWorker = repliedToWorker || WORKERS.trade.nicknames.test(text) || roomWorkers.some(bot => text.toLowerCase().includes(bot.name.toLowerCase()));
   // Having a go at it: only the Gaffer gets to bully the chart slave.
   const defend = !slash && atWorker && looksLikeInsult(text);
   // People replying to each other (without an @mention) are left to it.
@@ -1971,7 +1973,7 @@ async function handleGroupMessage(
     const trade = await import("@/lib/trade-signal");
     const tradeAsk = trade.resolveTradeRequest(line, []);
     // Chatting to the chart slave itself: that's its conversation.
-    if (!tradeAsk && repliedToWorker && !mentioned) return ignored();
+    if (!tradeAsk && repliedToWorker && !mentioned && !roomWorkers.some(bot => bot.bot_id === msg.reply_to_message?.from?.id)) return ignored();
     if (!tradeAsk) {
       const fleet = await import("@/lib/telegram-fleet.server");
       const bots = await fleet.chatFleet(chat_id);

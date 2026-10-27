@@ -18,7 +18,16 @@ import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
-  head: () => ({ meta: [{ title: "Telegram & Workers | 0G B0T Boss" }, { name: "description", content: "Manage 0G B0T, Telegram chats and your worker fleet." }, { property: "og:title", content: "Telegram & Workers | 0G B0T Boss" }, { property: "og:description", content: "Manage Telegram chats and worker bots securely." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({
+    meta: [
+      { title: "Telegram & Workers | 0G B0T Boss" },
+      { name: "description", content: "Manage 0G B0T, Telegram chats and your worker fleet." },
+      { property: "og:title", content: "Telegram & Workers | 0G B0T Boss" },
+      { property: "og:description", content: "Manage Telegram chats and worker bots securely." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AdminBotPage,
 });
 

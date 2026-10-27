@@ -218,22 +218,27 @@ function liveLine(row: Row, price: number, now: number): string {
   return `📍 ${fmt(price)}${vsEntry} · ${STATUS_TEXT[row.status] ?? ""} · ${when}`;
 }
 
-async function senderCall<T = unknown>(row: Row, method: string, body: Record<string, unknown>): Promise<T | null> {
+async function senderCall<T = unknown>(
+  row: Row,
+  method: string,
+  body: Record<string, unknown>,
+): Promise<T | null> {
   if (row.sender_worker) {
     const w = await import("./telegram-worker.server");
     if (row.sender_worker === "trade") {
       if (row.chat_id && !(await w.workerAllowed(await db(), row.chat_id, "trade"))) return null;
       const res = await w.workerApi<T>(method, body);
-      return res?.ok ? res.result ?? null : null;
+      return res?.ok ? (res.result ?? null) : null;
     }
     const f = await import("./telegram-fleet.server");
-    const key = process.env['TELEGRAM_CREDENTIAL_KEY'];
+    const key = process.env["TELEGRAM_CREDENTIAL_KEY"];
     if (!key) return null;
-    if (row.chat_id && row.chat_id < 0 && !await f.fleetAllowed(row.sender_worker, row.chat_id)) return null;
+    if (row.chat_id && row.chat_id < 0 && !(await f.fleetAllowed(row.sender_worker, row.chat_id)))
+      return null;
     const res = await f.fleetApi<T>(row.sender_worker, method, body, key);
-    return res.ok ? res.result ?? null : null;
+    return res.ok ? (res.result ?? null) : null;
   }
-  const {telegramCall} = await import("./telegram-api.server");
+  const { telegramCall } = await import("./telegram-api.server");
   return telegramCall<T>(method, body);
 }
 
