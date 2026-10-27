@@ -37,7 +37,7 @@ function fakeDb(opts: { broken?: boolean } = {}) {
 
 const T0 = Date.parse("2026-10-25T12:00:00Z");
 const card = (market: string, direction: "BUY" | "SELL", confidencePct: number, mins = 60) => ({
-  reply: `${market} ${direction} card\n\n🔔 I'll update you here · Not financial advice`,
+  reply: `${market} ${direction} card\n\n⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.`,
   plan: {
     market,
     label: market,
@@ -68,11 +68,10 @@ describe("auto-posted scalp signals", () => {
     const result = await scanAndBroadcast(db, d);
     expect(result).toEqual({ checked: 2, posted: ["XAUUSD BUY"] });
     expect(d.sent).toHaveLength(1);
-    expect(d.sent[0]).toMatch(/^🚨 90% SCALP ALERT\n\nXAUUSD BUY card/);
-    // Nothing in the channel follows up, so it doesn't promise to.
-    expect(d.sent[0]).not.toContain("I'll update you");
-    expect(d.sent[0]).toContain("Not financial advice");
-    expect(d.sent[0]).toContain("not a win rate");
+    expect(d.sent[0]).toMatch(/^🚨 TOP SCALP ALERT · every timeframe agrees\n\nXAUUSD BUY card/);
+    // Cards never show a confidence %.
+    expect(d.sent[0]).not.toMatch(/\d+%(?! OR)/);
+    expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
     expect(BROADCAST_MIN_CONFIDENCE).toBe(90);
   });
 
@@ -115,8 +114,6 @@ describe("auto-posted scalp signals", () => {
   });
 
   test("channel card wording", () => {
-    expect(channelCard("x\n🔔 I'll update you here · Not financial advice", 90)).toBe(
-      "🚨 90% SCALP ALERT\n\nx\nNot financial advice\n\nConfidence = how many of the indicators agree, not a win rate.",
-    );
+    expect(channelCard("x")).toBe("🚨 TOP SCALP ALERT · every timeframe agrees\n\nx");
   });
 });

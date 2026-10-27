@@ -67,6 +67,8 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
           "channel_post",
           "edited_channel_post",
           "callback_query",
+          // OG B0T added to / removed from groups (the group register).
+          "my_chat_member",
         ],
       }),
     });

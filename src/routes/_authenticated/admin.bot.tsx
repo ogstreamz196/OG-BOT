@@ -8,6 +8,7 @@ import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { GeminiUsagePanel } from "@/components/admin/GeminiUsagePanel";
 import { OgBotPing } from "@/components/admin/OgBotPing";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
+import { TelegramGroupsPanel } from "@/components/admin/TelegramGroupsPanel";
 import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
 import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
@@ -35,6 +36,15 @@ function SignalsTab() {
       >
         <SignalsBacktestPanel />
       </Suspense>
+    </>
+  );
+}
+
+function TelegramTab() {
+  return (
+    <>
+      <TelegramWebhookStatus />
+      <TelegramGroupsPanel />
     </>
   );
 }
@@ -67,8 +77,8 @@ const TABS: readonly BossTab[] = [
     value: "telegram",
     label: "Telegram",
     Icon: Send,
-    hint: "Whether Telegram messages are reaching the bot.",
-    Panel: TelegramWebhookStatus,
+    hint: "Whether Telegram messages are reaching the bot, and the groups it runs with its worker bots.",
+    Panel: TelegramTab,
   },
   {
     value: "alerts",

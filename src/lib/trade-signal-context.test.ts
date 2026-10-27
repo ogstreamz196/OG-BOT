@@ -111,7 +111,18 @@ describe("buildTradeSignalContext", () => {
     expect(entry).toBeDefined();
     expect(stop).toBeDefined();
     expect(signal.reply).toContain(`Entry: ${entry}`);
-    expect(signal.reply).toContain(`SL: ${stop}`);
+    expect(signal.reply).toContain(`🛑 Cut The Bleed (GTFO): ${stop}`);
+    // The Telegram card: renamed targets, no confidence %, the new sign-off.
+    expect(signal.reply).toMatch(
+      /🎯 Quick Scalp: [\d.]+\n🎯 Potentially: [\d.]+\n🎯 Greedy Runner: [\d.]+/,
+    );
+    expect(signal.reply).not.toMatch(/\d+% confidence|TP\d|SL:/);
+    expect(signal.reply).not.toContain("@");
+    expect(
+      signal.reply.endsWith(
+        "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.",
+      ),
+    ).toBe(true);
     expect(signal.expiresAt).not.toBeNull();
   });
 
@@ -249,7 +260,7 @@ describe("buildTradeSignalContext", () => {
     expect(out).not.toContain("SIGNAL ENGINE");
     const signal = await buildTradeSignal("usdcad entry");
     expect(signal.expiresAt).toBeNull();
-    expect(signal.reply).not.toMatch(/Entry:|SL:|TP1:/);
+    expect(signal.reply).not.toMatch(/Entry:|Cut The Bleed|Quick Scalp/);
   });
 });
 
@@ -258,7 +269,8 @@ describe("accuracy wiring", () => {
     vi.fn(async (url: string) => {
       if (url.includes("swissquote")) return ok(spot);
       const interval = new URL(url).searchParams.get("interval");
-      if (!url.includes("binance") || !url.includes("klines")) return new Response("no", { status: 404 });
+      if (!url.includes("binance") || !url.includes("klines"))
+        return new Response("no", { status: 404 });
       const ms = interval === "1d" ? 24 * HOUR : HOUR;
       return ok(binanceRows(bars(1000, 2000, 0.2, ms)));
     });
@@ -304,7 +316,16 @@ describe("Telegram delivery", () => {
         const fetchSpy = vi.fn(async (url: string) => {
           const interval = new URL(url).searchParams.get("interval");
           if (!url.includes("binance")) return new Response("nope", { status: 404 });
-          const ms = interval === "1d" ? 24 * HOUR : interval === "1h" ? HOUR : interval === "15m" ? HOUR / 4 : interval === "5m" ? 300_000 : 60_000;
+          const ms =
+            interval === "1d"
+              ? 24 * HOUR
+              : interval === "1h"
+                ? HOUR
+                : interval === "15m"
+                  ? HOUR / 4
+                  : interval === "5m"
+                    ? 300_000
+                    : 60_000;
           return ok(binanceRows(bars(1000, 2000, interval === "1m" ? -0.1 : 0.2, ms)));
         });
         stubFetch(fetchSpy);
@@ -316,7 +337,9 @@ describe("Telegram delivery", () => {
         if (frame === "1m") {
           const fifteen = await build(`${pair} signal 15m`);
           expect(fifteen.reply).toContain("⏱ 15M ·");
-          expect(signal.reply.match(/Entry: (\S+)/)?.[1]).not.toBe(fifteen.reply.match(/Entry: (\S+)/)?.[1]);
+          expect(signal.reply.match(/Entry: (\S+)/)?.[1]).not.toBe(
+            fifteen.reply.match(/Entry: (\S+)/)?.[1],
+          );
         }
       });
     }

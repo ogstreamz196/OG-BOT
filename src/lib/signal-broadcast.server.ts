@@ -41,13 +41,9 @@ export type ScanDeps = {
   now: () => number;
 };
 
-/** The card as posted: nothing in the channel follows up, so it doesn't promise to. */
-export function channelCard(reply: string, confidencePct: number): string {
-  const card = reply.replace(/🔔 I'll update you here · /, "");
-  return (
-    `🚨 ${confidencePct}% SCALP ALERT\n\n${card}\n\n` +
-    "Confidence = how many of the indicators agree, not a win rate."
-  );
+/** The card as posted: a top-confidence scalp, without showing a % (cards never do). */
+export function channelCard(reply: string): string {
+  return `🚨 TOP SCALP ALERT · every timeframe agrees\n\n${reply}`;
 }
 
 export async function scanAndBroadcast(
@@ -85,7 +81,7 @@ export async function scanAndBroadcast(
     const last = ((live ?? []) as { direction: string }[])[0];
     if (last && last.direction === plan.direction) continue;
 
-    const messageId = await deps.post(channelCard(signal.reply, plan.confidencePct));
+    const messageId = await deps.post(channelCard(signal.reply));
     if (messageId === null) continue;
     await admin.from(POSTS).insert({
       market: plan.market,

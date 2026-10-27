@@ -175,17 +175,17 @@ function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
-      return `✅ Filled at ${fmt(row.entry)} · SL ${fmt(row.stop)}`;
+      return `✅ Filled at ${fmt(row.entry)} · Cut The Bleed at ${fmt(row.stop)}`;
     case "tp1":
-      return `🎯 TP1 hit (${move(row.entry, row.tp1)}) · move SL to ${fmt(row.entry)}`;
+      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}) · move your stop to ${fmt(row.entry)}`;
     case "tp2":
-      return `🎯 TP2 hit (${move(row.entry, row.tp2)}) · next ${fmt(row.tp3)}`;
+      return `🎯 Potentially hit (${move(row.entry, row.tp2)}) · Greedy Runner next at ${fmt(row.tp3)}`;
     case "tp3":
-      return `🏁 TP3 hit (${move(row.entry, row.tp3)}) · trade done`;
+      return `🏁 Greedy Runner hit (${move(row.entry, row.tp3)}) · trade done`;
     case "stopped":
-      return `🛑 Stopped out (${move(row.entry, row.stop)}) · don't chase it`;
+      return `🛑 Bled out at the stop (${move(row.entry, row.stop)}) · don't chase it`;
     case "breakeven":
-      return `⚖️ Back to entry after TP1 · closed at breakeven`;
+      return `⚖️ Back to entry after the Quick Scalp · closed at breakeven`;
     case "unfilled":
       return `⏳ Entry not reached in time · cancel the order`;
     case "expired":
@@ -193,15 +193,15 @@ function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string
         ? `⏳ Time's up · price ${fmt(row.last_price)} (${move(row.entry, row.last_price)})`
         : `⏳ Time's up on this signal`;
     case "cancelled":
-      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancel the order" : "close it or tighten SL"}`;
+      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancel the order" : "close it or tighten your stop"}`;
   }
 }
 
 const STATUS_TEXT: Partial<Record<SignalStatus, string>> = {
   pending: "waiting for entry",
   open: "in the trade",
-  tp1: "TP1 hit",
-  tp2: "TP2 hit",
+  tp1: "Quick Scalp hit",
+  tp2: "Potentially hit",
 };
 
 function liveLine(row: Row, price: number, now: number): string {
