@@ -1974,6 +1974,36 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_managed_groups: {
+        Row: {
+          active_workers: Json
+          chat_id: number
+          chat_title: string | null
+          chat_type: string
+          og_bot_added_at: string | null
+          og_bot_present: boolean
+          updated_at: string
+        }
+        Insert: {
+          active_workers?: Json
+          chat_id: number
+          chat_title?: string | null
+          chat_type?: string
+          og_bot_added_at?: string | null
+          og_bot_present?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active_workers?: Json
+          chat_id?: number
+          chat_title?: string | null
+          chat_type?: string
+          og_bot_added_at?: string | null
+          og_bot_present?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       telegram_processed_updates: {
         Row: {
           chat_id: number | null
