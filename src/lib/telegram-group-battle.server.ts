@@ -161,8 +161,9 @@ async function battleAnswer(
   const lex = await import("@/lib/battle-lexicon.server");
   const slang = await lex.learnedSlangBlock(admin);
   const { fetchAiChat } = await import("@/lib/ai-endpoint.server");
-  // Free models only: group roasts never spend on paid AI. If they're all
-  // down, there's no answer (the caller says it's busy, at most now and then).
+  // Free models only: group roasts never spend on paid AI. The swearing model
+  // goes first, then every other free one; only if they're all down is there
+  // no answer (the caller says so, at most now and then).
   const reply = await fetchAiChat(
     {
       temperature: 1.05,
@@ -189,7 +190,10 @@ async function battleAnswer(
     choices?: { message?: { content?: string } }[];
   };
   const text = (json.choices?.[0]?.message?.content ?? "").trim();
-  return text || null;
+  if (!text) return null;
+  // A free model other than the swearing one can come out soft: keep it foul.
+  const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
+  return ensureFoulFlavour(text);
 }
 
 export type BattleTurn =

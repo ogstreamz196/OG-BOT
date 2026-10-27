@@ -167,7 +167,7 @@ export function TelegramFleetPanel() {
                   </p>
                 </div>
                 <Switch
-                  aria-label={`Enable ${bot.name}`}
+                  aria-label={`Turn on ${bot.name}`}
                   checked={bot.enabled}
                   disabled={busy}
                   onCheckedChange={(on) =>
