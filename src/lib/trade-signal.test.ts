@@ -6,6 +6,7 @@ import {
   detectStyle,
   detectTradeIntent,
   resolveTradeRequest,
+  STOP_ROOM,
   isAnyMarketAsk,
   ema,
   parseInstrument,
@@ -182,9 +183,11 @@ describe("buildPlan", () => {
     expect(plan.targets[0]).toBeGreaterThan(plan.entry!);
     expect(plan.targets[1]).toBeGreaterThan(plan.targets[0]);
     expect(plan.targets[2]).toBeGreaterThanOrEqual(plan.targets[1]);
-    // Quick Scalp sits at 0.8R: 20% closer than the engine's 1R TP1.
-    expect(plan.targets[0] - plan.entry!).toBeCloseTo((plan.entry! - plan.stop!) * 0.8);
-    expect(plan.rr.startsWith("1:0.8 /")).toBe(true);
+    // Quick Scalp sits at 0.8R: 20% closer than the engine's 1R TP1. The
+    // stop sits 20% further out than that R, and the R:R uses that stop.
+    const engineRisk = (plan.entry! - plan.stop!) / STOP_ROOM;
+    expect(plan.targets[0] - plan.entry!).toBeCloseTo(engineRisk * 0.8);
+    expect(plan.rr.startsWith("1:0.7 /")).toBe(true);
   });
 
   it("calls SELL in an aligned downtrend", () => {
@@ -315,7 +318,8 @@ describe("buildPlan accuracy rules", () => {
     withHigh[290] = { ...withHigh[290], h: price + 3 };
     const clear = buildPlan(frame("Daily"), frame("4H"), frame("1H"), withHigh, line(300), price);
     expect(clear.verdict).toBe("trade");
-    expect(clear.stop).toBeCloseTo(price + 3.5);
+    // The engine's stop is 3.5 away; members get 20% more room.
+    expect(clear.stop).toBeCloseTo(price + 3.5 * STOP_ROOM);
 
     // Now a swing low 4 below: only 1.1R of room before support.
     const blocked = [...withHigh];
@@ -327,7 +331,7 @@ describe("buildPlan accuracy rules", () => {
 
   it("puts the second target on a real level when there is one", () => {
     const plan = buildPlan(hi, mid, lo, h, h4);
-    const risk = plan.stop - plan.entry;
+    const risk = (plan.stop - plan.entry) / STOP_ROOM;
     const tp2R = (plan.entry - plan.targets[1]) / risk;
     expect(tp2R).toBeGreaterThanOrEqual(1.5);
     expect(plan.targets[2]).toBeLessThan(plan.targets[1]);
