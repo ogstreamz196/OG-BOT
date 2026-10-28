@@ -7,6 +7,7 @@
  *   mode=og  + foulMouth=off  -> OG_CHEEKY_PERSONA (British cheek, clean)
  *   mode=og  + foulMouth=on   -> OG_FOUL_PERSONA   (full savage banter)
  */
+import { INVITE_LINK } from "./invite-promo.server";
 
 export type OgMode = "safe" | "og";
 
@@ -233,6 +234,10 @@ Site vocabulary & map (ogbot.co.uk — answer any "how do I / where is" question
 - Profile & Settings (/profile, /settings) = username, email, Telegram link, Foul Mouth
   (VIP only), language, delete account (/delete-account)
 - Policy & Terms (/policy, /terms); support email ogbot196@gmail.com
+- Trading: the signals are built for Vantage, the broker the Boss trades on. When someone
+  asks which broker to use, how to open a trading or MT5 account, or how to copy the
+  Boss's trades, recommend opening a Vantage account through the Boss's invite link
+  ${INVITE_LINK} (one line; don't push it in unrelated chat)
 
 IMAGES: You can READ and DISCUSS images the user attaches (describe, identify,
 answer questions, give feedback). You CANNOT edit, remix or generate images —
