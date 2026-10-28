@@ -62,17 +62,22 @@ function deps(
 }
 
 describe("auto-posted scalp signals", () => {
-  test("only top-confidence trades are posted, as a channel card", async () => {
+  test("trades from 70% confidence are posted, TOP only at 90%", async () => {
     const { db } = fakeDb();
-    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: card("BTCUSD", "SELL", 89) });
+    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: card("BTCUSD", "SELL", 70) });
     const result = await scanAndBroadcast(db, d);
-    expect(result).toEqual({ checked: 2, posted: ["XAUUSD BUY"] });
-    expect(d.sent).toHaveLength(1);
+    expect(result).toEqual({ checked: 2, posted: ["XAUUSD BUY", "BTCUSD SELL"] });
+    expect(d.sent).toHaveLength(2);
     expect(d.sent[0]).toMatch(/^🚨 TOP SCALP ALERT · every timeframe agrees\n\nXAUUSD BUY card/);
-    // Cards never show a confidence %.
-    expect(d.sent[0]).not.toMatch(/\d+%(?! OR)/);
+    expect(d.sent[1]).toMatch(/^🚨 SCALP ALERT\n\nBTCUSD SELL card/);
     expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
-    expect(BROADCAST_MIN_CONFIDENCE).toBe(90);
+    expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
+  });
+
+  test("under 70% isn't posted", async () => {
+    const { db } = fakeDb();
+    const d = deps({ XAU: card("XAUUSD", "BUY", 69), BTC: card("BTCUSD", "SELL", 51) });
+    expect(await scanAndBroadcast(db, d)).toEqual({ checked: 2, posted: [] });
   });
 
   test("a 'wait' (no trade) is never posted", async () => {
