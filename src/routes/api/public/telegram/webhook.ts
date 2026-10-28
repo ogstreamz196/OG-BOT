@@ -296,6 +296,40 @@ async function handleCallbackQuery(cq: {
       viaMenu: menuKey !== "open",
     });
   }
+  const buyPack = /^buy:([a-z0-9_]{1,40})$/.exec(cq.data ?? "")?.[1];
+  if (buyPack) {
+    if (!privateChat) {
+      await answer("Buy coins in your private chat with OG B0T.");
+      return Response.json({ ok: true, ignored: true });
+    }
+    const admin = await loadAdmin();
+    const { data: me } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("telegram_chat_id", chatHere)
+      .maybeSingle();
+    if (!me) {
+      await answer("Link your OG B0T account first.");
+      return Response.json({ ok: true, unlinked: true });
+    }
+    await answer("Opening checkout…");
+    const { createTelegramCoinCheckout, packPrice } = await import("@/lib/telegram-coins.server");
+    const checkout = await createTelegramCoinCheckout(admin, me.id, buyPack);
+    if ("error" in checkout) {
+      await reply(chatHere, `⚠️ ${esc(checkout.error)}`);
+      return Response.json({ ok: true, buy: "failed" });
+    }
+    await reply(
+      chatHere,
+      `🪙 <b>${checkout.pack.coins} OG coins</b> for <b>${packPrice(checkout.pack)}</b>\nTap Pay, sort the card, and I'll ping you the second they land.`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: `💳 Pay ${packPrice(checkout.pack)}`, url: checkout.url }]],
+        },
+      },
+    );
+    return Response.json({ ok: true, buy: "checkout" });
+  }
   const trackId = /^track:([0-9a-f-]{36})$/.exec(cq.data ?? "")?.[1];
   if (trackId && privateChat) {
     await answer("Sending your track…");
@@ -2342,7 +2376,10 @@ async function handleTelegramUpdate(
         .maybeSingle();
       await show(`💰 <b>${p?.coin_balance ?? 0}</b> OG coins`, {
         reply_markup: {
-          inline_keyboard: [[{ text: "🛒 Top up", url: await siteLink("/store") }]],
+          inline_keyboard: [
+            [menuButton("🪙 Buy coins here", "buy")],
+            [{ text: "🛒 Store", url: await siteLink("/store") }],
+          ],
         },
       });
       return Response.json({ ok: true, balance: true });
@@ -2388,11 +2425,24 @@ async function handleTelegramUpdate(
       return Response.json({ ok: true, library: true });
     }
     if (/^\/buy\b/i.test(trimmed)) {
-      await show("🛒 <b>Top up OG coins</b>\nCoins, VIP and the Vault pass are all in the Store.", {
-        reply_markup: {
-          inline_keyboard: [[{ text: "🛒 Open Store", url: await siteLink("/store") }]],
+      // Coin packs paid by card right here (Stripe Checkout); VIP and the
+      // Vault pass stay in the Store.
+      const { telegramCoinPacks, coinPackButtons } = await import("@/lib/telegram-coins.server");
+      const [{ data: p }, packs] = await Promise.all([
+        admin.from("profiles").select("coin_balance").eq("id", linkedProfile.id).maybeSingle(),
+        telegramCoinPacks(admin).catch(() => []),
+      ]);
+      await show(
+        `💰 You've got <b>${p?.coin_balance ?? 0}</b> OG coins.\n\n🪙 <b>Top up</b>: pick a pack and pay by card. Coins land the second it goes through.\nVIP and the Vault pass are in the Store.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              ...coinPackButtons(packs),
+              [{ text: "🛒 Open Store", url: await siteLink("/store") }],
+            ],
+          },
         },
-      });
+      );
       return Response.json({ ok: true, buy: true });
     }
     if (/^\/me\b/i.test(trimmed)) {

@@ -106,6 +106,15 @@ async function creditCoinsForSession(session: any, env: StripeEnv) {
   const credited = Boolean((result as { credited?: boolean } | null)?.credited);
   const newBalance = Number((result as { balance?: number } | null)?.balance ?? 0);
   if (credited) log("info", "coins credited", { userId, coins, reference, newBalance });
+  // Bought from Telegram: OG B0T confirms it there (never blocks the credit).
+  if (credited && meta.source === "telegram") {
+    try {
+      const { confirmTelegramCoins } = await import("@/lib/telegram-coins.server");
+      await confirmTelegramCoins(supabase as never, userId, coins, newBalance);
+    } catch (e) {
+      log("warn", "telegram coin confirmation failed", { userId, err: String(e) });
+    }
+  }
   else log("info", "coins already credited", { userId, coins, reference, newBalance });
 }
 
