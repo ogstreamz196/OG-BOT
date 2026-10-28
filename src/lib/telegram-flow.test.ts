@@ -780,8 +780,8 @@ describe("telegram bot flow", () => {
       expect(battleTurn(0)).toBe("Kez: right, I'm in");
     });
 
-    test("new members are roasted by name; ones it doesn't know get the connect button", async () => {
-      const joined = nextId;
+    test("new members aren't greeted; they're answered once they speak", async () => {
+      const before = groupSent().length;
       await post({
         message: {
           message_id: nextId++,
@@ -793,19 +793,6 @@ describe("telegram bot flow", () => {
           ],
         },
       });
-      expect(battleSystem(0)).toContain("FULL FOUL MOUTH MODE");
-      expect(battleTurn(0)).toContain("[Kez @kez_99 just joined the group.]");
-      expect(battleTurn(0)).not.toContain("SomeOtherBot");
-      const roast = groupSent().at(-1)!;
-      expect(roast.text).toBe("Kez, BATTLE 1");
-      expect(tags(roast)).toEqual([["Kez", FRIEND]]);
-      expect(repliesTo(roast)).toBe(joined);
-      expect(buttons(roast)).toEqual([{ text: "🔗 Connect to OG B0T", url: connectUrl }]);
-      // That counts as today's ask: their first message isn't nagged again.
-      await asFriend("rude");
-      expect(groupSent()).toHaveLength(1);
-
-      // A member who's already connected joining: roasted, no button.
       await post({
         message: {
           message_id: nextId++,
@@ -814,18 +801,16 @@ describe("telegram bot flow", () => {
           new_chat_members: [{ id: CHAT, is_bot: false, first_name: "Imran" }],
         },
       });
-      expect(groupSent().at(-1)!.text).toBe("Imran, BATTLE 2");
-      expect(groupSent().at(-1)!.markup).toBeUndefined();
-      // Only bots joining: nothing to say.
-      await post({
-        message: {
-          message_id: nextId++,
-          chat: { id: GROUP, type: "supergroup" },
-          from: { id: 555 },
-          new_chat_members: [{ id: 4, is_bot: true, username: "SomeOtherBot" }],
-        },
-      });
-      expect(ai.battles).toHaveLength(2);
+      expect(groupSent()).toHaveLength(before);
+      expect(ai.battles).toHaveLength(0);
+      // A connected member speaking gets the roast as usual.
+      await inGroup("right, I'm here");
+      expect(ai.battles).toHaveLength(1);
+      // Someone not connected gets the Connect nudge when they first speak.
+      await asFriend("rude");
+      expect(buttons(groupSent().at(-1)!)).toEqual([
+        { text: "🔗 Connect to OG B0T", url: connectUrl },
+      ]);
     });
 
     test("no / needed: plain words work like the commands", async () => {
@@ -956,14 +941,7 @@ describe("telegram bot flow", () => {
 
     test("roasts only ever use free AI; when it's down the group hears 'busy', not a paid answer", async () => {
       await inGroup("come at me");
-      await post({
-        message: {
-          message_id: nextId++,
-          chat: { id: GROUP, type: "supergroup" },
-          from: { id: 555, first_name: "Kez" },
-          new_chat_members: [{ id: CHAT, is_bot: false, first_name: "Imran" }],
-        },
-      });
+      await inGroup("and again");
       expect(ai.battleOpts).toHaveLength(2);
       for (const o of ai.battleOpts) expect(o).toMatchObject({ foulMouth: true, freeOnly: true });
       // Every roast is kept foul, whichever free model answered.
