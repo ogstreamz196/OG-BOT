@@ -15,7 +15,7 @@ import {
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 
-async function resolveOrCreateCustomer(
+export async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
   options: { email?: string; userId?: string },
 ): Promise<string> {
