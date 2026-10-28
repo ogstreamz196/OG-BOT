@@ -20,7 +20,7 @@ export const connectionSchema = z.object({
     .trim()
     .regex(/^-\d{5,16}$/)
     .refine((v) => Number.isSafeInteger(Number(v))),
-  role: z.enum(["trade", "assistant"]),
+  role: z.enum(["trade", "assistant", "copy"]),
   instructions: z.string().trim().max(2000),
 });
 export const fleetActionSchema = z.object({

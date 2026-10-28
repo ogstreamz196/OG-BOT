@@ -24,12 +24,16 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // At UK midnight the signals chat's score starts a fresh day.
           const { rollScoreDay } = await import("@/lib/signal-chat.server");
           const score = await rollScoreDay(supabaseAdmin);
+          // The Boss's MT5 trades: fills and closes (the copy bot announces them).
+          const { followAutoTrades } = await import("@/lib/mt5-autotrade.server");
+          const mt5 = await followAutoTrades(supabaseAdmin);
           return Response.json({
             ok: true,
             passes: passes.length,
             events,
             active: passes.at(-1)?.active ?? 0,
             score,
+            mt5,
           });
         } catch (e) {
           console.error("[signals] watch failed", e);
