@@ -26,6 +26,29 @@ export type SignalStatus =
 
 export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"];
 
+/**
+ * Which of a chat's signal messages a new signal may delete: never a card
+ * still in play (pending, open, a target hit and still running), nor anything
+ * after the oldest one in play (its follow-ups); finished cards always go.
+ * Telegram message ids only grow within a chat, which is what makes "after"
+ * work. `tracked` is every card and update remembered for the chat.
+ */
+export function oldSignalMessages(opts: {
+  tracked: number[];
+  active: number[];
+  finished: number[];
+  keep: number[];
+}): number[] {
+  const active = new Set(opts.active);
+  const keep = new Set(opts.keep);
+  const finished = new Set(opts.finished);
+  const floor = opts.active.length ? Math.min(...opts.active) : Infinity;
+  const all = new Set([...opts.tracked, ...opts.finished]);
+  return [...all]
+    .filter((id) => !keep.has(id) && !active.has(id) && (finished.has(id) || id < floor))
+    .sort((a, b) => a - b);
+}
+
 export type TrackedSignal = {
   direction: "BUY" | "SELL";
   /**

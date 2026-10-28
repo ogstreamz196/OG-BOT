@@ -556,16 +556,22 @@ async function replaceOldSignals(chat_id: number, keep: number[]) {
     for (const r of rows) if (r.kind === "signal") ids.add(Number(r.message_id));
     const { data: cards } = await admin
       .from("trade_signals" as never)
-      .select("message_id")
+      .select("message_id, status")
       .eq("chat_id" as never, chat_id)
       .gte("created_at" as never, new Date(Date.now() - 48 * 3_600_000).toISOString())
       .limit(100);
-    for (const c of (cards ?? []) as { message_id: number | null }[]) {
-      if (c.message_id) ids.add(Number(c.message_id));
-    }
-    for (const id of keep) ids.delete(id);
+    // Signals still in play stay, with their updates, and keep being followed;
+    // only finished ones are wiped.
+    const { ACTIVE_STATUSES, oldSignalMessages } = await import("@/lib/trade-signal-outcome");
+    const sent = (cards ?? []) as { message_id: number | null; status: string }[];
+    const live = (r: { status: string }) => ACTIVE_STATUSES.includes(r.status as never);
     // Telegram deletes up to 100 at a time; anything older has expired anyway.
-    const old = [...ids].slice(-100);
+    const old = oldSignalMessages({
+      tracked: [...ids],
+      active: sent.filter((r) => r.message_id && live(r)).map((r) => Number(r.message_id)),
+      finished: sent.filter((r) => r.message_id && !live(r)).map((r) => Number(r.message_id)),
+      keep,
+    }).slice(-100);
     // In groups the chart slave may have posted them: it deletes its own.
     if (chat_id < 0 && old.length && workerConfigured())
       await workerApi("deleteMessages", { chat_id, message_ids: old });
@@ -573,7 +579,8 @@ async function replaceOldSignals(chat_id: number, keep: number[]) {
     await admin
       .from("trade_signals" as never)
       .update({ chat_id: null } as never)
-      .eq("chat_id" as never, chat_id);
+      .eq("chat_id" as never, chat_id)
+      .not("status" as never, "in", `(${ACTIVE_STATUSES.join(",")})`);
     // The new card is a signal row, so the next signal can wipe it.
     for (const message_id of keep) {
       await admin.from(SCREENS).upsert({ chat_id, message_id, kind: "signal" } as never, {

@@ -116,3 +116,21 @@ describe("track record", () => {
     );
   });
 });
+
+describe("oldSignalMessages", () => {
+  it("wipes finished signals but never one still in play or its updates", async () => {
+    const { oldSignalMessages } = await import("./trade-signal-outcome");
+    expect(
+      oldSignalMessages({
+        tracked: [5, 6, 10, 11, 14, 15, 20],
+        active: [10],
+        finished: [5, 14],
+        keep: [20],
+      }),
+    ).toEqual([5, 6, 14]);
+    // Nothing in play: everything older than the new card goes, as before.
+    expect(oldSignalMessages({ tracked: [1, 2, 3], active: [], finished: [], keep: [3] })).toEqual([
+      1, 2,
+    ]);
+  });
+});

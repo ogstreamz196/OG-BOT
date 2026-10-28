@@ -35,6 +35,12 @@ function fakeAdmin() {
         eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
         in: (c: string, v: unknown[]) => (filters.push((r) => v.includes(r[c])), q),
         gte: (c: string, v: string) => (filters.push((r) => r[c] >= v), q),
+        // Only `.not(col, "in", "(a,b)")` is used.
+        not: (c: string, _op: string, list: string) => {
+          const vals = list.replace(/[()]/g, "").split(",");
+          filters.push((r) => !vals.includes(r[c]));
+          return q;
+        },
         update: (p: Row) => ((action = "update"), (patch = p), q),
         delete: () => ((action = "delete"), q),
         upsert: async (row: Row) => {
@@ -76,14 +82,50 @@ describe("clearOlderPair", () => {
       { chat_id: CHAT, message_id: 20, market: "XAUUSD", kind: "card" },
     ];
     tables.trade_signals = [
-      { chat_id: CHAT, market: "XAUUSD", message_id: 10, created_at: new Date().toISOString() },
-      { chat_id: CHAT, market: "BTCUSD", message_id: 12, created_at: new Date().toISOString() },
+      {
+        chat_id: CHAT,
+        market: "XAUUSD",
+        message_id: 10,
+        status: "closed",
+        created_at: new Date().toISOString(),
+      },
+      {
+        chat_id: CHAT,
+        market: "BTCUSD",
+        message_id: 12,
+        status: "open",
+        created_at: new Date().toISOString(),
+      },
     ];
     await clearOlderPair(fakeAdmin(), CHAT, "XAUUSD", 20);
     expect(deleted().sort()).toEqual([10, 11]);
     expect(tables.signal_chat_messages.map((r) => r.message_id)).toEqual([12, 13, 20]);
     // The old gold signal stops messaging the chat; bitcoin's carries on.
     expect(tables.trade_signals.map((r) => r.chat_id)).toEqual([null, CHAT]);
+  });
+
+  test("an older gold alert that's still running stays, with its updates", async () => {
+    const { clearOlderPair } = await import("./signal-chat.server");
+    tables.signal_chat_messages = [
+      { chat_id: CHAT, message_id: 5, market: "XAUUSD", kind: "card" },
+      { chat_id: CHAT, message_id: 6, market: "XAUUSD", kind: "update" },
+      { chat_id: CHAT, message_id: 10, market: "XAUUSD", kind: "card" },
+      { chat_id: CHAT, message_id: 11, market: "XAUUSD", kind: "update" },
+      { chat_id: CHAT, message_id: 14, market: "XAUUSD", kind: "card" },
+      { chat_id: CHAT, message_id: 20, market: "XAUUSD", kind: "card" },
+    ];
+    const at = new Date().toISOString();
+    tables.trade_signals = [
+      { chat_id: CHAT, market: "XAUUSD", message_id: 5, status: "expired", created_at: at },
+      { chat_id: CHAT, market: "XAUUSD", message_id: 10, status: "tp1", created_at: at },
+      { chat_id: CHAT, market: "XAUUSD", message_id: 14, status: "stopped", created_at: at },
+    ];
+    await clearOlderPair(fakeAdmin(), CHAT, "XAUUSD", 20);
+    // Finished cards (and updates older than the one still running) go.
+    expect(deleted().sort((a, b) => a - b)).toEqual([5, 6, 14]);
+    expect(tables.signal_chat_messages.map((r) => r.message_id)).toEqual([10, 11, 20]);
+    // The running one keeps messaging the chat.
+    expect(tables.trade_signals.map((r) => r.chat_id)).toEqual([null, CHAT, null]);
   });
 });
 
