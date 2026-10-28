@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             message_id: number;
             text?: string;
             chat: { id: number; type: string };
-            from?: { is_bot?: boolean };
+            from?: { is_bot?: boolean; first_name?: string };
             reply_to_message?: { from?: { id?: number } };
             message_thread_id?: number;
           };
@@ -68,9 +68,10 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         if (claim) return Response.json({ ok: true });
         let reply = "";
         if (bot.role === "trade") {
-          const { buildTradeSignal, plainForTelegram } =
+          const { buildTradeSignal, cardToSend, plainForTelegram } =
             await import("@/lib/trade-signal-context.server");
-          const signal = await buildTradeSignal(msg.text.slice(0, 2000));
+          // No clean setup: the market-bias call instead of "no signal".
+          const signal = cardToSend(await buildTradeSignal(msg.text.slice(0, 2000)));
           reply = signal.reply
             ? plainForTelegram(signal.reply)
             : await f.assistantReply(bot, msg.text.slice(0, 2000));
@@ -87,7 +88,13 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               chatId: msg.chat.id,
               messageId: sent.result.message_id,
               card: reply,
-              plan: signal.plan,
+              plan: {
+                ...signal.plan,
+                feeds: {
+                  ...signal.plan.feeds,
+                  requester: { id: msg.chat.id, name: msg.from?.first_name || "you" },
+                },
+              },
               senderWorker: bot.id,
             });
           }

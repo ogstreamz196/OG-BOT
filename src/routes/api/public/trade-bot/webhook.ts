@@ -120,13 +120,16 @@ export const Route = createFileRoute("/api/public/trade-bot/webhook")({
 
         await w.workerApi("sendChatAction", { chat_id: chatId, action: "typing" });
         try {
-          const { buildTradeSignal, bestMarketAsk, plainForTelegram } =
+          const { buildTradeSignal, bestMarketAsk, cardToSend, plainForTelegram } =
             await import("@/lib/trade-signal-context.server");
           const { isAnyMarketAsk } = await import("@/lib/trade-signal");
           // In groups OG B0T handles signal asks; in a private chat they're ours.
+          // No clean setup: the market-bias call instead of "no signal".
           const signal = inGroup
             ? { reply: "" }
-            : await buildTradeSignal(isAnyMarketAsk(text) ? await bestMarketAsk(text) : text);
+            : cardToSend(
+                await buildTradeSignal(isAnyMarketAsk(text) ? await bestMarketAsk(text) : text),
+              );
           if (signal.reply) {
             await say(chatId, plainForTelegram(signal.reply), threaded);
             return Response.json({ ok: true });
