@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Download, Loader2, Pause, Play, Share2, Sparkles } from "lucide-react";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { claimAudio } from "@/lib/audio-focus";
@@ -259,6 +260,12 @@ export function FreshTrackCard({
           >
             <Share2 className="h-4 w-4" /> Share track
           </Button>
+          <SendToTelegramButton
+            songId={song.id}
+            title={title}
+            disabled={busy || !playFull}
+            className="min-h-12 w-full rounded-2xl"
+          />
           <Link to="/library/$songId" params={{ songId: song.id }} className="w-full">
             <Button
               type="button"
