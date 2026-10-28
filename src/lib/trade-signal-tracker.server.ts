@@ -305,8 +305,7 @@ export function winToastText(
   const what = row.feeds?.bias ? "market bias call" : `${row.label} signal`;
   const text =
     `${lead}${name}, that ${what} just hit the ${TARGET_NAMES[hit]}! ` +
-    `On 1.0 lot with a ${usd(500)} account you'd be up ${usd(win.profit)}, ` +
-    `taking it to ${usd(win.balance)} (+${win.pct.toFixed(0)}%). Bank it, you lucky bastard.`;
+    `A 1.0 lot would have paid out ${usd(win.profit)}. Bank it, you lucky bastard.`;
   return { text, mention: { offset: lead.length, length: name.length, id: who.id } };
 }
 
@@ -525,7 +524,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           eventCount += lines.length;
           await sendFollowUp(row, lines.join("\n"));
         }
-        // A target hit: tell whoever asked what 1.0 lot on $500 would be up.
+        // A target hit: tell whoever asked what a 1.0 lot would have paid out.
         const won = [...result.events].reverse().find((e) => /^tp[123]$/.test(e.kind));
         if (won) await sendWinToast(row, won.kind as "tp1" | "tp2" | "tp3");
       }),
