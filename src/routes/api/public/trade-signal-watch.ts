@@ -27,6 +27,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // The Boss's MT5 trades: fills and closes (the copy bot announces them).
           const { followAutoTrades } = await import("@/lib/mt5-autotrade.server");
           const mt5 = await followAutoTrades(supabaseAdmin);
+          // Now and then, the Boss's Vantage invite link in the signals chat.
+          const { maybePostPromo } = await import("@/lib/invite-promo.server");
+          const promo = await maybePostPromo(supabaseAdmin);
           return Response.json({
             ok: true,
             passes: passes.length,
@@ -34,6 +37,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             active: passes.at(-1)?.active ?? 0,
             score,
             mt5,
+            promo,
           });
         } catch (e) {
           console.error("[signals] watch failed", e);
