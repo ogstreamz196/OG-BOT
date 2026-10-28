@@ -1176,8 +1176,9 @@ async function runChatAI(
       void tg("sendChatAction", { chat_id, action: "typing" });
       const market = trade.detectTradeIntent(tradeText);
       if (!market) return;
-      const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
-      const signalJob = buildTradeSignal(tradeText);
+      // OG B0T's AI desk reads the chart and the chief makes the call (prices from code).
+      const { deskSignal } = await import("@/lib/trade-signal-context.server");
+      const signalJob = deskSignal(tradeText);
       // In a group with the chart slave on duty, OG B0T barks the order and the
       // trade bot posts the card. Anywhere else OG B0T posts it, after a
       // "hold on" line.

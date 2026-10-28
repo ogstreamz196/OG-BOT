@@ -24,6 +24,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 }));
 vi.mock("@/lib/trade-signal-context.server", () => ({
   buildTradeSignal: async (t: string) => ({ reply: /signal|scalp/i.test(t) ? "📈 CARD" : "" }),
+  deskSignal: async (t: string) => ({ reply: /signal|scalp/i.test(t) ? "📈 CARD" : "" }),
   bestMarketAsk: async (t: string) => `XAUUSD signal ${t}`,
   plainForTelegram: (t: string) => t,
   cardToSend: (s: { reply: string; plan?: unknown; bias?: unknown; biasReply?: string }) =>

@@ -14,15 +14,16 @@ import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPane
 import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
 import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
+import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
   head: () => ({
     meta: [
-      { title: "Telegram & Workers | 0G B0T Boss" },
-      { name: "description", content: "Manage 0G B0T, Telegram chats and your worker fleet." },
-      { property: "og:title", content: "Telegram & Workers | 0G B0T Boss" },
+      { title: "Telegram & Workers | OG B0T Boss" },
+      { name: "description", content: "Manage OG B0T, Telegram chats and your worker fleet." },
+      { property: "og:title", content: "Telegram & Workers | OG B0T Boss" },
       { property: "og:description", content: "Manage Telegram chats and worker bots securely." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -41,6 +42,7 @@ const SignalsBacktestPanel = lazy(() =>
 function SignalsTab() {
   return (
     <>
+      <SignalRecordPanel />
       <SignalsPortalPanel />
       <Suspense
         fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}

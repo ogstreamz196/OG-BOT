@@ -68,10 +68,10 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         if (claim) return Response.json({ ok: true });
         let reply = "";
         if (bot.role === "trade") {
-          const { buildTradeSignal, cardToSend, plainForTelegram } =
+          const { deskSignal, cardToSend, plainForTelegram } =
             await import("@/lib/trade-signal-context.server");
           // No clean setup: the market-bias call instead of "no signal".
-          const signal = cardToSend(await buildTradeSignal(msg.text.slice(0, 2000)));
+          const signal = cardToSend(await deskSignal(msg.text.slice(0, 2000)));
           reply = signal.reply
             ? plainForTelegram(signal.reply)
             : await f.assistantReply(bot, msg.text.slice(0, 2000));
