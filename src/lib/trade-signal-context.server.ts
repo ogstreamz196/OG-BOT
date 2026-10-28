@@ -806,11 +806,12 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       : NO_SIGNAL_LINES[Math.floor(Math.random() * NO_SIGNAL_LINES.length)],
   ].join("\n");
   // The levels first, one per line, then only what changes the decision.
-  // No confidence %: members read it as a win rate.
+  // Confidence is indicator agreement (51–90%), not a win rate.
   const targetNames = ["Quick Scalp", "Potentially", "Greedy Runner"];
   const tradeCard = [
     `${plan.direction === "BUY" ? "🟢" : "🔴"} ${plan.direction} · ${inst.label}`,
     `⏱ ${entryLabel} · ${plan.quality}`,
+    `💪 Confidence: ${plan.confidencePct}%`,
     "",
     // Stop loss first, so nobody enters without knowing where they're out.
     `🛑 Stop Loss: ${fmt(plan.stop)}`,

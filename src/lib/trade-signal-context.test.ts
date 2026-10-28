@@ -117,11 +117,12 @@ describe("buildTradeSignalContext", () => {
     // Stop loss first, then the entry, then the three targets.
     expect(signal.reply).toContain(`🛑 Stop Loss: ${stop}\n▶️ Entry: ${entry}`);
     expect(signal.reply).toMatch(/▶️ Entry: [^\n]+\n🎯 Quick Scalp: /);
-    // The Telegram card: renamed targets, no confidence %, the new sign-off.
+    // The Telegram card: renamed targets, the confidence %, the new sign-off.
     expect(signal.reply).toMatch(
       /🎯 Quick Scalp: [\d.]+\n🎯 Potentially: [\d.]+\n🎯 Greedy Runner: [\d.]+/,
     );
-    expect(signal.reply).not.toMatch(/\d+% confidence|TP\d|SL:/);
+    expect(signal.reply).toMatch(/\n💪 Confidence: (5[1-9]|[6-8]\d|90)%\n/);
+    expect(signal.reply).not.toMatch(/TP\d|SL:/);
     expect(signal.reply).not.toContain("@");
     // Ends with one of the foul disclaimers, picked at random each time.
     expect(SIGNAL_DISCLAIMERS).toContain(signal.reply.split("\n").at(-1));

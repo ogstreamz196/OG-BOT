@@ -1,8 +1,8 @@
 /**
  * Auto-posted scalp signals. Every minute (pg_cron → /api/public/signal-scan)
  * the gold and bitcoin 5-minute scalps are built with the same engine as the
- * bot, and any that reach the top confidence score are posted to the signals
- * channel by the separate signals bot.
+ * bot, and any scoring 70% confidence or more are posted to the signals
+ * channel by the separate signals bot, with the % on the card.
  *
  * Confidence is indicator agreement (see buildPlan in trade-signal.ts), never a
  * win rate, and it tops out at 90%: a 90% signal is one where every timeframe
@@ -18,7 +18,9 @@ import { signalRequest, type SignalPair } from "@/lib/telegram-signals";
 type Admin = any;
 
 /** The lowest confidence that gets posted (90% is the engine's top score). */
-export const BROADCAST_MIN_CONFIDENCE = 90;
+export const BROADCAST_MIN_CONFIDENCE = 70;
+/** From here every timeframe agrees: the alert says TOP. */
+const TOP_CONFIDENCE = 90;
 export const BROADCAST_MARKETS: SignalPair[] = ["XAU", "BTC"];
 const POSTS = "signal_broadcasts";
 
@@ -42,9 +44,11 @@ export type ScanDeps = {
   now: () => number;
 };
 
-/** The card as posted: a top-confidence scalp, without showing a % (cards never do). */
-export function channelCard(reply: string): string {
-  return `🚨 TOP SCALP ALERT · every timeframe agrees\n\n${reply}`;
+/** The card as posted; the card itself carries the confidence %. */
+export function channelCard(reply: string, confidencePct = TOP_CONFIDENCE): string {
+  return confidencePct >= TOP_CONFIDENCE
+    ? `🚨 TOP SCALP ALERT · every timeframe agrees\n\n${reply}`
+    : `🚨 SCALP ALERT\n\n${reply}`;
 }
 
 export async function scanAndBroadcast(
@@ -82,7 +86,7 @@ export async function scanAndBroadcast(
     const last = ((live ?? []) as { direction: string }[])[0];
     if (last && last.direction === plan.direction) continue;
 
-    const card = channelCard(signal.reply);
+    const card = channelCard(signal.reply, plan.confidencePct);
     const messageId = await deps.post(card);
     if (messageId === null) continue;
     await deps.follow?.(signal, messageId, card);
