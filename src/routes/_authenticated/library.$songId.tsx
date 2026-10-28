@@ -30,6 +30,7 @@ import { PublishToggle } from "@/components/library/PublishToggle";
 import { UnlockConfirmDialog } from "@/components/library/UnlockConfirmDialog";
 import { OwnerUnlockDialog } from "@/components/library/OwnerUnlockDialog";
 import { useProfile } from "@/hooks/use-profile";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import { useSessionRunState } from "@/hooks/use-session-run-state";
 import { ensureFullUrlAllowed } from "@/lib/ensure-full-url-allowed";
 
@@ -510,6 +511,14 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
                         ? "Download HQ"
                         : `Unlock · ${fullUnlockCost} coins`}
                 </Button>
+                {unlocked && !communityMode && (
+                  <SendToTelegramButton
+                    songId={song.id}
+                    title={song.title || "OG B0T track"}
+                    disabled={!song.audio_path}
+                    className="col-span-full h-auto min-h-11"
+                  />
+                )}
               </div>
 
               <div>

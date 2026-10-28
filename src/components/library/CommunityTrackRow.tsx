@@ -28,6 +28,7 @@ import { UnlockConfirmDialog } from "@/components/library/UnlockConfirmDialog";
 import { OwnerUnlockDialog } from "@/components/library/OwnerUnlockDialog";
 import { useSettings } from "@/hooks/use-settings";
 import { CreatorTag } from "@/components/library/CreatorTag";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -248,6 +249,14 @@ function CommunityTrackRowImpl({
                 <Download className="h-3.5 w-3.5" />
               )}
             </button>
+          )}
+          {song.unlocked && (
+            <SendToTelegramButton
+              songId={song.id}
+              title={title}
+              variant="icon"
+              disabled={busy || !isReady || !song.audio_path}
+            />
           )}
         </>
       ) : (

@@ -64,6 +64,7 @@ import {
 import { ogBotLogo } from "@/assets/ogbot-logo";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useRole } from "@/hooks/use-role";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import { POOLS, orderLanguages, isFreeStyle } from "@/lib/library-utils";
 import { LENGTH_OPTIONS, MIN_LENGTH, MAX_LENGTH } from "./CreateNowWizard";
 
@@ -1327,6 +1328,14 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                       </>
                     )}
                   </Button>
+                  {ownsFull && (
+                    <SendToTelegramButton
+                      songId={song.id}
+                      title={song.title || "OG B0T track"}
+                      disabled={!isReady || !song.audio_path}
+                      className="h-12 w-full"
+                    />
+                  )}
                 </>
               </CardContent>
             )}
