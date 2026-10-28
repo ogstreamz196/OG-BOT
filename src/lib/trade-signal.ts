@@ -481,6 +481,8 @@ export const MIN_ROOM_R = 1.5;
  * classic rules squeezed the stop to 3 ATR, inside reach of the swing).
  */
 const MAX_STOP_ATR = 3;
+/** Members' stop loss is this much further from the entry than the engine's risk (+20%). */
+export const STOP_ROOM = 1.2;
 /** Below this volume ratio a move has little behind it. */
 const LIGHT_VOLUME = 0.5;
 
@@ -640,7 +642,10 @@ export function buildPlan(
   let risk = structure != null ? Math.abs(entryPx - structure) + a * 0.25 : a * 1.5;
   if (classic) risk = Math.min(Math.max(risk, a * 1), a * 3);
   else risk = risk > a * MAX_STOP_ATR ? a * 2 : Math.max(risk, a * 0.8);
-  const stop = long ? entryPx - risk : entryPx + risk;
+  // Members' stop sits 20% further from the entry than the engine's risk, so
+  // the trade has room to breathe; the targets keep the engine's R spacing.
+  const stopDistance = classic ? risk : risk * STOP_ROOM;
+  const stop = long ? entryPx - stopDistance : entryPx + stopDistance;
   const at = (r: number) => (long ? entryPx + risk * r : entryPx - risk * r);
   const t1 = at(1);
   let t1s = t1;
@@ -664,9 +669,10 @@ export function buildPlan(
   // levels so they're hit more often (classic keeps the old ones to compare).
   if (!classic)
     [t1s, t2, t3] = scaleTargets(long ? "BUY" : "SELL", entryPx, [t1, t2, t3], a * 0.05);
-  const rr1 = Math.abs(t1s - entryPx) / risk;
-  const rr3 = Math.abs(t3 - entryPx) / risk;
-  const rr2 = Math.abs(t2 - entryPx) / risk;
+  // Reward against the stop members actually use.
+  const rr1 = Math.abs(t1s - entryPx) / stopDistance;
+  const rr3 = Math.abs(t3 - entryPx) / stopDistance;
+  const rr2 = Math.abs(t2 - entryPx) / stopDistance;
   const room = ahead.length ? inR(ahead[0]) : Infinity;
 
   const cautions: string[] = [];
