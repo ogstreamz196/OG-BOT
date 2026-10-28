@@ -26,6 +26,12 @@ vi.mock("@/lib/trade-signal-context.server", () => ({
   buildTradeSignal: async (t: string) => ({ reply: /signal|scalp/i.test(t) ? "📈 CARD" : "" }),
   bestMarketAsk: async (t: string) => `XAUUSD signal ${t}`,
   plainForTelegram: (t: string) => t,
+  cardToSend: (s: { reply: string; plan?: unknown; bias?: unknown; biasReply?: string }) =>
+    s.plan
+      ? { reply: s.reply, plan: s.plan }
+      : s.bias && s.biasReply
+        ? { reply: s.biasReply, plan: s.bias }
+        : { reply: s.reply },
 }));
 vi.mock("@/lib/og-persona.server", () => ({ buildSystemPrompt: () => "persona" }));
 vi.mock("@/lib/ai-endpoint.server", () => ({

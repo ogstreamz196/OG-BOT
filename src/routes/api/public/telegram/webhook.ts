@@ -1213,11 +1213,15 @@ async function runChatAI(
       });
       if (!group) await rememberScreen(chat_id, held);
       const signal = await signalJob;
-      const ttl = signal.expiresAt
-        ? Math.max(1, Date.parse(signal.expiresAt) - Date.now() - 5 * 60_000)
+      // The signal, or with no clean setup the risky market-bias call.
+      const { cardToSend } = await import("@/lib/trade-signal-context.server");
+      const shown = cardToSend(signal);
+      const expiresAt = shown.plan?.expiresAt ?? signal.expiresAt;
+      const ttl = expiresAt
+        ? Math.max(1, Date.parse(expiresAt) - Date.now() - 5 * 60_000)
         : 5 * 60_000;
       await scheduleDelete(chat_id, held, ttl);
-      const chunks = signal.reply.match(/[\s\S]{1,3800}/g) ?? [signal.reply];
+      const chunks = shown.reply.match(/[\s\S]{1,3800}/g) ?? [shown.reply];
       let firstMessageId: number | null = null;
       const cardIds: number[] = [];
       let senderWorker: string | null = null;
@@ -1246,33 +1250,45 @@ async function runChatAI(
         const sent = await tg("sendMessage", message);
         if (!sent) throw new Error("Signal delivery failed");
         // "No signal" cards aren't followed, so the next screen clears them.
-        if (!signal.plan && !group) await rememberScreen(chat_id, sent);
+        if (!shown.plan && !group) await rememberScreen(chat_id, sent);
         const id = (sent as { result?: { message_id?: number } }).result?.message_id ?? null;
         firstMessageId ??= id;
         if (id) cardIds.push(id);
         await scheduleDelete(chat_id, sent, ttl);
       }
       // Follow it: fills, targets, stops and time-up get a reply under the card.
-      if (signal.plan) {
+      if (shown.plan) {
         // A new signal wipes out the last one (see replaceOldSignals).
         await replaceOldSignals(chat_id, cardIds);
       }
       // Track group cards too; never save group chatter to private history.
-      if (signal.plan) {
+      if (shown.plan) {
+        // Who asked, so a winning call can be announced to them by name.
+        const requester = group?.user?.id
+          ? { id: group.user.id, name: group.user.first_name || "you" }
+          : {
+              id: chat_id,
+              name:
+                (
+                  await admin
+                    .from("profiles")
+                    .select("display_name")
+                    .eq("id", profileId)
+                    .maybeSingle()
+                ).data?.display_name || "you",
+            };
         const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
         await recordSignal({
           userId: profileId,
           chatId: chat_id,
           messageId: chunks.length === 1 ? firstMessageId : null,
-          card: signal.reply,
-          plan: signal.plan,
+          card: shown.reply,
+          plan: { ...shown.plan, feeds: { ...shown.plan.feeds, requester } },
           senderWorker,
         });
       }
       if (group) return;
-      const content = signal.expiresAt
-        ? trade.tagSignalExpiry(signal.reply, signal.expiresAt)
-        : signal.reply;
+      const content = expiresAt ? trade.tagSignalExpiry(shown.reply, expiresAt) : shown.reply;
       await admin.from("og_messages").insert([
         { user_id: profileId, role: "user", content: tradeText },
         { user_id: profileId, role: "assistant", content },

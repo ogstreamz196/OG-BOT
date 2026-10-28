@@ -33,6 +33,7 @@ import {
   sessionRead,
   type Candle,
   type EntryType,
+  type FastFrame,
   type FrameRead,
   type Instrument,
   validityWindow,
@@ -443,6 +444,10 @@ export type SignalFeeds = {
   yahoo?: string;
   offset?: number;
   entry?: "stop";
+  /** A market-bias call (no clean setup): never counts in the results book. */
+  bias?: boolean;
+  /** Who asked for it, so a win can be announced to them by name. */
+  requester?: { id: number; name: string };
 };
 
 /** What a "no signal" card says: one of these, picked at random. */
@@ -530,7 +535,20 @@ type TradeSignalResult = {
   reply: string;
   plan?: SignalPlan;
   summary?: SignalSummary;
+  /** No clean setup: the risky market-bias call from the highs and lows. */
+  bias?: SignalPlan;
+  biasReply?: string;
 };
+
+/**
+ * What Telegram sends for a request: the signal when there is one, else the
+ * market-bias call, else the plain "no signal" card. `plan` is what to follow.
+ */
+export function cardToSend(s: TradeSignalResult): { reply: string; plan?: SignalPlan } {
+  if (s.plan) return { reply: s.reply, plan: s.plan };
+  if (s.bias && s.biasReply) return { reply: s.biasReply, plan: s.bias };
+  return { reply: s.reply };
+}
 const cache = new Map<string, TradeSignalResult & { exp: number }>();
 
 function frameLine(f: FrameRead, fmt: (n: number) => string): string {
@@ -607,6 +625,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       reply: hit.reply,
       plan: hit.plan,
       summary: hit.summary,
+      bias: hit.bias,
+      biasReply: hit.biasReply,
     };
 
   const tracker = import("./trade-signal-tracker.server");
@@ -881,11 +901,125 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     tested,
     builtAt: new Date().toISOString(),
   };
-  const result = { block: value, expiresAt, reply, plan: wait ? undefined : plan2, summary };
+  // No clean setup (market open): the risky market-bias call instead.
+  const biasCall =
+    wait && !/\bclosed\b/i.test(plan.waitReason ?? "")
+      ? await buildBias({
+          inst,
+          fast,
+          quick: quick.data,
+          entryCandles,
+          offset,
+          price,
+          prevDay: prevDay ?? null,
+          levels: [...plan.resistance, ...plan.support],
+          lean: plan.direction,
+          fmt,
+          feeds: plan2.feeds,
+          style,
+          dp,
+        }).catch(() => null)
+      : null;
+  const result = {
+    block: value,
+    expiresAt,
+    reply,
+    plan: wait ? undefined : plan2,
+    summary,
+    ...(biasCall ? { bias: biasCall.plan, biasReply: biasCall.reply } : {}),
+  };
   cache.set(key, { exp: Date.now() + (fast ? 10_000 : 60_000), ...result });
   const oldest = cache.keys().next().value;
   if (cache.size > 200 && oldest) cache.delete(oldest);
   return result;
+}
+
+/** A market-bias call lasts this long (it's meant to trigger within minutes). */
+const BIAS_VALID_MS = 60 * 60_000;
+
+/** The market-bias card: the side the highs and lows lean, clearly not a signal. */
+async function buildBias(o: {
+  inst: Instrument;
+  fast: FastFrame | undefined;
+  quick: Candle[];
+  entryCandles: Candle[];
+  offset: number;
+  price: number;
+  prevDay: Candle | null;
+  levels: number[];
+  lean: "BUY" | "SELL";
+  fmt: (n: number) => string;
+  feeds: SignalFeeds;
+  style: Style;
+  dp: number;
+}): Promise<{ plan: SignalPlan; reply: string } | null> {
+  const { marketBias } = await import("./trade-bias");
+  // Read the 5-minute chart (already loaded for a 5M ask), else the entry chart.
+  const five =
+    o.fast === "5m"
+      ? shiftCandles(o.quick, o.offset)
+      : shiftCandles((await candles(o.inst, "5m").catch(() => ({ data: [] }))).data, o.offset);
+  const recent = five.length >= 12 ? five : o.entryCandles;
+  const read = marketBias({
+    recent,
+    price: o.price,
+    prevDay: o.prevDay,
+    levels: o.levels,
+    lean: o.lean,
+  });
+  if (!read) return null;
+  const { fmt } = o;
+  const until = new Date(Date.now() + BIAS_VALID_MS);
+  const ukClock = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(until);
+  const buy = read.direction === "BUY";
+  const entryHow =
+    read.entryType === "stop"
+      ? `${buy ? "buy" : "sell"} stop, should trigger within 5 mins`
+      : "market now";
+  const names = ["Quick Scalp", "Potentially", "Greedy Runner"];
+  const reply = [
+    `⚠️ MARKET BIAS · this isn't my signal`,
+    `${buy ? "🟢" : "🔴"} ${read.direction} bias · ${o.inst.label} · 5M`,
+    `🎲 Super fucking risky. No clean setup, this is just where the highs and lows are leaning. Tiny size or sit on your hands.`,
+    "",
+    `🛑 Stop Loss: ${fmt(read.stop)}`,
+    `▶️ Entry: ${fmt(read.entry)}  (${entryHow})`,
+    ...read.targets.map((t, i) => `🎯 ${names[i]}: ${fmt(t)}`),
+    "",
+    `📊 Read: ${read.reasons.join(", ")}`,
+    `⏳ Valid till ${ukClock} UK`,
+    "",
+    SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
+  ].join("\n");
+  const plan: SignalPlan = {
+    market: o.inst.code,
+    label: o.inst.label,
+    feeds: {
+      binance: o.feeds.binance,
+      kraken: o.feeds.kraken,
+      yahoo: o.feeds.yahoo,
+      ...(o.offset ? { offset: o.offset } : {}),
+      ...(read.entryType === "stop" ? { entry: "stop" as const } : {}),
+      bias: true,
+    },
+    style: o.style,
+    timeframe: "5M",
+    direction: read.direction,
+    entry: read.entry,
+    entryType: read.entryType,
+    stop: read.stop,
+    targets: read.targets,
+    confidencePct: 0,
+    quality: "Choppy",
+    decimals: o.dp,
+    pip: o.inst.pip ?? null,
+    expiresAt: until.toISOString(),
+  };
+  return { plan, reply };
 }
 
 /** How often the Telegram clean-up job runs (sports-guide-reminders cron). */

@@ -185,6 +185,12 @@ vi.mock("@/lib/trade-signal-context.server", () => ({
     signalAsks.push(ask);
     return { reply: "📈 GOLD SCALP card", plan: {}, expiresAt: null };
   },
+  cardToSend: (s: { reply: string; plan?: unknown; bias?: unknown; biasReply?: string }) =>
+    s.plan
+      ? { reply: s.reply, plan: s.plan }
+      : s.bias && s.biasReply
+        ? { reply: s.biasReply, plan: s.bias }
+        : { reply: s.reply },
 }));
 const recordSignal = vi.fn(
   async (_opts: { chatId: number; messageId: number | null; senderWorker?: string | null }) =>
@@ -907,7 +913,9 @@ describe("telegram bot flow", () => {
       await inGroup("spam 6");
       expect(ai.battles).toHaveLength(5);
       const notice = groupSent().at(-1)!;
-      expect(notice.text).toMatch(/^Imran, 🐌 .*slow mode: I'll answer you again in (2[0-9]|30)s\.$/);
+      expect(notice.text).toMatch(
+        /^Imran, 🐌 .*slow mode: I'll answer you again in (2[0-9]|30)s\.$/,
+      );
       expect(tags(notice)).toEqual([["Imran", CHAT]]);
       expect(repliesTo(notice)).toBe(sixth);
       // More spam: nothing at all, not even another notice.
@@ -1024,6 +1032,11 @@ describe("telegram bot flow", () => {
           ([opts]) => opts.chatId === GROUP && opts.messageId != null && opts.messageId > 0,
         ),
       ).toBe(true);
+      // Whoever tapped is remembered, so a win can be announced to them by name.
+      expect(
+        (recordSignal.mock.calls[0][0] as unknown as { plan: { feeds: { requester: unknown } } })
+          .plan.feeds.requester,
+      ).toEqual({ id: CHAT, name: "Imran" });
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 

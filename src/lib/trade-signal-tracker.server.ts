@@ -138,13 +138,16 @@ export async function trackRecord(market: string, timeframe: string): Promise<st
     const since = new Date(Date.now() - RECORD_DAYS * 86_400_000).toISOString();
     const { data, error } = await admin
       .from(TABLE)
-      .select("status, best_target, entered_at")
+      .select("status, best_target, entered_at, feeds")
       .eq("market" as never, market)
       .eq("timeframe" as never, timeframe)
       .gte("created_at" as never, since)
       .limit(5000);
     if (error) throw new Error(error.message);
-    const rows = (data ?? []) as unknown as Pick<Row, "status" | "best_target" | "entered_at">[];
+    // Market-bias calls aren't signals, so they never count.
+    const rows = (
+      (data ?? []) as unknown as Pick<Row, "status" | "best_target" | "entered_at" | "feeds">[]
+    ).filter((r) => !r.feeds?.bias);
     return trackRecordText(
       rows.map((r) => ({ status: r.status, best_target: r.best_target, entered: !!r.entered_at })),
       RECORD_DAYS,
@@ -282,6 +285,64 @@ async function sendFollowUp(row: Row, text: string) {
   }
 }
 
+const TARGET_NAMES = { tp1: "Quick Scalp", tp2: "Potentially", tp3: "Greedy Runner" } as const;
+const usd = (n: number) =>
+  `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** The win message: plain figures, no working shown. Null when there's nothing to say. */
+export function winToastText(
+  row: Pick<Row, "market" | "label" | "direction" | "entry" | "tp1" | "tp2" | "tp3" | "feeds">,
+  hit: "tp1" | "tp2" | "tp3",
+  lotWin: typeof import("./trade-bias").lotWin,
+): { text: string; mention: { offset: number; length: number; id: number } } | null {
+  const who = row.feeds?.requester;
+  if (!who?.id) return null;
+  const to = Number(row[hit]);
+  const win = lotWin(row.market, row.direction, Number(row.entry), to);
+  if (!win) return null;
+  const name = (who.name || "you").slice(0, 40);
+  const lead = "💰 ";
+  const what = row.feeds?.bias ? "market bias call" : `${row.label} signal`;
+  const text =
+    `${lead}${name}, that ${what} just hit the ${TARGET_NAMES[hit]}! ` +
+    `On 1.0 lot with a ${usd(500)} account you'd be up ${usd(win.profit)}, ` +
+    `taking it to ${usd(win.balance)} (+${win.pct.toFixed(0)}%). Bank it, you lucky bastard.`;
+  return { text, mention: { offset: lead.length, length: name.length, id: who.id } };
+}
+
+async function sendWinToast(row: Row, hit: "tp1" | "tp2" | "tp3") {
+  if (!row.chat_id) return;
+  const { lotWin } = await import("./trade-bias");
+  const toast = winToastText(row, hit, lotWin);
+  if (!toast) return;
+  const sent = await senderCall<{ message_id?: number }>(row, "sendMessage", {
+    chat_id: row.chat_id,
+    text: toast.text,
+    entities: [
+      {
+        type: "text_mention",
+        offset: toast.mention.offset,
+        length: toast.mention.length,
+        user: { id: toast.mention.id },
+      },
+    ],
+    ...(row.message_id
+      ? { reply_parameters: { message_id: row.message_id, allow_sending_without_reply: true } }
+      : {}),
+  });
+  if (sent?.message_id) {
+    const admin = await db();
+    await admin.from("telegram_ephemeral_messages" as never).upsert(
+      {
+        chat_id: row.chat_id,
+        message_id: sent.message_id,
+        delete_at: new Date(Date.now() + FOLLOW_UP_TTL_MS).toISOString(),
+      } as never,
+      { onConflict: "chat_id,message_id" },
+    );
+  }
+}
+
 /* ── The watcher ──────────────────────────────────────────────────────── */
 
 function instrumentFor(row: Row): Instrument {
@@ -380,8 +441,10 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           );
 
         // Before TP1, a flip in the higher-timeframe trend calls the setup off.
+        // Not for a market-bias call: it can lean against that trend on purpose.
         const update: Record<string, unknown> = { last_checked_at: new Date(now).toISOString() };
         const trendDue =
+          !row.feeds?.bias &&
           (status === "pending" || status === "open") &&
           now - (row.last_trend_check_at ? Date.parse(row.last_trend_check_at) : created) >=
             TREND_CHECK_MS;
@@ -437,9 +500,10 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           .from(TABLE)
           .update(update as never)
           .eq("id" as never, row.id);
-        // Into the results book: a target hit (a win) or the stop loss first (a loss).
+        // Into the results book: a target hit (a win) or the stop loss first (a
+        // loss). Market-bias calls aren't signals, so they're never booked.
         const decided = result.events.find((e) => /^tp[123]$|^stopped$/.test(e.kind));
-        if (decided) {
+        if (decided && !row.feeds?.bias) {
           const { recordResult } = await import("./signal-results.server");
           await recordResult(
             admin,
@@ -461,6 +525,9 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           eventCount += lines.length;
           await sendFollowUp(row, lines.join("\n"));
         }
+        // A target hit: tell whoever asked what 1.0 lot on $500 would be up.
+        const won = [...result.events].reverse().find((e) => /^tp[123]$/.test(e.kind));
+        if (won) await sendWinToast(row, won.kind as "tp1" | "tp2" | "tp3");
       }),
     );
   }
