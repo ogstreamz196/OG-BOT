@@ -180,18 +180,22 @@ vi.mock("@/lib/foul-access.server", () => ({
 }));
 vi.mock("@/lib/trade-hold.server", () => ({ pickTradeHold: async () => "Hold on…" }));
 const signalAsks: string[] = [];
-vi.mock("@/lib/trade-signal-context.server", () => ({
-  buildTradeSignal: async (ask: string) => {
+vi.mock("@/lib/trade-signal-context.server", () => {
+  const build = async (ask: string) => {
     signalAsks.push(ask);
     return { reply: "📈 GOLD SCALP card", plan: {}, expiresAt: null };
-  },
-  cardToSend: (s: { reply: string; plan?: unknown; bias?: unknown; biasReply?: string }) =>
-    s.plan
-      ? { reply: s.reply, plan: s.plan }
-      : s.bias && s.biasReply
-        ? { reply: s.biasReply, plan: s.bias }
-        : { reply: s.reply },
-}));
+  };
+  return {
+    buildTradeSignal: build,
+    deskSignal: build,
+    cardToSend: (s: { reply: string; plan?: unknown; bias?: unknown; biasReply?: string }) =>
+      s.plan
+        ? { reply: s.reply, plan: s.plan }
+        : s.bias && s.biasReply
+          ? { reply: s.biasReply, plan: s.bias }
+          : { reply: s.reply },
+  };
+});
 const recordSignal = vi.fn(
   async (_opts: { chatId: number; messageId: number | null; senderWorker?: string | null }) =>
     undefined,

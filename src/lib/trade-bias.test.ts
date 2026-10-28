@@ -47,6 +47,15 @@ describe("marketBias", () => {
     expect(past.entry).toBe(last.h + 5);
   });
 
+  it("takes the desk's side when told to, with levels to match", () => {
+    const recent = drift(36, 2000, 0.5);
+    const read = marketBias({ recent, price: recent.at(-1)!.c, lean: "BUY", force: "SELL" })!;
+    expect(read.direction).toBe("SELL");
+    expect(read.stop).toBeGreaterThan(read.entry);
+    expect(read.targets[0]).toBeLessThan(read.entry);
+    expect(read.reasons).toEqual([]);
+  });
+
   it("needs enough chart to read", () => {
     expect(marketBias({ recent: drift(5, 2000, 1), price: 2005, lean: "BUY" })).toBeNull();
   });

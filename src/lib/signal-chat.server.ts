@@ -115,8 +115,16 @@ export async function refreshScore(
     // Without the table the old scoreboard couldn't be removed: post none.
     const { error: missing } = await admin.from(TABLE).select("message_id").limit(1);
     if (missing) return "skipped: signal_chat_messages can't be read";
-    const text = await todayScore(admin, now);
-    if (!text) return "skipped: signal_results can't be read";
+    const today = await todayScore(admin, now);
+    if (!today) return "skipped: signal_results can't be read";
+    // The 70%+ record runs underneath, counted since the Boss last reset it.
+    const { signalRecord, recordText } = await import("./signal-record.server");
+    // Cached a minute: the scoreboard is refreshed after every alert and update.
+    const { cached } = await import("./server-cache");
+    const record = await cached("signal-record", 60_000, () => signalRecord(admin)).catch(
+      () => null,
+    );
+    const text = record ? `${today}\n\n${recordText(record)}` : today;
     const sent = await workerApi<{ message_id?: number }>("sendMessage", {
       chat_id: chatId,
       text,

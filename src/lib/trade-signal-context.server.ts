@@ -538,6 +538,8 @@ type TradeSignalResult = {
   /** No clean setup: the risky market-bias call from the highs and lows. */
   bias?: SignalPlan;
   biasReply?: string;
+  /** What the bias read needs, so the desk can ask for the other side. */
+  biasArgs?: BiasArgs;
 };
 
 /**
@@ -627,6 +629,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       summary: hit.summary,
       bias: hit.bias,
       biasReply: hit.biasReply,
+      biasArgs: hit.biasArgs,
     };
 
   const tracker = import("./trade-signal-tracker.server");
@@ -902,24 +905,25 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     builtAt: new Date().toISOString(),
   };
   // No clean setup (market open): the risky market-bias call instead.
-  const biasCall =
-    wait && !/\bclosed\b/i.test(plan.waitReason ?? "")
-      ? await buildBias({
-          inst,
-          fast,
-          quick: quick.data,
-          entryCandles,
-          offset,
-          price,
-          prevDay: prevDay ?? null,
-          levels: [...plan.resistance, ...plan.support],
-          lean: plan.direction,
-          fmt,
-          feeds: plan2.feeds,
-          style,
-          dp,
-        }).catch(() => null)
-      : null;
+  const shut = /\bclosed\b/i.test(plan.waitReason ?? "");
+  const biasArgs: BiasArgs | undefined = shut
+    ? undefined
+    : {
+        inst,
+        fast,
+        quick: quick.data,
+        entryCandles,
+        offset,
+        price,
+        prevDay: prevDay ?? null,
+        levels: [...plan.resistance, ...plan.support],
+        lean: plan.direction,
+        fmt,
+        feeds: plan2.feeds,
+        style,
+        dp,
+      };
+  const biasCall = wait && biasArgs ? await buildBias(biasArgs).catch(() => null) : null;
   const result = {
     block: value,
     expiresAt,
@@ -927,6 +931,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     plan: wait ? undefined : plan2,
     summary,
     ...(biasCall ? { bias: biasCall.plan, biasReply: biasCall.reply } : {}),
+    ...(biasArgs ? { biasArgs } : {}),
   };
   cache.set(key, { exp: Date.now() + (fast ? 10_000 : 60_000), ...result });
   const oldest = cache.keys().next().value;
@@ -934,11 +939,48 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   return result;
 }
 
+/** Puts the desk's lines above the card's sign-off (its last line). */
+function withDesk(card: string, lines: string[]): string {
+  const all = card.split("\n");
+  const signOff = all.pop() ?? "";
+  return [...all, ...lines, "", signOff].join("\n");
+}
+
+/**
+ * A member's signal request, decided by OG B0T's AI desk (signal-desk.server.ts).
+ * The analysts read the same chart data and the chief picks BUY or SELL. If
+ * the engine has a real signal that way, that's the card; otherwise it's the
+ * market-bias call on the chief's side. All prices still come from code.
+ * Any desk failure gives the engine's own card, exactly as before.
+ */
+export async function deskSignal(userText: string): Promise<TradeSignalResult> {
+  const s = await buildTradeSignal(userText);
+  const inst = detectTradeIntent(userText);
+  if (!inst || !s.biasArgs || !s.block) return s;
+  try {
+    const { runDesk, deskLines } = await import("./signal-desk.server");
+    const chart = s.block.slice(Math.max(0, s.block.indexOf("LIVE MARKET DATA")));
+    const desk = await runDesk(inst.label, chart);
+    if (!desk) return s;
+    const lines = deskLines(desk);
+    if (s.plan && s.plan.direction === desk.direction)
+      return { ...s, reply: withDesk(s.reply, lines) };
+    const bias =
+      s.bias && s.biasReply && s.bias.direction === desk.direction
+        ? { plan: s.bias, reply: s.biasReply }
+        : await buildBias(s.biasArgs, desk.direction);
+    if (!bias) return s;
+    return { ...s, plan: undefined, bias: bias.plan, biasReply: withDesk(bias.reply, lines) };
+  } catch (e) {
+    console.warn("[signals] desk failed", e);
+    return s;
+  }
+}
+
 /** A market-bias call lasts this long (it's meant to trigger within minutes). */
 const BIAS_VALID_MS = 60 * 60_000;
 
-/** The market-bias card: the side the highs and lows lean, clearly not a signal. */
-async function buildBias(o: {
+type BiasArgs = {
   inst: Instrument;
   fast: FastFrame | undefined;
   quick: Candle[];
@@ -952,7 +994,13 @@ async function buildBias(o: {
   feeds: SignalFeeds;
   style: Style;
   dp: number;
-}): Promise<{ plan: SignalPlan; reply: string } | null> {
+};
+
+/** The market-bias card: the side the highs and lows lean, clearly not a signal. */
+async function buildBias(
+  o: BiasArgs,
+  force?: "BUY" | "SELL",
+): Promise<{ plan: SignalPlan; reply: string } | null> {
   const { marketBias } = await import("./trade-bias");
   // Read the 5-minute chart (already loaded for a 5M ask), else the entry chart.
   const five =
@@ -966,6 +1014,7 @@ async function buildBias(o: {
     prevDay: o.prevDay,
     levels: o.levels,
     lean: o.lean,
+    force,
   });
   if (!read) return null;
   const { fmt } = o;
@@ -990,7 +1039,7 @@ async function buildBias(o: {
     `▶️ Entry: ${fmt(read.entry)}  (${entryHow})`,
     ...read.targets.map((t, i) => `🎯 ${names[i]}: ${fmt(t)}`),
     "",
-    `📊 Read: ${read.reasons.join(", ")}`,
+    ...(read.reasons.length ? [`📊 Read: ${read.reasons.join(", ")}`] : []),
     `⏳ Valid till ${ukClock} UK`,
     "",
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],

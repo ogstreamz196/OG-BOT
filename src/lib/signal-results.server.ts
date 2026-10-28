@@ -236,11 +236,17 @@ export async function signalResultsNote(admin: Admin, now = Date.now()): Promise
         label,
       ),
     );
+    const { signalRecord, recordText } = await import("./signal-record.server");
+    const record = await signalRecord(admin);
+    const recordLine = record
+      ? `\n- The 70%+ record (only signals sent at 70% confidence or more, counted since the Boss last reset it; it never resets by itself): ${recordText(record).replace(/\n/g, " · ")}`
+      : "";
     return (
       "\n\nSIGNAL RESULTS (the bot's own record of its gold and bitcoin signals, UK time; answer from these exact figures, never invent or round them up, " +
       "and say plainly when it's a loss. Won = hit at least the Quick Scalp, pips to the furthest target reached; lost = stop loss hit first. " +
       "Gold is in pips (0.1), bitcoin in $1 points; don't add the two together):\n" +
-      lines.join("\n")
+      lines.join("\n") +
+      recordLine
     );
   } catch {
     return "";

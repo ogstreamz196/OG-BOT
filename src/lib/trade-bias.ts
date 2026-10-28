@@ -39,6 +39,8 @@ export function marketBias(opts: {
   prevDay?: { h: number; l: number } | null;
   levels?: number[];
   lean: "BUY" | "SELL";
+  /** The desk's call: use this side whatever the highs and lows say. */
+  force?: "BUY" | "SELL";
 }): BiasRead | null {
   const recent = opts.recent.filter((c) => Number.isFinite(c.h) && Number.isFinite(c.l));
   if (recent.length < 12 || !Number.isFinite(opts.price) || opts.price <= 0) return null;
@@ -88,8 +90,14 @@ export function marketBias(opts: {
       reasons.push("near the bottom of the last few hours' range");
     }
   }
-  const long = vote > 0 ? true : vote < 0 ? false : opts.lean === "BUY";
-  if (vote === 0) reasons.push("no clear edge, going with the trend lean");
+  const long = opts.force
+    ? opts.force === "BUY"
+    : vote > 0
+      ? true
+      : vote < 0
+        ? false
+        : opts.lean === "BUY";
+  if (!opts.force && vote === 0) reasons.push("no clear edge, going with the trend lean");
   const side = long ? 1 : -1;
 
   // Entry: a small break of the last candle, which usually trades inside 5
@@ -127,7 +135,8 @@ export function marketBias(opts: {
     entryType: breakEntry ? "stop" : "market",
     stop,
     targets: [targets[0], targets[1], targets[2]],
-    reasons,
+    // When the desk picked the side, its own lines explain it.
+    reasons: opts.force ? [] : reasons,
   };
 }
 
