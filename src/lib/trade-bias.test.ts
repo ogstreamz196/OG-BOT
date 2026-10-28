@@ -92,7 +92,7 @@ describe("win toast", () => {
   it("names the person who asked and gives plain figures, no working", () => {
     const t = winToastText(row, "tp1", lotWin)!;
     expect(t.text).toBe(
-      "💰 Kez, that market bias call just hit the Quick Scalp! On 1.0 lot with a $500.00 account you'd be up $300.00, taking it to $800.00 (+60%). Bank it, you lucky bastard.",
+      "💰 Kez, that market bias call just hit the Quick Scalp! A 1.0 lot would have paid out $300.00. Bank it, you lucky bastard.",
     );
     expect(t.text.slice(t.mention.offset, t.mention.offset + t.mention.length)).toBe("Kez");
     expect(t.mention.id).toBe(42);
