@@ -305,28 +305,3 @@ export async function groupBattleTurn(
   void forgetOld(admin);
   return { kind: "reply", text: answer };
 }
-
-/** New members just joined: OG B0T initiates them, by name, in full Foul Mouth. */
-export async function newMemberRoast(
-  admin: Admin,
-  chatId: number,
-  members: { first_name?: string; username?: string }[],
-): Promise<string | null> {
-  if (await overLimit(admin, chatId)) return null;
-  const who = members
-    .slice(0, 5)
-    .map((m) => [m.first_name, m.username ? `@${m.username}` : null].filter(Boolean).join(" "))
-    .filter(Boolean);
-  if (!who.length) return null;
-  const lines = await recentLines(admin, chatId);
-  const turn = {
-    role: "user" as const,
-    content:
-      `[${who.join(", ")} just joined the group.] Welcome them the OG way: ` +
-      `roast ${who.length > 1 ? "each one" : "them"} by name, using their name and username for material. ` +
-      "Fully foul, 2–3 punchy lines total. Make them feel properly initiated: banter, not bullying.",
-  };
-  const answer = await battleAnswer(admin, chatId, lines, turn, null);
-  if (answer) await saveLine(admin, chatId, { role: "bot", name: "OG B0T", content: answer });
-  return answer;
-}

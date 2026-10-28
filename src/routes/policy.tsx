@@ -120,8 +120,7 @@ function PolicyPage() {
               its replies are kept with the sender&apos;s first name and Telegram ID for 24 hours, so
               it can keep up with the roast battle and slow down anyone spamming, then deleted. Messages from people who haven&apos;t connected
               are not kept; we only note when OG B0T last asked them to connect, so it asks at most
-              once a day. When someone joins one of those groups, their first name and username
-              are used for a welcome roast.
+              once a day.
             </p>
             <p>
               <strong className="text-foreground">OG B0T&apos;s memory:</strong> short notes OG B0T

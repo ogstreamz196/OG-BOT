@@ -1874,31 +1874,9 @@ async function handleGroupMessage(
   // Anything else from the group shows OG B0T is still in it.
   await noteGafferHere(admin, msg.chat);
 
-  // New people joined: OG B0T initiates them, Battle Zone style. Anyone without
-  // an OG B0T account gets a Connect button with it.
-  const newcomers = (msg.new_chat_members ?? []).filter((u) => !u.is_bot);
-  if (newcomers.length) {
-    const unknown: typeof newcomers = [];
-    for (const u of newcomers) if (!(await linkedProfileId(admin, u.id))) unknown.push(u);
-    const { newMemberRoast } = await import("@/lib/telegram-group-battle.server");
-    const roast = await newMemberRoast(admin, chat_id, newcomers).catch((e) => {
-      console.warn("[telegram] new member roast failed", e);
-      return null;
-    });
-    const connect = unknown.length ? { reply_markup: await connectButton() } : {};
-    const joined = { replyTo: msg.message_id, thread };
-    if (!roast && !unknown.length) return Response.json({ ok: true, group: "quiet" });
-    const res = await tg("sendMessage", {
-      chat_id,
-      ...withMentions(roast ? roast.slice(0, 3900) : CONNECT_NUDGE, roast ? newcomers : unknown),
-      disable_web_page_preview: true,
-      ...groupSendExtra(joined),
-      ...connect,
-    });
-    await scheduleDelete(chat_id, res, DEFAULT_TTL_MS);
-    for (const u of unknown) if (u.id) await markNudged(admin, chat_id, u.id);
-    return Response.json({ ok: true, group: roast ? "initiated" : "quiet" });
-  }
+  // New people joined: no greeting. OG B0T answers them once they speak, and
+  // anyone not connected gets the daily Connect nudge then.
+  if ((msg.new_chat_members ?? []).length) return Response.json({ ok: true, group: "quiet" });
 
   const text = typeof msg.text === "string" ? msg.text.trim() : "";
   if (!text || msg.from?.is_bot) return ignored();
