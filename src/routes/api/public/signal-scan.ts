@@ -72,6 +72,12 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   );
                   // Today's score goes back to the bottom, under the new alert.
                   await sc.refreshScore(supabaseAdmin, chatId);
+                  // The Boss's MT5 account takes the trade (when switched on).
+                  const { placeAutoTrade } = await import("@/lib/mt5-autotrade.server");
+                  await placeAutoTrade(
+                    supabaseAdmin,
+                    signal.plan as import("@/lib/trade-signal-context.server").SignalPlan,
+                  );
                   const { data: owner } = await supabaseAdmin
                     .from("user_roles")
                     .select("user_id")

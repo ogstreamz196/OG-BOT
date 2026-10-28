@@ -15,6 +15,7 @@ import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
 import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
+import { Mt5Panel } from "@/components/admin/Mt5Panel";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
@@ -43,6 +44,7 @@ function SignalsTab() {
   return (
     <>
       <SignalRecordPanel />
+      <Mt5Panel />
       <SignalsPortalPanel />
       <Suspense
         fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}

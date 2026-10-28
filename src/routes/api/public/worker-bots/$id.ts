@@ -98,6 +98,26 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               senderWorker: bot.id,
             });
           }
+        } else if (bot.role === "copy") {
+          // The copy-trade bot: how to copy the Boss's trades, with the link.
+          const { copyBotReply } = await import("@/lib/mt5-autotrade.server");
+          const copy = await copyBotReply(admin);
+          await f.fleetApi(
+            bot.id,
+            "sendMessage",
+            {
+              chat_id: msg.chat.id,
+              text: copy.text,
+              ...(copy.link
+                ? {
+                    reply_markup: {
+                      inline_keyboard: [[{ text: "📋 Copy my trades", url: copy.link }]],
+                    },
+                  }
+                : {}),
+            },
+            key,
+          );
         } else {
           reply = await f.assistantReply(bot, msg.text.slice(0, 2000));
           await f.fleetApi(bot.id, "sendMessage", { chat_id: msg.chat.id, text: reply }, key);

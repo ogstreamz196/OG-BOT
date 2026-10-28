@@ -36,7 +36,7 @@ export function TelegramFleetPanel() {
     name: "",
     token: "",
     chatId: "",
-    role: "assistant" as "assistant" | "trade",
+    role: "assistant" as "assistant" | "trade" | "copy",
     instructions: "",
   });
   const [busy, setBusy] = useState(false);
@@ -116,7 +116,9 @@ export function TelegramFleetPanel() {
           <label>Worker job</label>
           <Select
             value={form.role}
-            onValueChange={(v) => setForm({ ...form, role: v === "trade" ? "trade" : "assistant" })}
+            onValueChange={(v) =>
+              setForm({ ...form, role: v === "trade" || v === "copy" ? v : "assistant" })
+            }
           >
             <SelectTrigger aria-label="Worker job">
               <SelectValue />
@@ -124,6 +126,7 @@ export function TelegramFleetPanel() {
             <SelectContent>
               <SelectItem value="trade">Trade signals</SelectItem>
               <SelectItem value="assistant">Custom assistant</SelectItem>
+              <SelectItem value="copy">Copy trading (announces your MT5 trades)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -162,7 +165,12 @@ export function TelegramFleetPanel() {
                 <div>
                   <p className="font-semibold">{bot.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {bot.role === "trade" ? "Trade signals" : "Custom assistant"} · Token set ·{" "}
+                    {bot.role === "trade"
+                      ? "Trade signals"
+                      : bot.role === "copy"
+                        ? "Copy trading"
+                        : "Custom assistant"}{" "}
+                    · Token set ·{" "}
                     {bot.webhook_connected ? "Webhook connected" : "Webhook needs registration"}
                   </p>
                 </div>
@@ -200,7 +208,7 @@ export function TelegramFleetPanel() {
                       id: bot.id,
                       name: bot.name,
                       token: "",
-                      role: bot.role === "trade" ? "trade" : "assistant",
+                      role: bot.role === "trade" || bot.role === "copy" ? bot.role : "assistant",
                       instructions: bot.instructions,
                       chatId:
                         g.data?.groups.find((group) => group.workers.includes(bot.id))?.chatId ??
