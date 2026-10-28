@@ -63,7 +63,7 @@ export async function trackSignalMessage(
 }
 
 /**
- * A new alert for `market` went out: deletes that pair's older alert cards and
+ * A new alert for `market` went out: deletes that pair's older finished alert cards and
  * their updates, and stops the older signals messaging this chat (they're still
  * followed quietly, so their results still count).
  */
@@ -78,24 +78,31 @@ export async function clearOlderPair(admin: Admin, chatId: number, market: strin
       .in("kind", ["card", "update"]);
     if (error) return;
     for (const r of (tracked ?? []) as { message_id: number }[]) ids.add(Number(r.message_id));
-    // Cards posted before this table existed.
+    // The pair's cards, including ones posted before this table existed.
     const { data: cards } = await admin
       .from("trade_signals")
-      .select("message_id")
+      .select("message_id, status")
       .eq("chat_id", chatId)
       .eq("market", market)
       .gte("created_at", new Date(Date.now() - 48 * 3_600_000).toISOString())
       .limit(100);
-    for (const c of (cards ?? []) as { message_id: number | null }[])
-      if (c.message_id) ids.add(Number(c.message_id));
-    ids.delete(keep);
-    const old = [...ids].slice(-100);
+    // Signals still in play stay, with their updates, and keep being followed here.
+    const { ACTIVE_STATUSES, oldSignalMessages } = await import("./trade-signal-outcome");
+    const rows = (cards ?? []) as { message_id: number | null; status: string }[];
+    const live = (r: { status: string }) => ACTIVE_STATUSES.includes(r.status as never);
+    const old = oldSignalMessages({
+      tracked: [...ids],
+      active: rows.filter((r) => r.message_id && live(r)).map((r) => Number(r.message_id)),
+      finished: rows.filter((r) => r.message_id && !live(r)).map((r) => Number(r.message_id)),
+      keep: [keep],
+    }).slice(-100);
     if (old.length) await workerApi("deleteMessages", { chat_id: chatId, message_ids: old });
     await admin
       .from("trade_signals")
       .update({ chat_id: null })
       .eq("chat_id", chatId)
-      .eq("market", market);
+      .eq("market", market)
+      .not("status", "in", `(${ACTIVE_STATUSES.join(",")})`);
     if (old.length) await admin.from(TABLE).delete().eq("chat_id", chatId).in("message_id", old);
   } catch (e) {
     console.warn("[signals] clearing the older alert failed", (e as Error).message);
