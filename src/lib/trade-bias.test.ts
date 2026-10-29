@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle } from "./trade-signal";
-import { lotWin, marketBias, usdPerLotMove } from "./trade-bias";
+import { lotMoney, lotWin, marketBias, usdPerLotMove } from "./trade-bias";
 import { cardToSend } from "./trade-signal-context.server";
 import { winToastText } from "./trade-signal-tracker.server";
 
@@ -69,9 +69,12 @@ describe("1.0 lot on $500", () => {
     expect(usdPerLotMove("USDJPY", 150)).toBeCloseTo(666.67, 1);
     expect(usdPerLotMove("US30", 40000)).toBeNull();
   });
-  it("works out a gold win (a $3 move is $300)", () => {
-    expect(lotWin("XAUUSD", "BUY", 2400, 2403)).toEqual({ profit: 300, balance: 800, pct: 60 });
-    expect(lotWin("XAUUSD", "SELL", 2400, 2397)).toEqual({ profit: 300, balance: 800, pct: 60 });
+  it("works out a gold win at 0.5 lot (a $3 move is $150)", () => {
+    expect(lotWin("XAUUSD", "BUY", 2400, 2403)).toEqual({ profit: 150, balance: 650, pct: 30 });
+    expect(lotWin("XAUUSD", "SELL", 2400, 2397)).toEqual({ profit: 150, balance: 650, pct: 30 });
+    expect(lotMoney("XAUUSD", 2400, 2396.7)).toBeCloseTo(165, 6);
+    expect(lotMoney("BTCUSD", 80100, 80167.53)).toBeCloseTo(33.765, 6);
+    expect(lotMoney("US30", 40000, 40100)).toBeNull();
   });
   it("says nothing for a losing move", () => {
     expect(lotWin("BTCUSD", "BUY", 90000, 89900)).toBeNull();
@@ -92,7 +95,7 @@ describe("win toast", () => {
   it("names the person who asked and gives plain figures, no working", () => {
     const t = winToastText(row, "tp1", lotWin)!;
     expect(t.text).toBe(
-      "💰 Kez, that market bias call just hit the Quick Scalp! A 1.0 lot would have paid out $300.00. Bank it, you lucky bastard.",
+      "💰 Kez, that market bias call just hit the Quick Scalp! At 0.5 lot that's $150.00 in the bag. Lucky bastard.",
     );
     expect(t.text.slice(t.mention.offset, t.mention.offset + t.mention.length)).toBe("Kez");
     expect(t.mention.id).toBe(42);

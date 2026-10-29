@@ -346,7 +346,7 @@ export function winToastText(
   const what = row.feeds?.bias ? "market bias call" : `${row.label} signal`;
   const text =
     `${lead}${name}, that ${what} just hit the ${TARGET_NAMES[hit]}! ` +
-    `A 1.0 lot would have paid out ${usd(win.profit)}. Bank it, you lucky bastard.`;
+    `At 0.5 lot that's ${usd(win.profit)} in the bag. Lucky bastard.`;
   return { text, mention: { offset: lead.length, length: name.length, id: who.id } };
 }
 

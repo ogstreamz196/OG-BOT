@@ -105,7 +105,8 @@ describe("maybeDeskScout", () => {
     });
     expect(posted).toHaveLength(1);
     expect(posted[0]).toBe(deskCard(signal("XAUUSD", "BUY", 55).reply));
-    expect(posted[0]).toMatch(/^🧠 DESK ALERT · all my AIs agree\n\n/);
+    expect(posted[0]).toMatch(/^🚨 TRADE ALERT\n\n/);
+    expect(posted[0]).not.toMatch(/\bAIs?\b|DESK/);
     expect(followed).toEqual([1]);
     expect(out).toContain("XAU: posted BUY");
     expect(out).toContain("BTC: desk split");
