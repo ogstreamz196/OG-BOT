@@ -55,6 +55,7 @@ import type { WizardDraft, WizardResult } from "@/components/library/CreateNowWi
 import { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
 import { useSignalsPortal } from "@/hooks/use-signals-portal";
 import { useCarromLink } from "@/hooks/use-carrom-link";
+import { useSettings } from "@/hooks/use-settings";
 
 // The song wizard is a pop-up: it loads once the page is idle (or on first
 // open), not before the landing page can paint.
@@ -755,6 +756,10 @@ function GuestWizard() {
 }
 
 function AuthModal() {
+  const { data: settings } = useSettings();
+  const welcomeCoins = settings?.signup_credits ?? 20;
+  const trackCoins = settings?.coins_per_full_unlock ?? 5;
+  const freeTracks = trackCoins > 0 ? Math.floor(welcomeCoins / trackCoins) : 0;
   const [open, setOpen] = useState(false);
   const [songTitle, setSongTitle] = useState<string | null>(null);
   const [fromBattle, setFromBattle] = useState(false);
@@ -795,11 +800,14 @@ function AuthModal() {
             <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
               <p className="font-display text-xl font-black">Your track is ready to cook 🎧</p>
               <p className="mt-1 text-sm">
-                <span className="font-bold">"{songTitle}"</span> is saved. Join free, grab your 25
-                welcome coins and cook it in one tap.
+                <span className="font-bold">"{songTitle}"</span> is saved. Join free, grab your{" "}
+                {welcomeCoins} welcome coins and cook it in one tap.
               </p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
-                <li>🪙 25 free welcome coins to cook it</li>
+                <li>
+                  🪙 {welcomeCoins} free welcome coins
+                  {freeTracks > 1 ? `, enough for ${freeTracks} tracks` : " to cook it"}
+                </li>
                 <li>👑 15 days of VIP — every style unlocked</li>
                 <li>💸 Earn commission when friends join</li>
               </ul>
