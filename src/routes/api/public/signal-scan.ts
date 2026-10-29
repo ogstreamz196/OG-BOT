@@ -100,7 +100,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               { everyMs: 10_000, lastStartMs: 40_000 },
             ),
             maybeDeskScout(supabaseAdmin, {
-              read: deskRead,
+              // The AIs are only asked when the chart engine has a setup.
+              read: (ask) => deskRead(ask, { onlyWithSignal: true }),
               news: economicCalendar,
               post: postToSignalsChannel,
               follow,

@@ -262,13 +262,30 @@ const ukClock = (now: number) =>
     minute: "2-digit",
   }).format(new Date(now));
 
-/** How many journal lines a card keeps (Telegram caps a message at 4096 characters). */
-const JOURNAL_LINES = 8;
-
-/** The card with its journal under it, and the live line while the trade runs. */
-export function journalCard(card: string, log: string[], live: string | null): string {
-  const journal = log.slice(-JOURNAL_LINES);
-  return [card, ...(journal.length ? ["", ...journal] : []), ...(live ? ["", live] : [])]
+/**
+ * The card as it stands now: "I'm gonna buy … at" until the trade is in,
+ * then "I've bought … at" (stop "is", "Taking profit at"); under it only the
+ * latest update (each one replaces the last) and the live line while the
+ * trade runs. Market-bias cards ("I'd buy") are left as they are.
+ */
+export function journalCard(
+  card: string,
+  log: string[],
+  live: string | null,
+  entered = false,
+): string {
+  const now = entered
+    ? card
+        .replace(
+          /^(🟢|🔴) I'm gonna (buy|sell) (.+?) (?:now at|at|if it breaks (?:above|below)) ([\d.,]+)(?: on a pullback)?$/m,
+          (_m, dot: string, side: string, market: string, px: string) =>
+            `${dot} I've ${side === "buy" ? "bought" : "sold"} ${market} at ${px}`,
+        )
+        .replace(/^🛑 My stop loss will be /m, "🛑 My stop loss is ")
+        .replace(/^🎯 I'll take profit at /m, "🎯 Taking profit at ")
+    : card;
+  const latest = log.at(-1);
+  return [now, ...(latest ? ["", latest] : []), ...(live ? ["", live] : [])]
     .join("\n")
     .slice(0, 4096);
 }
@@ -584,6 +601,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               row.card!,
               log,
               live ? liveLine({ ...row, status }, lastPrice, now) : null,
+              !!(row.entered_at || update.entered_at),
             ),
             disable_web_page_preview: true,
           });

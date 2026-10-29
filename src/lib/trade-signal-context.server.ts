@@ -1070,10 +1070,14 @@ export async function deskSignal(userText: string): Promise<TradeSignalResult> {
 /** deskSignal, plus the desk's own call (null when the desk didn't decide). */
 export async function deskRead(
   userText: string,
+  opts: { onlyWithSignal?: boolean } = {},
 ): Promise<{ signal: TradeSignalResult; desk: DeskDecision | null }> {
   const s = await buildTradeSignal(userText);
   const inst = detectTradeIntent(userText);
   if (!inst || !s.biasArgs || !s.block) return { signal: s, desk: null };
+  // The scouts only post real signals, so with none there's nothing to ask
+  // the AIs: saves their free daily allowances for when it counts.
+  if (opts.onlyWithSignal && !s.plan) return { signal: s, desk: null };
   try {
     const { runDesk } = await import("./signal-desk.server");
     const chart = s.block.slice(Math.max(0, s.block.indexOf("LIVE MARKET DATA")));
