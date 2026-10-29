@@ -113,6 +113,7 @@ describe("buildTradeSignalContext", () => {
     const stop = out.match(/\nStop loss: ([\d.]+)/)?.[1];
     expect(entry).toBeDefined();
     expect(stop).toBeDefined();
+    if (!entry || !stop) throw new Error("signal levels missing");
     // First person: where it's going in, its stop, then the three targets.
     expect(signal.reply).toMatch(/^(🟢 I'm BUYING|🔴 I'm SELLING) · /);
     expect(signal.reply).toContain(`▶️ I'm gonna enter @ ${entry}  (`);
