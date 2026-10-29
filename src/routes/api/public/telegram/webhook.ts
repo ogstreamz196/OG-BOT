@@ -1176,9 +1176,9 @@ async function runChatAI(
   const movedFromOneMinute = !!tradeText && !staff && ONE_MINUTE_RE.test(tradeText);
   if (tradeText && movedFromOneMinute) tradeText = withoutOneMinute(tradeText);
   if (tradeText) {
-    const timer = setInterval(() => {
-      void tg("sendChatAction", { chat_id, action: "typing" });
-    }, 4000);
+    // Whoever's cooking the card shows as typing (the trade bot, once it's on it).
+    let typing = () => void tg("sendChatAction", { chat_id, action: "typing" });
+    const timer = setInterval(() => typing(), 4000);
     try {
       void tg("sendChatAction", { chat_id, action: "typing" });
       const market = trade.detectTradeIntent(tradeText);
@@ -1199,9 +1199,16 @@ async function runChatAI(
         (!!group && workerConfigured() && (await workerAllowed(admin, chat_id, "trade")));
       let picked: string;
       if (viaWorker) {
-        picked = registeredWorker
-          ? `Oi ${registeredWorker.name}, put your crayons down and give this mug the ${marketName(market)} levels. Chop fucking chop.`
-          : gafferOrder(marketName(market));
+        picked = gafferOrder(marketName(market), registeredWorker?.name);
+        // The trade bot's already cooking (signalJob), so it shows as typing.
+        const typingBody = { chat_id, action: "typing" };
+        typing = () =>
+          void (
+            registeredWorker && credentialKey
+              ? fleet.fleetApi(registeredWorker.id, "sendChatAction", typingBody, credentialKey)
+              : workerApi("sendChatAction", typingBody)
+          ).catch(() => null);
+        typing();
       } else {
         const { pickTradeHold } = await import("@/lib/trade-hold.server");
         const { foulAccess } = await import("@/lib/foul-access.server");
@@ -1213,9 +1220,10 @@ async function runChatAI(
       const hold = movedFromOneMinute
         ? `1 min calls are Boss-only (too noisy at that speed), so here's the 5 min scalp.\n${picked}`
         : picked;
+      // OG B0T always speaks first; the card waits for this line to go out.
       const held = await tg("sendMessage", {
         chat_id,
-        text: hold,
+        ...withAsker(hold, group?.user),
         disable_web_page_preview: true,
         ...threaded,
       });
@@ -1606,6 +1614,18 @@ type GroupContext = {
 };
 
 type TgUser = { id?: number; first_name?: string; username?: string };
+
+/** Fills "{who}" in OG B0T's order with the asker's name, tap-able (no @handle). */
+function withAsker(text: string, user?: TgUser) {
+  const at = text.indexOf("{who}");
+  if (at < 0) return { text };
+  const label = (user?.first_name || user?.username || "").trim();
+  if (!label || !user?.id) return { text: text.replace("{who}", "this one") };
+  return {
+    text: text.replace("{who}", label),
+    entities: [{ type: "text_mention", offset: at, length: label.length, user: { id: user.id } }],
+  };
+}
 
 /**
  * Starts a group message with a mention of each person it's for (a tap-able

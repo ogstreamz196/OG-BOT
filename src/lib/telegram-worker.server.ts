@@ -153,13 +153,16 @@ export async function workerAllowed(admin: Admin, chatId: number, worker: Worker
 const pick = <T>(list: T[]) => list[Math.floor(Math.random() * list.length)];
 
 /** The Gaffer ordering the chart slave about. Nicknames, never @handles. */
-export function gafferOrder(market: string): string {
+export function gafferOrder(market: string, worker?: string): string {
+  // {who} is where the asker's name goes (a tap-able mention, see withAsker).
+  if (worker)
+    return `Oi ${worker}, you useless lump, {who} wants a ${market} signal. Give them one, chop fucking chop.`;
   return pick([
-    `Oi chart slave, put your crayons down and give this mug his ${market} levels.`,
-    `Dickhead chart boy, wake up and post the ${market} chart before I clip you round the ear.`,
-    `Unpaid intern, stop staring at Fibonacci and deliver the ${market} signal now.`,
-    `Chart slave! ${market}. Now. And no fucking about with your little rulers.`,
-    `Oi intern, this one wants ${market}. Chop chop, or you're back on tea duty.`,
+    `Oi chart slave, {who} wants a ${market} signal. Give them one, and don't take all fucking day.`,
+    `Wake up, you useless chart boy. {who} wants ${market}. Cook them a signal, now.`,
+    `Unpaid intern! {who} is after a ${market} signal. Sort them out before I sack you.`,
+    `Oi dickhead chart slave, {who} wants ${market} levels. Chop fucking chop.`,
+    `Chart slave, {who} wants a ${market} signal. Get cooking or you're back on tea duty, you muppet.`,
   ]);
 }
 
