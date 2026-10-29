@@ -9,7 +9,7 @@ vi.mock("./ai-endpoint.server", () => ({
   ],
 }));
 
-import { deskLines, parseJsonReply, runDesk } from "./signal-desk.server";
+import { deskLines, parseJsonReply, pickedTp, runDesk } from "./signal-desk.server";
 
 type Body = { model: string; messages: { role: string; content: string }[] };
 const reply = (content: string) =>
@@ -77,5 +77,18 @@ describe("runDesk", () => {
       vi.fn(async () => new Response("down", { status: 500 })),
     );
     expect(await runDesk("BTC/USD", "data")).toBeNull();
+  });
+});
+
+describe("the chief's take profit", () => {
+  const band = { direction: "BUY" as const, lo: 100, hi: 110, quick: 105 };
+  it("is kept only when it's a number inside the safe band", () => {
+    expect(pickedTp(107.5, band)).toBe(107.5);
+    expect(pickedTp("103.2", band)).toBe(103.2);
+    expect(pickedTp(111, band)).toBeUndefined();
+    expect(pickedTp(99, band)).toBeUndefined();
+    expect(pickedTp("soon", band)).toBeUndefined();
+    // A SELL band runs downwards; still inside is inside.
+    expect(pickedTp(95, { direction: "SELL", lo: 97, hi: 93, quick: 95 })).toBe(95);
   });
 });

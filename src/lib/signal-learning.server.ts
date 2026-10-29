@@ -101,12 +101,17 @@ export function safeTuning(t: Tuning): Tuning {
   };
 }
 
-/** The stop and targets a past setup gets under a setting. */
+const oneTarget = (tp: number): [number, number, number] => [tp, tp, tp];
+
+/** The stop and take profit a past setup gets under a setting. */
 export function applyTuning(s: LearnSample, tune: Tuning) {
   const side = s.direction === "BUY" ? 1 : -1;
   return {
     stop: s.entry - side * s.raw.risk * tune.stopRoom,
-    targets: scaleTargets(s.direction, s.entry, s.raw.targets, s.raw.atr * 0.05, tune.scale),
+    // One take profit (the Quick Scalp), as live signals have.
+    targets: oneTarget(
+      scaleTargets(s.direction, s.entry, s.raw.targets, s.raw.atr * 0.05, tune.scale)[0],
+    ),
   };
 }
 
