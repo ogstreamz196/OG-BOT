@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { Link, Navigate } from "@tanstack/react-router";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Lock, Pause, Send } from "lucide-react";
+import { Lock, Pause, Send, Trophy } from "lucide-react";
 import signalsIcon from "@/assets/og-signals-480.webp";
 import { cn } from "@/lib/utils";
+import { useIsNativeApp } from "@/hooks/use-signals-portal";
 import {
   BOARD_MARKETS,
   getBoardPrices,
-  getSignalsBoard,
+  getSignalCard,
+  getSignalsOverview,
   type BoardFrame,
   type BoardPrices,
   type BoardRow,
 } from "@/lib/signals-board.functions";
 import type { SignalSummary } from "@/lib/trade-signal-context.server";
+import type { SignalRecord } from "@/lib/signal-record.server";
 
 const GROUPS = ["All", "Metals", "Crypto", "Forex", "Indices"] as const;
 type Group = (typeof GROUPS)[number];
@@ -27,18 +30,33 @@ const PRICE_MS = 5_000;
 const BOARD_MS: Record<BoardFrame, number> = { "1H": 60_000, "15M": 30_000 };
 
 export function SignalsBoard() {
+  const native = useIsNativeApp();
   const [frame, setFrame] = useState<BoardFrame>("1H");
   const [group, setGroup] = useState<Group>("All");
-  const fetchBoard = useServerFn(getSignalsBoard);
+  const fetchOverview = useServerFn(getSignalsOverview);
+  const fetchCard = useServerFn(getSignalCard);
   const fetchPrices = useServerFn(getBoardPrices);
 
-  const board = useQuery({
-    queryKey: ["signals-board", frame],
-    queryFn: () => fetchBoard({ data: { frame } }),
-    refetchInterval: BOARD_MS[frame],
-    staleTime: 15_000,
+  const overview = useQuery({
+    queryKey: ["signals-overview"],
+    queryFn: () => fetchOverview(),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    enabled: native === false,
   });
-  const open = board.data?.open === true;
+  const open = overview.data?.open === true;
+  // Only the markets on screen are fetched, each on its own, so cards fill in
+  // as they're ready instead of waiting for the slowest market.
+  const shownMarkets = BOARD_MARKETS.filter((m) => group === "All" || m.group === group);
+  const cards = useQueries({
+    queries: shownMarkets.map((m) => ({
+      queryKey: ["signals-card", frame, m.code],
+      queryFn: () => fetchCard({ data: { frame, code: m.code } }),
+      refetchInterval: BOARD_MS[frame],
+      staleTime: 15_000,
+      enabled: open,
+    })),
+  });
   const prices = useQuery({
     queryKey: ["signals-board-prices"],
     queryFn: () => fetchPrices(),
@@ -46,11 +64,12 @@ export function SignalsBoard() {
     enabled: open,
   });
 
-  if (board.data && !board.data.open) return <Closed />;
+  // Website only: the phone apps never show trading signals (store rules).
+  if (native) return <Navigate to="/" />;
+  if (overview.data && !overview.data.open) return <Closed />;
 
-  const rows = board.data?.open ? board.data.rows : [];
-  const shown = rows.filter((r) => group === "All" || GROUP_OF[r.code] === group);
-  const trades = rows.filter((r) => r.ok && r.signal.verdict === "trade").length;
+  const loaded = cards.filter((c) => c.data).length;
+  const trades = cards.filter((c) => c.data?.ok && c.data.signal.verdict === "trade").length;
 
   return (
     <div className="mx-auto max-w-5xl px-3 pb-24 pt-3 sm:px-4">
@@ -68,6 +87,10 @@ export function SignalsBoard() {
           <img
             src={signalsIcon}
             alt=""
+            width={80}
+            height={80}
+            decoding="async"
+            fetchPriority="high"
             className="h-16 w-16 shrink-0 rounded-2xl border-2 border-emerald-500/70 object-cover shadow-lg sm:h-20 sm:w-20"
           />
           <div className="min-w-0 flex-1">
@@ -78,8 +101,8 @@ export function SignalsBoard() {
               OG <span className="text-emerald-400">Signals</span>
             </h1>
             <p className="mt-1 truncate text-xs font-semibold text-foreground/85">
-              {board.data?.open
-                ? `${trades} setups live of ${rows.length} markets · prices every 5s`
+              {open && loaded
+                ? `${trades} setups live of ${loaded} markets · prices every 5s`
                 : "Reading the live charts…"}
             </p>
           </div>
@@ -96,6 +119,7 @@ export function SignalsBoard() {
               <button
                 key={g}
                 onClick={() => setGroup(g)}
+                aria-pressed={group === g}
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-colors",
                   group === g
@@ -110,33 +134,36 @@ export function SignalsBoard() {
         </div>
       </header>
 
-      {board.data?.open && board.data.staffOnly && (
+      {overview.data?.open && overview.data.record && <WinRate r={overview.data.record} />}
+
+      {overview.data?.open && overview.data.staffOnly && (
         <p className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-300">
           OG Signals is switched off for members. You can see it because you're staff; turn it on in
           Boss → OG B0T → Signals.
         </p>
       )}
 
-      {board.isLoading ? (
-        <div className="grid place-items-center py-24 text-sm text-muted-foreground">
-          <Loader2 className="mb-3 h-6 w-6 animate-spin" />
-          Pulling live charts for {BOARD_MARKETS.length} markets…
-        </div>
-      ) : board.isError ? (
+      {overview.isError ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
           Couldn't load the signals just now. They'll retry on their own.
         </p>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((row) => (
-            <SignalCard key={row.code} row={row} prices={prices.data} />
-          ))}
+          {shownMarkets.map((m, i) => {
+            const row = cards[i]?.data;
+            return row ? (
+              <SignalCard key={m.code} row={row} prices={prices.data} />
+            ) : (
+              <CardSkeleton key={m.code} code={m.code} />
+            );
+          })}
         </div>
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Built from live charts by the same engine as OG B0T's Telegram signals. Confidence is how
-        strongly the indicators agree, not a win rate. Risk 1–2% per trade. Not financial advice.
+        Built from live charts by the same engine as OG B0T's Telegram signals. The win rate is from
+        every tracked signal's real result; a card's confidence is how strongly the indicators
+        agree, not a win rate. Trading is risky: risk 1–2% per trade. Not financial advice.
       </p>
       <div className="mt-3 flex justify-center">
         <Link
@@ -147,6 +174,65 @@ export function SignalsBoard() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** The signal record's win rate, the same figures as the Telegram scoreboard. */
+function WinRate({ r }: { r: SignalRecord }) {
+  const decided = r.wins + r.losses;
+  const rate = decided ? Math.round((r.wins / decided) * 100) : null;
+  const since = r.since
+    ? new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/London",
+        day: "numeric",
+        month: "short",
+      }).format(new Date(r.since))
+    : null;
+  return (
+    <section
+      aria-label="Signal win rate"
+      className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3"
+    >
+      <div className="flex items-center gap-2">
+        <Trophy className="h-5 w-5 text-amber-300" />
+        <span className="font-display text-2xl font-black text-emerald-300">
+          {rate == null ? "—" : `${rate}%`}
+        </span>
+        <span className="text-xs font-bold uppercase tracking-wide text-foreground/80">
+          win rate{since ? ` since ${since}` : ""}
+        </span>
+      </div>
+      <p className="text-sm text-foreground/85">
+        <span className="font-bold text-emerald-400">{r.wins} won</span> ·{" "}
+        <span className="font-bold text-rose-400">{r.losses} lost</span>
+        {r.running ? ` · ${r.running} running` : ""}
+        {r.cancelled ? ` · ${r.cancelled} cancelled` : ""}
+      </p>
+      {r.markets.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {r.markets
+            .map(
+              (m) =>
+                `${m.label} ${m.pips >= 0 ? "+" : "−"}${Math.abs(m.pips).toFixed(1)} ${m.unit}`,
+            )
+            .join(" · ")}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function CardSkeleton({ code }: { code: string }) {
+  return (
+    <article aria-busy="true" className="rounded-2xl border border-border bg-card p-4">
+      <h2 className="font-black">{code}</h2>
+      <div className="mt-3 h-7 w-32 animate-pulse rounded-md bg-muted" />
+      <div className="mt-3 space-y-2">
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+      </div>
+    </article>
   );
 }
 
@@ -272,7 +358,7 @@ export function LiveCard({ s, price }: { s: SignalSummary; price: number }) {
         <div className="min-w-0">
           <h2 className="truncate font-black leading-tight">{s.label}</h2>
           <p className="text-xs text-muted-foreground">
-            {s.timeframe} · {s.confidencePct}% · {s.quality}
+            {s.timeframe} · {s.confidencePct}% confidence · {s.quality}
           </p>
         </div>
         <span

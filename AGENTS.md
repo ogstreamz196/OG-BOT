@@ -44,6 +44,8 @@ Subdirectories have their own AGENTS.md; read it before changing files there.
 
 - Browser OAuth return stays separate from Android App Links, via a package-targeted intent anchor on /app-return (Chrome needs a direct tap).
 - Native welcome screen shows only the manual account form; web OAuth unchanged.
+- Trading is website/Telegram only, never in the Android/iOS apps (Google Play / App Store rules): useSignalsPortal is off in the app (useIsNativeApp; it only turns on once we know we're not native, so the cards never flash), /signals redirects home on native (route beforeLoad + SignalsBoard guard), and the app chat sends nativeApp: true so runOgChat builds no trade signal, no results note and adds a PHONE APP note (no signals, market calls, brokers or trading/copy links), with no "hold on" signal line client-side.
+- OG Signals page (/signals, website): getSignalsOverview (open/closed + the signal record, cached a minute) shows the win-rate strip (same figures as the Telegram scoreboard); each market loads on its own via getSignalCard so cards fill in as ready (only the markets on screen are fetched); the access check is cached 30s per member and live prices 3s for everyone; getSignalsBoard stays for compatibility.
 - Install popup ("Add shortcut") mounts before the route outlet, gated on Capacitor/standalone detection; reappears each visit until install is detected (appinstalled/standalone flag).
 
 ## AI
