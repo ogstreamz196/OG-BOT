@@ -2,7 +2,7 @@
 // chart's recent highs and lows and gives the side it leans, as a risky call
 // likely to trigger within the next 5 minutes. It's labelled as bias, not a
 // signal, and never counts in the results book.
-import { atr, type Candle } from "./trade-signal";
+import { atr, scaleTargets, type Candle } from "./trade-signal";
 
 export type BiasRead = {
   direction: "BUY" | "SELL";
@@ -134,7 +134,14 @@ export function marketBias(opts: {
     entry,
     entryType: breakEntry ? "stop" : "market",
     stop,
-    targets: [targets[0], targets[1], targets[2]],
+    // Shown short of those highs and lows, like every signal (scaleTargets),
+    // so they're hit before price stalls at the level.
+    targets: scaleTargets(
+      long ? "BUY" : "SELL",
+      entry,
+      [targets[0], targets[1], targets[2]],
+      a * 0.05,
+    ),
     // When the desk picked the side, its own lines explain it.
     reasons: opts.force ? [] : reasons,
   };
