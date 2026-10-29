@@ -288,6 +288,13 @@
       "when": 1793242229121,
       "tag": "0040_mt5_autotrade",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793316899961,
+      "tag": "0041_welcome_bonus_20",
+      "breakpoints": true
     }
   ]
 }
