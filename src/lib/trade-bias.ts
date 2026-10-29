@@ -2,7 +2,7 @@
 // chart's recent highs and lows and gives the side it leans, as a risky call
 // likely to trigger within the next 5 minutes. It's labelled as bias, not a
 // signal, and never counts in the results book.
-import { atr, scaleTargets, type Candle } from "./trade-signal";
+import { atr, scaleTargets, type Candle, type Tuning } from "./trade-signal";
 
 export type BiasRead = {
   direction: "BUY" | "SELL";
@@ -41,6 +41,8 @@ export function marketBias(opts: {
   lean: "BUY" | "SELL";
   /** The desk's call: use this side whatever the highs and lows say. */
   force?: "BUY" | "SELL";
+  /** Learned stop room and target pull-in (signal-learning.server.ts). */
+  tuning?: Tuning;
 }): BiasRead | null {
   const recent = opts.recent.filter((c) => Number.isFinite(c.h) && Number.isFinite(c.l));
   if (recent.length < 12 || !Number.isFinite(opts.price) || opts.price <= 0) return null;
@@ -115,7 +117,7 @@ export function marketBias(opts: {
     : Math.max(...window.slice(-12).map((c) => c.h));
   let risk = Math.abs(entry - swing) + a * 0.1;
   risk = Math.min(Math.max(risk, a * 0.6), a * 2);
-  const stop = entry - side * risk * ROOM;
+  const stop = entry - side * risk * (opts.tuning?.stopRoom ?? ROOM);
 
   // Targets: the highs and lows in the way (recent range, yesterday, engine
   // levels), else 1R / 2R / 3R, always in order and at least 0.5R apart.
@@ -141,6 +143,7 @@ export function marketBias(opts: {
       entry,
       [targets[0], targets[1], targets[2]],
       a * 0.05,
+      opts.tuning?.scale,
     ),
     // When the desk picked the side, its own lines explain it.
     reasons: opts.force ? [] : reasons,

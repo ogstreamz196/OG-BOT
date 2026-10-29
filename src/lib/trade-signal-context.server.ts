@@ -701,9 +701,14 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // A proxy feed's volume (the PAX Gold token for gold) says nothing about
   // the real market, so it never counts for or against a signal there.
   const volume = inst.spot ? NaN : volumeRatio(entryCandles);
+  // What OG B0T has learned from past setups (stop room, target pull-in,
+  // confidence floor); the hand-set rules until it has learned anything.
+  const { learnedTuning } = await import("./signal-learning.server");
+  const tuning = await learnedTuning(inst.code).catch(() => undefined);
   const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
+    tuning,
   });
   const price = Number.isFinite(live) && live > 0 ? live : lo.close;
   const dp = decimalsFor(inst, price);
@@ -1044,7 +1049,13 @@ export async function deskRead(
   try {
     const { runDesk } = await import("./signal-desk.server");
     const chart = s.block.slice(Math.max(0, s.block.indexOf("LIVE MARKET DATA")));
-    const desk = await runDesk(inst.label, chart);
+    // What it's learned from past signals on this market, for the desk to weigh.
+    const { learnedLesson } = await import("./signal-learning.server");
+    const lesson = await learnedLesson(inst.code).catch(() => null);
+    const desk = await runDesk(
+      inst.label,
+      lesson ? `WHAT I'VE LEARNED FROM PAST SIGNALS: ${lesson}\n\n${chart}` : chart,
+    );
     if (!desk) return { signal: s, desk: null };
     // The desk only picks the side; the card never mentions it.
     if (s.plan && s.plan.direction === desk.direction) return { signal: s, desk };
@@ -1101,6 +1112,9 @@ async function buildBias(
     levels: o.levels,
     lean: o.lean,
     force,
+    tuning: await import("./signal-learning.server")
+      .then((m) => m.learnedTuning(o.inst.code))
+      .catch(() => undefined),
   });
   if (!read) return null;
   // The exact numbers on the card, as with every signal.

@@ -6,6 +6,7 @@
 import { volumeRatio } from "./trade-signal-extras";
 import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
 import {
+  DEFAULT_TUNING,
   buildPlan,
   framesFor,
   sessionRead,
@@ -191,6 +192,77 @@ export async function runBacktest(opts: {
   }
   await opts.onProgress?.(total, total);
   return trades;
+}
+
+/**
+ * One past setup for the learning loop (signal-learning.server.ts): the
+ * engine's own levels before any tuning, and the candles that followed, so
+ * other stop and target settings can be tried on exactly the same setup.
+ */
+export type LearnSample = {
+  t: number;
+  direction: TradePlan["direction"];
+  entry: number;
+  entryType: TradePlan["entryType"];
+  confidencePct: number;
+  /** The engine's verdict with no confidence floor applied. */
+  verdict: TradePlan["verdict"];
+  raw: TradePlan["raw"];
+  path: Candle[];
+  expiresAt: number;
+};
+
+/** Past setups every `step` entry candles between `from` and `to` (see LearnSample). */
+export function collectSamples(opts: {
+  sets: CandleSets;
+  frame: BacktestFrame;
+  from: number;
+  to: number;
+  inst?: Instrument;
+  step?: number;
+}): LearnSample[] {
+  const cfg = BACKTEST_FRAMES[opts.frame];
+  const entrySeries = opts.sets[cfg.entry];
+  const step = opts.step ?? cfg.step;
+  const hours = validityWindow(cfg.style, 0).hours;
+  const out: LearnSample[] = [];
+  for (
+    let i = firstAtOrAfter(entrySeries, opts.from);
+    i < firstAtOrAfter(entrySeries, opts.to);
+    i += step
+  ) {
+    const t = entrySeries[i].t + cfg.ms;
+    const sets: CandleSets = {
+      daily: closedBy(opts.sets, "daily", t),
+      hourly: closedBy(opts.sets, "hourly", t),
+      fifteen: cfg.style === "scalp" ? closedBy(opts.sets, "fifteen", t) : [],
+      five: cfg.fast === "5m" ? closedBy(opts.sets, "five", t) : [],
+      minute: cfg.fast === "1m" ? closedBy(opts.sets, "minute", t) : [],
+    };
+    const expiresAt = t + hours * 3600_000;
+    const pathEnd = firstAtOrAfter(entrySeries, expiresAt);
+    if (pathEnd >= entrySeries.length) break;
+    const { frames, entryCandles, middleCandles } = framesFor(sets, cfg.style, cfg.fast);
+    const [hi, mid, lo] = frames;
+    if (!hi || !mid || !lo) continue;
+    const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, undefined, {
+      volumeRatio: volumeRatio(entryCandles),
+      session: opts.inst ? sessionRead(opts.inst, t) : undefined,
+      tuning: { ...DEFAULT_TUNING, minConfidence: 0 },
+    });
+    out.push({
+      t,
+      direction: plan.direction,
+      entry: plan.entry,
+      entryType: plan.entryType,
+      confidencePct: plan.confidencePct,
+      verdict: plan.verdict,
+      raw: plan.raw,
+      path: entrySeries.slice(firstAtOrAfter(entrySeries, t), pathEnd),
+      expiresAt,
+    });
+  }
+  return out;
 }
 
 export type BandStats = { n: number; tp1: number };

@@ -449,6 +449,11 @@ export type TradePlan = {
   invalidation: string;
   resistance: number[];
   support: number[];
+  /**
+   * The engine's own levels before the members' stop room and target pull-in
+   * (Tuning), so the learning loop can try other settings on the same setup.
+   */
+  raw: { risk: number; targets: [number, number, number]; atr: number };
 };
 
 /** What the market hours mean for a signal right now (see sessionRead). */
@@ -471,6 +476,8 @@ export type EngineOptions = {
   volumeRatio?: number;
   /** Market hours at the time of the signal. */
   session?: SessionRead;
+  /** Learned stop room, target pull-in and confidence floor (signal-learning.server.ts). */
+  tuning?: Tuning;
 };
 
 /** A setup needs at least this much room (in R) to the next level in its way. */
@@ -483,6 +490,23 @@ export const MIN_ROOM_R = 1.5;
 const MAX_STOP_ATR = 3;
 /** Members' stop loss is this much further from the entry than the engine's risk (+20%). */
 export const STOP_ROOM = 1.2;
+
+/**
+ * The settings the learning loop tunes from results (signal-learning.server.ts):
+ * how much further out the stop sits than the engine's risk, how far each
+ * target is pulled in (see scaleTargets), and the lowest confidence worth
+ * trading. The defaults are the hand-set rules.
+ */
+export type Tuning = {
+  stopRoom: number;
+  scale: [number, number, number];
+  minConfidence: number;
+};
+export const DEFAULT_TUNING: Tuning = {
+  stopRoom: STOP_ROOM,
+  scale: [0.8, 0.6, 0.85],
+  minConfidence: 51,
+};
 /** Below this volume ratio a move has little behind it. */
 const LIGHT_VOLUME = 0.5;
 
@@ -513,6 +537,7 @@ export function scaleTargets(
   entry: number,
   [tp1, tp2, tp3]: [number, number, number],
   minStep: number,
+  [q, p, g]: [number, number, number] = DEFAULT_TUNING.scale,
 ): [number, number, number] {
   const s = direction === "BUY" ? 1 : -1;
   // Work in "distance in the trade's favour", so BUY and SELL are one sum.
@@ -520,9 +545,9 @@ export function scaleTargets(
   const d1 = d(tp1);
   const d2 = d(tp2);
   const d3 = d(tp3);
-  let quick = d1 * 0.8;
-  let potentially = d1 + 0.6 * (d2 - d1);
-  let runner = d2 + 0.85 * (d3 - d2);
+  let quick = d1 * q;
+  let potentially = d1 + p * (d2 - d1);
+  let runner = d2 + g * (d3 - d2);
   const step = Math.max(minStep, 0);
   quick = Math.max(quick, step);
   potentially = Math.max(potentially, quick + step);
@@ -541,6 +566,7 @@ export function buildPlan(
   opts: EngineOptions = {},
 ): TradePlan {
   const classic = !!opts.classic;
+  const tune = opts.tuning ?? DEFAULT_TUNING;
   const price =
     priceNow != null && Number.isFinite(priceNow) && priceNow > 0 ? priceNow : entry.close;
   const a = entry.atr;
@@ -644,7 +670,7 @@ export function buildPlan(
   else risk = risk > a * MAX_STOP_ATR ? a * 2 : Math.max(risk, a * 0.8);
   // Members' stop sits 20% further from the entry than the engine's risk, so
   // the trade has room to breathe; the targets keep the engine's R spacing.
-  const stopDistance = classic ? risk : risk * STOP_ROOM;
+  const stopDistance = classic ? risk : risk * tune.stopRoom;
   const stop = long ? entryPx - stopDistance : entryPx + stopDistance;
   const at = (r: number) => (long ? entryPx + risk * r : entryPx - risk * r);
   const t1 = at(1);
@@ -667,8 +693,15 @@ export function buildPlan(
   }
   // Targets members are shown and followed on: pulled in from the engine's
   // levels so they're hit more often (classic keeps the old ones to compare).
+  const raw = { risk, targets: [t1, t2, t3] as [number, number, number], atr: a };
   if (!classic)
-    [t1s, t2, t3] = scaleTargets(long ? "BUY" : "SELL", entryPx, [t1, t2, t3], a * 0.05);
+    [t1s, t2, t3] = scaleTargets(
+      long ? "BUY" : "SELL",
+      entryPx,
+      [t1, t2, t3],
+      a * 0.05,
+      tune.scale,
+    );
   // Reward against the stop members actually use.
   const rr1 = Math.abs(t1s - entryPx) / stopDistance;
   const rr3 = Math.abs(t3 - entryPx) / stopDistance;
@@ -696,6 +729,8 @@ export function buildPlan(
       waitReason = "The timeframes disagree and short-term momentum is against the trade.";
     else if (room < MIN_ROOM_R)
       waitReason = `Not enough room: the next ${long ? "resistance" : "support"} is only ${room.toFixed(1)}R away.`;
+    else if (confidencePct < tune.minConfidence)
+      waitReason = `Not strong enough: past results say setups under ${tune.minConfidence}% aren't worth it.`;
   }
 
   const fmtR = (r: number) =>
@@ -724,6 +759,7 @@ export function buildPlan(
       : `a ${middle.name} close above the stop, or the ${higher.name} trend flipping bullish`,
     resistance,
     support,
+    raw,
   };
 }
 

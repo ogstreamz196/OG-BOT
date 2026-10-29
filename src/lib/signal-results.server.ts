@@ -241,12 +241,21 @@ export async function signalResultsNote(admin: Admin, now = Date.now()): Promise
     const recordLine = record
       ? `\n- The signal record (counted since the Boss last reset it; it never resets by itself; the headline % is the win rate, won vs lost): ${recordText(record).replace(/\n/g, " · ")}`
       : "";
+    // What it has learned from replaying its own setups (signal-learning.server.ts).
+    const { learningState } = await import("./signal-learning.server");
+    const lessons = Object.values((await learningState()).markets)
+      .map((m) => m.lesson)
+      .filter(Boolean);
+    const learnedLine = lessons.length
+      ? `\n- What the bot has learned from replaying its own recent signals (it keeps studying when it's quiet and adjusts its stop room, how far targets are pulled in and the lowest confidence it trades): ${lessons.join(" ")}`
+      : "";
     return (
       "\n\nSIGNAL RESULTS (the bot's own record of its gold and bitcoin signals, UK time; answer from these exact figures, never invent or round them up, " +
       "and say plainly when it's a loss. Won = hit at least the Quick Scalp, pips to the furthest target reached; lost = stop loss hit first. " +
       "Gold is in pips (0.1), bitcoin in $1 points; don't add the two together):\n" +
       lines.join("\n") +
-      recordLine
+      recordLine +
+      learnedLine
     );
   } catch {
     return "";
