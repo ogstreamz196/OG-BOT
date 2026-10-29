@@ -32,7 +32,7 @@ export const LEARNING_KEY = "signals.learning";
 const RUN_KEY = "signals.learning.lastRun";
 /** One market per run, so each is studied about every 4 hours. */
 export const LEARN_EVERY_MS = 2 * 3600_000;
-const LEARN_DAYS = 7;
+const LEARN_DAYS = 14;
 /** A setup every 30 minutes of the period. */
 const SAMPLE_STEP = 6;
 /** Fewer filled trades than this and a setting can't be judged. */
@@ -362,7 +362,20 @@ export async function maybeLearn(
     });
     const had = state.markets[market.code];
     const label = market.code === "XAUUSD" ? "Gold" : "Bitcoin";
-    const out = learnFromSamples(samples, had?.tuning ?? DEFAULT_TUNING, seeded(now), label);
+    const studied = learnFromSamples(samples, had?.tuning ?? DEFAULT_TUNING, seeded(now), label);
+    // What really happened beats any replay: a confidence band that's been
+    // losing live raises the floor (never lowers it).
+    const live = await liveResults(admin, market.code, now);
+    const floor = liveFloor(live);
+    const out =
+      floor != null && floor > studied.next.minConfidence
+        ? {
+            ...studied,
+            next: safeTuning({ ...studied.next, minConfidence: floor }),
+            kept: true,
+            lesson: `${studied.lesson} Live results: setups under ${Math.min(floor, BOUNDS.minConfidence[1])}% lost more than they won, so I only trade from there now.`,
+          }
+        : studied;
     const at = new Date(now).toISOString();
     state.markets[market.code] = {
       tuning: out.next,
@@ -388,5 +401,55 @@ export async function maybeLearn(
   } catch (e) {
     console.warn("[signals] learning failed", e instanceof Error ? e.message : "error");
     return "failed: error";
+  }
+}
+
+/** A live signal's confidence and how it ended (signal-record buckets). */
+export type LiveResult = { confidence_pct: number; status: string; best_target: number };
+
+/** Confidence bands checked against live results, lowest first. */
+const LIVE_BANDS: [number, number][] = [
+  [51, 59],
+  [60, 69],
+  [70, 74],
+  [75, 79],
+];
+/** Settled trades a band needs before its live record counts. */
+export const LIVE_MIN_DECIDED = 6;
+
+/**
+ * The lowest confidence worth trading by live results, or null: working up
+ * from the bottom, a band with at least LIVE_MIN_DECIDED settled trades that
+ * won under 40% of them lifts the floor above it; the first band that's
+ * doing fine stops the climb. Pure, so it can be tested.
+ */
+export function liveFloor(rows: LiveResult[]): number | null {
+  let floor: number | null = null;
+  for (const [lo, hi] of LIVE_BANDS) {
+    const band = rows.filter((r) => r.confidence_pct >= lo && r.confidence_pct <= hi);
+    const won = band.filter((r) => Number(r.best_target) >= 1).length;
+    const lost = band.filter((r) => r.status === "stopped" && !(Number(r.best_target) >= 1)).length;
+    if (won + lost < LIVE_MIN_DECIDED) continue;
+    if (won / (won + lost) < 0.4) floor = hi + 1;
+    else break;
+  }
+  return floor;
+}
+
+/** The last 30 days of live signals for a market (not market-bias calls). */
+async function liveResults(admin: Admin, market: string, now: number): Promise<LiveResult[]> {
+  try {
+    const { data, error } = await admin
+      .from("trade_signals")
+      .select("confidence_pct, status, best_target, feeds")
+      .eq("market", market)
+      .gte("created_at", new Date(now - 30 * 86_400_000).toISOString())
+      .limit(2000);
+    if (error) return [];
+    return ((data ?? []) as (LiveResult & { feeds?: { bias?: boolean } | null })[]).filter(
+      (r) => !r.feeds?.bias,
+    );
+  } catch {
+    return [];
   }
 }

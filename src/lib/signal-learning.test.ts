@@ -6,6 +6,7 @@ import {
   MIN_TRADES,
   evaluate,
   learnFromSamples,
+  liveFloor,
   maybeLearn,
   parseLearning,
   safeTuning,
@@ -64,7 +65,7 @@ describe("learnFromSamples", () => {
     expect(out.kept).toBe(true);
     expect(out.next.stopRoom).toBeGreaterThan(DEFAULT_TUNING.stopRoom);
     expect(out.after.winRate).toBeGreaterThan(out.before.winRate);
-    expect(out.lesson).toMatch(/^Gold: over the last 7 days, .+ so I've switched to it\.$/);
+    expect(out.lesson).toMatch(/^Gold: over the last 14 days, .+ so I've switched to it\.$/);
   });
 
   it("keeps its setting when nothing does reliably better, and too few trades teach nothing", () => {
@@ -177,4 +178,30 @@ describe("maybeLearn", () => {
     // A study stays light enough for the minute watcher.
     expect(took).toBeLessThan(15_000);
   }, 60_000);
+});
+
+describe("liveFloor", () => {
+  const r = (confidence_pct: number, result: "won" | "lost" | "unfilled") => ({
+    confidence_pct,
+    status: result === "won" ? "tp3" : result === "lost" ? "stopped" : "unfilled",
+    best_target: result === "won" ? 3 : 0,
+  });
+  it("raises the floor past a band that's been losing live", () => {
+    // Like the real last 30 days: 70–79% won 2 and lost 4, 80%+ did better.
+    const rows = [
+      ...[72, 74].map((c) => r(c, "won")),
+      ...[71, 73, 74, 70].map((c) => r(c, "lost")),
+      ...[78, 77].map((c) => r(c, "lost")),
+      ...[76, 79, 75].map((c) => r(c, "won")),
+      ...[85, 86, 88].map((c) => r(c, "won")),
+    ];
+    // 70–74: 2 won, 4 lost → floor 75; 75–79: 3 won, 2 lost (too few to judge).
+    expect(liveFloor(rows)).toBe(75);
+  });
+  it("needs enough settled trades, and stops at the first band doing fine", () => {
+    expect(liveFloor([r(55, "lost"), r(56, "lost"), r(57, "unfilled")])).toBeNull();
+    const fine = [...Array(4)].map(() => r(65, "won")).concat([r(66, "lost"), r(67, "lost")]);
+    const bad = [...Array(6)].map(() => r(72, "lost"));
+    expect(liveFloor([...fine, ...bad])).toBeNull();
+  });
 });
