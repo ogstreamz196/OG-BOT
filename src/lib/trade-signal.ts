@@ -461,6 +461,9 @@ export type TradePlan = {
     atr: number;
     /** A pullback entry: the price when it was made and the 20 EMA it waits towards. */
     pull?: { price: number; mean: number };
+    /** The entry chart's liveliness (volatilityRatio) and UK time block (ukBlock). */
+    vol?: number;
+    block?: number | null;
   };
 };
 
@@ -514,13 +517,47 @@ export type Tuning = {
    * the price now, 1 the 20 EMA itself. Too deep and the order never fills.
    */
   pullback: number;
+  /**
+   * How lively the entry chart must be to trade: its ATR now against its
+   * ATR over the last 100 candles (volatilityRatio). 0 is off; below it,
+   * targets rarely get reached, so it's a wait.
+   */
+  minVol: number;
+  /** UK time-of-day blocks (ukBlock: 0 is 00:00–04:00 … 5 is 20:00–24:00) that have been losing. */
+  skipBlocks: number[];
 };
 export const DEFAULT_TUNING: Tuning = {
   pullback: 0.5,
+  minVol: 0,
+  skipBlocks: [],
   stopRoom: STOP_ROOM,
   scale: [0.8, 0.6, 0.85],
   minConfidence: 51,
 };
+/**
+ * How lively a chart is now: ATR over the last 14 candles against the
+ * average true range of the last 100 (1 is normal, 0.5 half as lively).
+ * NaN with too few candles.
+ */
+export function volatilityRatio(candles: Candle[]): number {
+  if (candles.length < 101) return NaN;
+  const recent = atr(candles.slice(-15), 14);
+  const normal = atr(candles.slice(-101), 100);
+  return normal > 0 ? recent / normal : NaN;
+}
+
+/** The UK time-of-day block a moment falls in: 0 is 00:00–04:00 … 5 is 20:00–24:00. */
+export function ukBlock(t: number): number {
+  const h = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(t)),
+  );
+  return Math.floor((Number.isFinite(h) ? h : 0) / 4);
+}
+
 /** Below this volume ratio a move has little behind it. */
 const LIGHT_VOLUME = 0.5;
 
@@ -585,6 +622,9 @@ export function buildPlan(
     priceNow != null && Number.isFinite(priceNow) && priceNow > 0 ? priceNow : entry.close;
   const a = entry.atr;
   const tol = a * 0.3;
+  const volRatioNow = volatilityRatio(entryCandles);
+  const lastT = entryCandles.at(-1)?.t;
+  const blockNow = lastT != null ? ukBlock(lastT) : null;
   const sw = swings(entryCandles.slice(-200));
   const swMid = swings(middleCandles.slice(-200));
   const resistance = uniqSorted(
@@ -717,6 +757,8 @@ export function buildPlan(
     targets: [t1, t2, t3] as [number, number, number],
     atr: a,
     ...(pull ? { pull } : {}),
+    vol: volRatioNow,
+    block: blockNow,
   };
   if (!classic)
     [t1s, t2, t3] = scaleTargets(
@@ -755,6 +797,10 @@ export function buildPlan(
       waitReason = `Not enough room: the next ${long ? "resistance" : "support"} is only ${room.toFixed(1)}R away.`;
     else if (confidencePct < tune.minConfidence)
       waitReason = `Not strong enough: past results say setups under ${tune.minConfidence}% aren't worth it.`;
+    else if (volRatioNow < tune.minVol)
+      waitReason = "Too quiet: price is barely moving, so targets rarely get reached.";
+    else if (blockNow != null && (tune.skipBlocks ?? []).includes(blockNow))
+      waitReason = "This time of day has been losing lately, so I'm sitting it out.";
   }
 
   const fmtR = (r: number) =>
