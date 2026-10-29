@@ -4,6 +4,7 @@
 // it with the tracker's own rules (trade-signal-outcome.ts). Pure apart from
 // fetchBinanceHistory, so it runs in the Boss's browser and in tests.
 import { volumeRatio } from "./trade-signal-extras";
+import { findSetups, type SetupHit } from "./trade-setups";
 import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
 import {
   DEFAULT_TUNING,
@@ -210,6 +211,8 @@ export type LearnSample = {
   raw: TradePlan["raw"];
   path: Candle[];
   expiresAt: number;
+  /** The extra chart setups showing at the same moment (trade-setups.ts). */
+  setups?: SetupHit[];
 };
 
 /** Past setups every `step` entry candles between `from` and `to` (see LearnSample). */
@@ -260,6 +263,7 @@ export function collectSamples(opts: {
       raw: plan.raw,
       path: entrySeries.slice(firstAtOrAfter(entrySeries, t), pathEnd),
       expiresAt,
+      setups: findSetups(entryCandles, hi.bias),
     });
   }
   return out;
