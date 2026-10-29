@@ -21,8 +21,7 @@ type FieldRule = {
 /**
  * Only settings the server actually enforces. Song creation and lyrics are
  * free (suno-generate / generate-lyrics charge nothing), so their old price
- * fields, the unused variation divisor and the unused sign-up credit field
- * are gone from here on purpose.
+ * fields and the unused variation divisor are gone from here on purpose.
  */
 const SECTIONS: { title: string; fields: FieldRule[] }[] = [
   {
@@ -51,6 +50,19 @@ const SECTIONS: { title: string; fields: FieldRule[] }[] = [
         unit: "coins",
         min: 0,
         max: 10000,
+      },
+    ],
+  },
+  {
+    title: "What new members get",
+    fields: [
+      {
+        key: "signup_credits",
+        label: "Welcome coins",
+        help: "Given once to every new account. 20 covers 4 tracks at 5 coins each.",
+        unit: "coins",
+        min: 0,
+        max: 1000,
       },
     ],
   },
@@ -136,7 +148,10 @@ export function PricingControls() {
   return (
     <div className="min-w-0 space-y-5">
       {SECTIONS.map((section) => (
-        <section key={section.title} className="og-panel rounded-xl border border-border bg-card/60 p-4">
+        <section
+          key={section.title}
+          className="og-panel rounded-xl border border-border bg-card/60 p-4"
+        >
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">
             {section.title}
           </h3>

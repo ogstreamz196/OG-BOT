@@ -84,9 +84,6 @@ type GuestSong = {
  * download and share the full track, with an optional nudge to save it to an
  * account.
  */
-/** Every new account's welcome bonus (grant_welcome_bonus). */
-const WELCOME_COINS = 25;
-
 export function GuestStudio({
   onSave,
   onSignUpForCoins,
@@ -97,6 +94,10 @@ export function GuestStudio({
 }) {
   const { data: settings } = useSettings();
   const baseCoins = settings?.coins_per_full_unlock ?? 5;
+  // Every new account's welcome coins (grant_welcome_bonus), and how many
+  // standard tracks they cover.
+  const welcomeCoins = settings?.signup_credits ?? 20;
+  const freeTracks = baseCoins > 0 ? Math.floor(welcomeCoins / baseCoins) : 0;
   const [active, setActive] = useState<GuestActiveTrack | null>(null);
   const [open, setOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -266,33 +267,7 @@ export function GuestStudio({
                 <span className="font-bold text-foreground">{title}</span> — full-length track with
                 real vocals. Play it, download the MP3 and share it. No account needed.
               </DialogDescription>
-              {!confirming && active.result ? (
-                <div className="rounded-2xl border border-amber-300/50 bg-amber-500/10 p-4 text-left">
-                  <p className="flex items-center gap-2 text-sm font-bold text-foreground">
-                    <Coins className="h-4 w-4 text-amber-300" /> You have 0 OG coins
-                  </p>
-                  <p className="mt-1 text-sm text-foreground/85">
-                    Sign up free and get {WELCOME_COINS} coins. This track costs {coinCost}, so it's
-                    covered with {Math.max(0, WELCOME_COINS - coinCost)} to spare.
-                  </p>
-                  <button
-                    type="button"
-                    disabled={paying}
-                    onClick={() => {
-                      setOpen(false);
-                      onSignUpForCoins(active);
-                    }}
-                    className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-amber-400 px-5 text-sm font-black uppercase tracking-wide text-black disabled:opacity-60"
-                  >
-                    Sign up free · get {WELCOME_COINS} coins
-                  </button>
-                </div>
-              ) : null}
-              {!confirming && active.result ? (
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  or pay as a guest
-                </p>
-              ) : null}
+              {/* Lead with the 99p: one tap and it cooks, no account needed. */}
               {!confirming ? (
                 <button
                   type="button"
@@ -304,9 +279,41 @@ export function GuestStudio({
                   Pay {PRICE_LABEL} &amp; cook
                 </button>
               ) : null}
-              <p className="text-xs text-muted-foreground">
-                Secure card checkout · Apple Pay · Google Pay
-              </p>
+              {!confirming ? (
+                <p className="text-xs text-muted-foreground">
+                  Secure card checkout · Apple Pay · Google Pay
+                </p>
+              ) : null}
+              {/* The alternative: a free account with enough coins for a few tracks. */}
+              {!confirming && active.result && freeTracks > 0 ? (
+                <>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                    or
+                  </p>
+                  <div className="rounded-2xl border border-amber-300/50 bg-amber-500/10 p-4 text-left">
+                    <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+                      <Coins className="h-4 w-4 text-amber-300" /> Sign up free, get{" "}
+                      {freeTracks === 1 ? "1 track" : `${freeTracks} tracks`} free
+                    </p>
+                    <p className="mt-1 text-sm text-foreground/85">
+                      New accounts get {welcomeCoins} OG coins. A track costs {baseCoins}, so that's{" "}
+                      {freeTracks === 1 ? "1 track" : `${freeTracks} tracks`} on us
+                      {nasheed ? ` (a Nasheed takes ${coinCost})` : ", starting with this one"}.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={paying}
+                      onClick={() => {
+                        setOpen(false);
+                        onSignUpForCoins(active);
+                      }}
+                      className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-amber-400 px-5 text-sm font-black uppercase tracking-wide text-black disabled:opacity-60"
+                    >
+                      Sign up free · {freeTracks === 1 ? "1 track" : `${freeTracks} tracks`} free
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </div>
           ) : done && song ? (
             <div className="space-y-4">

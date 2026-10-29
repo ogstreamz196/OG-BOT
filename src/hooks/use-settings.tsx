@@ -13,6 +13,7 @@ export type AppSettings = {
   coins_per_variation_divisor: number;
   songs_per_generation: number;
   sample_seconds: number;
+  /** Welcome coins for a new account (grant_welcome_bonus). */
   signup_credits: number;
 };
 
@@ -25,7 +26,7 @@ const DEFAULTS: AppSettings = {
   coins_per_variation_divisor: 2,
   songs_per_generation: 2,
   sample_seconds: 60,
-  signup_credits: 25,
+  signup_credits: 20,
 };
 
 export function useSettings() {
