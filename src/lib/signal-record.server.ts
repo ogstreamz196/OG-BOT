@@ -6,7 +6,8 @@
 //
 // Every signal counted lands in exactly one bucket, so they always add up:
 // won (hit at least the Quick Scalp), lost (stop loss first), still running,
-// never hit its entry, or timed out (entered but no target or stop in time).
+// or a cancelled order (the entry was never reached). Signals that entered
+// but timed out flat (no target, no stop) aren't counted at all.
 // Outcomes come straight from each signal's own tracked status, so signals
 // sent before the results book existed still count.
 import { resultFor, setupKey } from "./signal-results.server";
@@ -26,10 +27,8 @@ export type SignalRecord = {
   losses: number;
   /** Still waiting for entry or in the trade, no target yet. */
   running: number;
-  /** Ran out of time (or was called off) before the entry was reached. */
-  untriggered: number;
-  /** Entered, but no target and no stop before it ran out of time. */
-  timedOut: number;
+  /** Cancelled orders: ran out of time (or was called off) before the entry was reached. */
+  cancelled: number;
   markets: { label: string; unit: string; pips: number }[];
 };
 
@@ -104,12 +103,11 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
   }
   const record: SignalRecord = {
     since,
-    signals: setups.size,
+    signals: 0,
     wins: 0,
     losses: 0,
     running: 0,
-    untriggered: 0,
-    timedOut: 0,
+    cancelled: 0,
     markets: [],
   };
   const byMarket = new Map<string, { label: string; unit: string; pips: number }>();
@@ -122,8 +120,10 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
       m.pips += result.pips;
       byMarket.set(row.market, m);
     } else if (active) record.running++;
-    else if (filled) record.timedOut++;
-    else record.untriggered++;
+    else if (filled)
+      continue; // timed out flat: left out of the record
+    else record.cancelled++;
+    record.signals++;
   }
   record.markets = [...byMarket.values()].map((m) => ({
     ...m,
@@ -165,16 +165,17 @@ const ukDate = (iso: string) =>
 
 /** The record for the signals chat scoreboard: every signal in exactly one bucket. */
 export function recordText(r: SignalRecord): string {
+  // The headline number is the win rate (won vs lost); the 70% confidence
+  // rule is only how signals get into the record, so members never see it.
   const decided = r.wins + r.losses;
+  const head = decided ? `${Math.round((r.wins / decided) * 100)}% WIN RATE` : "SIGNAL RECORD";
   const lines = [
-    `🏆 70%+ RECORD${r.since ? ` since ${ukDate(r.since)}` : ""} · ${r.signals} signal${r.signals === 1 ? "" : "s"}`,
-    `✅ ${r.wins} won · 🛑 ${r.losses} lost` +
-      (decided ? ` · 🎯 ${Math.round((r.wins / decided) * 100)}% win rate` : ""),
+    `🏆 ${head}${r.since ? ` since ${ukDate(r.since)}` : ""} · ${r.signals} signal${r.signals === 1 ? "" : "s"}`,
+    `✅ ${r.wins} won · 🛑 ${r.losses} lost`,
   ];
   const rest = [
     r.running ? `⏳ ${r.running} running` : "",
-    r.untriggered ? `🚫 ${r.untriggered} never hit entry` : "",
-    r.timedOut ? `⌛ ${r.timedOut} timed out flat` : "",
+    r.cancelled ? `🚫 ${r.cancelled} cancelled order${r.cancelled === 1 ? "" : "s"}` : "",
   ].filter(Boolean);
   if (rest.length) lines.push(rest.join(" · "));
   if (r.markets.length) {

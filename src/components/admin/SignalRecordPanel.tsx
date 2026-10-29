@@ -34,7 +34,7 @@ export function SignalRecordPanel() {
     try {
       await reset();
       await qc.invalidateQueries({ queryKey: KEY });
-      toast.success("70%+ record reset. Counting from now.");
+      toast.success("Signal record reset. Counting from now.");
     } catch {
       toast.error("Couldn't reset the record");
     } finally {
@@ -57,8 +57,8 @@ export function SignalRecordPanel() {
   return (
     <AdminSection
       icon={<Trophy className="h-4 w-4 text-amber-400" />}
-      title="70%+ signal record"
-      subtitle="Every gold and bitcoin signal sent at 70% confidence or more, and how they did. It never resets by itself, only with this button."
+      title="Signal record & win rate"
+      subtitle="Every gold and bitcoin signal sent at 70% confidence or more (members only see the win rate), and how they did. It never resets by itself, only with this button."
       action={
         <Button
           size="sm"
@@ -95,8 +95,7 @@ export function SignalRecordPanel() {
             {r.wins + r.losses
               ? `${Math.round((r.wins / (r.wins + r.losses)) * 100)}% win rate · `
               : ""}
-            {r.running} running · {r.untriggered} never hit entry · {r.timedOut} timed out
-            flat
+            {r.running} running · {r.cancelled} cancelled orders
           </p>
           {r.markets.map((m) => (
             <p key={m.label} className={m.pips >= 0 ? "text-emerald-400" : "text-rose-400"}>
@@ -109,7 +108,7 @@ export function SignalRecordPanel() {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset the 70%+ record?</AlertDialogTitle>
+            <AlertDialogTitle>Reset the signal record?</AlertDialogTitle>
             <AlertDialogDescription>
               The counter starts again from zero, now. Old signals and results stay in the results
               book; they just stop counting here and on the signals chat scoreboard.
