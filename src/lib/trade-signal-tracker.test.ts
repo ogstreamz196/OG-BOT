@@ -260,3 +260,13 @@ describe("watchSignals: only one 'entry not reached' signal in a chat", () => {
     expect((rows[0].feeds as { notice?: number }).notice).toBeGreaterThan(0);
   });
 });
+
+describe("liveOffset", () => {
+  test("follows the live spot gap, keeping the original when the quote is missing or jumps", async () => {
+    const { liveOffset } = await import("./trade-signal-tracker.server");
+    expect(liveOffset(12, 2212.5, 2200)).toBeCloseTo(12.5, 9);
+    expect(liveOffset(12, NaN, 2200)).toBe(12);
+    // A 20-dollar jump in the gap (about 0.9%) is bad data.
+    expect(liveOffset(12, 2232, 2200)).toBe(12);
+  });
+});

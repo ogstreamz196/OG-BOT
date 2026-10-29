@@ -7,7 +7,7 @@
 import type { Instrument } from "./trade-signal";
 import type { SignalFeeds, SignalPlan } from "./trade-signal-context.server";
 import { backtestKey, parseSavedBacktest, type SavedBacktest } from "./trade-signal-backtest";
-import { shiftCandles } from "./trade-signal-extras";
+import { shiftCandles, spotOffset } from "./trade-signal-extras";
 import {
   ACTIVE_STATUSES,
   advanceSignal,
@@ -418,8 +418,23 @@ function instrumentFor(row: Row): Instrument {
     kraken: row.feeds.kraken,
     yahoo: row.feeds.yahoo,
     pip: row.pip ?? undefined,
+    ...(row.feeds.spot ? { spot: row.feeds.spot } : {}),
   };
 }
+
+/**
+ * The gap to apply to a proxy chart (gold from PAX Gold) right now: the live
+ * spot quote's gap when it's sane and within MAX_SPOT_DRIFT of the gap the
+ * signal was made with, else that original gap. Pure, so it can be tested.
+ */
+export function liveOffset(stored: number, spotNow: number, proxyNow: number): number {
+  const fresh = spotOffset(spotNow, proxyNow);
+  if (!fresh || !(proxyNow > 0)) return stored;
+  return Math.abs(fresh - stored) <= proxyNow * MAX_SPOT_DRIFT ? fresh : stored;
+}
+
+/** A spot gap moving more than this share of the price in one go is bad data. */
+const MAX_SPOT_DRIFT = 0.003;
 
 const opposite = (direction: Row["direction"], bias: string) =>
   (direction === "BUY" && bias === "bearish") || (direction === "SELL" && bias === "bullish");
@@ -454,11 +469,17 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
     // Only finished minutes, so a bar is never judged half-formed.
     const closedRaw = raw.filter((c) => c.t + MINUTE <= now);
     const trendCache = new Map<string, Promise<string | null>>();
+    // Proxy charts (gold): the live spot quote, to re-check the gap each pass.
+    const spotNow = inst.spot ? await ctx.spotPrice(inst).catch(() => NaN) : NaN;
 
     await Promise.all(
       group.map(async (row) => {
-        // Spot-adjusted signals (gold) follow the same shifted chart they were made from.
-        const offset = Number(row.feeds.offset) || 0;
+        // Spot-adjusted signals (gold) follow the real spot price: the gap to
+        // the proxy is re-measured each pass (liveOffset), the original kept
+        // when the quote's missing or jumps.
+        const stored = Number(row.feeds.offset) || 0;
+        const offset =
+          stored && raw.length ? liveOffset(stored, spotNow, raw[raw.length - 1].c) : stored;
         const closed = shiftCandles(closedRaw, offset);
         const lastPrice = raw.length ? raw[raw.length - 1].c + offset : NaN;
         const created = Date.parse(row.created_at);

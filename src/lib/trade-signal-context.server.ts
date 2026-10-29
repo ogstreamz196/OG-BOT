@@ -455,6 +455,8 @@ export type SignalFeeds = {
   notice?: number;
   /** The trade's journal: each update, timed, written into the card itself. */
   log?: string[];
+  /** The spot quote a proxy chart (gold) follows, so the tracker can re-check the gap. */
+  spot?: string;
 };
 
 /** What a "no signal" card says: one of these, picked at random. */
@@ -729,9 +731,23 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     session: sessionRead(inst),
     tuning,
   });
+  // A proxy chart (gold from PAX Gold) without a confirmed spot price would
+  // print the token's prices, not the real market's: no levels until it's back.
+  const spotUnconfirmed = !!inst.spot && !offset;
+  if (spotUnconfirmed && plan.verdict === "trade")
+    plan = {
+      ...plan,
+      verdict: "wait",
+      waitReason: `Can't confirm the real ${inst.label} price right now, so no levels.`,
+    };
   // No engine setup right now (and the market's open): on the 5-minute chart,
   // an extra setup the learning loop has proven for this market takes its place.
-  if (plan.verdict === "wait" && fast === "5m" && !/\bclosed\b/i.test(plan.waitReason ?? "")) {
+  if (
+    plan.verdict === "wait" &&
+    fast === "5m" &&
+    !spotUnconfirmed &&
+    !/\bclosed\b/i.test(plan.waitReason ?? "")
+  ) {
     const { liveSetups } = await import("./signal-learning.server");
     const allowed = await liveSetups(inst.code).catch(() => [] as string[]);
     if (allowed.length) {
@@ -892,6 +908,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       kraken: inst.kraken,
       yahoo: inst.yahoo,
       ...(offset ? { offset } : {}),
+      ...(offset && inst.spot ? { spot: inst.spot } : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
     },
     style,
@@ -939,23 +956,24 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   };
   // No clean setup (market open): the risky market-bias call instead.
   const shut = /\bclosed\b/i.test(plan.waitReason ?? "");
-  const biasArgs: BiasArgs | undefined = shut
-    ? undefined
-    : {
-        inst,
-        fast,
-        quick: quick.data,
-        entryCandles,
-        offset,
-        price,
-        prevDay: prevDay ?? null,
-        levels: [...plan.resistance, ...plan.support],
-        lean: plan.direction,
-        fmt,
-        feeds: plan2.feeds,
-        style,
-        dp,
-      };
+  const biasArgs: BiasArgs | undefined =
+    shut || spotUnconfirmed
+      ? undefined
+      : {
+          inst,
+          fast,
+          quick: quick.data,
+          entryCandles,
+          offset,
+          price,
+          prevDay: prevDay ?? null,
+          levels: [...plan.resistance, ...plan.support],
+          lean: plan.direction,
+          fmt,
+          feeds: plan2.feeds,
+          style,
+          dp,
+        };
   const biasCall = wait && biasArgs ? await buildBias(biasArgs).catch(() => null) : null;
   const tpRange = takeProfitRange(plan.entry, plan.targets[0], dp);
   const result = {
