@@ -711,7 +711,19 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // What OG B0T has learned from past setups (stop room, target pull-in,
   // confidence floor); the hand-set rules until it has learned anything.
   const { learnedTuning } = await import("./signal-learning.server");
-  const tuning = await learnedTuning(inst.code).catch(() => undefined);
+  const learned = await learnedTuning(inst.code).catch(() => undefined);
+  // 1-minute signals (Boss-only) were the weakest live (1 won, 3 lost in a
+  // month): they need ONE_MINUTE_MIN_CONFIDENCE or they're a wait.
+  const tuning =
+    fast === "1m"
+      ? {
+          ...(learned ?? DEFAULT_TUNING),
+          minConfidence: Math.max(
+            ONE_MINUTE_MIN_CONFIDENCE,
+            (learned ?? DEFAULT_TUNING).minConfidence,
+          ),
+        }
+      : learned;
   let plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
@@ -1077,6 +1089,9 @@ export async function deskRead(
     return { signal: s, desk: null };
   }
 }
+
+/** The lowest confidence a 1-minute signal is traded at. */
+export const ONE_MINUTE_MIN_CONFIDENCE = 80;
 
 /** A market-bias call lasts this long (it's meant to trigger within minutes). */
 const BIAS_VALID_MS = 60 * 60_000;

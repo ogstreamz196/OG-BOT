@@ -377,7 +377,8 @@ describe("Telegram delivery", () => {
       it(`calculates ${pair} from actual ${frame} entry candles`, async () => {
         // Isolate source/candle/card caches so every selection must fetch its feed.
         vi.resetModules();
-        const { buildTradeSignal: build } = await import("./trade-signal-context.server");
+        const { buildTradeSignal: build, ONE_MINUTE_MIN_CONFIDENCE } =
+          await import("./trade-signal-context.server");
         const fetchSpy = vi.fn(async (url: string) => {
           const interval = new URL(url).searchParams.get("interval");
           if (!url.includes("binance")) return new Response("nope", { status: 404 });
@@ -396,15 +397,20 @@ describe("Telegram delivery", () => {
         stubFetch(fetchSpy);
         const signal = await build(`${pair} signal ${frame}`);
         expect(fetchSpy.mock.calls.some(([url]) => url.includes(`interval=${frame}&`))).toBe(true);
-        expect(signal.reply).toContain(`\n⏱ ${frame.toUpperCase()} · 💪 `);
-        expect(signal.reply).toMatch(/^(🟢|🔴) I'm gonna (buy|sell) \D*\d[\d.]*/);
+        // 1-minute reads under the higher bar are a wait.
+        if (frame === "1m" && signal.summary!.confidencePct < ONE_MINUTE_MIN_CONFIDENCE) {
+          expect(signal.reply).toMatch(/^⏸ No signal · .+ · 1M\n/);
+          expect(signal.plan).toBeUndefined();
+        } else {
+          expect(signal.reply).toContain(`\n⏱ ${frame.toUpperCase()} · 💪 `);
+          expect(signal.reply).toMatch(/^(🟢|🔴) I'm gonna (buy|sell) \D*\d[\d.]*/);
+        }
         expect(signal.expiresAt).not.toBeNull();
         if (frame === "1m") {
+          // Worked out from the 1-minute candles, not the 15-minute ones.
           const fifteen = await build(`${pair} signal 15m`);
           expect(fifteen.reply).toContain("\n⏱ 15M · 💪 ");
-          expect(signal.reply.match(/^\D*(\d[\d.]*)/)?.[1]).not.toBe(
-            fifteen.reply.match(/^\D*(\d[\d.]*)/)?.[1],
-          );
+          expect(signal.summary!.entry).not.toBe(fifteen.summary!.entry);
         }
       });
     }
