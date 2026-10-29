@@ -12,6 +12,7 @@ export async function streamOgChat(
     attachmentDataUrl?: string;
     language?: string;
     pageContext?: string;
+    nativeApp?: boolean;
   },
   onDelta: (delta: string) => void,
 ): Promise<ChatReply> {

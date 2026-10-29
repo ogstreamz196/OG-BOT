@@ -33,13 +33,16 @@ export async function runOgChat(
   // Trade signals: start pulling live prices now so they load alongside the
   // user context below instead of after it.
   const lastUserText = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
-  const tradePromise: Promise<{ block: string; expiresAt: string | null }> =
-    import("@/lib/trade-signal-context.server")
-      .then((m) => m.buildTradeSignal(lastUserText))
-      .catch((e) => {
-        console.warn("trade signal context failed", e);
-        return { block: "", expiresAt: null };
-      });
+  // The phone apps never give trading signals (Google Play / App Store rules).
+  const nativeApp = data.nativeApp === true;
+  const tradePromise: Promise<{ block: string; expiresAt: string | null }> = nativeApp
+    ? Promise.resolve({ block: "", expiresAt: null })
+    : import("@/lib/trade-signal-context.server")
+        .then((m) => m.buildTradeSignal(lastUserText))
+        .catch((e) => {
+          console.warn("trade signal context failed", e);
+          return { block: "", expiresAt: null };
+        });
 
   // Memory, football data and live web facts: all started now so they load
   // alongside everything else (see og-smarts.server.ts).
@@ -48,7 +51,7 @@ export async function runOgChat(
     supabaseAdmin as never,
     context.userId,
     lastUserText,
-    !!detectTradeIntent(lastUserText),
+    !nativeApp && !!detectTradeIntent(lastUserText),
   );
 
   // Account dossier and Sports Guide only need who's asking and what, so they
@@ -206,8 +209,13 @@ export async function runOgChat(
   const footballNote = footballBlock ? `\n\n${footballBlock}` : "";
   // "How much did we make today?": the bot's own results book.
   const sr = await import("@/lib/signal-results.server");
-  const resultsNote = sr.asksAboutResults(latestUserMsg?.content ?? "")
-    ? await sr.signalResultsNote(supabaseAdmin)
+  const resultsNote =
+    !nativeApp && sr.asksAboutResults(latestUserMsg?.content ?? "")
+      ? await sr.signalResultsNote(supabaseAdmin)
+      : "";
+  // In the phone app: no trading content at all (store rules), whatever else the prompt says.
+  const nativeAppNote = nativeApp
+    ? "\n\nPHONE APP (Google Play / App Store): this member is in the OG B0T phone app. Trading signals, market calls, entries, stops, targets, market bias, signal results, brokers and trading-account or copy-trading links are NOT part of the app. If they ask for any of that, say in one line, in your voice, that signals aren't in the app, and move on. Never give a trading call or a broker link here."
     : "";
   const system =
     baseSystem +
@@ -219,7 +227,8 @@ export async function runOgChat(
     dissNote +
     tradeNote +
     footballNote +
-    resultsNote;
+    resultsNote +
+    nativeAppNote;
 
   // 1b. Learn fresh insults from the latest user message (fire-and-forget upsert).
   let newlyLearned: string[] = [];

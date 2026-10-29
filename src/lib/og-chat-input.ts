@@ -8,6 +8,8 @@ export type OgChatInput = {
   mode: "safe" | "og";
   attachmentDataUrl?: string;
   language: string;
+  /** Sent from the Android/iOS app: no trading signals or broker links there (store rules). */
+  nativeApp?: boolean;
 };
 
 export interface ChatReply {
@@ -26,6 +28,7 @@ export const parseOgChatInput = (data: {
   mode?: "safe" | "og";
   attachmentDataUrl?: string;
   language?: string;
+  nativeApp?: boolean;
 }) => {
   if (!data || !Array.isArray(data.messages)) throw new Error("messages required");
   const messages = data.messages.slice(-30).map((m) => ({
@@ -47,5 +50,12 @@ export const parseOgChatInput = (data: {
     if (data.attachmentDataUrl.length > 8_000_000) throw new Error("Image too large (max ~6MB).");
     attachmentDataUrl = data.attachmentDataUrl;
   }
-  return { messages, pageContext, mode, attachmentDataUrl, language };
+  return {
+    messages,
+    pageContext,
+    mode,
+    attachmentDataUrl,
+    language,
+    nativeApp: data.nativeApp === true,
+  };
 };

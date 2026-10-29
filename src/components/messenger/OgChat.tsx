@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -379,6 +380,8 @@ export function OgChat({
         mode: mode as "og" | "safe",
         attachmentDataUrl: args.attachmentDataUrl,
         language,
+        // The phone apps never give trading signals (store rules).
+        nativeApp: Capacitor.isNativePlatform(),
       };
       setDraft("");
       try {
@@ -458,7 +461,8 @@ export function OgChat({
     const next = [...messages, { role: "user" as const, content: visibleText }];
     // Trade signal: an instant "hold on" line in OG Bot's voice, so the user
     // knows the next message is the analysis. It never goes into the history.
-    const market = att ? null : detectTradeIntent(t);
+    // No signal "hold on" line in the phone apps: they never give signals.
+    const market = att || Capacitor.isNativePlatform() ? null : detectTradeIntent(t);
     setMessages(next);
     if (market) {
       // A line from the shared bank this member hasn't seen before; slotted in
