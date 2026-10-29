@@ -453,7 +453,13 @@ export type TradePlan = {
    * The engine's own levels before the members' stop room and target pull-in
    * (Tuning), so the learning loop can try other settings on the same setup.
    */
-  raw: { risk: number; targets: [number, number, number]; atr: number };
+  raw: {
+    risk: number;
+    targets: [number, number, number];
+    atr: number;
+    /** A pullback entry: the price when it was made and the 20 EMA it waits towards. */
+    pull?: { price: number; mean: number };
+  };
 };
 
 /** What the market hours mean for a signal right now (see sessionRead). */
@@ -501,8 +507,14 @@ export type Tuning = {
   stopRoom: number;
   scale: [number, number, number];
   minConfidence: number;
+  /**
+   * How far a pullback entry waits back towards the entry-frame 20 EMA: 0 is
+   * the price now, 1 the 20 EMA itself. Too deep and the order never fills.
+   */
+  pullback: number;
 };
 export const DEFAULT_TUNING: Tuning = {
+  pullback: 0.5,
   stopRoom: STOP_ROOM,
   scale: [0.8, 0.6, 0.85],
   minConfidence: 51,
@@ -648,10 +660,15 @@ export function buildPlan(
   let entryPx = price;
   let entryType: EntryType = "market";
   let entryNote = "Market price now";
+  let pull: { price: number; mean: number } | undefined;
   if (stretchedNow || farFromMean) {
-    entryPx = entry.ema20;
+    // Part of the way back to the 20 EMA (all the way under the classic
+    // rules): a full retrace often never comes and the order never fills.
+    const depth = classic ? 1 : tune.pullback;
+    entryPx = price + (entry.ema20 - price) * depth;
+    pull = { price, mean: entry.ema20 };
     entryType = "limit";
-    entryNote = `Limit on a pullback to the ${entry.name} 20 EMA (price is stretched right now)`;
+    entryNote = `Limit on a pullback towards the ${entry.name} 20 EMA (price is stretched right now)`;
   } else if (momentumAgainst) {
     const lastTwo = entryCandles.slice(-2);
     const trigger = long
@@ -693,7 +710,12 @@ export function buildPlan(
   }
   // Targets members are shown and followed on: pulled in from the engine's
   // levels so they're hit more often (classic keeps the old ones to compare).
-  const raw = { risk, targets: [t1, t2, t3] as [number, number, number], atr: a };
+  const raw = {
+    risk,
+    targets: [t1, t2, t3] as [number, number, number],
+    atr: a,
+    ...(pull ? { pull } : {}),
+  };
   if (!classic)
     [t1s, t2, t3] = scaleTargets(
       long ? "BUY" : "SELL",

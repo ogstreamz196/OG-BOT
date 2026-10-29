@@ -76,9 +76,41 @@ describe("learnFromSamples", () => {
     expect(few.lesson).toMatch(/too few to learn from/);
   });
 
+  it("learns a shallower pullback when the deep one never fills", () => {
+    // Price 100 stretched above its 20 EMA at 95: halfway back (97.5) never
+    // trades, but it dips to 98 and then runs.
+    const pulled = (i: number): LearnSample => ({
+      ...sample(i, 0),
+      entry: 97.5,
+      entryType: "limit",
+      raw: { risk: 10, targets: [107.5, 117.5, 127.5], atr: 10, pull: { price: 100, mean: 95 } },
+      path: [
+        { t: i * 3600_000, o: 100, h: 101, l: 98, c: 99 },
+        { t: i * 3600_000 + 5 * MIN, o: 99, h: 136, l: 99, c: 135 },
+      ],
+    });
+    const samples = Array.from({ length: 60 }, (_, i) => pulled(i));
+    expect(evaluate(samples, DEFAULT_TUNING).n).toBe(0);
+    const out = learnFromSamples(samples, DEFAULT_TUNING, seeded(5), "Gold");
+    expect(out.kept).toBe(true);
+    expect(out.next.pullback).toBeLessThanOrEqual(0.4);
+    expect(out.after.n).toBe(60);
+    expect(out.lesson).toMatch(/pullback entries \d+% of the way back to the 20 EMA/);
+  });
+
+  it("old saved settings without a pullback get the hand-set one", () => {
+    const old = { stopRoom: 1.3, scale: [0.8, 0.6, 0.85], minConfidence: 60 } as never;
+    expect(safeTuning(old).pullback).toBe(DEFAULT_TUNING.pullback);
+  });
+
   it("never leaves the safe bounds", () => {
-    const t = safeTuning({ stopRoom: 9, scale: [2, -1, 0.7], minConfidence: 99 });
-    expect(t).toEqual({ stopRoom: BOUNDS.stopRoom[1], scale: [0.95, 0.4, 0.7], minConfidence: 80 });
+    const t = safeTuning({ stopRoom: 9, scale: [2, -1, 0.7], minConfidence: 99, pullback: 3 });
+    expect(t).toEqual({
+      stopRoom: BOUNDS.stopRoom[1],
+      scale: [0.95, 0.4, 0.7],
+      minConfidence: 80,
+      pullback: 1,
+    });
     const noisy = Array.from({ length: 80 }, (_, i) => sample(i, ((i * 37) % 17) / 10));
     const { next } = learnFromSamples(noisy, DEFAULT_TUNING, seeded(11), "Gold");
     expect(next.stopRoom).toBeGreaterThanOrEqual(BOUNDS.stopRoom[0]);

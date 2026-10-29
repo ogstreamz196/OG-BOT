@@ -54,6 +54,7 @@ export const BOUNDS = {
     [0.6, 0.95],
   ],
   minConfidence: [51, 80],
+  pullback: [0, 1],
 } as const;
 
 export type Evaluation = {
@@ -91,27 +92,44 @@ const clamp = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, M
 const round = (v: number, step: number) => Math.round(v / step) * step;
 
 /** Keeps a setting inside the safe bounds, on tidy steps. */
-export function safeTuning(t: Tuning): Tuning {
+export function safeTuning(t: Partial<Tuning>): Tuning {
+  // Settings saved before a field existed get the hand-set value for it.
+  const d = DEFAULT_TUNING;
+  const v = <K extends keyof Tuning>(k: K): Tuning[K] => (t[k] ?? d[k]) as Tuning[K];
+  t = {
+    stopRoom: v("stopRoom"),
+    scale: v("scale"),
+    minConfidence: v("minConfidence"),
+    pullback: v("pullback"),
+  };
   return {
-    stopRoom: Number(round(clamp(t.stopRoom, BOUNDS.stopRoom), 0.05).toFixed(2)),
+    pullback: Number(round(clamp(t.pullback!, BOUNDS.pullback), 0.05).toFixed(2)),
+    stopRoom: Number(round(clamp(t.stopRoom!, BOUNDS.stopRoom), 0.05).toFixed(2)),
     scale: [0, 1, 2].map((i) =>
-      Number(round(clamp(t.scale[i], BOUNDS.scale[i]), 0.05).toFixed(2)),
+      Number(round(clamp(t.scale![i], BOUNDS.scale[i]), 0.05).toFixed(2)),
     ) as Tuning["scale"],
-    minConfidence: Math.round(clamp(t.minConfidence, BOUNDS.minConfidence)),
+    minConfidence: Math.round(clamp(t.minConfidence!, BOUNDS.minConfidence)),
   };
 }
 
 const oneTarget = (tp: number): [number, number, number] => [tp, tp, tp];
 
-/** The stop and take profit a past setup gets under a setting. */
+/**
+ * The entry, stop and take profit a past setup gets under a setting. A
+ * pullback entry moves with the pullback depth, and the whole plan (the
+ * engine's risk and targets) moves with it.
+ */
 export function applyTuning(s: LearnSample, tune: Tuning) {
   const side = s.direction === "BUY" ? 1 : -1;
+  const pull = s.raw.pull;
+  const entry = pull ? pull.price + (pull.mean - pull.price) * tune.pullback : s.entry;
+  const shift = entry - s.entry;
+  const raw = s.raw.targets.map((t) => t + shift) as [number, number, number];
   return {
-    stop: s.entry - side * s.raw.risk * tune.stopRoom,
+    entry,
+    stop: entry - side * s.raw.risk * tune.stopRoom,
     // One take profit (the Quick Scalp), as live signals have.
-    targets: oneTarget(
-      scaleTargets(s.direction, s.entry, s.raw.targets, s.raw.atr * 0.05, tune.scale)[0],
-    ),
+    targets: oneTarget(scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0]),
   };
 }
 
@@ -128,12 +146,12 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
   for (const s of samples) {
     if (s.verdict !== "trade" || s.confidencePct < tune.minConfidence || !(s.raw.risk > 0))
       continue;
-    const { stop, targets } = applyTuning(s, tune);
+    const { entry, stop, targets } = applyTuning(s, tune);
     const res = advanceSignal(
       {
         direction: s.direction,
         entryType: s.entryType === "stop" ? "stop" : "limit",
-        entry: s.entry,
+        entry,
         stop,
         targets,
         status: s.entryType === "market" ? "open" : "pending",
@@ -146,7 +164,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     if (!entered) continue;
     const best = Math.max(0, ...res.events.map((e) => targetsReached(e.kind as SignalStatus)));
     const side = s.direction === "BUY" ? 1 : -1;
-    const inR = (px: number) => ((px - s.entry) * side) / s.raw.risk;
+    const inR = (px: number) => ((px - entry) * side) / s.raw.risk;
     let r = 0;
     if (res.status === "stopped") r = inR(stop);
     else {
@@ -201,6 +219,7 @@ export function candidates(current: Tuning, rand: () => number, count = 32): Tun
           nudge(current.scale[2], 0.12),
         ],
         minConfidence: nudge(current.minConfidence, 8),
+        pullback: nudge(current.pullback, 0.25),
       }),
     );
   return out;
@@ -210,7 +229,7 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const r2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}R`;
 const describe = (t: Tuning) =>
   `stop room ${t.stopRoom.toFixed(2)}×, targets pulled to ${t.scale.map(pct).join("/")}, ` +
-  `trading from ${t.minConfidence}% confidence`;
+  `trading from ${t.minConfidence}% confidence, pullback entries ${pct(t.pullback)} of the way back to the 20 EMA`;
 
 /**
  * One study of past setups: keeps the current setting unless another one
@@ -248,6 +267,7 @@ export function learnFromSamples(
       stopRoom: (now.stopRoom + best.stopRoom) / 2,
       scale: [0, 1, 2].map((i) => (now.scale[i] + best.scale[i]) / 2) as Tuning["scale"],
       minConfidence: (now.minConfidence + best.minConfidence) / 2,
+      pullback: (now.pullback + best.pullback) / 2,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
     if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;
