@@ -7,6 +7,7 @@ import {
   evaluate,
   learnFromSamples,
   liveFloor,
+  losingBlocks,
   maybeLearn,
   parseLearning,
   safeTuning,
@@ -105,12 +106,21 @@ describe("learnFromSamples", () => {
   });
 
   it("never leaves the safe bounds", () => {
-    const t = safeTuning({ stopRoom: 9, scale: [2, -1, 0.7], minConfidence: 99, pullback: 3 });
+    const t = safeTuning({
+      stopRoom: 9,
+      scale: [2, -1, 0.7],
+      minConfidence: 99,
+      pullback: 3,
+      minVol: 2,
+      skipBlocks: [5, 1, 9, 1, 3],
+    });
     expect(t).toEqual({
       stopRoom: BOUNDS.stopRoom[1],
       scale: [0.95, 0.4, 0.7],
       minConfidence: 80,
       pullback: 1,
+      minVol: 0.8,
+      skipBlocks: [1, 3],
     });
     const noisy = Array.from({ length: 80 }, (_, i) => sample(i, ((i * 37) % 17) / 10));
     const { next } = learnFromSamples(noisy, DEFAULT_TUNING, seeded(11), "Gold");
@@ -203,5 +213,31 @@ describe("liveFloor", () => {
     const fine = [...Array(4)].map(() => r(65, "won")).concat([r(66, "lost"), r(67, "lost")]);
     const bad = [...Array(6)].map(() => r(72, "lost"));
     expect(liveFloor([...fine, ...bad])).toBeNull();
+  });
+});
+
+describe("quiet charts and losing hours", () => {
+  it("a too-quiet setup isn't traded once a liveliness floor is learned", () => {
+    const quiet = { ...sample(0, 0.1), raw: { ...sample(0, 0.1).raw, vol: 0.3 } };
+    expect(evaluate([quiet], DEFAULT_TUNING).n).toBe(1);
+    expect(evaluate([quiet], { ...DEFAULT_TUNING, minVol: 0.5 }).n).toBe(0);
+  });
+
+  it("sits out a time block that keeps losing, and only when that helps", () => {
+    // Block 0 (00:00–04:00 UK): stopped out every time; block 3: clean wins.
+    const at = (i: number, block: number, dip: number) => ({
+      ...sample(i, dip),
+      raw: { ...sample(i, dip).raw, block },
+    });
+    const samples = [
+      ...Array.from({ length: 12 }, (_, i) => at(i, 0, 1.5)),
+      ...Array.from({ length: 12 }, (_, i) => at(100 + i, 3, 0.1)),
+    ];
+    expect(losingBlocks(samples, DEFAULT_TUNING)).toEqual([0]);
+    // Too few trades in the block: left alone.
+    expect(losingBlocks(samples.slice(3), DEFAULT_TUNING)).toEqual([]);
+    const out = learnFromSamples(samples, DEFAULT_TUNING, seeded(2), "Gold");
+    expect(out.next.skipBlocks).toEqual([0]);
+    expect(out.lesson).toContain("sitting out 00:00–04:00 UK");
   });
 });

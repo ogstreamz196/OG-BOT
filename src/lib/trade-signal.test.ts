@@ -500,3 +500,31 @@ describe("isAnyMarketAsk", () => {
       expect(isAnyMarketAsk(t), t).toBe(false);
   });
 });
+
+describe("volatilityRatio and ukBlock", () => {
+  it("compares how lively the chart is now with its last 100 candles", async () => {
+    const { volatilityRatio } = await import("./trade-signal");
+    const candle = (i: number, size: number) => ({
+      t: i * 300_000,
+      o: 100,
+      h: 100 + size,
+      l: 100 - size,
+      c: 100,
+    });
+    const cs = [
+      ...Array.from({ length: 90 }, (_, i) => candle(i, 1)),
+      ...Array.from({ length: 15 }, (_, i) => candle(90 + i, 0.25)),
+    ];
+    const r = volatilityRatio(cs);
+    expect(r).toBeGreaterThan(0.2);
+    expect(r).toBeLessThan(0.5);
+    expect(volatilityRatio(cs.slice(0, 50))).toBeNaN();
+  });
+  it("puts a moment in its UK 4-hour block, summer time included", async () => {
+    const { ukBlock } = await import("./trade-signal");
+    expect(ukBlock(Date.parse("2026-12-02T03:59:00Z"))).toBe(0);
+    expect(ukBlock(Date.parse("2026-12-02T08:30:00Z"))).toBe(2);
+    // 23:30 UTC in July is 00:30 UK.
+    expect(ukBlock(Date.parse("2026-07-14T23:30:00Z"))).toBe(0);
+  });
+});

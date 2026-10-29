@@ -56,6 +56,7 @@ export const BOUNDS = {
   ],
   minConfidence: [51, 80],
   pullback: [0, 1],
+  minVol: [0, 0.8],
 } as const;
 
 export type Evaluation = {
@@ -104,6 +105,8 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
     scale: v("scale"),
     minConfidence: v("minConfidence"),
     pullback: v("pullback"),
+    minVol: v("minVol"),
+    skipBlocks: v("skipBlocks"),
   };
   return {
     pullback: Number(round(clamp(t.pullback!, BOUNDS.pullback), 0.05).toFixed(2)),
@@ -112,6 +115,12 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
       Number(round(clamp(t.scale![i], BOUNDS.scale[i]), 0.05).toFixed(2)),
     ) as Tuning["scale"],
     minConfidence: Math.round(clamp(t.minConfidence!, BOUNDS.minConfidence)),
+    minVol: Number(round(clamp(t.minVol!, BOUNDS.minVol), 0.05).toFixed(2)),
+    // At most two whole UK time blocks (0–5) sat out.
+    skipBlocks: [...new Set((t.skipBlocks ?? []).map(Math.round))]
+      .filter((b) => b >= 0 && b <= 5)
+      .sort((a, b) => a - b)
+      .slice(0, 2),
   };
 }
 
@@ -149,6 +158,9 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
   for (const s of samples) {
     if (s.verdict !== "trade" || s.confidencePct < tune.minConfidence || !(s.raw.risk > 0))
       continue;
+    // Too quiet, or a time of day it sits out (unknown readings never filter).
+    if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
+    if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
     const { entry, stop, targets } = applyTuning(s, tune);
     const res = advanceSignal(
       {
@@ -223,6 +235,8 @@ export function candidates(current: Tuning, rand: () => number, count = 32): Tun
         ],
         minConfidence: nudge(current.minConfidence, 8),
         pullback: nudge(current.pullback, 0.25),
+        minVol: nudge(current.minVol, 0.15),
+        skipBlocks: current.skipBlocks,
       }),
     );
   return out;
@@ -232,7 +246,9 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const r2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}R`;
 const describe = (t: Tuning) =>
   `stop room ${t.stopRoom.toFixed(2)}×, targets pulled to ${t.scale.map(pct).join("/")}, ` +
-  `trading from ${t.minConfidence}% confidence, pullback entries ${pct(t.pullback)} of the way back to the 20 EMA`;
+  `trading from ${t.minConfidence}% confidence, pullback entries ${pct(t.pullback)} of the way back to the 20 EMA` +
+  (t.minVol > 0 ? `, only when the chart is at least ${pct(t.minVol)} as lively as normal` : "") +
+  (t.skipBlocks.length ? `, sitting out ${t.skipBlocks.map(blockName).join(" and ")} UK` : "");
 
 /**
  * One study of past setups: keeps the current setting unless another one
@@ -271,11 +287,16 @@ export function learnFromSamples(
       scale: [0, 1, 2].map((i) => (now.scale[i] + best.scale[i]) / 2) as Tuning["scale"],
       minConfidence: (now.minConfidence + best.minConfidence) / 2,
       pullback: (now.pullback + best.pullback) / 2,
+      minVol: (now.minVol + best.minVol) / 2,
+      skipBlocks: now.skipBlocks,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
     if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;
     else if (heldUp && score(evaluate(sorted, best)) > score(before)) next = best;
   }
+  // The hours that keep losing under that setting are sat out.
+  const skip = losingBlocks(sorted, next);
+  if (skip.join() !== next.skipBlocks.join()) next = { ...next, skipBlocks: skip };
   const kept = next !== now;
   const after = evaluate(sorted, next);
   const lesson = kept
@@ -515,4 +536,37 @@ function setupLesson(stats: Partial<Record<SetupId, SetupStats>>): string {
     return `${SETUP_NAMES[id]} won ${Math.round(s.winRate * 100)}% of ${s.n} (${s.live ? "live" : "not live"})`;
   });
   return parts.length ? `Extra setups: ${parts.join("; ")}.` : "";
+}
+
+const blockName = (b: number) =>
+  `${String(b * 4).padStart(2, "0")}:00–${String(b * 4 + 4).padStart(2, "0")}:00`;
+
+/** Trades a UK time block needs in a study before it can be sat out. */
+export const BLOCK_MIN_TRADES = 10;
+
+/**
+ * The UK time blocks (ukBlock) to sit out under a setting: each with at
+ * least BLOCK_MIN_TRADES trades, winning under 40% and losing on average,
+ * worst first, at most two, and only when sitting them out beats trading
+ * them over the whole study.
+ */
+export function losingBlocks(samples: LearnSample[], tune: Tuning): number[] {
+  const all = { ...tune, skipBlocks: [] };
+  const bad = [0, 1, 2, 3, 4, 5]
+    .map((b) => ({
+      b,
+      e: evaluate(
+        samples.filter((s) => s.raw.block === b),
+        all,
+      ),
+    }))
+    .filter(({ e }) => e.n >= BLOCK_MIN_TRADES && e.winRate < 0.4 && e.avgR < 0)
+    .sort((x, y) => x.e.sumR - y.e.sumR)
+    .slice(0, 2)
+    .map(({ b }) => b)
+    .sort((a, b) => a - b);
+  if (!bad.length) return [];
+  return evaluate(samples, { ...all, skipBlocks: bad }).sumR > evaluate(samples, all).sumR
+    ? bad
+    : [];
 }
