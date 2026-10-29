@@ -83,6 +83,9 @@ type MemberFilter = "all" | "boss" | "vip" | "trial" | "vault" | "dev" | "telegr
 type SortKey = "joined" | "seen" | "balance" | "name" | "spend" | "buys";
 
 const PAGE_SIZE = 25;
+/** Phones get shorter pages: each member card is tall, and one very long list
+ *  is more than some phones can draw (the rest of the page went blank). */
+const MOBILE_PAGE_SIZE = 10;
 
 const hasBoss = (roles: string[]) => roles.includes("admin") || roles.includes("boss");
 const onTrial = (m: ProfileRow) =>
@@ -104,6 +107,7 @@ const FILTERS: { key: MemberFilter; label: string; test: (m: ProfileRow) => bool
 function AdminUsersPage() {
   const { isAdmin, isLoading: roleLoading } = useRole();
   const isMobile = useIsMobile();
+  const pageSize = isMobile ? MOBILE_PAGE_SIZE : PAGE_SIZE;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<MemberFilter>("all");
   const [sort, setSort] = useState<SortKey>("joined");
@@ -159,9 +163,9 @@ function AdminUsersPage() {
   }, [all, q, filter, sort, sortDir]);
 
   useEffect(() => setPage(0), [q, filter, sort, sortDir]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, pageCount - 1);
-  const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const visible = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   if (roleLoading) {
     return (
@@ -286,7 +290,9 @@ function AdminUsersPage() {
           </div>
 
           {/* List */}
-          <div className="og-panel overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+          {/* No overflow-hidden here: clipping this tall list to rounded
+              corners made one huge layer that phones couldn't draw. */}
+          <div className="og-panel rounded-2xl border border-border bg-card shadow-card">
             {usersQ.isLoading ? (
               <div className="grid place-items-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -378,11 +384,11 @@ function AdminUsersPage() {
                 )}
               </div>
             )}
-            {filtered.length > PAGE_SIZE && !usersQ.isError ? (
+            {filtered.length > pageSize && !usersQ.isError ? (
               <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground">
                 <span>
-                  {(safePage * PAGE_SIZE + 1).toLocaleString()} to{" "}
-                  {Math.min(filtered.length, (safePage + 1) * PAGE_SIZE).toLocaleString()} of{" "}
+                  {(safePage * pageSize + 1).toLocaleString()} to{" "}
+                  {Math.min(filtered.length, (safePage + 1) * pageSize).toLocaleString()} of{" "}
                   {filtered.length.toLocaleString()}
                 </span>
                 <div className="flex items-center gap-2">
@@ -723,7 +729,8 @@ function UserRow({ user }: { user: ProfileRow }) {
 function MobileUserCard({ user }: { user: ProfileRow }) {
   const isVip = user.roles.includes("vip");
   return (
-    <li className="space-y-3 p-4">
+    // Off-screen cards are skipped until scrolled to, so phones only draw what's showing.
+    <li className="space-y-3 p-4 [contain-intrinsic-size:auto_340px] [content-visibility:auto]">
       <div className="flex min-w-0 items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-brand text-sm font-semibold text-primary-foreground">
           {(user.display_name ?? user.email ?? "?").slice(0, 1).toUpperCase()}
