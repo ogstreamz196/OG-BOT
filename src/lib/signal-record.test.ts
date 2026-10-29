@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { recordText, tallyRecord } from "./signal-record.server";
+import {
+  currentStreak,
+  recordText,
+  resultsAnnouncement,
+  tallyRecord,
+} from "./signal-record.server";
 
 let n = 0;
 /** One 70%+ gold signal (a fresh setup each time unless `entry` is given). */
@@ -46,7 +51,7 @@ describe("70%+ record", () => {
       cancelled: 1,
     });
     expect(r.wins + r.losses + r.running + r.cancelled).toBe(r.signals);
-    expect(r.markets).toEqual([{ label: "XAU/USD", unit: "pips", pips: 140 }]);
+    expect(r.markets).toEqual([{ market: "XAUUSD", label: "XAU/USD", unit: "pips", pips: 140 }]);
     expect(recordText(r)).toBe(
       "🏆 75% WIN RATE · 7 signals\n" +
         "✅ 3 won · 🛑 1 lost\n" +
@@ -67,5 +72,43 @@ describe("70%+ record", () => {
     expect(recordText(tallyRecord([], null))).toBe(
       "🏆 SIGNAL RECORD · 0 signals\n✅ 0 won · 🛑 0 lost",
     );
+  });
+});
+
+describe("OG Trade Bot results (announced by OG B0T)", () => {
+  it("leads with the current streak and the last few results", () => {
+    const rows = [
+      sig("stopped"),
+      sig("tp1", { best_target: 1 }),
+      sig("tp2", { best_target: 2 }),
+      sig("tp3", { best_target: 3 }),
+      sig("unfilled"),
+      sig("open"),
+    ];
+    const r = tallyRecord(rows, "2026-10-01T00:00:00Z");
+    expect(r.form).toEqual(["lost", "won", "won", "won"]);
+    expect(currentStreak(r)).toEqual({ result: "won", count: 3 });
+    expect(resultsAnnouncement(r)).toBe(
+      "📣 OG TRADE BOT RESULTS · since 1 Oct 2026\n" +
+        "🔥 3 wins on the bounce. My boy's cooking!\n" +
+        "🛑✅✅✅  last 4\n" +
+        "\n" +
+        "🏆 75% win rate · ✅ 3 won · 🛑 1 lost\n" +
+        "⏳ 1 running · 🚫 1 cancelled\n" +
+        "🥇 Gold +140.0 pips",
+    );
+  });
+
+  it("owns a losing run too, and reads cleanly before anything settles", () => {
+    const r = tallyRecord([sig("tp1", { best_target: 1 }), sig("stopped"), sig("stopped")], null);
+    expect(currentStreak(r)).toEqual({ result: "lost", count: 2 });
+    expect(resultsAnnouncement(r).split("\n")[1]).toBe(
+      "🥶 2 losses on the bounce. He'll bounce back, he always does.",
+    );
+    const none = resultsAnnouncement(tallyRecord([], null));
+    expect(none).toBe(
+      "📣 OG TRADE BOT RESULTS\n🏁 Nothing settled yet. Watch this space.\n\n🏆 ✅ 0 won · 🛑 0 lost",
+    );
+    expect(none).not.toMatch(/70%|TODAY/);
   });
 });

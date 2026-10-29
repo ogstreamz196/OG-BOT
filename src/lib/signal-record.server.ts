@@ -29,7 +29,9 @@ export type SignalRecord = {
   running: number;
   /** Cancelled orders: ran out of time (or was called off) before the entry was reached. */
   cancelled: number;
-  markets: { label: string; unit: string; pips: number }[];
+  markets: { market: string; label: string; unit: string; pips: number }[];
+  /** Won and lost signals in the order they were sent, oldest first. */
+  form: ("won" | "lost")[];
 };
 
 /** All rows of a query, a page at a time (up to MAX_ROWS). */
@@ -109,14 +111,21 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
     running: 0,
     cancelled: 0,
     markets: [],
+    form: [],
   };
-  const byMarket = new Map<string, { label: string; unit: string; pips: number }>();
+  const byMarket = new Map<string, { market: string; label: string; unit: string; pips: number }>();
   for (const { row, best, stopped, active, filled } of setups.values()) {
     const result = resultFor({ ...row, id: "" }, best, stopped && best === 0);
     if (result) {
       if (result.outcome === "win") record.wins++;
       else record.losses++;
-      const m = byMarket.get(row.market) ?? { label: row.label, unit: result.unit, pips: 0 };
+      record.form.push(result.outcome === "win" ? "won" : "lost");
+      const m = byMarket.get(row.market) ?? {
+        market: row.market,
+        label: row.label,
+        unit: result.unit,
+        pips: 0,
+      };
       m.pips += result.pips;
       byMarket.set(row.market, m);
     } else if (active) record.running++;
@@ -213,4 +222,55 @@ export async function resetSignalRecord(admin: Admin, actorId: string): Promise<
       () => undefined,
     );
   return at;
+}
+
+/** The run the record ends on: how many in a row, won or lost. Null before any. */
+export function currentStreak(r: Pick<SignalRecord, "form">) {
+  const last = r.form.at(-1);
+  if (!last) return null;
+  let count = 0;
+  for (let i = r.form.length - 1; i >= 0 && r.form[i] === last; i--) count++;
+  return { result: last, count };
+}
+
+const MARKET_NAMES: Record<string, string> = { XAUUSD: "🥇 Gold", BTCUSD: "₿ Bitcoin" };
+
+/**
+ * The signals chat's results post: OG B0T announcing the OG Trade Bot's
+ * record, with its current streak and recent form up top.
+ */
+export function resultsAnnouncement(r: SignalRecord): string {
+  const streak = currentStreak(r);
+  const n = streak?.count ?? 0;
+  const hype = !streak
+    ? "🏁 Nothing settled yet. Watch this space."
+    : streak.result === "won"
+      ? n > 1
+        ? `🔥 ${n} wins on the bounce. My boy's cooking!`
+        : "✅ Won his last one. Back on it."
+      : n > 1
+        ? `🥶 ${n} losses on the bounce. He'll bounce back, he always does.`
+        : "🛑 Took a loss on the last one. Shake it off, son.";
+  const lastTen = r.form.slice(-10);
+  const decided = r.wins + r.losses;
+  const sign = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
+  const lines = [
+    `📣 OG TRADE BOT RESULTS${r.since ? ` · since ${ukDate(r.since)}` : ""}`,
+    hype,
+    ...(lastTen.length
+      ? [`${lastTen.map((f) => (f === "won" ? "✅" : "🛑")).join("")}  last ${lastTen.length}`]
+      : []),
+    "",
+    decided
+      ? `🏆 ${Math.round((r.wins / decided) * 100)}% win rate · ✅ ${r.wins} won · 🛑 ${r.losses} lost`
+      : `🏆 ✅ ${r.wins} won · 🛑 ${r.losses} lost`,
+  ];
+  const rest = [
+    r.running ? `⏳ ${r.running} running` : "",
+    r.cancelled ? `🚫 ${r.cancelled} cancelled` : "",
+  ].filter(Boolean);
+  if (rest.length) lines.push(rest.join(" · "));
+  for (const m of r.markets)
+    lines.push(`${MARKET_NAMES[m.market] ?? m.label} ${sign(m.pips)} ${m.unit}`);
+  return lines.join("\n");
 }
