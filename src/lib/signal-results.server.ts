@@ -255,9 +255,12 @@ export async function signalResultsNote(admin: Admin, now = Date.now()): Promise
 
 /* ── Today's score, shown at the bottom of the signals chat ───────────── */
 
-/** The one-message scoreboard: today's wins, losses and pips per market (UK day). */
+/**
+ * Today's wins, losses and pips per market (UK day) for the scoreboard, or
+ * "" when nothing has closed yet (the scoreboard then shows only the record).
+ */
 export function scoreText(rows: ResultRow[]): string {
-  if (!rows.length) return "📊 TODAY'S SCORE · nothing closed yet. Patience, you muppets.";
+  if (!rows.length) return "";
   const wins = rows.filter((r) => r.outcome === "win").length;
   const losses = rows.length - wins;
   const byMarket = new Map<string, { label: string; unit: string; pips: number }>();
@@ -274,7 +277,7 @@ export function scoreText(rows: ResultRow[]): string {
   return `📊 TODAY'S SCORE · ✅ ${wins} won · 🛑 ${losses} lost\n${markets.join(" · ")}`;
 }
 
-/** Today's scoreboard text, or null when the results can't be read. */
+/** Today's score ("" when nothing has closed yet), or null when the results can't be read. */
 export async function todayScore(admin: Admin, now = Date.now()): Promise<string | null> {
   const [, from] = resultPeriods(now)[0];
   try {

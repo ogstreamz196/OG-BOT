@@ -123,7 +123,7 @@ export async function refreshScore(
     const { error: missing } = await admin.from(TABLE).select("message_id").limit(1);
     if (missing) return "skipped: signal_chat_messages can't be read";
     const today = await todayScore(admin, now);
-    if (!today) return "skipped: signal_results can't be read";
+    if (today === null) return "skipped: signal_results can't be read";
     // The 70%+ record runs underneath, counted since the Boss last reset it.
     const { signalRecord, recordText } = await import("./signal-record.server");
     // Cached a minute: the scoreboard is refreshed after every alert and update.
@@ -131,7 +131,9 @@ export async function refreshScore(
     const record = await cached("signal-record", 60_000, () => signalRecord(admin)).catch(
       () => null,
     );
-    const text = record ? `${today}\n\n${recordText(record)}` : today;
+    // Nothing closed today: just the record, no "nothing closed yet" line.
+    const text = [today, record ? recordText(record) : ""].filter(Boolean).join("\n\n");
+    if (!text) return "skipped: nothing to show yet";
     const sent = await workerApi<{ message_id?: number }>("sendMessage", {
       chat_id: chatId,
       text,

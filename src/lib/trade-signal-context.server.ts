@@ -448,6 +448,8 @@ export type SignalFeeds = {
   bias?: boolean;
   /** Who asked for it, so a win can be announced to them by name. */
   requester?: { id: number; name: string };
+  /** The "entry not reached" notice, so the next one can replace it. */
+  notice?: number;
 };
 
 /** What a "no signal" card says: one of these, picked at random. */

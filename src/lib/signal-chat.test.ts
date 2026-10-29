@@ -32,6 +32,11 @@ function fakeAdmin() {
         select: () => q,
         order: () => q,
         limit: () => q,
+        range: () => q,
+        maybeSingle: async () => ({
+          data: rows.filter((r) => filters.every((f) => f(r)))[0] ?? null,
+          error: null,
+        }),
         eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
         in: (c: string, v: unknown[]) => (filters.push((r) => v.includes(r[c])), q),
         gte: (c: string, v: string) => (filters.push((r) => r[c] >= v), q),
@@ -145,7 +150,9 @@ describe("refreshScore", () => {
     ];
     await refreshScore(fakeAdmin(), CHAT);
     const sent = calls.find((c) => c.method === "sendMessage")!;
-    expect(sent.body.text).toBe("📊 TODAY'S SCORE · ✅ 1 won · 🛑 0 lost\n🟢 XAU/USD +30.0 pips");
+    expect(sent.body.text).toMatch(
+      /^📊 TODAY'S SCORE · ✅ 1 won · 🛑 0 lost\n🟢 XAU\/USD \+30\.0 pips\n\n🏆 70%\+ RECORD/,
+    );
     expect(sent.body.disable_notification).toBe(true);
     expect(deleted()).toEqual([13]);
     expect(tables.signal_chat_messages.filter((r) => r.kind === "score")).toHaveLength(1);
@@ -167,9 +174,10 @@ describe("rollScoreDay", () => {
       { chat_id: CHAT, message_id: 13, kind: "score", created_at: "2026-10-26T22:00:00Z" },
     ];
     await rollScoreDay(fakeAdmin(), now);
-    expect(calls.find((c) => c.method === "sendMessage")?.body.text).toContain(
-      "nothing closed yet",
-    );
+    // Nothing closed yet: no "nothing closed" line, just the 70%+ record.
+    const text = calls.find((c) => c.method === "sendMessage")?.body.text as string;
+    expect(text).toContain("70%+ RECORD");
+    expect(text).not.toContain("TODAY'S SCORE");
     calls.length = 0;
     await rollScoreDay(fakeAdmin(), now + 60_000);
     expect(calls).toHaveLength(0);
