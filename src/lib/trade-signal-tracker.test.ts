@@ -128,7 +128,7 @@ describe("watchSignals: profit hits as they happen", () => {
     const { events } = await watchSignals(NOW);
     expect(events).toBe(1);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toContain("Quick Scalp hit");
+    expect(sent[0]).toContain("Quick Scalp target hit");
     expect(rows[0]).toMatchObject({ status: "tp1", best_target: 1 });
     // That minute is done with: when it closes it isn't judged (or announced) again.
     expect(rows[0].last_candle_at).toBe(new Date(MINUTE_START).toISOString());
@@ -150,7 +150,7 @@ describe("watchSignals: profit hits as they happen", () => {
     // Once it's closed, the usual rule decides (the stop counts first).
     await watchSignals(MINUTE_START + MIN + 5_000);
     expect(rows[0].status).toBe("stopped");
-    expect(sent[0]).toContain("Stop Loss hit");
+    expect(sent[0]).toContain("My stop loss got hit");
   });
 });
 
@@ -209,7 +209,7 @@ describe("watchSignals: only one 'entry not reached' signal in a chat", () => {
     candles = [bar(MINUTE_START - MIN, 99, 101)];
     await watchSignals(NOW);
     expect(rows[0].status).toBe("unfilled");
-    expect(sent.at(-1)).toContain("Entry not reached in time");
+    expect(sent.at(-1)).toContain("Price never reached my entry");
     // The older one's card and notice are deleted; it stops messaging the chat.
     expect(deletedMsgs.sort()).toEqual([10, 11]);
     expect(rows.find((r) => r.id === "old")!.chat_id).toBeNull();

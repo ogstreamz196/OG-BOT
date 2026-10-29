@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 // Called every minute by pg_cron (see the signal_broadcasts migration), and
 // scanning again every 15 seconds through the minute: posts any top gold or
-// bitcoin scalp to the signals channel
+// bitcoin scalp to the signals channel, plus the hourly AI desk scout
 // (signal-broadcast.server.ts). A {"ping": true} body posts a test line instead,
 // and {"score": true} posts today's score.
 const PING_TEXT =
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         const token = request.headers.get("x-ogbot-retry-token") ?? "";
         const { data: ok } = await supabaseAdmin.rpc("verify_song_retry_token", { p_token: token });
         if (!ok) return new Response("Forbidden", { status: 403 });
-        const { scanAndBroadcast, postToSignalsChannel, signalsChannelReady } =
+        const { scanAndBroadcast, maybeDeskScout, postToSignalsChannel, signalsChannelReady } =
           await import("@/lib/signal-broadcast.server");
         // Not set up yet: don't spend time building signals nobody will see.
         if (!signalsChannelReady()) return Response.json({ ok: true, skipped: "not_configured" });
@@ -49,60 +49,67 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const messageId = await postToSignalsChannel(PING_TEXT);
           return Response.json({ ok: messageId !== null, ping: messageId !== null });
         }
-        const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
+        const { buildTradeSignal, deskRead } = await import("@/lib/trade-signal-context.server");
         const { repeatWithin } = await import("@/lib/repeat-within");
+        type Follow = NonNullable<import("@/lib/signal-broadcast.server").ScanDeps["follow"]>;
+        const follow: Follow = async (signal, messageId, card) => {
+          if (!signal.plan || chatId === null) return;
+          // Clutter free: this pair's older alert and its updates go.
+          await sc.clearOlderPair(supabaseAdmin, chatId, signal.plan.market, messageId);
+          await sc.trackSignalMessage(supabaseAdmin, chatId, messageId, signal.plan.market, "card");
+          // Today's score goes back to the bottom, under the new alert.
+          await sc.refreshScore(supabaseAdmin, chatId);
+          // The Boss's MT5 account takes the trade (when switched on).
+          const { placeAutoTrade } = await import("@/lib/mt5-autotrade.server");
+          await placeAutoTrade(
+            supabaseAdmin,
+            signal.plan as import("@/lib/trade-signal-context.server").SignalPlan,
+          );
+          const { data: owner } = await supabaseAdmin
+            .from("user_roles")
+            .select("user_id")
+            .eq("role", "admin")
+            .limit(1)
+            .maybeSingle();
+          if (!owner) return;
+          const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
+          await recordSignal({
+            userId: owner.user_id,
+            chatId,
+            messageId,
+            card,
+            plan: signal.plan as import("@/lib/trade-signal-context.server").SignalPlan,
+            senderWorker: "trade",
+          });
+        };
         try {
           // Every 15 seconds through the minute, so a top setup goes out as
-          // soon as it appears rather than at the next minute.
-          const passes = await repeatWithin(
-            () =>
-              scanAndBroadcast(supabaseAdmin, {
-                build: buildTradeSignal,
-                post: postToSignalsChannel,
-                follow: async (signal, messageId, card) => {
-                  if (!signal.plan || chatId === null) return;
-                  // Clutter free: this pair's older alert and its updates go.
-                  await sc.clearOlderPair(supabaseAdmin, chatId, signal.plan.market, messageId);
-                  await sc.trackSignalMessage(
-                    supabaseAdmin,
-                    chatId,
-                    messageId,
-                    signal.plan.market,
-                    "card",
-                  );
-                  // Today's score goes back to the bottom, under the new alert.
-                  await sc.refreshScore(supabaseAdmin, chatId);
-                  // The Boss's MT5 account takes the trade (when switched on).
-                  const { placeAutoTrade } = await import("@/lib/mt5-autotrade.server");
-                  await placeAutoTrade(
-                    supabaseAdmin,
-                    signal.plan as import("@/lib/trade-signal-context.server").SignalPlan,
-                  );
-                  const { data: owner } = await supabaseAdmin
-                    .from("user_roles")
-                    .select("user_id")
-                    .eq("role", "admin")
-                    .limit(1)
-                    .maybeSingle();
-                  if (!owner) return;
-                  const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
-                  await recordSignal({
-                    userId: owner.user_id,
-                    chatId,
-                    messageId,
-                    card,
-                    plan: signal.plan as import("@/lib/trade-signal-context.server").SignalPlan,
-                    senderWorker: "trade",
-                  });
-                },
-                now: Date.now,
-              }),
-            { everyMs: 15_000, lastStartMs: 30_000 },
-          );
+          // soon as it appears rather than at the next minute. Alongside it,
+          // once an hour, the AI desk scouts both markets (posts only when
+          // every AI agrees).
+          const [passes, desk] = await Promise.all([
+            repeatWithin(
+              () =>
+                scanAndBroadcast(supabaseAdmin, {
+                  build: buildTradeSignal,
+                  post: postToSignalsChannel,
+                  follow,
+                  now: Date.now,
+                }),
+              { everyMs: 15_000, lastStartMs: 30_000 },
+            ),
+            maybeDeskScout(supabaseAdmin, {
+              read: deskRead,
+              post: postToSignalsChannel,
+              follow,
+              now: Date.now,
+            }),
+          ]);
           const result = {
             checked: passes.reduce((n, p) => n + p.checked, 0),
             posted: passes.flatMap((p) => p.posted),
             passes: passes.length,
+            desk,
           };
           return Response.json({ ok: true, ...result });
         } catch (e) {

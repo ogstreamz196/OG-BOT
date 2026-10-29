@@ -502,7 +502,7 @@ const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
  */
 /**
  * The targets members get, from the engine's three (entry → TP1 → TP2 → TP3):
- * Quick Scalp 20% closer to the entry than TP1, Potentially 60% of the way
+ * Quick Scalp 20% closer to the entry than TP1, Little Brave 60% of the way
  * from TP1 to TP2, Greedy Runner 85% of the way from TP2 to TP3. Each new
  * target sits inside its own band, so they can't cross; the guard below keeps
  * them strictly in order (at least `minStep` apart, past the entry) even when
