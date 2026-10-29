@@ -10,6 +10,7 @@ const MINUTE_START = NOW - 40_000;
 type Row = Record<string, unknown>;
 const rows: Row[] = [];
 const sent: string[] = [];
+const edits: string[] = [];
 const deletedMsgs: number[] = [];
 const results: Row[] = [];
 let candles: { t: number; o: number; h: number; l: number; c: number }[] = [];
@@ -71,6 +72,7 @@ vi.mock("./trade-signal-context.server", () => ({
 vi.mock("./telegram-api.server", () => ({
   telegramCall: async (method: string, body: { text: string; message_ids?: number[] }) => {
     if (method === "sendMessage") sent.push(body.text);
+    if (method === "editMessageText") edits.push(body.text);
     if (method === "deleteMessages") deletedMsgs.push(...(body.message_ids ?? []));
     return { message_id: 70 + sent.length };
   },
@@ -80,6 +82,7 @@ const bar = (t: number, l: number, h: number) => ({ t, o: 100, h, l, c: (l + h) 
 
 beforeEach(() => {
   sent.length = 0;
+  edits.length = 0;
   deletedMsgs.length = 0;
   results.length = 0;
   rows.length = 0;
@@ -151,6 +154,33 @@ describe("watchSignals: profit hits as they happen", () => {
     await watchSignals(MINUTE_START + MIN + 5_000);
     expect(rows[0].status).toBe("stopped");
     expect(sent[0]).toContain("Stopped out");
+  });
+});
+
+describe("watchSignals: one message per trade", () => {
+  test("updates are written into the card as a journal, not sent as replies", async () => {
+    const { watchSignals } = await import("./trade-signal-tracker.server");
+    Object.assign(rows[0], { card: "CARD", message_id: 9 });
+    candles = [bar(MINUTE_START - MIN, 99, 102), bar(MINUTE_START, 101, 105)];
+    await watchSignals(NOW);
+    expect(sent).toHaveLength(0);
+    expect(edits.at(-1)).toMatch(
+      /^CARD\n\n📒 How it's going:\n\d\d:\d\d 🎯 Quick Scalp hit .+\n\n📍 .+ · Quick Scalp hit · \d\d:\d\d$/,
+    );
+    expect((rows[0].feeds as { log?: string[] }).log).toHaveLength(1);
+    // The trade ends: the next line joins the journal and the live line goes.
+    candles = [
+      ...candles.slice(0, 1),
+      bar(MINUTE_START, 101, 105),
+      bar(MINUTE_START + MIN, 99, 103),
+    ];
+    candles.push(bar(MINUTE_START + 2 * MIN, 90, 99));
+    await watchSignals(MINUTE_START + 3 * MIN + 5_000);
+    expect(sent).toHaveLength(0);
+    const last = edits.at(-1)!;
+    expect(last.split("\n").filter((l) => /^\d\d:\d\d /.test(l))).toHaveLength(2);
+    expect(last).not.toContain("📍");
+    expect((rows[0].feeds as { log?: string[] }).log).toHaveLength(2);
   });
 });
 
