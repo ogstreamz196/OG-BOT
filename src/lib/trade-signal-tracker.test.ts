@@ -10,6 +10,7 @@ const MINUTE_START = NOW - 40_000;
 type Row = Record<string, unknown>;
 const rows: Row[] = [];
 const sent: string[] = [];
+const deletedMsgs: number[] = [];
 const results: Row[] = [];
 let candles: { t: number; o: number; h: number; l: number; c: number }[] = [];
 
@@ -28,12 +29,21 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       }
       let patch: Row | null = null;
       let id: unknown;
+      const where: ((r: Row) => boolean)[] = [];
+      let filtered = false;
       const q = {
         select: () => q,
         in: () => q,
         order: () => q,
         limit: () => q,
-        eq: (_c: string, v: unknown) => ((id = v), q),
+        gte: () => q,
+        eq: (c: string, v: unknown) => {
+          if (c === "id") id = v;
+          else filtered = true;
+          where.push((r) => r[c] === v);
+          return q;
+        },
+        neq: (c: string, v: unknown) => (where.push((r) => r[c] !== v), q),
         update: (p: Row) => ((patch = p), q),
         upsert: async () => ({ error: null }),
         then: (resolve: (v: unknown) => void) => {
@@ -41,8 +51,11 @@ vi.mock("@/integrations/supabase/client.server", () => ({
             Object.assign(rows.find((r) => r.id === id) ?? {}, patch);
             return resolve({ error: null });
           }
+          // The watcher's own query (active rows), or a filtered lookup.
           resolve({
-            data: rows.filter((r) => ["pending", "open", "tp1", "tp2"].includes(String(r.status))),
+            data: filtered
+              ? rows.filter((r) => where.every((f) => f(r)))
+              : rows.filter((r) => ["pending", "open", "tp1", "tp2"].includes(String(r.status))),
             error: null,
           });
         },
@@ -56,9 +69,10 @@ vi.mock("./trade-signal-context.server", () => ({
   higherTrend: async () => null,
 }));
 vi.mock("./telegram-api.server", () => ({
-  telegramCall: async (method: string, body: { text: string }) => {
+  telegramCall: async (method: string, body: { text: string; message_ids?: number[] }) => {
     if (method === "sendMessage") sent.push(body.text);
-    return { message_id: 1 };
+    if (method === "deleteMessages") deletedMsgs.push(...(body.message_ids ?? []));
+    return { message_id: 70 + sent.length };
   },
 }));
 
@@ -66,6 +80,7 @@ const bar = (t: number, l: number, h: number) => ({ t, o: 100, h, l, c: (l + h) 
 
 beforeEach(() => {
   sent.length = 0;
+  deletedMsgs.length = 0;
   results.length = 0;
   rows.length = 0;
   rows.push({
@@ -169,5 +184,36 @@ describe("watchSignals: the results book", () => {
     expect(rows[0].status).toBe("expired");
     expect(sent).toHaveLength(0);
     expect(results).toHaveLength(0);
+  });
+});
+
+describe("watchSignals: only one 'entry not reached' signal in a chat", () => {
+  test("the older not-reached signal's card and notice go when a new one isn't reached", async () => {
+    const { watchSignals } = await import("./trade-signal-tracker.server");
+    // An older signal in the same chat that already wasn't reached.
+    rows.push({
+      ...rows[0],
+      id: "old",
+      status: "unfilled",
+      message_id: 10,
+      feeds: { binance: "BTCUSDT", notice: 11 },
+    });
+    // This one: a limit entry that never got there before time ran out.
+    Object.assign(rows[0], {
+      status: "pending",
+      entry: 90,
+      entered_at: null,
+      message_id: 20,
+      expires_at: new Date(MINUTE_START - 30_000).toISOString(),
+    });
+    candles = [bar(MINUTE_START - MIN, 99, 101)];
+    await watchSignals(NOW);
+    expect(rows[0].status).toBe("unfilled");
+    expect(sent.at(-1)).toContain("Entry not reached in time");
+    // The older one's card and notice are deleted; it stops messaging the chat.
+    expect(deletedMsgs.sort()).toEqual([10, 11]);
+    expect(rows.find((r) => r.id === "old")!.chat_id).toBeNull();
+    // This one's notice is remembered, so the next one can replace it.
+    expect((rows[0].feeds as { notice?: number }).notice).toBeGreaterThan(0);
   });
 });

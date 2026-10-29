@@ -249,8 +249,9 @@ async function senderCall<T = unknown>(
   return telegramCall<T>(method, body);
 }
 
-async function sendFollowUp(row: Row, text: string) {
-  if (!row.chat_id) return;
+/** Posts an update under the signal's card; the message id, or null. */
+async function sendFollowUp(row: Row, text: string): Promise<number | null> {
+  if (!row.chat_id) return null;
   const { telegramCall } = await import("./telegram-api.server");
   const sent = await senderCall<{ message_id?: number }>(row, "sendMessage", {
     chat_id: row.chat_id,
@@ -282,6 +283,46 @@ async function sendFollowUp(row: Row, text: string) {
       .upsert({ chat_id: row.chat_id, message_id: sent.message_id, kind: "signal" } as never, {
         onConflict: "chat_id,message_id",
       });
+  }
+  return sent?.message_id ?? null;
+}
+
+/**
+ * A signal's entry wasn't reached: its "not reached" notice is remembered
+ * (feeds.notice) and every older not-reached signal in the chat goes, card
+ * and notice, so only the latest one is ever showing. Never throws.
+ */
+async function keepOneUnfilled(row: Row, notice: number | null) {
+  if (!row.chat_id) return;
+  try {
+    const admin = await db();
+    if (notice)
+      await admin
+        .from(TABLE)
+        .update({ feeds: { ...row.feeds, notice } } as never)
+        .eq("id" as never, row.id);
+    const { data } = await admin
+      .from(TABLE)
+      .select("*")
+      .eq("chat_id" as never, row.chat_id)
+      .eq("status" as never, "unfilled")
+      .neq("id" as never, row.id)
+      .gte("created_at" as never, new Date(Date.now() - 48 * 3600_000).toISOString())
+      .limit(50);
+    for (const old of (data ?? []) as unknown as Row[]) {
+      const ids = [old.message_id, Number(old.feeds?.notice) || null].filter(
+        (id): id is number => !!id,
+      );
+      if (ids.length)
+        await senderCall(old, "deleteMessages", { chat_id: row.chat_id, message_ids: ids });
+      // Gone from the chat: it stops messaging it (still in the track record).
+      await admin
+        .from(TABLE)
+        .update({ chat_id: null } as never)
+        .eq("id" as never, old.id);
+    }
+  } catch (e) {
+    console.warn("[signals] tidying older not-reached signals failed", e);
   }
 }
 
@@ -522,7 +563,9 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         if (upErr) console.warn("[signals] update failed", row.id, upErr.message);
         if (lines.length) {
           eventCount += lines.length;
-          await sendFollowUp(row, lines.join("\n"));
+          const notice = await sendFollowUp(row, lines.join("\n"));
+          // Only ever one "entry not reached" signal showing in a chat.
+          if (result.events.some((e) => e.kind === "unfilled")) await keepOneUnfilled(row, notice);
         }
         // A target hit: tell whoever asked what a 1.0 lot would have paid out.
         const won = [...result.events].reverse().find((e) => /^tp[123]$/.test(e.kind));
