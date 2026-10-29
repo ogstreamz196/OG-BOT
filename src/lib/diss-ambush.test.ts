@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { DISS_DONE, DISS_MARKER, DISS_TRACK_COST, shouldAmbush, stripMarker } from "./diss-ambush";
 
 const chat = (n: number) =>
-  Array.from({ length: n }, (_, i) => ({ role: (i % 2 ? "assistant" : "user") as "user" | "assistant", content: `m${i}` }));
+  Array.from({ length: n }, (_, i) => ({
+    role: (i % 2 ? "assistant" : "user") as "user" | "assistant",
+    content: `m${i}`,
+  }));
 
 describe("diss ambush", () => {
   it("costs 5 coins", () => expect(DISS_TRACK_COST).toBe(5));

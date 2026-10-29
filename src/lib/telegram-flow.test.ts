@@ -1159,6 +1159,13 @@ describe("telegram bot flow", () => {
         expect(fromGaffer[0].text).toMatch(/chart (slave|boy)|intern/i);
         expect(fromGaffer[0].text).toContain("gold");
         expect(fromGaffer[0].text).not.toContain("@");
+        // It names who asked, tap-able, and tells the chart slave to sort them out.
+        expect(fromGaffer[0].text).toMatch(/Imran (wants|is after)/);
+        expect(fromGaffer[0].text).not.toContain("{who}");
+        const [asker] = tags(fromGaffer[0]);
+        expect(asker[0]).toBe("Imran");
+        // The trade bot shows as typing while it cooks the card.
+        expect(worker.calls.some((c) => c.method === "sendChatAction")).toBe(true);
         expect(repliesTo(fromGaffer[0])).toBe(asked);
         // The trade bot: the card, threaded to the ask, tagging the asker by name.
         const cards = workerSent();

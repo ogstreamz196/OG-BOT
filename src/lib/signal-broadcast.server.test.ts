@@ -68,8 +68,8 @@ describe("auto-posted scalp signals", () => {
     const result = await scanAndBroadcast(db, d);
     expect(result).toEqual({ checked: 2, posted: ["XAUUSD BUY", "BTCUSD SELL"] });
     expect(d.sent).toHaveLength(2);
-    expect(d.sent[0]).toMatch(/^📒 LIVE TRADE · every timeframe agrees\n\nXAUUSD BUY card/);
-    expect(d.sent[1]).toMatch(/^📒 LIVE TRADE\n\nBTCUSD SELL card/);
+    expect(d.sent[0]).toMatch(/^🔥 Every timeframe agrees\nXAUUSD BUY card/);
+    expect(d.sent[1]).toMatch(/^BTCUSD SELL card/);
     expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
     expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
   });
@@ -130,6 +130,6 @@ describe("auto-posted scalp signals", () => {
   });
 
   test("channel card wording", () => {
-    expect(channelCard("x")).toBe("📒 LIVE TRADE · every timeframe agrees\n\nx");
+    expect(channelCard("x")).toBe("🔥 Every timeframe agrees\nx");
   });
 });

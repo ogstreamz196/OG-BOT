@@ -262,11 +262,7 @@ const JOURNAL_LINES = 8;
 /** The card with its journal under it, and the live line while the trade runs. */
 export function journalCard(card: string, log: string[], live: string | null): string {
   const journal = log.slice(-JOURNAL_LINES);
-  return [
-    card,
-    ...(journal.length ? ["", "📒 How it's going:", ...journal] : []),
-    ...(live ? ["", live] : []),
-  ]
+  return [card, ...(journal.length ? ["", ...journal] : []), ...(live ? ["", live] : [])]
     .join("\n")
     .slice(0, 4096);
 }

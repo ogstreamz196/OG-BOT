@@ -115,21 +115,24 @@ describe("buildTradeSignalContext", () => {
     expect(stop).toBeDefined();
     if (!entry || !stop) throw new Error("signal levels missing");
     // OG Trade Bot taking the trade, in plain first person, never instructions.
-    expect(signal.reply).toMatch(/^(🟢|🔴) I'M TAKING THIS TRADE · (BUYING|SELLING)\n₿ BTC\/USD/);
+    expect(signal.reply).toMatch(
+      /^(🟢 I'M BUYING|🔴 I'M SELLING) ₿ BTC\/USD · 1H · 💪 (5[1-9]|[6-8]\d|90)%\n\n/,
+    );
     // The stop loss with what 0.5 lot loses there (bitcoin: $1 a lot per $1).
     expect(signal.reply).toMatch(
       new RegExp(
-        `\\n▶️ I'm (getting in now at|waiting for a pullback to get in at|getting in once it breaks (above|below)) ${entry.replace(".", "\\.")}\\n🛑 My stop loss is at ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n`,
+        `\\n▶️ In (now at|at|if it breaks (above|below)) ${entry.replace(".", "\\.")}( on a pullback)?\\n🛑 Stop ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n`,
       ),
     );
     const loss = Number(signal.reply.match(/ · −\$([\d,.]+)\n/)?.[1].replace(/,/g, ""));
     expect(Math.abs(loss - Math.abs(Number(entry) - Number(stop)) * 0.5)).toBeLessThan(0.011);
     // The three targets by name, each with what 0.5 lot makes there.
     expect(signal.reply).toMatch(
-      /\n💰 What I'm aiming for \(0\.5 lot\):\n🎯 Quick Scalp [\d.]+ · \+\$[\d,.]+\n🎯 Little Brave [\d.]+ · \+\$[\d,.]+\n🎯 Greedy Runner [\d.]+ · \+\$[\d,.]+\n/,
+      /\n🎯 Quick Scalp [\d.]+ · \+\$[\d,.]+\n🎯 Little Brave [\d.]+ · \+\$[\d,.]+\n🎯 Greedy Runner [\d.]+ · \+\$[\d,.]+\n/,
     );
-    expect(signal.reply).toMatch(/\n❌ If the .+, I'm out\n⏳ Good till .+ UK/);
-    expect(signal.reply).toMatch(/ · 💪 Confidence: (5[1-9]|[6-8]\d|90)%\n/);
+    expect(signal.reply).toMatch(
+      /\n❌ Out if .+ my stop or .+\n⏳ Till .+ UK\n📚 0\.5 lot figures · /,
+    );
     // What's followed is exactly what's shown: every level is the printed number.
     const plan = signal.plan!;
     for (const lvl of [plan.entry, plan.stop, ...plan.targets])
@@ -142,7 +145,9 @@ describe("buildTradeSignalContext", () => {
     // No @handles (mentions are entities).
     expect(signal.reply).not.toContain("@");
     // Ends with one of the foul disclaimers, picked at random each time.
-    expect(SIGNAL_DISCLAIMERS).toContain(signal.reply.split("\n").at(-1));
+    expect(SIGNAL_DISCLAIMERS).toContain(
+      signal.reply.split("\n").at(-1)!.replace("📚 0.5 lot figures · ", ""),
+    );
     expect(new Set(SIGNAL_DISCLAIMERS).size).toBeGreaterThan(4);
     expect(signal.expiresAt).not.toBeNull();
   });
@@ -391,14 +396,14 @@ describe("Telegram delivery", () => {
         stubFetch(fetchSpy);
         const signal = await build(`${pair} signal ${frame}`);
         expect(fetchSpy.mock.calls.some(([url]) => url.includes(`interval=${frame}&`))).toBe(true);
-        expect(signal.reply).toContain(`⏱ ${frame.toUpperCase()} chart ·`);
-        expect(signal.reply).toMatch(/\n▶️ I'm .+ \d[\d.]*\n/);
+        expect(signal.reply).toContain(` · ${frame.toUpperCase()} · 💪 `);
+        expect(signal.reply).toMatch(/\n▶️ In \D*\d[\d.]*/);
         expect(signal.expiresAt).not.toBeNull();
         if (frame === "1m") {
           const fifteen = await build(`${pair} signal 15m`);
-          expect(fifteen.reply).toContain("⏱ 15M chart ·");
-          expect(signal.reply.match(/\n▶️ I'm .+ (\d[\d.]*)\n/)?.[1]).not.toBe(
-            fifteen.reply.match(/\n▶️ I'm .+ (\d[\d.]*)\n/)?.[1],
+          expect(fifteen.reply).toContain(" · 15M · 💪 ");
+          expect(signal.reply.match(/\n▶️ In \D*(\d[\d.]*)/)?.[1]).not.toBe(
+            fifteen.reply.match(/\n▶️ In \D*(\d[\d.]*)/)?.[1],
           );
         }
       });
