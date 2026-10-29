@@ -25,6 +25,18 @@ describe("marketBias", () => {
     expect(read.targets[2]).toBeGreaterThan(read.targets[1]);
   });
 
+  it("shows its targets short of the highs and lows in the way, like every signal", () => {
+    const recent = drift(36, 2000, 0.5);
+    const price = recent.at(-1)!.c;
+    const levels = [price + 8, price + 16, price + 24];
+    const read = marketBias({ recent, price, prevDay: null, levels, lean: "BUY" })!;
+    expect(read.direction).toBe("BUY");
+    // Pulled in from the levels (scaleTargets), never sitting right on one.
+    for (const t of read.targets) expect(levels).not.toContain(t);
+    expect(read.targets[0]).toBeLessThan(levels[0]);
+    expect(read.targets[2]).toBeLessThan(levels[2]);
+  });
+
   it("leans SELL on lower highs and lows", () => {
     const recent = drift(36, 2000, -0.5);
     const price = recent.at(-1)!.c;

@@ -710,6 +710,12 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     });
   const dist = (a: number, b: number) =>
     inst.pip ? `${(Math.abs(a - b) / inst.pip).toFixed(0)} pips` : `${fmt(Math.abs(a - b))} points`;
+  // Every level is the exact number on the card: what members see is what's
+  // followed, so a target only counts once price really reaches it.
+  const shown = (n: number) => Number(n.toFixed(dp));
+  plan.entry = shown(plan.entry);
+  plan.stop = shown(plan.stop);
+  plan.targets = [shown(plan.targets[0]), shown(plan.targets[1]), shown(plan.targets[2])];
 
   const lastDay = daily.data[daily.data.length - 1];
   const prevDay = daily.data[daily.data.length - 2];
@@ -1092,6 +1098,11 @@ async function buildBias(
     force,
   });
   if (!read) return null;
+  // The exact numbers on the card, as with every signal.
+  const shown = (n: number) => Number(n.toFixed(o.dp));
+  read.entry = shown(read.entry);
+  read.stop = shown(read.stop);
+  read.targets = [shown(read.targets[0]), shown(read.targets[1]), shown(read.targets[2])];
   const { fmt } = o;
   const until = new Date(Date.now() + BIAS_VALID_MS);
   const ukClock = new Intl.DateTimeFormat("en-GB", {

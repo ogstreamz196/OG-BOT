@@ -130,6 +130,12 @@ describe("buildTradeSignalContext", () => {
     );
     expect(signal.reply).toMatch(/\n❌ If the .+, I'm out\n⏳ Good till .+ UK/);
     expect(signal.reply).toMatch(/ · 💪 Confidence: (5[1-9]|[6-8]\d|90)%\n/);
+    // What's followed is exactly what's shown: every level is the printed number.
+    const plan = signal.plan!;
+    for (const lvl of [plan.entry, plan.stop, ...plan.targets])
+      expect(signal.reply).toContain(lvl.toFixed(plan.decimals));
+    for (const lvl of [plan.entry, plan.stop, ...plan.targets])
+      expect(Number(lvl.toFixed(plan.decimals))).toBe(lvl);
     // Members never hear about the AI desk.
     expect(signal.reply).not.toMatch(/\bAIs?\b|DESK/);
     expect(signal.reply).not.toMatch(/TP\d|SL:/);
