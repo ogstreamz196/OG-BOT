@@ -262,7 +262,7 @@ export async function maybeDeskScout(admin: Admin, deps: DeskScoutDeps): Promise
           return `${pair}: failed`;
         }
         const plan = read.signal.plan;
-        if (!read.desk) return `${pair}: desk didn't decide`;
+        if (!read.desk) return `${pair}: ${read.signal.plan ? "desk didn't decide" : "no setup"}`;
         if (!deskAgrees(read.desk)) return `${pair}: desk split`;
         if (!plan || plan.direction !== read.desk.direction) return `${pair}: no signal that way`;
         const posted = await postOnce(admin, deps, read.signal, deskCard(read.signal.reply));

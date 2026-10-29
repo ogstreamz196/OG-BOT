@@ -178,7 +178,8 @@ describe("watchSignals: one message per trade", () => {
     await watchSignals(MINUTE_START + 3 * MIN + 5_000);
     expect(sent).toHaveLength(0);
     const last = edits.at(-1)!;
-    expect(last.split("\n").filter((l) => /^\d\d:\d\d /.test(l))).toHaveLength(2);
+    // Only the latest update shows: each one replaces the one before.
+    expect(last.split("\n").filter((l) => /^\d\d:\d\d /.test(l))).toHaveLength(1);
     expect(last).not.toContain("📍");
     expect((rows[0].feeds as { log?: string[] }).log).toHaveLength(2);
   });
@@ -268,5 +269,47 @@ describe("liveOffset", () => {
     expect(liveOffset(12, NaN, 2200)).toBe(12);
     // A 20-dollar jump in the gap (about 0.9%) is bad data.
     expect(liveOffset(12, 2232, 2200)).toBe(12);
+  });
+});
+
+describe("journalCard", () => {
+  const card = [
+    "🟢 I'm gonna buy 🥇 XAU/USD at 2650.40 on a pullback",
+    "🛑 My stop loss will be 2647.10 · −$165.00",
+    "🎯 I'll take profit at 2652.90 · +$125.00",
+    "",
+    "⏱ 5M · 💪 72%",
+  ].join("\n");
+  test("says it will enter until it's in, then that it has", async () => {
+    const { journalCard } = await import("./trade-signal-tracker.server");
+    expect(journalCard(card, [], "📍 2651.00 · waiting for entry · 10:00")).toBe(
+      `${card}\n\n📍 2651.00 · waiting for entry · 10:00`,
+    );
+    const inTrade = journalCard(
+      card,
+      ["10:05 ✅ I'm in at 2650.40"],
+      "📍 2651.20 (+8 pips) · in the trade · 10:06",
+      true,
+    );
+    expect(inTrade.split("\n").slice(0, 3)).toEqual([
+      "🟢 I've bought 🥇 XAU/USD at 2650.40",
+      "🛑 My stop loss is 2647.10 · −$165.00",
+      "🎯 Taking profit at 2652.90 · +$125.00",
+    ]);
+    // Just the latest update, then the live line.
+    expect(
+      inTrade.endsWith(
+        "\n\n10:05 ✅ I'm in at 2650.40\n\n📍 2651.20 (+8 pips) · in the trade · 10:06",
+      ),
+    ).toBe(true);
+    // A breakout entry and a sell read the same way once in.
+    expect(
+      journalCard(
+        "🔴 I'm gonna sell ₿ BTC/USD if it breaks below 79884.58\nx",
+        [],
+        null,
+        true,
+      ).split("\n")[0],
+    ).toBe("🔴 I've sold ₿ BTC/USD at 79884.58");
   });
 });
