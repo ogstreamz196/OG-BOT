@@ -398,7 +398,7 @@ function soft<T>(job: Promise<T>, fallback: T, ms = EXTRA_MS): Promise<T> {
 let calendarCache: { exp: number; value: CalendarEvent[] } | null = null;
 
 /** This week's economic calendar (free Forex Factory feed), cached for an hour. */
-async function economicCalendar(): Promise<CalendarEvent[]> {
+export async function economicCalendar(): Promise<CalendarEvent[]> {
   if (calendarCache && calendarCache.exp > Date.now()) return calendarCache.value;
   try {
     const value = parseCalendar(
@@ -475,12 +475,12 @@ export const MARKET_SHUT_LINE = "Market's shut, you muppet. No signal till it op
  * showing its own trade, so it never tells anyone how much to risk or to copy.
  */
 export const SIGNAL_DISCLAIMERS = [
-  "📚 Educational only. This is my own trade, not financial advice.",
-  "📚 Just showing you how I trade so you can learn. Not advice, not a tip.",
-  "📚 My trade, my risk. Here to learn from, not to copy blindly. Not financial advice.",
-  "📚 Learning purposes only. Markets bite, so do your own research. Not financial advice.",
-  "📚 I'm sharing my own trade for education. It's not a recommendation, ever.",
-  "📚 Trade journal, not advice. Watch how it plays out and learn something.",
+  "educational, my own trade, not advice",
+  "my own trade, for learning, not advice",
+  "educational only, not financial advice",
+  "learn from it, don't copy it blindly",
+  "a trade journal, not a tip",
+  "my trade, my risk, not advice",
 ];
 
 /** What a sent signal needs for outcome tracking (see trade-signal-tracker.server.ts). */
@@ -846,9 +846,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // first, then only what changes the decision.
   // Confidence is indicator agreement (51–90%), not a win rate.
   const tradeCard = [
-    `${plan.direction === "BUY" ? "🟢" : "🔴"} I'M TAKING THIS TRADE · ${plan.direction === "BUY" ? "BUYING" : "SELLING"}`,
-    `${inst.code === "XAUUSD" ? "🥇" : /^BTC/.test(inst.code) ? "₿" : "💱"} ${inst.label}`,
-    `⏱ ${entryLabel} chart · ${plan.quality} setup · 💪 Confidence: ${plan.confidencePct}%`,
+    `${plan.direction === "BUY" ? "🟢 I'M BUYING" : "🔴 I'M SELLING"} ${marketTag(inst)} · ${entryLabel} · 💪 ${plan.confidencePct}%`,
     "",
     ...levelLines(
       fmt,
@@ -860,16 +858,15 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       plan.targets,
     ),
     "",
-    ...cautions.map((c) => `⚠️ ${c}`),
-    ...(newsLines.length ? [`📅 ${newsLines.join("\n📅 ")}`] : []),
+    // Only what changes the decision: the top warning, the next big news.
+    ...(cautions.length ? [`⚠️ ${cautions[0]}`] : []),
+    ...(newsLines.length ? [`📅 ${newsLines[0]}`] : []),
     ...trendLine,
     bail
-      ? `❌ If the ${bail[1]} closes ${bail[2]} my stop, or the ${bail[3]} turns ${bail[4]}, I'm out`
-      : `❌ I'm out on ${plan.invalidation}`,
-    `⏳ Good till ${validShort} UK`,
-    "",
-    // A different one each time, so it doesn't read like a broken record.
-    SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
+      ? `❌ Out if ${bail[1]} closes ${bail[2]} my stop or ${bail[3]} turns ${bail[4]}`
+      : `❌ Out on ${plan.invalidation}`,
+    `⏳ Till ${validShort} UK`,
+    signOff(inst.code),
   ].join("\n");
   const wait = plan.verdict === "wait";
   const reply = wait ? waitCard : tradeCard;
@@ -979,30 +976,19 @@ function levelLines(
   const way = direction === "BUY" ? "above" : "below";
   const getIn =
     entryType === "limit"
-      ? bias
-        ? `I'd wait for a pullback to get in at ${e}`
-        : `I'm waiting for a pullback to get in at ${e}`
+      ? `${bias ? "I'd go in" : "In"} at ${e} on a pullback`
       : entryType === "stop"
-        ? bias
-          ? `I'd get in once it breaks ${way} ${e} (should happen within 5 mins)`
-          : `I'm getting in once it breaks ${way} ${e}`
-        : bias
-          ? `I'd get in now at ${e}`
-          : `I'm getting in now at ${e}`;
+        ? `${bias ? "I'd go in" : "In"} if it breaks ${way} ${e}`
+        : `${bias ? "I'd go in" : "In"} now at ${e}`;
   // What CARD_LOT (0.5) makes or loses at each level; left off when the
   // contract size isn't standard enough to say.
   const money = (to: number) => lotMoney(market, entry, to);
   const usd = (n: number) =>
     `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const loss = money(stop);
-  const hasMoney = loss != null;
   return [
     `▶️ ${getIn}`,
-    `🛑 ${bias ? "I'd put my stop loss at" : "My stop loss is at"} ${fmt(stop)}${loss != null ? ` · −${usd(loss)}` : ""}`,
-    "",
-    hasMoney
-      ? `💰 ${bias ? "If I was in" : "What I'm aiming for"} (${CARD_LOT} lot):`
-      : `💰 ${bias ? "Where I'd take profit" : "What I'm aiming for"}:`,
+    `🛑 ${bias ? "I'd stop at" : "Stop"} ${fmt(stop)}${loss != null ? ` · −${usd(loss)}` : ""}`,
     ...targets.map((t, i) => {
       const win = money(t);
       return `🎯 ${TARGET_NAMES[i]} ${fmt(t)}${win != null ? ` · +${usd(win)}` : ""}`;
@@ -1010,22 +996,33 @@ function levelLines(
   ];
 }
 
-/** "📊 1H and 15M are heading down, 5M is going sideways." From the plan's reasons. */
+/** "₿ BTC/USD", "🥇 XAU/USD", "💱 EUR/USD": short, with the market's emoji. */
+function marketTag(inst: { code: string; label: string }): string {
+  const emoji = inst.code === "XAUUSD" ? "🥇" : /^BTC/.test(inst.code) ? "₿" : "💱";
+  return `${emoji} ${inst.label.replace(/\s*\(.*\)$/, "")}`;
+}
+
+/** The card's last line: the lot the dollar figures are for, then a sign-off. */
+function signOff(market: string): string {
+  const line = SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)];
+  return lotMoney(market, 1, 2) != null ? `📚 ${CARD_LOT} lot figures · ${line}` : `📚 ${line}`;
+}
+
+/** "📊 1H & 15M down · 5M sideways", from the plan's reasons. */
 function trendSentence(reasons: string[]): string[] {
   const groups: Record<string, string[]> = {};
   for (const r of reasons) {
     const m = /^(\S+) trend (\w+)$/.exec(r);
     if (!m) continue;
-    const how =
-      m[2] === "bullish" ? "heading up" : m[2] === "bearish" ? "heading down" : "going sideways";
+    const how = m[2] === "bullish" ? "up" : m[2] === "bearish" ? "down" : "sideways";
     (groups[how] ??= []).push(m[1]);
   }
   const parts = Object.entries(groups).map(([how, frames]) => {
     const names =
-      frames.length > 1 ? `${frames.slice(0, -1).join(", ")} and ${frames.at(-1)}` : frames[0];
-    return `${names} ${frames.length > 1 ? "are" : "is"} ${how}`;
+      frames.length > 1 ? `${frames.slice(0, -1).join(", ")} & ${frames.at(-1)}` : frames[0];
+    return `${names} ${how}`;
   });
-  return parts.length ? [`📊 ${parts.join(", ")}`] : [];
+  return parts.length ? [`📊 ${parts.join(" · ")}`] : [];
 }
 
 /**
@@ -1131,9 +1128,8 @@ async function buildBias(
   }).format(until);
   const buy = read.direction === "BUY";
   const reply = [
-    `⚠️ MARKET BIAS · this isn't my signal`,
-    `${buy ? "🟢" : "🔴"} ${read.direction} bias · ${o.inst.label} · 5M`,
-    `🎲 Super fucking risky. No clean setup, this is just where the highs and lows are leaning. I'd only go tiny on this one, or sit it out.`,
+    `⚠️ MARKET BIAS · not my signal · super risky`,
+    `${buy ? "🟢 BUY" : "🔴 SELL"} lean ${marketTag(o.inst)} · 5M`,
     "",
     ...levelLines(
       fmt,
@@ -1146,10 +1142,9 @@ async function buildBias(
       true,
     ),
     "",
-    ...(read.reasons.length ? [`📊 Read: ${read.reasons.join(", ")}`] : []),
-    `⏳ Good till ${ukClock} UK`,
-    "",
-    SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
+    ...(read.reasons.length ? [`📊 ${read.reasons.join(" · ")}`] : []),
+    `⏳ Till ${ukClock} UK`,
+    signOff(o.inst.code),
   ].join("\n");
   const plan: SignalPlan = {
     market: o.inst.code,

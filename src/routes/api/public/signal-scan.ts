@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 // Called every minute by pg_cron (see the signal_broadcasts migration), and
-// scanning again every 15 seconds through the minute: posts any top gold or
+// scanning again every 10 seconds through the minute: posts any top gold or
 // bitcoin scalp to the signals channel, plus the hourly AI desk scout
 // (signal-broadcast.server.ts). A {"ping": true} body posts a test line instead,
 // and {"score": true} posts the OG Trade Bot's results.
@@ -49,7 +49,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const messageId = await postToSignalsChannel(PING_TEXT);
           return Response.json({ ok: messageId !== null, ping: messageId !== null });
         }
-        const { buildTradeSignal, deskRead } = await import("@/lib/trade-signal-context.server");
+        const { buildTradeSignal, deskRead, economicCalendar } =
+          await import("@/lib/trade-signal-context.server");
         const { repeatWithin } = await import("@/lib/repeat-within");
         type Follow = NonNullable<import("@/lib/signal-broadcast.server").ScanDeps["follow"]>;
         const follow: Follow = async (signal, messageId, card) => {
@@ -83,7 +84,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           });
         };
         try {
-          // Every 15 seconds through the minute, so a top setup goes out as
+          // Every 10 seconds through the minute, so a top setup goes out as
           // soon as it appears rather than at the next minute. Alongside it,
           // once an hour, the AI desk scouts both markets (posts only when
           // every AI agrees).
@@ -96,10 +97,11 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   follow,
                   now: Date.now,
                 }),
-              { everyMs: 15_000, lastStartMs: 30_000 },
+              { everyMs: 10_000, lastStartMs: 40_000 },
             ),
             maybeDeskScout(supabaseAdmin, {
               read: deskRead,
+              news: economicCalendar,
               post: postToSignalsChannel,
               follow,
               now: Date.now,

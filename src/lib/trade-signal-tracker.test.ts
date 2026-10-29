@@ -165,7 +165,7 @@ describe("watchSignals: one message per trade", () => {
     await watchSignals(NOW);
     expect(sent).toHaveLength(0);
     expect(edits.at(-1)).toMatch(
-      /^CARD\n\n📒 How it's going:\n\d\d:\d\d 🎯 Quick Scalp hit .+\n\n📍 .+ · Quick Scalp hit · \d\d:\d\d$/,
+      /^CARD\n\n\d\d:\d\d 🎯 Quick Scalp hit .+\n\n📍 .+ · Quick Scalp hit · \d\d:\d\d$/,
     );
     expect((rows[0].feeds as { log?: string[] }).log).toHaveLength(1);
     // The trade ends: the next line joins the journal and the live line goes.

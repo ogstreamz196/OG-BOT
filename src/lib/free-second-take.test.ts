@@ -12,8 +12,12 @@ describe("two tracks for one unlock", () => {
     expect(library).not.toContain('invoke("reveal-variation"');
   });
   it("shows the free bonus for owners without promising it to community buyers", () => {
-    expect(read("src/components/library/UnlockConfirmDialog.tsx")).toContain("2 tracks for the price of 1");
-    expect(read("src/components/library/UnlockConfirmDialog.tsx")).toContain("includesSecondTake = false");
+    expect(read("src/components/library/UnlockConfirmDialog.tsx")).toContain(
+      "2 tracks for the price of 1",
+    );
+    expect(read("src/components/library/UnlockConfirmDialog.tsx")).toContain(
+      "includesSecondTake = false",
+    );
     expect(read("src/components/library/OwnerUnlockDialog.tsx")).toContain("includesSecondTake");
   });
   it("keeps charges atomic and bonus entitlements service-only", () => {
@@ -22,6 +26,8 @@ describe("two tracks for one unlock", () => {
     expect(sql).toContain("AFTER INSERT ON public.unlocked_songs");
     expect(sql).toContain("AFTER INSERT ON public.songs");
     expect(sql).toContain("FROM PUBLIC,anon,authenticated");
-    expect(read("src/lib/track-unlock.functions.ts")).toContain(".middleware([requireSupabaseAuth])");
+    expect(read("src/lib/track-unlock.functions.ts")).toContain(
+      ".middleware([requireSupabaseAuth])",
+    );
   });
 });

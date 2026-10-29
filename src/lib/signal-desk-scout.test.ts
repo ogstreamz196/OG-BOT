@@ -105,7 +105,7 @@ describe("maybeDeskScout", () => {
     });
     expect(posted).toHaveLength(1);
     expect(posted[0]).toBe(deskCard(signal("XAUUSD", "BUY", 55).reply));
-    expect(posted[0]).toMatch(/^📒 LIVE TRADE\n\n/);
+    expect(posted[0]).toBe(signal("XAUUSD", "BUY", 55).reply);
     expect(posted[0]).not.toMatch(/\bAIs?\b|DESK/);
     expect(followed).toEqual([1]);
     expect(out).toContain("XAU: posted BUY");
@@ -157,5 +157,72 @@ describe("maybeDeskScout", () => {
     expect(out).toContain("XAU: already posted");
     expect(out).toContain("BTC: posted BUY");
     expect(posted).toHaveLength(1);
+  });
+});
+
+describe("key-time checks", () => {
+  test("each time is in its own market's clock, daylight saving included", async () => {
+    const { zonedToday } = await import("./signal-broadcast.server");
+    const summer = Date.parse("2026-07-15T06:00:00Z");
+    const winter = Date.parse("2026-12-02T06:00:00Z");
+    expect(new Date(zonedToday(summer, "Europe/London", 8, 0).at).toISOString()).toBe(
+      "2026-07-15T07:00:00.000Z",
+    );
+    expect(new Date(zonedToday(winter, "Europe/London", 8, 0).at).toISOString()).toBe(
+      "2026-12-02T08:00:00.000Z",
+    );
+    expect(new Date(zonedToday(summer, "America/New_York", 9, 30).at).toISOString()).toBe(
+      "2026-07-15T13:30:00.000Z",
+    );
+    expect(new Date(zonedToday(winter, "America/New_York", 9, 30).at).toISOString()).toBe(
+      "2026-12-02T14:30:00.000Z",
+    );
+  });
+
+  test("a check is due 3 to 10 minutes after a key time, once, on weekdays", async () => {
+    const { keySlotDue } = await import("./signal-broadcast.server");
+    const londonOpen = Date.parse("2026-12-02T08:00:00Z"); // a Wednesday
+    expect(keySlotDue(londonOpen + 60_000, [], null)).toBeNull();
+    const due = keySlotDue(londonOpen + 4 * 60_000, [], null);
+    expect(due).toEqual({ id: "london:2026-12-02", label: "London open" });
+    expect(keySlotDue(londonOpen + 4 * 60_000, [], due!.id)).toBeNull();
+    expect(keySlotDue(londonOpen + 11 * 60_000, [], null)).toBeNull();
+    // Saturday: no market opens.
+    expect(keySlotDue(Date.parse("2026-12-05T08:04:00Z"), [], null)).toBeNull();
+  });
+
+  test("high-impact USD news gets a check too, other news doesn't", async () => {
+    const { keySlotDue } = await import("./signal-broadcast.server");
+    const at = Date.parse("2026-12-05T18:00:00Z");
+    const news = [
+      { title: "Non-Farm Payrolls", currency: "USD", at, impact: "High" },
+      { title: "German CPI", currency: "EUR", at, impact: "High" },
+    ];
+    expect(keySlotDue(at + 5 * 60_000, news, null)).toEqual({
+      id: `news:${at}`,
+      label: "After Non-Farm Payrolls",
+    });
+    expect(keySlotDue(at + 5 * 60_000, news.slice(1), null)).toBeNull();
+  });
+
+  test("the scout runs at a key time even when the hourly check isn't due", async () => {
+    const { db, tables } = fakeDb();
+    const londonOpen = Date.parse("2026-12-02T08:00:00Z");
+    tables.site_content.push({
+      key: "signals.deskScout.lastAt",
+      value: new Date(londonOpen - 10 * 60_000).toISOString(),
+    });
+    const out = await maybeDeskScout(db, {
+      read: async () => ({ signal: { reply: "x" }, desk: null }),
+      post: async () => 1,
+      now: () => londonOpen + 4 * 60_000,
+    });
+    expect(out).toMatch(/^London open: /);
+    const again = await maybeDeskScout(db, {
+      read: async () => ({ signal: { reply: "x" }, desk: null }),
+      post: async () => 1,
+      now: () => londonOpen + 5 * 60_000,
+    });
+    expect(again).toBe("not due");
   });
 });
