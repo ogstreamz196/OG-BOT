@@ -181,25 +181,25 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
-      return `✅ I'm in at ${fmt(row.entry)} · my stop loss is at ${fmt(row.stop)}`;
+      return `✅ I'm in at ${fmt(row.entry)}. My stop loss is at ${fmt(row.stop)}`;
     case "tp1":
-      return `🎯 Quick Scalp target hit (${move(row.entry, row.tp1)}) · I'm banking it, you greedy bastard. Moving my stop to ${fmt(row.entry)}`;
+      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
     case "tp2":
-      return `🎯 Little Brave target hit (${move(row.entry, row.tp2)}) · another bag secured, you jammy bastard. Greedy Runner target next at ${fmt(row.tp3)}`;
+      return `🎯 Little Brave hit (${move(row.entry, row.tp2)}). Another bag secured, you jammy bastard. I'm letting the rest run to ${fmt(row.tp3)}`;
     case "tp3":
-      return `🏁 Greedy Runner target hit (${move(row.entry, row.tp3)}) · job fucking done. I'm banking it, don't get cocky`;
+      return `🏁 Greedy Runner hit (${move(row.entry, row.tp3)}). Job fucking done, I've banked the lot`;
     case "stopped":
-      return `🛑 My stop loss got hit (${move(row.entry, row.stop)}) · I'm cutting the fucking loss. Not chasing it`;
+      return `🛑 Stopped out (${move(row.entry, row.stop)}). I've taken the fucking loss and I'm not chasing it`;
     case "breakeven":
-      return `⚖️ Back to my entry after the Quick Scalp · I'm out at breakeven`;
+      return `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`;
     case "unfilled":
-      return `⏳ Price never reached my entry · I'm cancelling the order`;
+      return `⏳ Price never came to my entry, so I've cancelled it`;
     case "expired":
       return row.last_price != null
-        ? `⏳ Time's up · price ${fmt(row.last_price)} (${move(row.entry, row.last_price)})`
+        ? `⏳ Time's up on this one. Price is at ${fmt(row.last_price)} (${move(row.entry, row.last_price)})`
         : `⏳ Time's up on this signal`;
     case "cancelled":
-      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "I'm cancelling the order" : "I'm closing it or tightening my stop"}`;
+      return `⚠️ The ${HIGHER[row.timeframe] ?? "higher"} trend turned ${e.bias}, so ${row.status === "pending" ? "I've cancelled it" : "I'm closing it up"}`;
   }
 }
 

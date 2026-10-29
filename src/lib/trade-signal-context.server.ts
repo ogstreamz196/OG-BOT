@@ -814,14 +814,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         }).format(valid.until)
       : ukTime(valid.until);
   const rrs = plan.rr.split(" / ").map((r) => r.replace(/\.0$/, ""));
-  const side = plan.direction === "BUY" ? "buy" : "sell";
-  const entryHow =
-    plan.entryType === "limit"
-      ? "limit, I'm waiting for a pullback"
-      : plan.entryType === "stop"
-        ? `${side} stop, only if price breaks ${plan.direction === "BUY" ? "above" : "below"}`
-        : "market now";
-  const trendLine = trends.length ? [`📊 Trend: ${trends.join("  ")}`] : [];
+  const trendLine = trendSentence(plan.reasons);
   // No clean setup: say so plainly instead of handing out levels to trade.
   // Nothing worth trading: short and rude, not an essay.
   const waitCard = [
@@ -831,21 +824,24 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ? MARKET_SHUT_LINE
       : NO_SIGNAL_LINES[Math.floor(Math.random() * NO_SIGNAL_LINES.length)],
   ].join("\n");
-  // The levels first, one per line, then only what changes the decision.
+  // OG B0T talks its own trade through in the first person, plainly: what
+  // it's doing and where, never telling anyone what to do. The levels
+  // first, then only what changes the decision.
   // Confidence is indicator agreement (51–90%), not a win rate.
-  // OG B0T talks the trade through in the first person: "I'm gonna enter...".
   const tradeCard = [
-    `${plan.direction === "BUY" ? "🟢 I'm BUYING" : "🔴 I'm SELLING"} · ${inst.label}`,
-    `⏱ ${entryLabel} · ${plan.quality}`,
+    `${plan.direction === "BUY" ? "🟢 I'm BUYING" : "🔴 I'm SELLING"} ${inst.label}`,
+    `⏱ ${entryLabel} chart · ${plan.quality} setup`,
     `💪 Confidence: ${plan.confidencePct}%`,
     "",
-    ...levelLines(fmt, plan.entry, entryHow, plan.stop, plan.targets),
+    ...levelLines(fmt, plan.entry, plan.entryType, plan.direction, plan.stop, plan.targets),
     "",
     ...cautions.map((c) => `⚠️ ${c}`),
     ...(newsLines.length ? [`📅 ${newsLines.join("\n📅 ")}`] : []),
     ...trendLine,
-    `❌ I'm out if ${cancelIf}`,
-    `⏳ I'm holding this idea till ${validShort} UK`,
+    bail
+      ? `❌ If the ${bail[1]} closes ${bail[2]} my stop, or the ${bail[3]} turns ${bail[4]}, I'm out`
+      : `❌ I'm out on ${plan.invalidation}`,
+    `⏳ This one's good till ${validShort} UK`,
     "",
     // A different one each time, so it doesn't read like a broken record.
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
@@ -946,19 +942,53 @@ export const TARGET_NAMES = ["Quick Scalp", "Little Brave", "Greedy Runner"] as 
 function levelLines(
   fmt: (n: number) => string,
   entry: number,
-  entryHow: string,
+  entryType: "market" | "limit" | "stop",
+  direction: "BUY" | "SELL",
   stop: number,
   targets: number[],
   bias = false,
 ): string[] {
   // A market-bias call "isn't my signal", so it's what OG B0T would do.
+  const e = fmt(entry);
+  const way = direction === "BUY" ? "above" : "below";
+  const getIn =
+    entryType === "limit"
+      ? bias
+        ? `I'd wait for a pullback to get in at ${e}`
+        : `I'm waiting for a pullback to get in at ${e}`
+      : entryType === "stop"
+        ? bias
+          ? `I'd get in once it breaks ${way} ${e} (should happen within 5 mins)`
+          : `I'm getting in once it breaks ${way} ${e}`
+        : bias
+          ? `I'd get in now at ${e}`
+          : `I'm getting in now at ${e}`;
+  const [t1, t2, t3] = targets.map(fmt);
   return [
-    bias
-      ? `▶️ If I was going in, I'd enter @ ${fmt(entry)}  (${entryHow})`
-      : `▶️ I'm gonna enter @ ${fmt(entry)}  (${entryHow})`,
-    bias ? `🛑 I'd set my stop loss to ${fmt(stop)}` : `🛑 Setting my stop loss to ${fmt(stop)}`,
-    ...targets.map((t, i) => `🎯 ${TARGET_NAMES[i]} target: ${fmt(t)}`),
+    `▶️ ${getIn}`,
+    bias ? `🛑 I'd put my stop loss at ${fmt(stop)}` : `🛑 My stop loss is at ${fmt(stop)}`,
+    `🎯 ${bias ? "I'd take first" : "First"} profit at ${t1} (${TARGET_NAMES[0]})`,
+    `🎯 More at ${t2} if it keeps going (${TARGET_NAMES[1]})`,
+    `🎯 ${bias ? "And I'd let" : "Letting"} the rest run to ${t3} (${TARGET_NAMES[2]})`,
   ];
+}
+
+/** "📊 1H and 15M are heading down, 5M is going sideways." From the plan's reasons. */
+function trendSentence(reasons: string[]): string[] {
+  const groups: Record<string, string[]> = {};
+  for (const r of reasons) {
+    const m = /^(\S+) trend (\w+)$/.exec(r);
+    if (!m) continue;
+    const how =
+      m[2] === "bullish" ? "heading up" : m[2] === "bearish" ? "heading down" : "going sideways";
+    (groups[how] ??= []).push(m[1]);
+  }
+  const parts = Object.entries(groups).map(([how, frames]) => {
+    const names =
+      frames.length > 1 ? `${frames.slice(0, -1).join(", ")} and ${frames.at(-1)}` : frames[0];
+    return `${names} ${frames.length > 1 ? "are" : "is"} ${how}`;
+  });
+  return parts.length ? [`📊 ${parts.join(", ")}`] : [];
 }
 
 /** Puts the desk's lines above the card's sign-off (its last line). */
@@ -1057,19 +1087,15 @@ async function buildBias(
     minute: "2-digit",
   }).format(until);
   const buy = read.direction === "BUY";
-  const entryHow =
-    read.entryType === "stop"
-      ? `${buy ? "buy" : "sell"} stop, should trigger within 5 mins`
-      : "market now";
   const reply = [
     `⚠️ MARKET BIAS · this isn't my signal`,
     `${buy ? "🟢" : "🔴"} ${read.direction} bias · ${o.inst.label} · 5M`,
-    `🎲 Super fucking risky. No clean setup, this is just where the highs and lows are leaning. Tiny size or sit on your hands.`,
+    `🎲 Super fucking risky. No clean setup, this is just where the highs and lows are leaning. I'd only go tiny on this one, or sit it out.`,
     "",
-    ...levelLines(fmt, read.entry, entryHow, read.stop, read.targets, true),
+    ...levelLines(fmt, read.entry, read.entryType, read.direction, read.stop, read.targets, true),
     "",
     ...(read.reasons.length ? [`📊 Read: ${read.reasons.join(", ")}`] : []),
-    `⏳ I'm holding this idea till ${ukClock} UK`,
+    `⏳ This one's good till ${ukClock} UK`,
     "",
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
   ].join("\n");
