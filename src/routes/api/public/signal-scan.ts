@@ -7,7 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 // and {"score": true} posts today's score.
 const PING_TEXT =
   "🏓 Ping test from OG B0T signals. If you can read this, the signals bot can post here. " +
-  "Scalp alerts (70% confidence and up) will land in this channel.";
+  "Scalp alerts will land in this channel.";
 
 export const Route = createFileRoute("/api/public/signal-scan")({
   server: {

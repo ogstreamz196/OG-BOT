@@ -31,27 +31,26 @@ describe("70%+ record", () => {
       sig("breakeven", { best_target: 1 }), // won +30 (Quick Scalp banked)
       sig("expired", { best_target: 2 }), // won +60
       sig("stopped"), // lost −50
-      sig("unfilled"), // never hit entry
+      sig("unfilled"), // a cancelled order
       sig("pending"), // running
       sig("open"), // running
-      sig("expired"), // timed out flat
+      sig("expired"), // timed out flat: not counted at all
       sig("stopped", { feeds: { bias: true } }), // bias calls never count
     ];
     const r = tallyRecord(rows, null);
     expect(r).toMatchObject({
-      signals: 8,
+      signals: 7,
       wins: 3,
       losses: 1,
       running: 2,
-      untriggered: 1,
-      timedOut: 1,
+      cancelled: 1,
     });
-    expect(r.wins + r.losses + r.running + r.untriggered + r.timedOut).toBe(r.signals);
+    expect(r.wins + r.losses + r.running + r.cancelled).toBe(r.signals);
     expect(r.markets).toEqual([{ label: "XAU/USD", unit: "pips", pips: 140 }]);
     expect(recordText(r)).toBe(
-      "🏆 70%+ RECORD · 8 signals\n" +
-        "✅ 3 won · 🛑 1 lost · 🎯 75% win rate\n" +
-        "⏳ 2 running · 🚫 1 never hit entry · ⌛ 1 timed out flat\n" +
+      "🏆 75% WIN RATE · 7 signals\n" +
+        "✅ 3 won · 🛑 1 lost\n" +
+        "⏳ 2 running · 🚫 1 cancelled order\n" +
         "🟢 XAU/USD +140.0 pips",
     );
   });
@@ -60,13 +59,13 @@ describe("70%+ record", () => {
     const a = sig("tp1", { best_target: 1 });
     const copy = { ...a, status: "unfilled", best_target: 0, entered_at: null };
     const r = tallyRecord([copy, a], "2026-10-01T00:00:00Z");
-    expect(r).toMatchObject({ signals: 1, wins: 1, running: 0, untriggered: 0 });
-    expect(recordText(r).split("\n")[0]).toBe("🏆 70%+ RECORD since 1 Oct 2026 · 1 signal");
+    expect(r).toMatchObject({ signals: 1, wins: 1, running: 0, cancelled: 0 });
+    expect(recordText(r).split("\n")[0]).toBe("🏆 100% WIN RATE since 1 Oct 2026 · 1 signal");
   });
 
   it("reads cleanly before anything has closed", () => {
     expect(recordText(tallyRecord([], null))).toBe(
-      "🏆 70%+ RECORD · 0 signals\n✅ 0 won · 🛑 0 lost",
+      "🏆 SIGNAL RECORD · 0 signals\n✅ 0 won · 🛑 0 lost",
     );
   });
 });

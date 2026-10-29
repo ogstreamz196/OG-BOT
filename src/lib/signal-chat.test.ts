@@ -151,7 +151,7 @@ describe("refreshScore", () => {
     await refreshScore(fakeAdmin(), CHAT);
     const sent = calls.find((c) => c.method === "sendMessage")!;
     expect(sent.body.text).toMatch(
-      /^📊 TODAY'S SCORE · ✅ 1 won · 🛑 0 lost\n🟢 XAU\/USD \+30\.0 pips\n\n🏆 70%\+ RECORD/,
+      /^📊 TODAY'S SCORE · ✅ 1 won · 🛑 0 lost\n🟢 XAU\/USD \+30\.0 pips\n\n🏆 SIGNAL RECORD/,
     );
     expect(sent.body.disable_notification).toBe(true);
     expect(deleted()).toEqual([13]);
@@ -174,9 +174,10 @@ describe("rollScoreDay", () => {
       { chat_id: CHAT, message_id: 13, kind: "score", created_at: "2026-10-26T22:00:00Z" },
     ];
     await rollScoreDay(fakeAdmin(), now);
-    // Nothing closed yet: no "nothing closed" line, just the 70%+ record.
+    // Nothing closed yet: no "nothing closed" line, just the signal record.
     const text = calls.find((c) => c.method === "sendMessage")?.body.text as string;
-    expect(text).toContain("70%+ RECORD");
+    expect(text).toContain("🏆 SIGNAL RECORD");
+    expect(text).not.toContain("70%");
     expect(text).not.toContain("TODAY'S SCORE");
     calls.length = 0;
     await rollScoreDay(fakeAdmin(), now + 60_000);

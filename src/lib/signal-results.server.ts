@@ -239,7 +239,7 @@ export async function signalResultsNote(admin: Admin, now = Date.now()): Promise
     const { signalRecord, recordText } = await import("./signal-record.server");
     const record = await signalRecord(admin);
     const recordLine = record
-      ? `\n- The 70%+ record (only signals sent at 70% confidence or more, counted since the Boss last reset it; it never resets by itself): ${recordText(record).replace(/\n/g, " · ")}`
+      ? `\n- The signal record (counted since the Boss last reset it; it never resets by itself; the headline % is the win rate, won vs lost): ${recordText(record).replace(/\n/g, " · ")}`
       : "";
     return (
       "\n\nSIGNAL RESULTS (the bot's own record of its gold and bitcoin signals, UK time; answer from these exact figures, never invent or round them up, " +
