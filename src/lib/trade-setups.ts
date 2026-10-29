@@ -1,0 +1,217 @@
+// Extra chart setups beside the engine's trend pullback (buildPlan), read
+// from closed entry-frame candles only, so the backtest and live signals see
+// the same thing. Each one names a side, a market entry at the last close,
+// the risk (entry to the structure that proves it wrong) and three targets in
+// that risk's units, like TradePlan.raw, so the members' stop room and take
+// profit (Tuning) apply the same way.
+//
+// None of them is trusted by default: the learning loop backtests each one
+// per market (signal-learning.server.ts) and only switches it on for live
+// signals once it has earned it, and only when the engine itself has no
+// setup (a "wait").
+import { adx } from "./trade-signal-extras";
+import {
+  atr,
+  scaleTargets,
+  type Candle,
+  type FrameRead,
+  type TradePlan,
+  type Tuning,
+} from "./trade-signal";
+
+export type SetupId = "breakout_retest" | "sweep_reclaim" | "range_fade";
+
+export const SETUP_IDS: SetupId[] = ["breakout_retest", "sweep_reclaim", "range_fade"];
+
+/** What members see on the card. */
+export const SETUP_NAMES: Record<SetupId, string> = {
+  breakout_retest: "Breakout & retest",
+  sweep_reclaim: "Liquidity sweep & reclaim",
+  range_fade: "Range fade",
+};
+
+export type SetupHit = {
+  id: SetupId;
+  direction: "BUY" | "SELL";
+  /** The last close: a market entry. */
+  entry: number;
+  risk: number;
+  targets: [number, number, number];
+  atr: number;
+  confidencePct: number;
+};
+
+/** Fewest closed candles a setup is read from. */
+const MIN_CANDLES = 80;
+
+/**
+ * Breakout & retest: price closed through the highest high (lowest low) of
+ * the 52 candles before the last 8, came back to that level without falling
+ * through it, and the last candle closed away from it in the breakout's
+ * direction.
+ */
+function breakoutRetest(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const last = cs[cs.length - 1];
+  const before = cs.slice(-60, -8);
+  const recent = cs.slice(-8);
+  for (const side of [1, -1] as const) {
+    const level =
+      side === 1 ? Math.max(...before.map((c) => c.h)) : Math.min(...before.map((c) => c.l));
+    const breakAt = recent.findIndex((c) => (c.c - level) * side > a * 0.1);
+    if (breakAt < 0 || breakAt >= recent.length - 1) continue;
+    const after = recent.slice(breakAt + 1);
+    // Back to the level (within 0.3 ATR) but not through it (0.5 ATR).
+    const deepest =
+      side === 1 ? Math.min(...after.map((c) => c.l)) : Math.max(...after.map((c) => c.h));
+    const gap = (deepest - level) * side;
+    if (gap > a * 0.3 || gap < -a * 0.5) continue;
+    const away = (last.c - level) * side;
+    if (away <= 0 || away > a * 1.2 || (last.c - last.o) * side <= 0) continue;
+    const risk = clampRisk(Math.abs(last.c - (deepest - side * a * 0.2)), a, 0.6, 2);
+    return {
+      id: "breakout_retest",
+      direction: side === 1 ? "BUY" : "SELL",
+      entry: last.c,
+      risk,
+      targets: inR(last.c, side, risk, [1, 2, 3]),
+    };
+  }
+  return null;
+}
+
+/**
+ * Liquidity sweep & reclaim: one of the last two candles poked past the
+ * lowest low (highest high) of the 28 before them by more than 0.1 ATR and
+ * closed back inside, and the last close is still back inside.
+ */
+function sweepReclaim(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const last = cs[cs.length - 1];
+  const prior = cs.slice(-30, -2);
+  for (const side of [1, -1] as const) {
+    // BUY: a sweep of the lows; SELL: a sweep of the highs.
+    const level =
+      side === 1 ? Math.min(...prior.map((c) => c.l)) : Math.max(...prior.map((c) => c.h));
+    const sweep = cs
+      .slice(-2)
+      .find((c) =>
+        side === 1 ? c.l < level - a * 0.1 && c.c > level : c.h > level + a * 0.1 && c.c < level,
+      );
+    if (!sweep || (last.c - level) * side <= 0) continue;
+    const extreme = side === 1 ? sweep.l : sweep.h;
+    const risk = clampRisk(Math.abs(last.c - (extreme - side * a * 0.15)), a, 0.5, 2);
+    return {
+      id: "sweep_reclaim",
+      direction: side === 1 ? "BUY" : "SELL",
+      entry: last.c,
+      risk,
+      targets: inR(last.c, side, risk, [1, 2, 3]),
+    };
+  }
+  return null;
+}
+
+/**
+ * Range fade: no trend (ADX under 20), the last 48 candles in a range 2 to 6
+ * ATR tall, and the last candle turning back from its bottom (top) 15%,
+ * aiming at the middle, then the far side.
+ */
+function rangeFade(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const trend = adx(cs.slice(-120));
+  if (!(trend < 20)) return null;
+  const box = cs.slice(-48);
+  const top = Math.max(...box.map((c) => c.h));
+  const bottom = Math.min(...box.map((c) => c.l));
+  const height = top - bottom;
+  if (height < a * 2 || height > a * 6) return null;
+  const last = cs[cs.length - 1];
+  for (const side of [1, -1] as const) {
+    const edge = side === 1 ? bottom : top;
+    const far = side === 1 ? top : bottom;
+    if (Math.abs(last.c - edge) > height * 0.15 || (last.c - last.o) * side <= 0) continue;
+    const risk = Math.abs(last.c - (edge - side * a * 0.3));
+    const mid = (top + bottom) / 2;
+    const t: [number, number, number] = [mid, far - side * height * 0.1, far];
+    // The targets have to be in the trade's favour and in order.
+    if (!t.every((x, i) => (x - (i ? t[i - 1] : last.c)) * side > 0)) continue;
+    return {
+      id: "range_fade",
+      direction: side === 1 ? "BUY" : "SELL",
+      entry: last.c,
+      risk,
+      targets: t,
+    };
+  }
+  return null;
+}
+
+const clampRisk = (r: number, a: number, lo: number, hi: number) =>
+  Math.min(Math.max(r, a * lo), a * hi);
+
+const inR = (entry: number, side: 1 | -1, risk: number, rs: number[]) =>
+  rs.map((r) => entry + side * risk * r) as [number, number, number];
+
+/**
+ * Every setup showing on these closed candles. `higher` is the bigger
+ * timeframe's read: siding with it adds confidence, fighting it takes some off.
+ */
+export function findSetups(candles: Candle[], higher?: FrameRead["bias"]): SetupHit[] {
+  if (candles.length < MIN_CANDLES) return [];
+  const a = atr(candles.slice(-50), 14);
+  if (!Number.isFinite(a) || a <= 0) return [];
+  const hits = [breakoutRetest(candles, a), sweepReclaim(candles, a), rangeFade(candles, a)];
+  return hits
+    .filter((h): h is NonNullable<typeof h> => !!h && h.risk > 0)
+    .map((h) => {
+      const withTrend =
+        higher === (h.direction === "BUY" ? "bullish" : "bearish")
+          ? 10
+          : higher === (h.direction === "BUY" ? "bearish" : "bullish")
+            ? -8
+            : 0;
+      return { ...h, atr: a, confidencePct: Math.min(85, Math.max(55, 62 + withTrend)) };
+    });
+}
+
+/**
+ * A live plan from an extra setup, in place of the engine's "wait": a market
+ * entry at the price now, the members' stop room and target pull-in (Tuning)
+ * on the setup's own risk and targets. Null when price has already run more
+ * than half the risk away from the setup's close.
+ */
+export function setupPlan(
+  plan: TradePlan,
+  hit: SetupHit,
+  priceNow: number,
+  tune: Tuning,
+): TradePlan | null {
+  const side = hit.direction === "BUY" ? 1 : -1;
+  const entry = Number.isFinite(priceNow) && priceNow > 0 ? priceNow : hit.entry;
+  const shift = entry - hit.entry;
+  if (Math.abs(shift) > hit.risk * 0.5) return null;
+  const raw = hit.targets.map((t) => t + shift) as [number, number, number];
+  const stop = entry - side * hit.risk * tune.stopRoom;
+  const targets = scaleTargets(hit.direction, entry, raw, hit.atr * 0.05, tune.scale);
+  const stopDistance = hit.risk * tune.stopRoom;
+  const r = (t: number) => (Math.abs(t - entry) / stopDistance).toFixed(1).replace(/\.0$/, "");
+  const pct = hit.confidencePct;
+  return {
+    ...plan,
+    direction: hit.direction,
+    entry,
+    entryType: "market",
+    entryNote: `Market price now (${SETUP_NAMES[hit.id]})`,
+    stop,
+    targets,
+    rr: `1:${r(targets[0])} / 1:${r(targets[1])} / 1:${r(targets[2])}`,
+    confidencePct: pct,
+    confidence: pct >= 75 ? "High" : pct >= 62 ? "Medium" : "Low",
+    quality: "Clean",
+    qualityNote: undefined,
+    caution: undefined,
+    // The engine's "no clean trend" notes don't apply to this setup.
+    cautions: plan.cautions.filter((c) => c !== plan.qualityNote && c !== plan.caution),
+    verdict: "trade",
+    waitReason: undefined,
+    setup: SETUP_NAMES[hit.id],
+  };
+}

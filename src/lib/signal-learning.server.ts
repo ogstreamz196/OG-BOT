@@ -18,6 +18,7 @@ import {
   type LearnSample,
 } from "./trade-signal-backtest";
 import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
+import { SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
 import {
   DEFAULT_TUNING,
   detectTradeIntent,
@@ -76,6 +77,8 @@ export type MarketLearning = {
   /** How the current setting did over the last period studied. */
   current?: Evaluation;
   lesson?: string;
+  /** How each extra chart setup did, and whether it's earned live use. */
+  setups?: Partial<Record<SetupId, SetupStats>>;
   history: {
     at: string;
     tuning: Tuning;
@@ -322,6 +325,12 @@ export async function learnedTuning(market: string): Promise<Tuning> {
   return t ? safeTuning(t) : DEFAULT_TUNING;
 }
 
+/** The extra setups that have earned live use for a market. */
+export async function liveSetups(market: string): Promise<SetupId[]> {
+  const stats = (await learningState()).markets[market]?.setups ?? {};
+  return SETUP_IDS.filter((id) => stats[id]?.live);
+}
+
 /** The latest lesson for a market, for the AI desk to read. */
 export async function learnedLesson(market: string): Promise<string | null> {
   return (await learningState()).markets[market]?.lesson ?? null;
@@ -377,13 +386,15 @@ export async function maybeLearn(
           }
         : studied;
     const at = new Date(now).toISOString();
+    const setups = evaluateSetups(samples, out.next);
     state.markets[market.code] = {
       tuning: out.next,
       runs: (had?.runs ?? 0) + 1,
       lastRunAt: at,
       lastChangeAt: out.kept ? at : had?.lastChangeAt,
       current: out.after,
-      lesson: out.lesson,
+      lesson: `${out.lesson} ${setupLesson(setups)}`.trim(),
+      setups,
       history: [
         ...(had?.history ?? []),
         {
@@ -452,4 +463,56 @@ async function liveResults(admin: Admin, market: string, now: number): Promise<L
   } catch {
     return [];
   }
+}
+
+/** How an extra setup did in a study. */
+export type SetupStats = Evaluation & { live: boolean };
+
+/** Trades a setup needs in a study before it can go live. */
+export const SETUP_MIN_TRADES = 12;
+
+/**
+ * Each extra setup (trade-setups.ts) followed exactly like a signal under the
+ * market's setting (market entry, the stop room, the one take profit). A
+ * setup goes live with at least SETUP_MIN_TRADES trades, winning at least
+ * half and making money on average; it drops out again if it stops.
+ */
+export function evaluateSetups(
+  samples: LearnSample[],
+  tune: Tuning,
+): Partial<Record<SetupId, SetupStats>> {
+  const out: Partial<Record<SetupId, SetupStats>> = {};
+  for (const id of SETUP_IDS) {
+    const asSamples: LearnSample[] = samples.flatMap((s) =>
+      (s.setups ?? [])
+        .filter((h) => h.id === id)
+        .map((h) => ({
+          t: s.t,
+          direction: h.direction,
+          entry: h.entry,
+          entryType: "market" as const,
+          confidencePct: h.confidencePct,
+          verdict: "trade" as const,
+          raw: { risk: h.risk, targets: h.targets, atr: h.atr },
+          path: s.path,
+          expiresAt: s.expiresAt,
+        })),
+    );
+    if (!asSamples.length) continue;
+    const e = evaluate(asSamples, { ...tune, minConfidence: 0 });
+    out[id] = {
+      ...e,
+      live: e.n >= SETUP_MIN_TRADES && e.winRate >= 0.5 && e.avgR > 0,
+    };
+  }
+  return out;
+}
+
+/** One sentence on the extra setups, for the lesson. */
+function setupLesson(stats: Partial<Record<SetupId, SetupStats>>): string {
+  const parts = SETUP_IDS.filter((id) => stats[id]).map((id) => {
+    const s = stats[id]!;
+    return `${SETUP_NAMES[id]} won ${Math.round(s.winRate * 100)}% of ${s.n} (${s.live ? "live" : "not live"})`;
+  });
+  return parts.length ? `Extra setups: ${parts.join("; ")}.` : "";
 }

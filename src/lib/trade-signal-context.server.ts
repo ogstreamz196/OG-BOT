@@ -24,6 +24,7 @@ import { calibrationLine } from "./trade-signal-backtest";
 import type { DeskDecision } from "./signal-desk.server";
 import { CARD_LOT, lotMoney } from "./trade-bias";
 import {
+  DEFAULT_TUNING,
   aggregate,
   buildPlan,
   decimalsFor,
@@ -711,11 +712,27 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // confidence floor); the hand-set rules until it has learned anything.
   const { learnedTuning } = await import("./signal-learning.server");
   const tuning = await learnedTuning(inst.code).catch(() => undefined);
-  const plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
+  let plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
     tuning,
   });
+  // No engine setup right now (and the market's open): on the 5-minute chart,
+  // an extra setup the learning loop has proven for this market takes its place.
+  if (plan.verdict === "wait" && fast === "5m" && !/\bclosed\b/i.test(plan.waitReason ?? "")) {
+    const { liveSetups } = await import("./signal-learning.server");
+    const allowed = await liveSetups(inst.code).catch(() => [] as string[]);
+    if (allowed.length) {
+      const { findSetups, setupPlan } = await import("./trade-setups");
+      const closed = entryCandles.filter((c) => c.t + 300_000 <= Date.now());
+      const floor = tuning?.minConfidence ?? 0;
+      const hit = findSetups(closed, hi.bias).find(
+        (h) => allowed.includes(h.id) && h.confidencePct >= floor,
+      );
+      const fromSetup = hit ? setupPlan(plan, hit, live, tuning ?? DEFAULT_TUNING) : null;
+      if (fromSetup) plan = fromSetup;
+    }
+  }
   const price = Number.isFinite(live) && live > 0 ? live : lo.close;
   const dp = decimalsFor(inst, price);
   const fmt = (n: number) =>
@@ -847,6 +864,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...tradeLines(fmt, inst, plan.entry, plan.entryType, plan.direction, plan.stop, tp),
       "",
       `⏱ ${entryLabel} · 💪 ${plan.confidencePct}%`,
+      ...(plan.setup ? [`🧩 ${plan.setup}`] : []),
       // Only what changes the decision: the top warning, the next big news.
       ...(cautions.length ? [`⚠️ ${cautions[0]}`] : []),
       ...(newsLines.length ? [`📅 ${newsLines[0]}`] : []),

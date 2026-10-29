@@ -443,6 +443,8 @@ export type TradePlan = {
    */
   verdict: "trade" | "wait";
   waitReason?: string;
+  /** Set when an extra chart setup (trade-setups.ts) made this plan, by name. */
+  setup?: string;
   score: number;
   maxScore: number;
   reasons: string[];
