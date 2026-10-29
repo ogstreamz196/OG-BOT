@@ -10,7 +10,7 @@
  * knocks points off.
  *
  * Once an hour the AI desk also scouts both markets (maybeDeskScout) and
- * posts a "TRADE ALERT" when every AI agrees, whatever the confidence.
+ * posts a "LIVE TRADE" card when every AI agrees, whatever the confidence.
  *
  * A market isn't posted again while its last post is still valid, unless the
  * new signal goes the other way. Needs the SIGNALS_BOT_TOKEN and
@@ -53,8 +53,8 @@ export type ScanDeps = PostDeps & {
 /** The card as posted; the card itself carries the confidence %. */
 export function channelCard(reply: string, confidencePct = TOP_CONFIDENCE): string {
   return confidencePct >= TOP_CONFIDENCE
-    ? `🚨 TOP SCALP ALERT · every timeframe agrees\n\n${reply}`
-    : `🚨 SCALP ALERT\n\n${reply}`;
+    ? `📒 LIVE TRADE · every timeframe agrees\n\n${reply}`
+    : `📒 LIVE TRADE\n\n${reply}`;
 }
 
 export async function scanAndBroadcast(
@@ -131,7 +131,7 @@ export function deskScoutDue(lastAt: string | null, now: number): boolean {
 
 /** The hourly scout's heading (members never hear about the desk). */
 export function deskCard(reply: string): string {
-  return `🚨 TRADE ALERT\n\n${reply}`;
+  return `📒 LIVE TRADE\n\n${reply}`;
 }
 
 type DeskRead = {

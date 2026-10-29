@@ -452,6 +452,8 @@ export type SignalFeeds = {
   requester?: { id: number; name: string };
   /** The "entry not reached" notice, so the next one can replace it. */
   notice?: number;
+  /** The trade's journal: each update, timed, written into the card itself. */
+  log?: string[];
 };
 
 /** What a "no signal" card says: one of these, picked at random. */
@@ -468,14 +470,17 @@ export const NO_SIGNAL_LINES = [
 
 export const MARKET_SHUT_LINE = "Market's shut, you muppet. No signal till it opens.";
 
-/** The last line of every signal card. */
+/**
+ * The last line of every signal card. Educational, never advice: OG B0T is
+ * showing its own trade, so it never tells anyone how much to risk or to copy.
+ */
 export const SIGNAL_DISCLAIMERS = [
-  "⚠️ THIS AIN'T FINANCIAL ADVICE YOU BRAINLESS MUG. RISK 1–2% OR BLAME YOUR MUM.",
-  "⚠️ NOT FINANCIAL ADVICE, DICKHEAD. RISK 1–2% MAX OR CRY ABOUT IT LATER.",
-  "⚠️ STILL NOT FINANCIAL ADVICE, YOU MUPPET. 1–2% RISK, NOT YOUR RENT MONEY.",
-  "⚠️ NOT FINANCIAL ADVICE. BET THE HOUSE AND YOU DESERVE WHAT'S COMING. 1–2% RISK.",
-  "⚠️ AIN'T FINANCIAL ADVICE, YOU DEGENERATE. RISK 1–2% AND KEEP YOUR KNICKERS ON.",
-  "⚠️ NOT FINANCIAL ADVICE. BLOW YOUR ACCOUNT AND THAT'S ON YOU, SUNSHINE. 1–2% RISK.",
+  "📚 Educational only. This is my own trade, not financial advice.",
+  "📚 Just showing you how I trade so you can learn. Not advice, not a tip.",
+  "📚 My trade, my risk. Here to learn from, not to copy blindly. Not financial advice.",
+  "📚 Learning purposes only. Markets bite, so do your own research. Not financial advice.",
+  "📚 I'm sharing my own trade for education. It's not a recommendation, ever.",
+  "📚 Trade journal, not advice. Watch how it plays out and learn something.",
 ];
 
 /** What a sent signal needs for outcome tracking (see trade-signal-tracker.server.ts). */

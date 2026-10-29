@@ -249,6 +249,28 @@ async function senderCall<T = unknown>(
   return telegramCall<T>(method, body);
 }
 
+const ukClock = (now: number) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(now));
+
+/** How many journal lines a card keeps (Telegram caps a message at 4096 characters). */
+const JOURNAL_LINES = 8;
+
+/** The card with its journal under it, and the live line while the trade runs. */
+export function journalCard(card: string, log: string[], live: string | null): string {
+  const journal = log.slice(-JOURNAL_LINES);
+  return [
+    card,
+    ...(journal.length ? ["", "📒 How it's going:", ...journal] : []),
+    ...(live ? ["", live] : []),
+  ]
+    .join("\n")
+    .slice(0, 4096);
+}
+
 /** Posts an update under the signal's card; the message id, or null. */
 async function sendFollowUp(row: Row, text: string): Promise<number | null> {
   if (!row.chat_id) return null;
@@ -515,24 +537,32 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         if (filled) update.entered_at = new Date(filled.at).toISOString();
         if (!isActive(status)) update.closed_at = new Date(now).toISOString();
 
-        // Keep the card's live line fresh while the signal runs.
+        // One message per trade: each update goes into the card's journal,
+        // and the live line stays fresh while the trade runs.
+        const log = [...(row.feeds?.log ?? []), ...lines.map((l) => `${ukClock(now)} ${l}`)];
+        if (lines.length) update.feeds = { ...row.feeds, log };
+        const live = isActive(status) && Number.isFinite(lastPrice);
         const editDue =
-          isActive(status) &&
           row.card &&
           row.chat_id &&
           row.message_id &&
-          Number.isFinite(lastPrice) &&
           (lines.length > 0 ||
-            (lastPrice !== Number(row.last_price) &&
+            (live &&
+              lastPrice !== Number(row.last_price) &&
               now - (row.last_edit_at ? Date.parse(row.last_edit_at) : 0) >= LIVE_EDIT_MS));
+        let merged = false;
         if (editDue) {
-          const { telegramCall } = await import("./telegram-api.server");
-          await senderCall(row, "editMessageText", {
+          const edited = await senderCall(row, "editMessageText", {
             chat_id: row.chat_id,
             message_id: row.message_id,
-            text: `${row.card}\n\n${liveLine({ ...row, status }, lastPrice, now)}`,
+            text: journalCard(
+              row.card!,
+              log,
+              live ? liveLine({ ...row, status }, lastPrice, now) : null,
+            ),
             disable_web_page_preview: true,
           });
+          merged = edited !== null;
           update.last_edit_at = new Date(now).toISOString();
         }
 
@@ -563,7 +593,13 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         if (upErr) console.warn("[signals] update failed", row.id, upErr.message);
         if (lines.length) {
           eventCount += lines.length;
-          const notice = await sendFollowUp(row, lines.join("\n"));
+          // Written into the card; a separate reply only if the card couldn't be edited.
+          const notice = merged ? null : await sendFollowUp(row, lines.join("\n"));
+          if (merged && row.chat_id) {
+            // In the signals chat the results post moves back under it.
+            const sc = await import("./signal-chat.server");
+            if (await sc.isSignalsChat(row.chat_id)) await sc.refreshScore(admin, row.chat_id);
+          }
           // Only ever one "entry not reached" signal showing in a chat.
           if (result.events.some((e) => e.kind === "unfilled")) await keepOneUnfilled(row, notice);
         }
