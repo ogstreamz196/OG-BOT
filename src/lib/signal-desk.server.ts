@@ -19,6 +19,8 @@ export type DeskDecision = {
   direction: "BUY" | "SELL";
   call: string;
   findings: DeskFinding[];
+  /** No chief answered, so the analysts' weighted vote decided. */
+  byVote?: boolean;
 };
 
 type DeskRoleId = "trend" | "levels" | "momentum" | "risk";
@@ -237,7 +239,9 @@ export async function runDesk(market: string, chartData: string): Promise<DeskDe
   );
   let direction = String(verdict?.direction ?? "").toUpperCase();
   let call = oneLine(verdict?.call, 180);
+  let byVote = false;
   if (direction !== "BUY" && direction !== "SELL") {
+    byVote = true;
     // No chief: the desk's weighted vote decides.
     const score = findings.reduce(
       (n, f) => n + (f.lean === "BUY" ? f.conviction : f.lean === "SELL" ? -f.conviction : 0),
@@ -247,7 +251,7 @@ export async function runDesk(market: string, chartData: string): Promise<DeskDe
     direction = score > 0 ? "BUY" : "SELL";
     call = "The desk's vote, weighed by how sure each analyst is.";
   }
-  return { direction: direction as "BUY" | "SELL", call, findings };
+  return { direction: direction as "BUY" | "SELL", call, findings, ...(byVote ? { byVote } : {}) };
 }
 
 /** The desk's lines for the card. */
@@ -260,4 +264,17 @@ export function deskLines(d: DeskDecision): string[] {
     }),
     `👑 Chief's call: ${d.direction}${d.call ? ` · ${d.call}` : ""}`,
   ];
+}
+
+/** Analysts who must answer before the desk counts as unanimous. */
+export const DESK_MIN_AGREEING = 3;
+
+/**
+ * Every AI on the desk agrees: at least DESK_MIN_AGREEING analysts answered,
+ * every one of them leans the chief's way (none says wait), and the chief made
+ * the call (not the fallback vote).
+ */
+export function deskAgrees(d: DeskDecision | null): boolean {
+  if (!d || d.byVote) return false;
+  return d.findings.length >= DESK_MIN_AGREEING && d.findings.every((f) => f.lean === d.direction);
 }

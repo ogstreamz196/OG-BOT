@@ -113,17 +113,23 @@ describe("buildTradeSignalContext", () => {
     const stop = out.match(/\nStop loss: ([\d.]+)/)?.[1];
     expect(entry).toBeDefined();
     expect(stop).toBeDefined();
-    expect(signal.reply).toContain(`Entry: ${entry}`);
-    // Stop loss first, then the entry, then the three targets.
-    expect(signal.reply).toContain(`🛑 Stop Loss: ${stop}\n▶️ Entry: ${entry}`);
-    expect(signal.reply).toMatch(/▶️ Entry: [^\n]+\n🎯 Quick Scalp: /);
+    // First person: where it's going in, its stop, then the three targets.
+    expect(signal.reply).toMatch(/^(🟢 I'm BUYING|🔴 I'm SELLING) · /);
+    expect(signal.reply).toContain(`▶️ I'm gonna enter @ ${entry}  (`);
+    expect(signal.reply).toMatch(
+      new RegExp(
+        `\\)\\n🛑 Setting my stop loss to ${stop.replace(".", "\\.")}\\n🎯 Quick Scalp target: `,
+      ),
+    );
     // The Telegram card: renamed targets, the confidence %, the new sign-off.
     expect(signal.reply).toMatch(
-      /🎯 Quick Scalp: [\d.]+\n🎯 Potentially: [\d.]+\n🎯 Greedy Runner: [\d.]+/,
+      /🎯 Quick Scalp target: [\d.]+\n🎯 Little Brave target: [\d.]+\n🎯 Greedy Runner target: [\d.]+/,
     );
+    expect(signal.reply).toMatch(/\n❌ I'm out if .+\n⏳ I'm holding this idea till .+ UK/);
     expect(signal.reply).toMatch(/\n💪 Confidence: (5[1-9]|[6-8]\d|90)%\n/);
     expect(signal.reply).not.toMatch(/TP\d|SL:/);
-    expect(signal.reply).not.toContain("@");
+    // "enter @ 1234" is fine; an @handle never is (mentions are entities).
+    expect(signal.reply).not.toMatch(/@\w/);
     // Ends with one of the foul disclaimers, picked at random each time.
     expect(SIGNAL_DISCLAIMERS).toContain(signal.reply.split("\n").at(-1));
     expect(new Set(SIGNAL_DISCLAIMERS).size).toBeGreaterThan(4);
@@ -264,7 +270,7 @@ describe("buildTradeSignalContext", () => {
     expect(out).not.toContain("SIGNAL ENGINE");
     const signal = await buildTradeSignal("usdcad entry");
     expect(signal.expiresAt).toBeNull();
-    expect(signal.reply).not.toMatch(/Entry:|Stop Loss|Quick Scalp/);
+    expect(signal.reply).not.toMatch(/enter @|stop loss|Quick Scalp/);
   });
 });
 
@@ -375,13 +381,13 @@ describe("Telegram delivery", () => {
         const signal = await build(`${pair} signal ${frame}`);
         expect(fetchSpy.mock.calls.some(([url]) => url.includes(`interval=${frame}&`))).toBe(true);
         expect(signal.reply).toContain(`⏱ ${frame.toUpperCase()} ·`);
-        expect(signal.reply).toMatch(/Entry: \d/);
+        expect(signal.reply).toMatch(/enter @ \d/);
         expect(signal.expiresAt).not.toBeNull();
         if (frame === "1m") {
           const fifteen = await build(`${pair} signal 15m`);
           expect(fifteen.reply).toContain("⏱ 15M ·");
-          expect(signal.reply.match(/Entry: (\S+)/)?.[1]).not.toBe(
-            fifteen.reply.match(/Entry: (\S+)/)?.[1],
+          expect(signal.reply.match(/enter @ (\S+)/)?.[1]).not.toBe(
+            fifteen.reply.match(/enter @ (\S+)/)?.[1],
           );
         }
       });

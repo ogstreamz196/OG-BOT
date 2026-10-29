@@ -21,6 +21,7 @@ import {
   volumeRatio,
 } from "./trade-signal-extras";
 import { calibrationLine } from "./trade-signal-backtest";
+import type { DeskDecision } from "./signal-desk.server";
 import {
   aggregate,
   buildPlan,
@@ -816,7 +817,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   const side = plan.direction === "BUY" ? "buy" : "sell";
   const entryHow =
     plan.entryType === "limit"
-      ? "limit, wait for pullback"
+      ? "limit, I'm waiting for a pullback"
       : plan.entryType === "stop"
         ? `${side} stop, only if price breaks ${plan.direction === "BUY" ? "above" : "below"}`
         : "market now";
@@ -832,22 +833,19 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   ].join("\n");
   // The levels first, one per line, then only what changes the decision.
   // Confidence is indicator agreement (51–90%), not a win rate.
-  const targetNames = ["Quick Scalp", "Potentially", "Greedy Runner"];
+  // OG B0T talks the trade through in the first person: "I'm gonna enter...".
   const tradeCard = [
-    `${plan.direction === "BUY" ? "🟢" : "🔴"} ${plan.direction} · ${inst.label}`,
+    `${plan.direction === "BUY" ? "🟢 I'm BUYING" : "🔴 I'm SELLING"} · ${inst.label}`,
     `⏱ ${entryLabel} · ${plan.quality}`,
     `💪 Confidence: ${plan.confidencePct}%`,
     "",
-    // Stop loss first, so nobody enters without knowing where they're out.
-    `🛑 Stop Loss: ${fmt(plan.stop)}`,
-    `▶️ Entry: ${fmt(plan.entry)}  (${entryHow})`,
-    ...plan.targets.map((t, i) => `🎯 ${targetNames[i]}: ${fmt(t)}`),
+    ...levelLines(fmt, plan.entry, entryHow, plan.stop, plan.targets),
     "",
     ...cautions.map((c) => `⚠️ ${c}`),
     ...(newsLines.length ? [`📅 ${newsLines.join("\n📅 ")}`] : []),
     ...trendLine,
-    `❌ Cancel if ${cancelIf}`,
-    `⏳ Valid till ${validShort} UK`,
+    `❌ I'm out if ${cancelIf}`,
+    `⏳ I'm holding this idea till ${validShort} UK`,
     "",
     // A different one each time, so it doesn't read like a broken record.
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
@@ -941,6 +939,28 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   return result;
 }
 
+/** The targets' names on cards and updates: TP1, TP2, TP3. */
+export const TARGET_NAMES = ["Quick Scalp", "Little Brave", "Greedy Runner"] as const;
+
+/** The levels in OG B0T's own words: where it's going in, where it's out, what it's after. */
+function levelLines(
+  fmt: (n: number) => string,
+  entry: number,
+  entryHow: string,
+  stop: number,
+  targets: number[],
+  bias = false,
+): string[] {
+  // A market-bias call "isn't my signal", so it's what OG B0T would do.
+  return [
+    bias
+      ? `▶️ If I was going in, I'd enter @ ${fmt(entry)}  (${entryHow})`
+      : `▶️ I'm gonna enter @ ${fmt(entry)}  (${entryHow})`,
+    bias ? `🛑 I'd set my stop loss to ${fmt(stop)}` : `🛑 Setting my stop loss to ${fmt(stop)}`,
+    ...targets.map((t, i) => `🎯 ${TARGET_NAMES[i]} target: ${fmt(t)}`),
+  ];
+}
+
 /** Puts the desk's lines above the card's sign-off (its last line). */
 function withDesk(card: string, lines: string[]): string {
   const all = card.split("\n");
@@ -956,26 +976,36 @@ function withDesk(card: string, lines: string[]): string {
  * Any desk failure gives the engine's own card, exactly as before.
  */
 export async function deskSignal(userText: string): Promise<TradeSignalResult> {
+  return (await deskRead(userText)).signal;
+}
+
+/** deskSignal, plus the desk's own call (null when the desk didn't decide). */
+export async function deskRead(
+  userText: string,
+): Promise<{ signal: TradeSignalResult; desk: DeskDecision | null }> {
   const s = await buildTradeSignal(userText);
   const inst = detectTradeIntent(userText);
-  if (!inst || !s.biasArgs || !s.block) return s;
+  if (!inst || !s.biasArgs || !s.block) return { signal: s, desk: null };
   try {
     const { runDesk, deskLines } = await import("./signal-desk.server");
     const chart = s.block.slice(Math.max(0, s.block.indexOf("LIVE MARKET DATA")));
     const desk = await runDesk(inst.label, chart);
-    if (!desk) return s;
+    if (!desk) return { signal: s, desk: null };
     const lines = deskLines(desk);
     if (s.plan && s.plan.direction === desk.direction)
-      return { ...s, reply: withDesk(s.reply, lines) };
+      return { signal: { ...s, reply: withDesk(s.reply, lines) }, desk };
     const bias =
       s.bias && s.biasReply && s.bias.direction === desk.direction
         ? { plan: s.bias, reply: s.biasReply }
         : await buildBias(s.biasArgs, desk.direction);
-    if (!bias) return s;
-    return { ...s, plan: undefined, bias: bias.plan, biasReply: withDesk(bias.reply, lines) };
+    if (!bias) return { signal: s, desk };
+    return {
+      signal: { ...s, plan: undefined, bias: bias.plan, biasReply: withDesk(bias.reply, lines) },
+      desk,
+    };
   } catch (e) {
     console.warn("[signals] desk failed", e);
-    return s;
+    return { signal: s, desk: null };
   }
 }
 
@@ -1031,18 +1061,15 @@ async function buildBias(
     read.entryType === "stop"
       ? `${buy ? "buy" : "sell"} stop, should trigger within 5 mins`
       : "market now";
-  const names = ["Quick Scalp", "Potentially", "Greedy Runner"];
   const reply = [
     `⚠️ MARKET BIAS · this isn't my signal`,
     `${buy ? "🟢" : "🔴"} ${read.direction} bias · ${o.inst.label} · 5M`,
     `🎲 Super fucking risky. No clean setup, this is just where the highs and lows are leaning. Tiny size or sit on your hands.`,
     "",
-    `🛑 Stop Loss: ${fmt(read.stop)}`,
-    `▶️ Entry: ${fmt(read.entry)}  (${entryHow})`,
-    ...read.targets.map((t, i) => `🎯 ${names[i]}: ${fmt(t)}`),
+    ...levelLines(fmt, read.entry, entryHow, read.stop, read.targets, true),
     "",
     ...(read.reasons.length ? [`📊 Read: ${read.reasons.join(", ")}`] : []),
-    `⏳ Valid till ${ukClock} UK`,
+    `⏳ I'm holding this idea till ${ukClock} UK`,
     "",
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
   ].join("\n");

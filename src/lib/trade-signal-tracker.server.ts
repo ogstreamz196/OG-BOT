@@ -181,25 +181,25 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
-      return `✅ Filled at ${fmt(row.entry)} · Stop Loss at ${fmt(row.stop)}`;
+      return `✅ I'm in at ${fmt(row.entry)} · my stop loss is at ${fmt(row.stop)}`;
     case "tp1":
-      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}) · bank it, you greedy bastard. Move your stop to ${fmt(row.entry)}`;
+      return `🎯 Quick Scalp target hit (${move(row.entry, row.tp1)}) · I'm banking it, you greedy bastard. Moving my stop to ${fmt(row.entry)}`;
     case "tp2":
-      return `🎯 Potentially hit (${move(row.entry, row.tp2)}) · another bag secured, you jammy bastard. Greedy Runner next at ${fmt(row.tp3)}`;
+      return `🎯 Little Brave target hit (${move(row.entry, row.tp2)}) · another bag secured, you jammy bastard. Greedy Runner target next at ${fmt(row.tp3)}`;
     case "tp3":
-      return `🏁 Greedy Runner hit (${move(row.entry, row.tp3)}) · job fucking done. Bank it, don't get cocky`;
+      return `🏁 Greedy Runner target hit (${move(row.entry, row.tp3)}) · job fucking done. I'm banking it, don't get cocky`;
     case "stopped":
-      return `🛑 Stop Loss hit (${move(row.entry, row.stop)}) · cut the fucking loss. Don't chase it`;
+      return `🛑 My stop loss got hit (${move(row.entry, row.stop)}) · I'm cutting the fucking loss. Not chasing it`;
     case "breakeven":
-      return `⚖️ Back to entry after the Quick Scalp · closed at breakeven`;
+      return `⚖️ Back to my entry after the Quick Scalp · I'm out at breakeven`;
     case "unfilled":
-      return `⏳ Entry not reached in time · cancel the order`;
+      return `⏳ Price never reached my entry · I'm cancelling the order`;
     case "expired":
       return row.last_price != null
         ? `⏳ Time's up · price ${fmt(row.last_price)} (${move(row.entry, row.last_price)})`
         : `⏳ Time's up on this signal`;
     case "cancelled":
-      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancel the order" : "close it or tighten your stop"}`;
+      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "I'm cancelling the order" : "I'm closing it or tightening my stop"}`;
   }
 }
 
@@ -207,7 +207,7 @@ const STATUS_TEXT: Partial<Record<SignalStatus, string>> = {
   pending: "waiting for entry",
   open: "in the trade",
   tp1: "Quick Scalp hit",
-  tp2: "Potentially hit",
+  tp2: "Little Brave hit",
 };
 
 function liveLine(row: Row, price: number, now: number): string {
@@ -326,7 +326,7 @@ async function keepOneUnfilled(row: Row, notice: number | null) {
   }
 }
 
-const TARGET_NAMES = { tp1: "Quick Scalp", tp2: "Potentially", tp3: "Greedy Runner" } as const;
+const TARGET_NAMES = { tp1: "Quick Scalp", tp2: "Little Brave", tp3: "Greedy Runner" } as const;
 const usd = (n: number) =>
   `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
