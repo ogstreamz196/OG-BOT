@@ -313,7 +313,12 @@ describe("accuracy wiring", () => {
     const q = { spreadProfilePrices: [{ bid: last + 11.9, ask: last + 12.1 }] };
     stubFetch(goldFeed([q, q, q]));
     const spot = await build2("gold signal");
-    expect(spot.plan!.entry - plain.plan!.entry).toBeCloseTo(12, 0);
+    // Without a confirmed spot price, gold gives no levels (and no bias call).
+    expect(plain.plan).toBeUndefined();
+    expect(plain.bias).toBeUndefined();
+    expect(plain.summary!.waitReason).toMatch(/Can't confirm the real XAU\/USD \(Gold\) price/);
+    expect(spot.plan!.entry - plain.summary!.entry).toBeCloseTo(12, 0);
+    expect(spot.plan!.feeds.spot).toBe("XAU/USD");
     expect(spot.plan!.feeds.offset).toBeCloseTo(12, 0);
     expect(spot.block).toMatch(/chart moved \+12\.\d+ onto the Swissquote spot price/);
   });
@@ -381,6 +386,9 @@ describe("Telegram delivery", () => {
           await import("./trade-signal-context.server");
         const fetchSpy = vi.fn(async (url: string) => {
           const interval = new URL(url).searchParams.get("interval");
+          // Gold's real spot price, a few dollars over the gold token.
+          if (url.includes("swissquote"))
+            return ok([{ spreadProfilePrices: [{ bid: 2204.9, ask: 2205.1 }] }]);
           if (!url.includes("binance")) return new Response("nope", { status: 404 });
           const ms =
             interval === "1d"
