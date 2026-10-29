@@ -114,19 +114,24 @@ describe("buildTradeSignalContext", () => {
     expect(entry).toBeDefined();
     expect(stop).toBeDefined();
     if (!entry || !stop) throw new Error("signal levels missing");
-    // First person: where it's going in, its stop, then the three targets.
-    expect(signal.reply).toMatch(/^(🟢 I'm BUYING|🔴 I'm SELLING) BTC/);
+    // OG Trade Bot taking the trade, in plain first person, never instructions.
+    expect(signal.reply).toMatch(/^(🟢|🔴) I'M TAKING THIS TRADE · (BUYING|SELLING)\n₿ BTC\/USD/);
+    // The stop loss with what 0.5 lot loses there (bitcoin: $1 a lot per $1).
     expect(signal.reply).toMatch(
       new RegExp(
-        `\\n▶️ I'm (getting in now at|waiting for a pullback to get in at|getting in once it breaks (above|below)) ${entry.replace(".", "\\.")}\\n🛑 My stop loss is at ${stop.replace(".", "\\.")}\\n`,
+        `\\n▶️ I'm (getting in now at|waiting for a pullback to get in at|getting in once it breaks (above|below)) ${entry.replace(".", "\\.")}\\n🛑 My stop loss is at ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n`,
       ),
     );
-    // Plain talk, never instructions: the three targets by name.
+    const loss = Number(signal.reply.match(/ · −\$([\d,.]+)\n/)?.[1].replace(/,/g, ""));
+    expect(Math.abs(loss - Math.abs(Number(entry) - Number(stop)) * 0.5)).toBeLessThan(0.011);
+    // The three targets by name, each with what 0.5 lot makes there.
     expect(signal.reply).toMatch(
-      /🎯 First profit at [\d.]+ \(Quick Scalp\)\n🎯 More at [\d.]+ if it keeps going \(Little Brave\)\n🎯 Letting the rest run to [\d.]+ \(Greedy Runner\)/,
+      /\n💰 What I'm aiming for \(0\.5 lot\):\n🎯 Quick Scalp [\d.]+ · \+\$[\d,.]+\n🎯 Little Brave [\d.]+ · \+\$[\d,.]+\n🎯 Greedy Runner [\d.]+ · \+\$[\d,.]+\n/,
     );
-    expect(signal.reply).toMatch(/\n❌ If the .+, I'm out\n⏳ This one's good till .+ UK/);
-    expect(signal.reply).toMatch(/\n💪 Confidence: (5[1-9]|[6-8]\d|90)%\n/);
+    expect(signal.reply).toMatch(/\n❌ If the .+, I'm out\n⏳ Good till .+ UK/);
+    expect(signal.reply).toMatch(/ · 💪 Confidence: (5[1-9]|[6-8]\d|90)%\n/);
+    // Members never hear about the AI desk.
+    expect(signal.reply).not.toMatch(/\bAIs?\b|DESK/);
     expect(signal.reply).not.toMatch(/TP\d|SL:/);
     // No @handles (mentions are entities).
     expect(signal.reply).not.toContain("@");

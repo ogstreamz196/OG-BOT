@@ -154,17 +154,28 @@ export function usdPerLotMove(market: string, price: number): number | null {
   return null;
 }
 
-/** What 1.0 lot on a $500 account would be up after moving from entry to `to`. */
+/** The lot size every card and win message works its dollars out on. */
+export const CARD_LOT = 0.5;
+
+/** Dollars CARD_LOT makes or loses moving from `from` to `to` (always positive), or null. */
+export function lotMoney(market: string, from: number, to: number, lot = CARD_LOT): number | null {
+  const per = usdPerLotMove(market, to);
+  if (per == null || !Number.isFinite(from) || !Number.isFinite(to)) return null;
+  return Math.abs(to - from) * per * lot;
+}
+
+/** What CARD_LOT on a $500 account would be up after moving from entry to `to`. */
 export function lotWin(
   market: string,
   direction: "BUY" | "SELL",
   entry: number,
   to: number,
   equity = 500,
+  lot = CARD_LOT,
 ): { profit: number; balance: number; pct: number } | null {
   const per = usdPerLotMove(market, to);
   if (per == null) return null;
-  const profit = (direction === "BUY" ? to - entry : entry - to) * per;
+  const profit = (direction === "BUY" ? to - entry : entry - to) * per * lot;
   if (!(profit > 0)) return null;
   return { profit, balance: equity + profit, pct: (profit / equity) * 100 };
 }

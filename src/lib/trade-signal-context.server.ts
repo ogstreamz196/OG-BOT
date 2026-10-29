@@ -22,6 +22,7 @@ import {
 } from "./trade-signal-extras";
 import { calibrationLine } from "./trade-signal-backtest";
 import type { DeskDecision } from "./signal-desk.server";
+import { CARD_LOT, lotMoney } from "./trade-bias";
 import {
   aggregate,
   buildPlan,
@@ -829,11 +830,19 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // first, then only what changes the decision.
   // Confidence is indicator agreement (51–90%), not a win rate.
   const tradeCard = [
-    `${plan.direction === "BUY" ? "🟢 I'm BUYING" : "🔴 I'm SELLING"} ${inst.label}`,
-    `⏱ ${entryLabel} chart · ${plan.quality} setup`,
-    `💪 Confidence: ${plan.confidencePct}%`,
+    `${plan.direction === "BUY" ? "🟢" : "🔴"} I'M TAKING THIS TRADE · ${plan.direction === "BUY" ? "BUYING" : "SELLING"}`,
+    `${inst.code === "XAUUSD" ? "🥇" : /^BTC/.test(inst.code) ? "₿" : "💱"} ${inst.label}`,
+    `⏱ ${entryLabel} chart · ${plan.quality} setup · 💪 Confidence: ${plan.confidencePct}%`,
     "",
-    ...levelLines(fmt, plan.entry, plan.entryType, plan.direction, plan.stop, plan.targets),
+    ...levelLines(
+      fmt,
+      inst.code,
+      plan.entry,
+      plan.entryType,
+      plan.direction,
+      plan.stop,
+      plan.targets,
+    ),
     "",
     ...cautions.map((c) => `⚠️ ${c}`),
     ...(newsLines.length ? [`📅 ${newsLines.join("\n📅 ")}`] : []),
@@ -841,7 +850,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     bail
       ? `❌ If the ${bail[1]} closes ${bail[2]} my stop, or the ${bail[3]} turns ${bail[4]}, I'm out`
       : `❌ I'm out on ${plan.invalidation}`,
-    `⏳ This one's good till ${validShort} UK`,
+    `⏳ Good till ${validShort} UK`,
     "",
     // A different one each time, so it doesn't read like a broken record.
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
@@ -941,6 +950,7 @@ export const TARGET_NAMES = ["Quick Scalp", "Little Brave", "Greedy Runner"] as 
 /** The levels in OG B0T's own words: where it's going in, where it's out, what it's after. */
 function levelLines(
   fmt: (n: number) => string,
+  market: string,
   entry: number,
   entryType: "market" | "limit" | "stop",
   direction: "BUY" | "SELL",
@@ -963,13 +973,24 @@ function levelLines(
         : bias
           ? `I'd get in now at ${e}`
           : `I'm getting in now at ${e}`;
-  const [t1, t2, t3] = targets.map(fmt);
+  // What CARD_LOT (0.5) makes or loses at each level; left off when the
+  // contract size isn't standard enough to say.
+  const money = (to: number) => lotMoney(market, entry, to);
+  const usd = (n: number) =>
+    `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const loss = money(stop);
+  const hasMoney = loss != null;
   return [
     `▶️ ${getIn}`,
-    bias ? `🛑 I'd put my stop loss at ${fmt(stop)}` : `🛑 My stop loss is at ${fmt(stop)}`,
-    `🎯 ${bias ? "I'd take first" : "First"} profit at ${t1} (${TARGET_NAMES[0]})`,
-    `🎯 More at ${t2} if it keeps going (${TARGET_NAMES[1]})`,
-    `🎯 ${bias ? "And I'd let" : "Letting"} the rest run to ${t3} (${TARGET_NAMES[2]})`,
+    `🛑 ${bias ? "I'd put my stop loss at" : "My stop loss is at"} ${fmt(stop)}${loss != null ? ` · −${usd(loss)}` : ""}`,
+    "",
+    hasMoney
+      ? `💰 ${bias ? "If I was in" : "What I'm aiming for"} (${CARD_LOT} lot):`
+      : `💰 ${bias ? "Where I'd take profit" : "What I'm aiming for"}:`,
+    ...targets.map((t, i) => {
+      const win = money(t);
+      return `🎯 ${TARGET_NAMES[i]} ${fmt(t)}${win != null ? ` · +${usd(win)}` : ""}`;
+    }),
   ];
 }
 
@@ -991,13 +1012,6 @@ function trendSentence(reasons: string[]): string[] {
   return parts.length ? [`📊 ${parts.join(", ")}`] : [];
 }
 
-/** Puts the desk's lines above the card's sign-off (its last line). */
-function withDesk(card: string, lines: string[]): string {
-  const all = card.split("\n");
-  const signOff = all.pop() ?? "";
-  return [...all, ...lines, "", signOff].join("\n");
-}
-
 /**
  * A member's signal request, decided by OG B0T's AI desk (signal-desk.server.ts).
  * The analysts read the same chart data and the chief picks BUY or SELL. If
@@ -1017,20 +1031,19 @@ export async function deskRead(
   const inst = detectTradeIntent(userText);
   if (!inst || !s.biasArgs || !s.block) return { signal: s, desk: null };
   try {
-    const { runDesk, deskLines } = await import("./signal-desk.server");
+    const { runDesk } = await import("./signal-desk.server");
     const chart = s.block.slice(Math.max(0, s.block.indexOf("LIVE MARKET DATA")));
     const desk = await runDesk(inst.label, chart);
     if (!desk) return { signal: s, desk: null };
-    const lines = deskLines(desk);
-    if (s.plan && s.plan.direction === desk.direction)
-      return { signal: { ...s, reply: withDesk(s.reply, lines) }, desk };
+    // The desk only picks the side; the card never mentions it.
+    if (s.plan && s.plan.direction === desk.direction) return { signal: s, desk };
     const bias =
       s.bias && s.biasReply && s.bias.direction === desk.direction
         ? { plan: s.bias, reply: s.biasReply }
         : await buildBias(s.biasArgs, desk.direction);
     if (!bias) return { signal: s, desk };
     return {
-      signal: { ...s, plan: undefined, bias: bias.plan, biasReply: withDesk(bias.reply, lines) },
+      signal: { ...s, plan: undefined, bias: bias.plan, biasReply: bias.reply },
       desk,
     };
   } catch (e) {
@@ -1092,10 +1105,19 @@ async function buildBias(
     `${buy ? "🟢" : "🔴"} ${read.direction} bias · ${o.inst.label} · 5M`,
     `🎲 Super fucking risky. No clean setup, this is just where the highs and lows are leaning. I'd only go tiny on this one, or sit it out.`,
     "",
-    ...levelLines(fmt, read.entry, read.entryType, read.direction, read.stop, read.targets, true),
+    ...levelLines(
+      fmt,
+      o.inst.code,
+      read.entry,
+      read.entryType,
+      read.direction,
+      read.stop,
+      read.targets,
+      true,
+    ),
     "",
     ...(read.reasons.length ? [`📊 Read: ${read.reasons.join(", ")}`] : []),
-    `⏳ This one's good till ${ukClock} UK`,
+    `⏳ Good till ${ukClock} UK`,
     "",
     SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)],
   ].join("\n");

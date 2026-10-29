@@ -10,7 +10,7 @@
  * knocks points off.
  *
  * Once an hour the AI desk also scouts both markets (maybeDeskScout) and
- * posts a "DESK ALERT" when every AI agrees, whatever the confidence.
+ * posts a "TRADE ALERT" when every AI agrees, whatever the confidence.
  *
  * A market isn't posted again while its last post is still valid, unless the
  * new signal goes the other way. Needs the SIGNALS_BOT_TOKEN and
@@ -129,9 +129,9 @@ export function deskScoutDue(lastAt: string | null, now: number): boolean {
   return !Number.isFinite(last) || now - last >= DESK_SCOUT_EVERY_MS - 30_000;
 }
 
-/** The desk alert's heading: every AI on the desk called it. */
+/** The hourly scout's heading (members never hear about the desk). */
 export function deskCard(reply: string): string {
-  return `🧠 DESK ALERT · all my AIs agree\n\n${reply}`;
+  return `🚨 TRADE ALERT\n\n${reply}`;
 }
 
 type DeskRead = {
