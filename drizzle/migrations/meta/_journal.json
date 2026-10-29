@@ -281,6 +281,13 @@
       "when": 1793099999770,
       "tag": "0039_signal_chat_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793242229121,
+      "tag": "0040_mt5_autotrade",
+      "breakpoints": true
     }
   ]
 }

@@ -636,6 +636,78 @@ export type Database = {
         }
         Relationships: []
       }
+      mt5_trades: {
+        Row: {
+          closed_at: string | null
+          confidence_pct: number | null
+          created_at: string
+          direction: string
+          entry: number
+          error: string | null
+          expires_at: string | null
+          id: string
+          label: string
+          market: string
+          opened_at: string | null
+          order_type: string
+          profit: number | null
+          setup_key: string
+          status: string
+          stop_loss: number
+          symbol: string
+          take_profit: number
+          ticket: string | null
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          closed_at?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          direction: string
+          entry: number
+          error?: string | null
+          expires_at?: string | null
+          id?: string
+          label: string
+          market: string
+          opened_at?: string | null
+          order_type: string
+          profit?: number | null
+          setup_key: string
+          status: string
+          stop_loss: number
+          symbol: string
+          take_profit: number
+          ticket?: string | null
+          updated_at?: string
+          volume: number
+        }
+        Update: {
+          closed_at?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          direction?: string
+          entry?: number
+          error?: string | null
+          expires_at?: string | null
+          id?: string
+          label?: string
+          market?: string
+          opened_at?: string | null
+          order_type?: string
+          profit?: number | null
+          setup_key?: string
+          status?: string
+          stop_loss?: number
+          symbol?: string
+          take_profit?: number
+          ticket?: string | null
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: []
+      }
       og_bot_remote_tokens: {
         Row: {
           created_at: string
