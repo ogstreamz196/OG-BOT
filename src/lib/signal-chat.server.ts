@@ -4,15 +4,15 @@
  *
  * - A new alert for a pair deletes that pair's older alert and every update
  *   posted under it; the other pair's alert stays put.
- * - Today's score (wins, losses and pips, UK day) sits as the last message:
- *   after anything the signal flow posts there, the old scoreboard is deleted
- *   and a fresh one is sent underneath, and at midnight it starts a new day.
+ * - The OG Trade Bot's results (its record and current streak, announced by
+ *   OG B0T) sit as the last message: after anything the signal flow posts
+ *   there, the old results post is deleted and a fresh one sent underneath.
  *
  * Everything the flow posts there is remembered in signal_chat_messages
  * (card, update or score). Without that table the chat just isn't tidied.
  */
 import { normaliseChannelId } from "./signal-broadcast.server";
-import { todayScore, ukDayStart } from "./signal-results.server";
+import { telegramApi } from "./telegram-api.server";
 import { workerApi } from "./telegram-worker.server";
 
 type Admin = any;
@@ -110,44 +110,39 @@ export async function clearOlderPair(admin: Admin, chatId: number, market: strin
 }
 
 /**
- * Sends today's score as the last message in the chat, replacing the old one.
- * Says what happened ("posted", or why not), for the watcher's response.
+ * Posts the OG Trade Bot's results as the last message in the chat, replacing
+ * the old post. OG B0T announces them; the trade bot only posts them when OG
+ * B0T can't post there. Says what happened ("posted", or why not).
  */
-export async function refreshScore(
-  admin: Admin,
-  chatId: number,
-  now = Date.now(),
-): Promise<string> {
+export async function refreshScore(admin: Admin, chatId: number): Promise<string> {
   try {
-    // Without the table the old scoreboard couldn't be removed: post none.
+    // Without the table the old post couldn't be removed: post none.
     const { error: missing } = await admin.from(TABLE).select("message_id").limit(1);
     if (missing) return "skipped: signal_chat_messages can't be read";
-    const today = await todayScore(admin, now);
-    if (today === null) return "skipped: signal_results can't be read";
-    // The 70%+ record runs underneath, counted since the Boss last reset it.
-    const { signalRecord, recordText } = await import("./signal-record.server");
-    // Cached a minute: the scoreboard is refreshed after every alert and update.
+    const { signalRecord, resultsAnnouncement } = await import("./signal-record.server");
+    // Cached a minute: the results are refreshed after every alert and update.
     const { cached } = await import("./server-cache");
     const record = await cached("signal-record", 60_000, () => signalRecord(admin)).catch(
       () => null,
     );
-    // Nothing closed today: just the record, no "nothing closed yet" line.
-    const text = [today, record ? recordText(record) : ""].filter(Boolean).join("\n\n");
-    if (!text) return "skipped: nothing to show yet";
-    const sent = await workerApi<{ message_id?: number }>("sendMessage", {
+    if (!record) return "skipped: the signal record can't be read";
+    const message = {
       chat_id: chatId,
-      text,
+      text: resultsAnnouncement(record),
       disable_notification: true,
       disable_web_page_preview: true,
-    });
+    };
+    let sent: { ok: boolean; result?: { message_id?: number }; description?: string } | null =
+      await telegramApi<{ message_id?: number }>("sendMessage", message);
+    if (!sent?.ok) sent = await workerApi<{ message_id?: number }>("sendMessage", message);
     const id = sent?.ok ? sent.result?.message_id : undefined;
     if (!id) {
       const why = sent?.description ?? "no answer from Telegram";
-      console.warn(`[signals] score not posted: ${why}`);
-      return `failed: trade bot couldn't post (${why})`;
+      console.warn(`[signals] results not posted: ${why}`);
+      return `failed: couldn't post the results (${why})`;
     }
     await trackSignalMessage(admin, chatId, id, null, "score");
-    // Only the newest scoreboard stays (two refreshes at once settle on one).
+    // Only the newest results post stays (two refreshes at once settle on one).
     const { data: all, error } = await admin
       .from(TABLE)
       .select("message_id")
@@ -158,38 +153,14 @@ export async function refreshScore(
     const newest = Math.max(id, ...ids);
     const old = ids.filter((m) => m !== newest).slice(-100);
     if (old.length) {
-      await workerApi("deleteMessages", { chat_id: chatId, message_ids: old });
+      // Older posts may be OG B0T's or the trade bot's: each removes its own.
+      const gone = { chat_id: chatId, message_ids: old };
+      await Promise.all([telegramApi("deleteMessages", gone), workerApi("deleteMessages", gone)]);
       await admin.from(TABLE).delete().eq("chat_id", chatId).in("message_id", old);
     }
     return "posted";
   } catch (e) {
-    console.warn("[signals] score refresh failed", (e as Error).message);
-    return `failed: ${(e as Error).message}`;
-  }
-}
-
-/** At UK midnight the score starts a fresh day (called by the minute watcher). */
-export async function rollScoreDay(admin: Admin, now = Date.now()): Promise<string> {
-  if (!process.env.SIGNALS_CHANNEL_ID || !process.env.SIGNALS_BOT_TOKEN)
-    return "skipped: signals bot or chat not set up";
-  const chatId = await signalsChatId();
-  if (chatId === null) return "skipped: the trade bot can't find the signals chat";
-  try {
-    const { data, error } = await admin
-      .from(TABLE)
-      .select("created_at")
-      .eq("chat_id", chatId)
-      .eq("kind", "score")
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (error) return "skipped: signal_chat_messages can't be read";
-    const last = ((data ?? []) as { created_at: string }[])[0];
-    // No score yet, or yesterday's still showing: post today's.
-    if (!last || Date.parse(last.created_at) < ukDayStart(now))
-      return await refreshScore(admin, chatId, now);
-    return "up to date";
-  } catch (e) {
-    // Tried again next minute.
+    console.warn("[signals] results refresh failed", (e as Error).message);
     return `failed: ${(e as Error).message}`;
   }
 }

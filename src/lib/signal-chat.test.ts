@@ -1,13 +1,25 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // The signals chat stays clutter free: a new alert clears that pair's older
-// alert and updates, and today's score always sits at the bottom.
+// alert and updates, and the OG Trade Bot's results always sit at the bottom.
 
-const calls: { method: string; body: Record<string, any> }[] = [];
+const calls: { method: string; body: Record<string, any>; bot?: string }[] = [];
 let nextId = 500;
+let ogCanPost = true;
+// OG B0T's own sender: it announces the trade bot's results.
+vi.mock("./telegram-api.server", () => ({
+  telegramApi: async (method: string, body: Record<string, any>) => {
+    calls.push({ method, body, bot: "og" });
+    if (method === "sendMessage")
+      return ogCanPost
+        ? { ok: true, result: { message_id: nextId++ } }
+        : { ok: false, description: "Forbidden: bot is not a member of the channel chat" };
+    return { ok: true };
+  },
+}));
 vi.mock("./telegram-worker.server", () => ({
   workerApi: async (method: string, body: Record<string, any>) => {
-    calls.push({ method, body });
+    calls.push({ method, body, bot: "trade" });
     if (method === "sendMessage") return { ok: true, result: { message_id: nextId++ } };
     if (method === "getChat")
       return body.chat_id === "@ogsignals"
@@ -65,8 +77,10 @@ function fakeAdmin() {
 }
 
 const CHAT = -1001234;
-const deleted = () =>
-  calls.filter((c) => c.method === "deleteMessages").flatMap((c) => c.body.message_ids);
+// Each message once, though both bots may be asked to remove it.
+const deleted = () => [
+  ...new Set(calls.filter((c) => c.method === "deleteMessages").flatMap((c) => c.body.message_ids)),
+];
 
 beforeEach(() => {
   calls.length = 0;
@@ -135,53 +149,35 @@ describe("clearOlderPair", () => {
 });
 
 describe("refreshScore", () => {
-  test("today's score goes to the bottom and only the newest one stays", async () => {
+  test("OG B0T announces the trade bot's results at the bottom, no daily score", async () => {
     const { refreshScore } = await import("./signal-chat.server");
     tables.signal_chat_messages = [{ chat_id: CHAT, message_id: 13, market: null, kind: "score" }];
-    tables.signal_results = [
-      {
-        market: "XAUUSD",
-        label: "XAU/USD",
-        outcome: "win",
-        pips: 30,
-        unit: "pips",
-        decided_at: new Date().toISOString(),
-      },
-    ];
-    await refreshScore(fakeAdmin(), CHAT);
+    ogCanPost = true;
+    expect(await refreshScore(fakeAdmin(), CHAT)).toBe("posted");
     const sent = calls.find((c) => c.method === "sendMessage")!;
-    expect(sent.body.text).toMatch(
-      /^📊 TODAY'S SCORE · ✅ 1 won · 🛑 0 lost\n🟢 XAU\/USD \+30\.0 pips\n\n🏆 SIGNAL RECORD/,
-    );
+    expect(sent.bot).toBe("og");
+    expect(sent.body.text).toMatch(/^📣 OG TRADE BOT RESULTS/);
+    expect(sent.body.text).not.toMatch(/TODAY|70%/);
     expect(sent.body.disable_notification).toBe(true);
+    // The old post goes, whichever bot sent it.
     expect(deleted()).toEqual([13]);
     expect(tables.signal_chat_messages.filter((r) => r.kind === "score")).toHaveLength(1);
   });
 
-  test("two refreshes at once still leave one scoreboard", async () => {
+  test("the trade bot posts them when OG B0T can't post there", async () => {
+    const { refreshScore } = await import("./signal-chat.server");
+    ogCanPost = false;
+    expect(await refreshScore(fakeAdmin(), CHAT)).toBe("posted");
+    ogCanPost = true;
+    const sends = calls.filter((c) => c.method === "sendMessage");
+    expect(sends.map((c) => c.bot)).toEqual(["og", "trade"]);
+  });
+
+  test("two refreshes at once still leave one results post", async () => {
     const { refreshScore } = await import("./signal-chat.server");
     const admin = fakeAdmin();
     await Promise.all([refreshScore(admin, CHAT), refreshScore(admin, CHAT)]);
     expect(tables.signal_chat_messages.filter((r) => r.kind === "score")).toHaveLength(1);
-  });
-});
-
-describe("rollScoreDay", () => {
-  test("yesterday's score is replaced after UK midnight, today's is left alone", async () => {
-    const { rollScoreDay } = await import("./signal-chat.server");
-    const now = Date.parse("2026-10-27T00:00:30Z");
-    tables.signal_chat_messages = [
-      { chat_id: CHAT, message_id: 13, kind: "score", created_at: "2026-10-26T22:00:00Z" },
-    ];
-    await rollScoreDay(fakeAdmin(), now);
-    // Nothing closed yet: no "nothing closed" line, just the signal record.
-    const text = calls.find((c) => c.method === "sendMessage")?.body.text as string;
-    expect(text).toContain("🏆 SIGNAL RECORD");
-    expect(text).not.toContain("70%");
-    expect(text).not.toContain("TODAY'S SCORE");
-    calls.length = 0;
-    await rollScoreDay(fakeAdmin(), now + 60_000);
-    expect(calls).toHaveLength(0);
   });
 });
 
@@ -194,19 +190,5 @@ describe("isSignalsChat", () => {
     // Saved as an @name: the trade bot looks up the number.
     process.env.SIGNALS_CHANNEL_ID = "@ogsignals";
     expect(await isSignalsChat(-1009999)).toBe(true);
-  });
-});
-
-describe("rollScoreDay says why", () => {
-  test("posted, up to date, or the reason it couldn't", async () => {
-    const { rollScoreDay } = await import("./signal-chat.server");
-    expect(await rollScoreDay(fakeAdmin())).toBe("posted");
-    expect(await rollScoreDay(fakeAdmin())).toBe("up to date");
-    process.env.SIGNALS_CHANNEL_ID = "@nowhere";
-    expect(await rollScoreDay(fakeAdmin())).toBe(
-      "skipped: the trade bot can't find the signals chat",
-    );
-    delete process.env.SIGNALS_BOT_TOKEN;
-    expect(await rollScoreDay(fakeAdmin())).toBe("skipped: signals bot or chat not set up");
   });
 });

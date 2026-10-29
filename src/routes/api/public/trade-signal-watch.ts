@@ -21,9 +21,6 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             lastStartMs: 36_000,
           });
           const events = passes.reduce((n, p) => n + p.events, 0);
-          // At UK midnight the signals chat's score starts a fresh day.
-          const { rollScoreDay } = await import("@/lib/signal-chat.server");
-          const score = await rollScoreDay(supabaseAdmin);
           // The Boss's MT5 trades: fills and closes (the copy bot announces them).
           const { followAutoTrades } = await import("@/lib/mt5-autotrade.server");
           const mt5 = await followAutoTrades(supabaseAdmin);
@@ -35,7 +32,6 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             passes: passes.length,
             events,
             active: passes.at(-1)?.active ?? 0,
-            score,
             mt5,
             promo,
           });

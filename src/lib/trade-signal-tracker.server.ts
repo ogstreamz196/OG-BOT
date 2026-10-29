@@ -271,7 +271,7 @@ async function sendFollowUp(row: Row, text: string): Promise<number | null> {
       } as never,
       { onConflict: "chat_id,message_id" },
     );
-    // In the signals chat: remembered by pair, and today's score moves under it.
+    // In the signals chat: remembered by pair, and the results post moves under it.
     const sc = await import("./signal-chat.server");
     if (await sc.isSignalsChat(row.chat_id)) {
       await sc.trackSignalMessage(admin, row.chat_id, sent.message_id, row.market, "update");

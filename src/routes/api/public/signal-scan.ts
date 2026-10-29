@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 // scanning again every 15 seconds through the minute: posts any top gold or
 // bitcoin scalp to the signals channel, plus the hourly AI desk scout
 // (signal-broadcast.server.ts). A {"ping": true} body posts a test line instead,
-// and {"score": true} posts today's score.
+// and {"score": true} posts the OG Trade Bot's results.
 const PING_TEXT =
   "🏓 Ping test from OG B0T signals. If you can read this, the signals bot can post here. " +
   "Scalp alerts will land in this channel.";
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           ping?: boolean;
           score?: boolean;
         } | null;
-        // {"score": true}: posts today's score now and says how it went.
+        // {"score": true}: posts the results now and says how it went.
         if (body?.score) {
           const score =
             chatId === null
@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           // Clutter free: this pair's older alert and its updates go.
           await sc.clearOlderPair(supabaseAdmin, chatId, signal.plan.market, messageId);
           await sc.trackSignalMessage(supabaseAdmin, chatId, messageId, signal.plan.market, "card");
-          // Today's score goes back to the bottom, under the new alert.
+          // The results go back to the bottom, under the new alert.
           await sc.refreshScore(supabaseAdmin, chatId);
           // The Boss's MT5 account takes the trade (when switched on).
           const { placeAutoTrade } = await import("@/lib/mt5-autotrade.server");
