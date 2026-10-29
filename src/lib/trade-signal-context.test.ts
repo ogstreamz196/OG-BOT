@@ -105,7 +105,7 @@ describe("buildTradeSignalContext", () => {
     expect(out).toContain("source: Binance");
     expect(out).toContain("Direction: BUY");
     expect(out).toMatch(/Stop loss: \d/);
-    expect(out).toMatch(/TP1: \d.*TP2: \d.*TP3: \d/);
+    expect(out).toMatch(/Take profit: \d[\d.]* \(one target\)/);
     expect(out).toMatch(/Confidence: \d{2}% \((Low|Medium|High)\)/);
     expect(out).toMatch(/Valid until: .+ UK time \(intraday signal, good for 4 hours\)/);
     const signal = await buildTradeSignal("BTC signal please");
@@ -114,25 +114,29 @@ describe("buildTradeSignalContext", () => {
     expect(entry).toBeDefined();
     expect(stop).toBeDefined();
     if (!entry || !stop) throw new Error("signal levels missing");
-    // OG Trade Bot taking the trade, in plain first person, never instructions.
-    expect(signal.reply).toMatch(
-      /^(🟢 I'M BUYING|🔴 I'M SELLING) ₿ BTC\/USD · 1H · 💪 (5[1-9]|[6-8]\d|90)%\n\n/,
-    );
-    // The stop loss with what 0.5 lot loses there (bitcoin: $1 a lot per $1).
+    // OG Trade Bot taking the trade, plainly: in at, stop loss, one take profit.
     expect(signal.reply).toMatch(
       new RegExp(
-        `\\n▶️ In (now at|at|if it breaks (above|below)) ${entry.replace(".", "\\.")}( on a pullback)?\\n🛑 Stop ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n`,
+        `^(🟢 I'm gonna buy|🔴 I'm gonna sell) ₿ BTC/USD (now at|at|if it breaks (above|below)) ${entry.replace(".", "\\.")}( on a pullback)?\\n🛑 My stop loss will be ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n🎯 I'll take profit at [\\d.]+ · \\+\\$[\\d,.]+\\n\\n⏱ 1H · 💪 (5[1-9]|[6-8]\\d|90)%`,
       ),
     );
+    // The stop loss with what 0.5 lot loses there (bitcoin: $1 a lot per $1).
     const loss = Number(signal.reply.match(/ · −\$([\d,.]+)\n/)?.[1].replace(/,/g, ""));
     expect(Math.abs(loss - Math.abs(Number(entry) - Number(stop)) * 0.5)).toBeLessThan(0.011);
-    // The three targets by name, each with what 0.5 lot makes there.
-    expect(signal.reply).toMatch(
-      /\n🎯 Quick Scalp [\d.]+ · \+\$[\d,.]+\n🎯 Little Brave [\d.]+ · \+\$[\d,.]+\n🎯 Greedy Runner [\d.]+ · \+\$[\d,.]+\n/,
+    // No trend, exit, expiry or sign-off lines.
+    expect(signal.reply).not.toMatch(/📊|❌|⏳|📚|Quick Scalp|Little Brave|Greedy/);
+    // One take profit: every tracked target is on it.
+    expect(new Set(signal.plan!.targets).size).toBe(1);
+    // The desk may move the take profit, only inside the safe band around TP1.
+    const band = signal.tpRange!;
+    expect(band.lo).toBeLessThan(band.quick);
+    expect(band.quick).toBeLessThan(band.hi);
+    expect(signal.plan!.targets[0]).toBe(band.quick);
+    const moved = signal.retarget!(band.hi - 0.004);
+    expect(moved.plan.targets).toEqual(
+      [band.hi, band.hi, band.hi].map((n) => Number((n - 0.004).toFixed(2))),
     );
-    expect(signal.reply).toMatch(
-      /\n❌ Out if .+ my stop or .+\n⏳ Till .+ UK\n📚 0\.5 lot figures · /,
-    );
+    expect(moved.reply).toContain(`🎯 I'll take profit at ${moved.plan.targets[0].toFixed(2)}`);
     // What's followed is exactly what's shown: every level is the printed number.
     const plan = signal.plan!;
     for (const lvl of [plan.entry, plan.stop, ...plan.targets])
@@ -144,10 +148,6 @@ describe("buildTradeSignalContext", () => {
     expect(signal.reply).not.toMatch(/TP\d|SL:/);
     // No @handles (mentions are entities).
     expect(signal.reply).not.toContain("@");
-    // Ends with one of the foul disclaimers, picked at random each time.
-    expect(SIGNAL_DISCLAIMERS).toContain(
-      signal.reply.split("\n").at(-1)!.replace("📚 0.5 lot figures · ", ""),
-    );
     expect(new Set(SIGNAL_DISCLAIMERS).size).toBeGreaterThan(4);
     expect(signal.expiresAt).not.toBeNull();
   });
@@ -396,14 +396,14 @@ describe("Telegram delivery", () => {
         stubFetch(fetchSpy);
         const signal = await build(`${pair} signal ${frame}`);
         expect(fetchSpy.mock.calls.some(([url]) => url.includes(`interval=${frame}&`))).toBe(true);
-        expect(signal.reply).toContain(` · ${frame.toUpperCase()} · 💪 `);
-        expect(signal.reply).toMatch(/\n▶️ In \D*\d[\d.]*/);
+        expect(signal.reply).toContain(`\n⏱ ${frame.toUpperCase()} · 💪 `);
+        expect(signal.reply).toMatch(/^(🟢|🔴) I'm gonna (buy|sell) \D*\d[\d.]*/);
         expect(signal.expiresAt).not.toBeNull();
         if (frame === "1m") {
           const fifteen = await build(`${pair} signal 15m`);
-          expect(fifteen.reply).toContain(" · 15M · 💪 ");
-          expect(signal.reply.match(/\n▶️ In \D*(\d[\d.]*)/)?.[1]).not.toBe(
-            fifteen.reply.match(/\n▶️ In \D*(\d[\d.]*)/)?.[1],
+          expect(fifteen.reply).toContain("\n⏱ 15M · 💪 ");
+          expect(signal.reply.match(/^\D*(\d[\d.]*)/)?.[1]).not.toBe(
+            fifteen.reply.match(/^\D*(\d[\d.]*)/)?.[1],
           );
         }
       });

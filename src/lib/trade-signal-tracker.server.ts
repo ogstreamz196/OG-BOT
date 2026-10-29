@@ -177,12 +177,18 @@ function formatter(row: Row) {
   return { fmt, move };
 }
 
+/** A signal with one take profit (all three levels on it). */
+export const singleTarget = (row: Pick<Row, "tp1" | "tp3">) => Number(row.tp1) === Number(row.tp3);
+
 export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string }): string {
   const { fmt, move } = formatter(row);
   switch (e.kind) {
     case "filled":
       return `✅ I'm in at ${fmt(row.entry)}. My stop loss is at ${fmt(row.stop)}`;
     case "tp1":
+      // One take profit (all three levels the same): one hit and it's done.
+      if (singleTarget(row))
+        return `🎯 Take profit hit (${move(row.entry, row.tp1)}). Job done, I've banked it`;
       return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
     case "tp2":
       return `🎯 Little Brave hit (${move(row.entry, row.tp2)}). Another bag secured, you jammy bastard. I'm letting the rest run to ${fmt(row.tp3)}`;
@@ -363,7 +369,7 @@ export function winToastText(
   const lead = "💰 ";
   const what = row.feeds?.bias ? "market bias call" : `${row.label} signal`;
   const text =
-    `${lead}${name}, that ${what} just hit the ${TARGET_NAMES[hit]}! ` +
+    `${lead}${name}, that ${what} just hit ${singleTarget(row) ? "its take profit" : `the ${TARGET_NAMES[hit]}`}! ` +
     `At 0.5 lot that's ${usd(win.profit)} in the bag. Lucky bastard.`;
   return { text, mention: { offset: lead.length, length: name.length, id: who.id } };
 }
@@ -491,6 +497,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         // Running out of time isn't news: the status changes, nothing is posted.
         const lines = result.events
           .filter((e) => e.kind !== "expired")
+          // One take profit: its hit is one line, not three.
+          .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
           .map((e) =>
             eventLine(
               { ...row, last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price },

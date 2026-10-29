@@ -21,7 +21,12 @@ export type DeskDecision = {
   findings: DeskFinding[];
   /** No chief answered, so the analysts' weighted vote decided. */
   byVote?: boolean;
+  /** The chief's take profit, inside the safe band it was given (see TakeProfitBand). */
+  tp?: number;
 };
+
+/** The safe band the chief may pick a take profit from, for one side. */
+export type TakeProfitBand = { direction: "BUY" | "SELL"; lo: number; hi: number; quick: number };
 
 type DeskRoleId = "trend" | "levels" | "momentum" | "risk";
 type DeskRole = { id: DeskRoleId; title: string; emoji: string; focus: string; model: RegExp };
@@ -194,7 +199,11 @@ const findingsText = (fs: DeskFinding[]) =>
  * Runs the desk on a market's chart data. Null when the desk can't decide
  * (no free models, all failed, or it ran out of time).
  */
-export async function runDesk(market: string, chartData: string): Promise<DeskDecision | null> {
+export async function runDesk(
+  market: string,
+  chartData: string,
+  band?: TakeProfitBand,
+): Promise<DeskDecision | null> {
   const free = freeFallbackTargets(false);
   if (!free.length) return null;
   const outer = AbortSignal.timeout(DESK_BUDGET_MS);
@@ -233,7 +242,7 @@ export async function runDesk(market: string, chartData: string): Promise<DeskDe
   ].slice(0, 4);
   const verdict = await askAny(
     chiefTargets,
-    CHIEF_PROMPT(market),
+    CHIEF_PROMPT(market) + (band ? takeProfitAsk(band) : ""),
     `${data}\n\nYOUR ANALYSTS\n${findingsText(findings)}`,
     outer,
   );
@@ -251,7 +260,31 @@ export async function runDesk(market: string, chartData: string): Promise<DeskDe
     direction = score > 0 ? "BUY" : "SELL";
     call = "The desk's vote, weighed by how sure each analyst is.";
   }
-  return { direction: direction as "BUY" | "SELL", call, findings, ...(byVote ? { byVote } : {}) };
+  const tp = band && direction === band.direction ? pickedTp(verdict?.tp, band) : undefined;
+  return {
+    direction: direction as "BUY" | "SELL",
+    call,
+    findings,
+    ...(byVote ? { byVote } : {}),
+    ...(tp != null ? { tp } : {}),
+  };
+}
+
+/** The chief's extra job: one take profit, inside the band, for that side. */
+function takeProfitAsk(b: TakeProfitBand): string {
+  return (
+    ` If you pick ${b.direction}, also choose ONE take profit between ${b.lo} and ${b.hi} ` +
+    `(${b.quick} is the default; closer to the entry is likelier to be hit, further pays more). ` +
+    `Add it to the JSON as "tp": a number in that range.`
+  );
+}
+
+/** The chief's take profit when it's a number inside the band, else nothing. */
+export function pickedTp(v: unknown, b: TakeProfitBand): number | undefined {
+  const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(n)) return undefined;
+  const [lo, hi] = b.lo < b.hi ? [b.lo, b.hi] : [b.hi, b.lo];
+  return n >= lo && n <= hi ? n : undefined;
 }
 
 /** The desk's lines for the card. */

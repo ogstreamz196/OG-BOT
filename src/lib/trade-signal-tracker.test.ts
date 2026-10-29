@@ -184,6 +184,19 @@ describe("watchSignals: one message per trade", () => {
   });
 });
 
+describe("watchSignals: one take profit", () => {
+  test("its hit is one update and the trade is done", async () => {
+    const { watchSignals } = await import("./trade-signal-tracker.server");
+    Object.assign(rows[0], { tp1: 104, tp2: 104, tp3: 104 });
+    candles = [bar(MINUTE_START - 2 * MIN, 99, 101), bar(MINUTE_START - MIN, 99, 105)];
+    await watchSignals(NOW);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain("Take profit hit (+4.00 points). Job done, I've banked it");
+    expect(sent[0]).not.toMatch(/Little Brave|Greedy/);
+    expect(rows[0]).toMatchObject({ status: "tp3", best_target: 3 });
+  });
+});
+
 describe("watchSignals: the results book", () => {
   test("a target hit is booked as a win, in points to the furthest target", async () => {
     const { watchSignals } = await import("./trade-signal-tracker.server");

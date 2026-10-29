@@ -549,6 +549,10 @@ type TradeSignalResult = {
   biasReply?: string;
   /** What the bias read needs, so the desk can ask for the other side. */
   biasArgs?: BiasArgs;
+  /** The safe band the take profit can sit in (close to TP1), for the desk to pick from. */
+  tpRange?: { lo: number; hi: number; quick: number };
+  /** The same signal with another take profit (inside tpRange). */
+  retarget?: (tp: number) => { reply: string; plan: SignalPlan };
 };
 
 /**
@@ -576,7 +580,7 @@ const HOW_TO_ANSWER = `TRADE SIGNAL MODE — the user wants a trade call. Rules:
   Confidence: …% (Low/Medium/High)
   Entry: … (say if it's market or a pullback limit)
   SL: … (distance in pips/points if given)
-  TP1 / TP2 / TP3: …
+  TP: … (one take profit)
   R:R: …
   ⏳ Valid until: … (UK time) — say plainly that after this time the signal is stale and they should ask you again, and that an unfilled pullback entry should be cancelled by then.
   Then 2–4 short lines on WHY (trend across timeframes, momentum, the key level), what would cancel it early, and any news risk from the headlines given.
@@ -584,7 +588,7 @@ const HOW_TO_ANSWER = `TRADE SIGNAL MODE — the user wants a trade call. Rules:
 - If a HIGH-IMPACT NEWS list is given, name those events and times. If a TRACK RECORD line is given, quote it exactly; never make one up.
 - Explain that the confidence is how strongly the indicators agree, not a guaranteed win rate.
 - Keep your usual voice for the commentary, but the numbers stay serious and exact.
-- End with ONE short line: risk 1–2% per trade, move SL to entry after TP1, not financial advice. Don't lecture beyond that.
+- End with ONE short line saying it's educational, not financial advice. Don't lecture beyond that.
 - Never claim a win rate, guarantee, or that you "know" where price is going.`;
 
 const NO_DATA = (inst: Instrument) =>
@@ -639,6 +643,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       bias: hit.bias,
       biasReply: hit.biasReply,
       biasArgs: hit.biasArgs,
+      tpRange: hit.tpRange,
+      retarget: hit.retarget,
     };
 
   const tracker = import("./trade-signal-tracker.server");
@@ -788,7 +794,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     ...cautions.map((c) => `CAUTION: ${c}`),
     `Entry: ${fmt(plan.entry)} — ${plan.entryNote}`,
     `Stop loss: ${fmt(plan.stop)} (${dist(plan.entry, plan.stop)})`,
-    `TP1: ${fmt(plan.targets[0])}  TP2: ${fmt(plan.targets[1])}  TP3: ${fmt(plan.targets[2])}`,
+    `Take profit: ${fmt(plan.targets[0])} (one target)`,
     `Risk:reward: ${plan.rr}`,
     `Valid until: ${ukTime(valid.until)} UK time (${style} signal, good for ${valid.hours} hours). After that the read is stale; cancel an unfilled entry and ask again.`,
     `Cancel early if: ${plan.invalidation}`,
@@ -820,18 +826,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   const cancelIf = bail
     ? `${bail[1]} closes ${bail[2]} SL, or ${bail[3]} turns ${bail[4]}`
     : plan.invalidation;
-  const londonDay = (d: Date) =>
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", dateStyle: "short" }).format(d);
-  const validShort =
-    londonDay(valid.until) === londonDay(new Date())
-      ? new Intl.DateTimeFormat("en-GB", {
-          timeZone: "Europe/London",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(valid.until)
-      : ukTime(valid.until);
   const rrs = plan.rr.split(" / ").map((r) => r.replace(/\.0$/, ""));
-  const trendLine = trendSentence(plan.reasons);
   // No clean setup: say so plainly instead of handing out levels to trade.
   // Nothing worth trading: short and rude, not an essay.
   const waitCard = [
@@ -845,29 +840,18 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // it's doing and where, never telling anyone what to do. The levels
   // first, then only what changes the decision.
   // Confidence is indicator agreement (51–90%), not a win rate.
-  const tradeCard = [
-    `${plan.direction === "BUY" ? "🟢 I'M BUYING" : "🔴 I'M SELLING"} ${marketTag(inst)} · ${entryLabel} · 💪 ${plan.confidencePct}%`,
-    "",
-    ...levelLines(
-      fmt,
-      inst.code,
-      plan.entry,
-      plan.entryType,
-      plan.direction,
-      plan.stop,
-      plan.targets,
-    ),
-    "",
-    // Only what changes the decision: the top warning, the next big news.
-    ...(cautions.length ? [`⚠️ ${cautions[0]}`] : []),
-    ...(newsLines.length ? [`📅 ${newsLines[0]}`] : []),
-    ...trendLine,
-    bail
-      ? `❌ Out if ${bail[1]} closes ${bail[2]} my stop or ${bail[3]} turns ${bail[4]}`
-      : `❌ Out on ${plan.invalidation}`,
-    `⏳ Till ${validShort} UK`,
-    signOff(inst.code),
-  ].join("\n");
+  // One take profit: by default the Quick Scalp (pulled in from TP1); the desk
+  // may pick another inside the safe band around it (tpRange).
+  const cardFor = (tp: number) =>
+    [
+      ...tradeLines(fmt, inst, plan.entry, plan.entryType, plan.direction, plan.stop, tp),
+      "",
+      `⏱ ${entryLabel} · 💪 ${plan.confidencePct}%`,
+      // Only what changes the decision: the top warning, the next big news.
+      ...(cautions.length ? [`⚠️ ${cautions[0]}`] : []),
+      ...(newsLines.length ? [`📅 ${newsLines[0]}`] : []),
+    ].join("\n");
+  const tradeCard = cardFor(plan.targets[0]);
   const wait = plan.verdict === "wait";
   const reply = wait ? waitCard : tradeCard;
   const plan2: SignalPlan = {
@@ -886,7 +870,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     entry: plan.entry,
     entryType: plan.entryType,
     stop: plan.stop,
-    targets: [plan.targets[0], plan.targets[1], plan.targets[2]],
+    // One take profit: all three levels on it, so one hit closes the trade.
+    targets: [plan.targets[0], plan.targets[0], plan.targets[0]],
     confidencePct: plan.confidencePct,
     quality: plan.quality,
     decimals: dp,
@@ -907,8 +892,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     entry: plan.entry,
     entryType: plan.entryType,
     stop: plan.stop,
-    targets: plan.targets,
-    rrs,
+    targets: [plan.targets[0]],
+    rrs: rrs.slice(0, 1),
     price,
     changePct: Number.isFinite(change) ? change : null,
     offset,
@@ -942,12 +927,26 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         dp,
       };
   const biasCall = wait && biasArgs ? await buildBias(biasArgs).catch(() => null) : null;
+  const tpRange = takeProfitRange(plan.entry, plan.targets[0], dp);
   const result = {
     block: value,
     expiresAt,
     reply,
     plan: wait ? undefined : plan2,
     summary,
+    ...(wait
+      ? {}
+      : {
+          tpRange,
+          retarget: (picked: number) => {
+            // The exact number on the card, as with every level.
+            const tp = Number(picked.toFixed(dp));
+            return {
+              reply: cardFor(tp),
+              plan: { ...plan2, targets: [tp, tp, tp] as [number, number, number] },
+            };
+          },
+        }),
     ...(biasCall ? { bias: biasCall.plan, biasReply: biasCall.reply } : {}),
     ...(biasArgs ? { biasArgs } : {}),
   };
@@ -961,68 +960,52 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
 export const TARGET_NAMES = ["Quick Scalp", "Little Brave", "Greedy Runner"] as const;
 
 /** The levels in OG B0T's own words: where it's going in, where it's out, what it's after. */
-function levelLines(
+function tradeLines(
   fmt: (n: number) => string,
-  market: string,
+  inst: { code: string; label: string },
   entry: number,
   entryType: "market" | "limit" | "stop",
   direction: "BUY" | "SELL",
   stop: number,
-  targets: number[],
+  tp: number,
   bias = false,
 ): string[] {
   // A market-bias call "isn't my signal", so it's what OG B0T would do.
   const e = fmt(entry);
-  const way = direction === "BUY" ? "above" : "below";
-  const getIn =
+  const side = direction === "BUY" ? "buy" : "sell";
+  const where =
     entryType === "limit"
-      ? `${bias ? "I'd go in" : "In"} at ${e} on a pullback`
+      ? `at ${e} on a pullback`
       : entryType === "stop"
-        ? `${bias ? "I'd go in" : "In"} if it breaks ${way} ${e}`
-        : `${bias ? "I'd go in" : "In"} now at ${e}`;
-  // What CARD_LOT (0.5) makes or loses at each level; left off when the
-  // contract size isn't standard enough to say.
-  const money = (to: number) => lotMoney(market, entry, to);
+        ? `if it breaks ${direction === "BUY" ? "above" : "below"} ${e}`
+        : `now at ${e}`;
+  // What CARD_LOT (0.5) makes or loses; left off when the contract size
+  // isn't standard enough to say.
   const usd = (n: number) =>
     `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const loss = money(stop);
+  const loss = lotMoney(inst.code, entry, stop);
+  const win = lotMoney(inst.code, entry, tp);
   return [
-    `▶️ ${getIn}`,
-    `🛑 ${bias ? "I'd stop at" : "Stop"} ${fmt(stop)}${loss != null ? ` · −${usd(loss)}` : ""}`,
-    ...targets.map((t, i) => {
-      const win = money(t);
-      return `🎯 ${TARGET_NAMES[i]} ${fmt(t)}${win != null ? ` · +${usd(win)}` : ""}`;
-    }),
+    `${direction === "BUY" ? "🟢" : "🔴"} ${bias ? `I'd ${side}` : `I'm gonna ${side}`} ${marketTag(inst)} ${where}`,
+    `🛑 My stop loss ${bias ? "would" : "will"} be ${fmt(stop)}${loss != null ? ` · −${usd(loss)}` : ""}`,
+    `🎯 ${bias ? "I'd" : "I'll"} take profit at ${fmt(tp)}${win != null ? ` · +${usd(win)}` : ""}`,
   ];
+}
+
+/**
+ * The safe band a take profit can sit in: from 75% to 125% of the way to the
+ * Quick Scalp (so between about 60% and 100% of the engine's TP1).
+ */
+export function takeProfitRange(entry: number, quick: number, dp: number) {
+  const d = quick - entry;
+  const at = (k: number) => Number((entry + d * k).toFixed(dp));
+  return { lo: at(0.75), hi: at(1.25), quick };
 }
 
 /** "₿ BTC/USD", "🥇 XAU/USD", "💱 EUR/USD": short, with the market's emoji. */
 function marketTag(inst: { code: string; label: string }): string {
   const emoji = inst.code === "XAUUSD" ? "🥇" : /^BTC/.test(inst.code) ? "₿" : "💱";
   return `${emoji} ${inst.label.replace(/\s*\(.*\)$/, "")}`;
-}
-
-/** The card's last line: the lot the dollar figures are for, then a sign-off. */
-function signOff(market: string): string {
-  const line = SIGNAL_DISCLAIMERS[Math.floor(Math.random() * SIGNAL_DISCLAIMERS.length)];
-  return lotMoney(market, 1, 2) != null ? `📚 ${CARD_LOT} lot figures · ${line}` : `📚 ${line}`;
-}
-
-/** "📊 1H & 15M down · 5M sideways", from the plan's reasons. */
-function trendSentence(reasons: string[]): string[] {
-  const groups: Record<string, string[]> = {};
-  for (const r of reasons) {
-    const m = /^(\S+) trend (\w+)$/.exec(r);
-    if (!m) continue;
-    const how = m[2] === "bullish" ? "up" : m[2] === "bearish" ? "down" : "sideways";
-    (groups[how] ??= []).push(m[1]);
-  }
-  const parts = Object.entries(groups).map(([how, frames]) => {
-    const names =
-      frames.length > 1 ? `${frames.slice(0, -1).join(", ")} & ${frames.at(-1)}` : frames[0];
-    return `${names} ${how}`;
-  });
-  return parts.length ? [`📊 ${parts.join(" · ")}`] : [];
 }
 
 /**
@@ -1049,13 +1032,19 @@ export async function deskRead(
     // What it's learned from past signals on this market, for the desk to weigh.
     const { learnedLesson } = await import("./signal-learning.server");
     const lesson = await learnedLesson(inst.code).catch(() => null);
+    // The chief also picks the one take profit, inside a safe band around TP1.
+    const band = s.plan && s.tpRange ? { direction: s.plan.direction, ...s.tpRange } : undefined;
     const desk = await runDesk(
       inst.label,
       lesson ? `WHAT I'VE LEARNED FROM PAST SIGNALS: ${lesson}\n\n${chart}` : chart,
+      band,
     );
     if (!desk) return { signal: s, desk: null };
-    // The desk only picks the side; the card never mentions it.
-    if (s.plan && s.plan.direction === desk.direction) return { signal: s, desk };
+    // The desk only picks the side and the take profit; the card never mentions it.
+    if (s.plan && s.plan.direction === desk.direction) {
+      const picked = desk.tp != null && s.retarget ? s.retarget(desk.tp) : null;
+      return { signal: picked ? { ...s, ...picked } : s, desk };
+    }
     const bias =
       s.bias && s.biasReply && s.bias.direction === desk.direction
         ? { plan: s.bias, reply: s.biasReply }
@@ -1129,22 +1118,16 @@ async function buildBias(
   const buy = read.direction === "BUY";
   const reply = [
     `⚠️ MARKET BIAS · not my signal · super risky`,
-    `${buy ? "🟢 BUY" : "🔴 SELL"} lean ${marketTag(o.inst)} · 5M`,
-    "",
-    ...levelLines(
+    ...tradeLines(
       fmt,
-      o.inst.code,
+      o.inst,
       read.entry,
       read.entryType,
       read.direction,
       read.stop,
-      read.targets,
+      read.targets[0],
       true,
     ),
-    "",
-    ...(read.reasons.length ? [`📊 ${read.reasons.join(" · ")}`] : []),
-    `⏳ Till ${ukClock} UK`,
-    signOff(o.inst.code),
   ].join("\n");
   const plan: SignalPlan = {
     market: o.inst.code,
@@ -1163,7 +1146,8 @@ async function buildBias(
     entry: read.entry,
     entryType: read.entryType,
     stop: read.stop,
-    targets: read.targets,
+    // One take profit, as with every signal.
+    targets: [read.targets[0], read.targets[0], read.targets[0]],
     confidencePct: 0,
     quality: "Choppy",
     decimals: o.dp,
