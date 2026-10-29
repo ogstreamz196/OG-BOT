@@ -91,6 +91,13 @@ export function SignalRecordPanel() {
               <div className="text-xs text-muted-foreground">lost</div>
             </div>
           </div>
+          <p className="text-muted-foreground">
+            {r.wins + r.losses
+              ? `${Math.round((r.wins / (r.wins + r.losses)) * 100)}% win rate · `
+              : ""}
+            {r.running} running · {r.untriggered} never hit entry · {r.timedOut} timed out
+            flat
+          </p>
           {r.markets.map((m) => (
             <p key={m.label} className={m.pips >= 0 ? "text-emerald-400" : "text-rose-400"}>
               {m.label}: {m.pips >= 0 ? "+" : "−"}

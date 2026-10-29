@@ -3,7 +3,13 @@
 // they did, counted from the last time the Boss reset it. It never resets on
 // its own: only the Boss's Reset button moves the start date
 // (site_content "signals.record.resetAt").
-import { setupKey, type ResultRow } from "./signal-results.server";
+//
+// Every signal counted lands in exactly one bucket, so they always add up:
+// won (hit at least the Quick Scalp), lost (stop loss first), still running,
+// never hit its entry, or timed out (entered but no target or stop in time).
+// Outcomes come straight from each signal's own tracked status, so signals
+// sent before the results book existed still count.
+import { resultFor, setupKey } from "./signal-results.server";
 
 type Admin = any;
 
@@ -18,6 +24,12 @@ export type SignalRecord = {
   signals: number;
   wins: number;
   losses: number;
+  /** Still waiting for entry or in the trade, no target yet. */
+  running: number;
+  /** Ran out of time (or was called off) before the entry was reached. */
+  untriggered: number;
+  /** Entered, but no target and no stop before it ran out of time. */
+  timedOut: number;
   markets: { label: string; unit: string; pips: number }[];
 };
 
@@ -57,33 +69,67 @@ type SignalRow = {
   tp3: number;
   pip: number | null;
   decimals: number;
+  status: string;
+  best_target: number;
+  entered_at: string | null;
   feeds: { bias?: boolean } | null;
 };
 
+const ACTIVE = new Set(["pending", "open", "tp1", "tp2"]);
+/** Statuses only reachable after the entry filled. */
+const ENTERED = new Set(["open", "tp1", "tp2", "tp3", "stopped", "breakeven", "expired"]);
+
 /** Counts from rows already loaded (pure, so it can be tested). */
-export function tallyRecord(
-  signals: SignalRow[],
-  results: ResultRow[],
-  since: string | null,
-): SignalRecord {
-  const keys = new Set(
-    signals.filter((s) => !s.feeds?.bias).map((s) => setupKey({ ...s, id: "" })),
-  );
-  const decided = results.filter((r) => keys.has(r.setup_key));
-  const wins = decided.filter((r) => r.outcome === "win").length;
-  const byMarket = new Map<string, { label: string; unit: string; pips: number }>();
-  for (const r of decided) {
-    const m = byMarket.get(r.market) ?? { label: r.label, unit: r.unit, pips: 0 };
-    m.pips += Number(r.pips);
-    byMarket.set(r.market, m);
+export function tallyRecord(signals: SignalRow[], since: string | null): SignalRecord {
+  // The same setup sent to several chats is one signal: merge what each copy saw.
+  const setups = new Map<
+    string,
+    { row: SignalRow; best: number; stopped: boolean; active: boolean; filled: boolean }
+  >();
+  for (const s of signals) {
+    if (s.feeds?.bias) continue;
+    const key = setupKey({ ...s, id: "" });
+    const seen = setups.get(key) ?? {
+      row: s,
+      best: 0,
+      stopped: false,
+      active: false,
+      filled: false,
+    };
+    seen.best = Math.max(seen.best, Number(s.best_target) || 0);
+    seen.stopped ||= s.status === "stopped";
+    seen.active ||= ACTIVE.has(s.status);
+    seen.filled ||= !!s.entered_at || ENTERED.has(s.status);
+    setups.set(key, seen);
   }
-  return {
+  const record: SignalRecord = {
     since,
-    signals: keys.size,
-    wins,
-    losses: decided.length - wins,
-    markets: [...byMarket.values()].map((m) => ({ ...m, pips: Math.round(m.pips * 10) / 10 })),
+    signals: setups.size,
+    wins: 0,
+    losses: 0,
+    running: 0,
+    untriggered: 0,
+    timedOut: 0,
+    markets: [],
   };
+  const byMarket = new Map<string, { label: string; unit: string; pips: number }>();
+  for (const { row, best, stopped, active, filled } of setups.values()) {
+    const result = resultFor({ ...row, id: "" }, best, stopped && best === 0);
+    if (result) {
+      if (result.outcome === "win") record.wins++;
+      else record.losses++;
+      const m = byMarket.get(row.market) ?? { label: row.label, unit: result.unit, pips: 0 };
+      m.pips += result.pips;
+      byMarket.set(row.market, m);
+    } else if (active) record.running++;
+    else if (filled) record.timedOut++;
+    else record.untriggered++;
+  }
+  record.markets = [...byMarket.values()].map((m) => ({
+    ...m,
+    pips: Math.round(m.pips * 10) / 10,
+  }));
+  return record;
 }
 
 /** The 70%+ record since the Boss's last reset, or null when it can't be read. */
@@ -94,21 +140,15 @@ export async function signalRecord(admin: Admin): Promise<SignalRecord | null> {
     const signals = await allRows<SignalRow>((a, b) =>
       admin
         .from("trade_signals")
-        .select("market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, feeds")
+        .select(
+          "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, entered_at, feeds",
+        )
         .gte("confidence_pct", RECORD_MIN_CONFIDENCE)
         .gte("created_at", from)
         .order("created_at", { ascending: true })
         .range(a, b),
     );
-    const results = await allRows<ResultRow>((a, b) =>
-      admin
-        .from("signal_results")
-        .select("setup_key, market, label, direction, outcome, best_target, pips, unit, decided_at")
-        .gte("decided_at", from)
-        .order("decided_at", { ascending: true })
-        .range(a, b),
-    );
-    return tallyRecord(signals, results, since);
+    return tallyRecord(signals, since);
   } catch (e) {
     console.warn("[signals] record read failed", e);
     return null;
@@ -123,14 +163,29 @@ const ukDate = (iso: string) =>
     year: "numeric",
   }).format(new Date(iso));
 
-/** The record as one or two lines for the signals chat scoreboard. */
+/** The record for the signals chat scoreboard: every signal in exactly one bucket. */
 export function recordText(r: SignalRecord): string {
-  const head = `🏆 70%+ RECORD${r.since ? ` since ${ukDate(r.since)}` : ""} · ${r.signals} signal${r.signals === 1 ? "" : "s"} · ✅ ${r.wins} won · 🛑 ${r.losses} lost`;
-  if (!r.markets.length) return head;
-  const sign = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(1)}`;
-  return `${head}\n${r.markets
-    .map((m) => `${m.pips >= 0 ? "🟢" : "🔴"} ${m.label} ${sign(m.pips)} ${m.unit}`)
-    .join(" · ")}`;
+  const decided = r.wins + r.losses;
+  const lines = [
+    `🏆 70%+ RECORD${r.since ? ` since ${ukDate(r.since)}` : ""} · ${r.signals} signal${r.signals === 1 ? "" : "s"}`,
+    `✅ ${r.wins} won · 🛑 ${r.losses} lost` +
+      (decided ? ` · 🎯 ${Math.round((r.wins / decided) * 100)}% win rate` : ""),
+  ];
+  const rest = [
+    r.running ? `⏳ ${r.running} running` : "",
+    r.untriggered ? `🚫 ${r.untriggered} never hit entry` : "",
+    r.timedOut ? `⌛ ${r.timedOut} timed out flat` : "",
+  ].filter(Boolean);
+  if (rest.length) lines.push(rest.join(" · "));
+  if (r.markets.length) {
+    const sign = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(1)}`;
+    lines.push(
+      r.markets
+        .map((m) => `${m.pips >= 0 ? "🟢" : "🔴"} ${m.label} ${sign(m.pips)} ${m.unit}`)
+        .join(" · "),
+    );
+  }
+  return lines.join("\n");
 }
 
 /** Boss only (checked by the caller): start counting again from now. */
