@@ -151,12 +151,96 @@ export function crewNote(lines: Line[], speaker: string | null): string {
     : "";
 }
 
+/**
+ * How OG B0T feels about the speaker and the others in the room (og-bond.ts).
+ * Telegram people are matched to their OG B0T accounts by their Telegram id.
+ * Going after one of OG B0T's friends costs the speaker and gets the friend
+ * defended. Best-effort: on any failure OG B0T just battles as normal.
+ */
+export async function battleBonds(
+  admin: Admin,
+  lines: Line[],
+  opts: {
+    profileId?: string;
+    userId?: number;
+    targetUserId?: number;
+    name: string | null;
+    text: string;
+  },
+): Promise<{ note: string; friend: boolean }> {
+  try {
+    const bonds = await import("@/lib/og-bond.server");
+    const { goesAfter, isFriend, HIT_A_FRIEND } = await import("@/lib/og-bond");
+    // Everyone who's spoken lately, by Telegram id, with their latest name.
+    const names = new Map<number, string>();
+    for (const l of lines) {
+      if (l.role === "user" && l.telegram_user_id && l.name) names.set(l.telegram_user_id, l.name);
+    }
+    if (opts.userId) names.delete(opts.userId);
+    const tgIds = [...names.keys(), ...(opts.targetUserId ? [opts.targetUserId] : [])];
+    const { data } = tgIds.length
+      ? await admin.from("profiles").select("id, telegram_chat_id").in("telegram_chat_id", tgIds)
+      : { data: [] };
+    const profileOf = new Map<number, string>(
+      ((data ?? []) as { id: string; telegram_chat_id: number }[]).map((p) => [
+        Number(p.telegram_chat_id),
+        p.id,
+      ]),
+    );
+    const others = [...names.entries()]
+      .filter(([id]) => profileOf.has(id))
+      .map(([id, name]) => ({ userId: profileOf.get(id)!, name }));
+    const room = await bonds.roomPeople(admin, others);
+    const friends = room.filter((p) => isFriend(p.score));
+
+    // Going after a friend: by name, or by replying to their message.
+    const targetProfile =
+      opts.targetUserId && opts.targetUserId !== opts.userId
+        ? profileOf.get(opts.targetUserId)
+        : undefined;
+    const targetScore = targetProfile
+      ? ((await bonds.loadBonds(admin, [targetProfile])).get(targetProfile) ?? 0)
+      : 0;
+    const targetName = opts.targetUserId ? names.get(opts.targetUserId) : undefined;
+    const hitFriend =
+      goesAfter(
+        opts.text,
+        friends.map((f) => f.name),
+      ) ??
+      (targetProfile &&
+      isFriend(targetScore) &&
+      goesAfter(`${opts.text} ${targetName ?? "them"}`, [targetName ?? "them"])
+        ? (targetName ?? "them")
+        : null);
+
+    let note = "";
+    let friend = false;
+    if (opts.profileId) {
+      const turn = await bonds.bondTurn(admin, opts.profileId, opts.text, {
+        battle: true,
+        name: opts.name,
+      });
+      friend = isFriend(turn.score);
+      note += turn.note;
+      if (hitFriend) {
+        void bonds.nudgeBond(admin, opts.profileId, "hit_friend", HIT_A_FRIEND);
+        note += `\n\nDEFEND YOUR FRIEND: ${opts.name ?? "This person"} is going after ${hitFriend}, one of your friends. Do NOT roast ${hitFriend}. Refuse, stick up for ${hitFriend} loudly and loyally, and turn the roast on ${opts.name ?? "them"} instead.`;
+      }
+    }
+    const { roomNote } = await import("@/lib/og-bond");
+    return { note: roomNote(room) + note, friend };
+  } catch {
+    return { note: "", friend: false };
+  }
+}
+
 async function battleAnswer(
   admin: Admin,
   chatId: number,
   lines: Line[],
   turn: { role: "user"; content: string },
   speaker: string | null,
+  bond: { note: string; friend: boolean } = { note: "", friend: false },
 ): Promise<string | null> {
   const lex = await import("@/lib/battle-lexicon.server");
   const slang = await lex.learnedSlangBlock(admin);
@@ -175,7 +259,8 @@ async function battleAnswer(
             BATTLE_EXTRA +
             slang +
             crewNote(lines, speaker) +
-            GROUP_BATTLE_NOTE,
+            GROUP_BATTLE_NOTE +
+            bond.note,
         },
         ...chatTurns(lines),
         turn,
@@ -193,7 +278,7 @@ async function battleAnswer(
   if (!text) return null;
   // A free model other than the swearing one can come out soft: keep it foul.
   const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
-  return ensureFoulFlavour(text);
+  return ensureFoulFlavour(text, Math.random, bond.friend);
 }
 
 export type BattleTurn =
@@ -226,6 +311,10 @@ export async function groupBattleTurn(
   opts: {
     chatId: number;
     userId?: number;
+    /** The speaker's OG B0T account, for how OG B0T feels about them. */
+    profileId?: string;
+    /** Telegram user whose message they replied to, if it's a person. */
+    targetUserId?: number;
     messageId?: number;
     name: string | null;
     text: string;
@@ -294,7 +383,14 @@ export async function groupBattleTurn(
         : `${who} sent ${pending.length} messages in a row — answer the lot in one reply:\n` +
           pending.map((l) => `${who}: ${l.content}`).join("\n"),
   };
-  const answer = await battleAnswer(admin, chatId, history, turn, name);
+  const bond = await battleBonds(admin, lines, {
+    profileId: opts.profileId,
+    userId,
+    targetUserId: opts.targetUserId,
+    name,
+    text: pending.map((l) => l.content).join("\n"),
+  });
+  const answer = await battleAnswer(admin, chatId, history, turn, name, bond);
   if (!answer) return busyNotice(chatId);
   await saveLine(admin, chatId, {
     role: "bot",

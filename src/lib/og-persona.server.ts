@@ -192,6 +192,15 @@ const FOUL_OPENERS = [
   "Right, you gormless bellend:", "Christ on a bike, fine —", "Oi, knobhead, pay attention:",
   "For fuck's sake, here it is —", "Alright gobshite,",
 ];
+// For OG B0T's friends: still sweary, never a dig at them.
+const FRIEND_OPENERS = [
+  "Fuck me, alright —", "Bloody hell, go on then —", "Christ on a bike, fine —",
+  "For fuck's sake, here it is —", "Right, bloody hell —",
+];
+const FRIEND_CLOSERS = [
+  "Bloody hell, keep up.", "Now crack on, legend.", "Fuck me, I'm too good to you.",
+  "Don't say I never do owt for you.",
+];
 const FOUL_CLOSERS = [
   "Now wind your neck in.", "You're welcome, you fucking melt.", "Sorted, ya bloody muppet.",
   "Now jog on, dickhead.", "Don't say I never do owt for you, bellend.", "Bloody hell, keep up.",
@@ -207,15 +216,20 @@ export function hasFoulFlavour(text: string): boolean {
  * one dictionary opener or closer. Never touches already-foul replies, and
  * never edits the body so facts, links and codes stay intact.
  */
-export function ensureFoulFlavour(text: string, rand: () => number = Math.random): string {
+export function ensureFoulFlavour(
+  text: string,
+  rand: () => number = Math.random,
+  /** Talking to one of OG B0T's friends: swear, but never at them. */
+  friend = false,
+): string {
   const t = text.trim();
   if (!t || t === "…" || hasFoulFlavour(t)) return text;
   const pick = <T,>(a: T[]) => a[Math.floor(rand() * a.length)];
   if (rand() < 0.6) {
     const body = /^[A-Z][a-z]/.test(t) && !/^(I|OG)\b/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
-    return `${pick(FOUL_OPENERS)} ${body}`;
+    return `${pick(friend ? FRIEND_OPENERS : FOUL_OPENERS)} ${body}`;
   }
-  return `${t}\n\n${pick(FOUL_CLOSERS)}`;
+  return `${t}\n\n${pick(friend ? FRIEND_CLOSERS : FOUL_CLOSERS)}`;
 }
 
 const SITE_GLOSSARY = `

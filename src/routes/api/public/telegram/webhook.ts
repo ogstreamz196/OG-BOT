@@ -1332,6 +1332,10 @@ async function runChatAI(
   // Trade requests never get here (they take the signal path above).
   const { startGrounding, checkFigures } = await import("@/lib/og-smarts.server");
   const grounding = startGrounding(admin as never, profileId, userText, false);
+  // How OG B0T feels about them (og-bond.ts), saved while everything loads.
+  const bondPromise = import("@/lib/og-bond.server")
+    .then((m) => m.bondTurn(admin, profileId, userText, { name: group?.name ?? null }))
+    .catch(() => ({ note: "", score: 0, kind: "chat" as const }));
   // In a group everyone can read the reply: nothing from the member's account,
   // memory, private history, promo codes or the paid Sports Guide goes in.
   const vp = await import("@/lib/vip-promo.server");
@@ -1418,10 +1422,11 @@ async function runChatAI(
   const promoNote = promo ? vp.promoPromptNote(promo) : "";
   const sportsNote = sportsBlock ? `${sportsBlock}\n\n` : "";
   const { memoryNote } = await import("@/lib/og-memory");
-  const [memories, footballBlock, catchphrases] = await Promise.all([
+  const [memories, footballBlock, catchphrases, bond] = await Promise.all([
     grounding.memories,
     grounding.football,
     pickCatchphrases(admin as never, profileId, toneFor("og", foulMouth)),
+    bondPromise,
   ]);
 
   // "How much did we make today?": the bot's own results book.
@@ -1446,7 +1451,8 @@ async function runChatAI(
     catchphraseNote(catchphrases) +
     (group ? GROUP_NOTE : memoryNote(memories)) +
     (footballBlock ? `\n\n${footballBlock}` : "") +
-    resultsNote;
+    resultsNote +
+    bond.note;
 
   const history = group
     ? // Replying to one of OG B0T's group messages: that message is the context.
@@ -1548,7 +1554,8 @@ async function runChatAI(
       );
     if (foulMouth) {
       const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
-      replyText = ensureFoulFlavour(replyText);
+      const { isFriend } = await import("@/lib/og-bond");
+      replyText = ensureFoulFlavour(replyText, Math.random, isFriend(bond.score));
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
 
@@ -1989,11 +1996,16 @@ async function handleGroupMessage(
   // A roast battle, Battle Zone style. A burst of messages gets one reply (to
   // the latest), and spammers go on slow mode (see telegram-group-battle).
   const battle = async (line: string) => {
-    if (!(await linkedProfileId(admin, fromId))) return nudge();
+    const profileId = await linkedProfileId(admin, fromId);
+    if (!profileId) return nudge();
     const { groupBattleTurn } = await import("@/lib/telegram-group-battle.server");
+    const repliedTo = msg.reply_to_message?.from;
     const turn = await groupBattleTurn(admin, {
       chatId: chat_id,
       userId: fromId,
+      profileId,
+      // Replying to someone else's message: they may be the one being gone after.
+      targetUserId: repliedTo && !repliedTo.is_bot ? repliedTo.id : undefined,
       messageId: msg.message_id,
       name: ctx.name ?? null,
       text: line,

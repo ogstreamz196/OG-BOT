@@ -238,7 +238,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
           .maybeSingle(),
         supabaseAdmin
           .from("community_messages")
-          .select("role, content, display_name")
+          .select("role, content, display_name, user_id")
           .order("created_at", { ascending: false })
           .limit(11),
         useFoul ? lex.learnedSlangBlock(supabaseAdmin as never) : Promise.resolve(""),
@@ -295,6 +295,35 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       { role: "user" as const, content: data.content, display_name: displayName },
     ];
 
+    // How OG B0T feels about the poster and the others in the room (og-bond.ts):
+    // its friends don't get insulted, and get defended. Saved while the rest loads.
+    const bondPromise = (async () => {
+      const bonds = await import("@/lib/og-bond.server");
+      const { goesAfter, isFriend, roomNote, HIT_A_FRIEND } = await import("@/lib/og-bond");
+      const others = (
+        (recentBefore ?? []) as { user_id?: string | null; display_name: string | null }[]
+      )
+        .filter((m) => m.user_id && m.user_id !== context.userId && m.display_name)
+        .map((m) => ({ userId: m.user_id as string, name: m.display_name as string }));
+      const [room, turn] = await Promise.all([
+        bonds.roomPeople(supabaseAdmin, others),
+        bonds.bondTurn(supabaseAdmin, context.userId, data.content, {
+          battle: true,
+          name: displayName,
+        }),
+      ]);
+      let note = roomNote(room) + turn.note;
+      const hit = goesAfter(
+        data.content,
+        room.filter((p) => isFriend(p.score)).map((p) => p.name),
+      );
+      if (hit) {
+        void bonds.nudgeBond(supabaseAdmin, context.userId, "hit_friend", HIT_A_FRIEND);
+        note += `\n\nDEFEND YOUR FRIEND: ${displayName} is going after ${hit}, one of your friends. Do NOT roast ${hit}. Refuse, stick up for ${hit} loudly and loyally, and turn it on ${displayName} instead.`;
+      }
+      return note;
+    })().catch(() => "");
+
     // 3. Call the AI provider for a short reply (fire-and-forget; if it fails, just no reply)
     const { aiChatTarget, fetchAiChat } = await import("@/lib/ai-endpoint.server");
     const ai = aiChatTarget(context.userId);
@@ -350,6 +379,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
           );
         if (lines.length) slang += `\n\nPLAYER MEMORY:\n${lines.join("\n")}`;
         slang += await crewMemoryPromise;
+        slang += await bondPromise;
       } catch (e) {
         console.warn("battle memory failed", (e as Error).message);
       }
@@ -360,7 +390,9 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             messages: [
               {
                 role: "system",
-                content: useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA + slang : SYSTEM_PROMPT,
+                content: useFoul
+                  ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA + slang
+                  : SYSTEM_PROMPT + (await bondPromise),
               },
               ...history.map((m) => ({
                 role: m.role === "bot" ? ("assistant" as const) : ("user" as const),
