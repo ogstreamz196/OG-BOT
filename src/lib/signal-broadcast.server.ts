@@ -19,7 +19,7 @@
  * new signal goes the other way. Needs the SIGNALS_BOT_TOKEN and
  * SIGNALS_CHANNEL_ID secrets; without them the scan does nothing.
  */
-import { signalRequest, type SignalPair } from "@/lib/telegram-signals";
+import { signalRequest, type SignalPair, type SignalTimeframe } from "@/lib/telegram-signals";
 import type { CalendarEvent } from "./trade-signal-extras";
 
 type Admin = any;
@@ -70,6 +70,10 @@ type PostDeps = {
 
 export type ScanDeps = PostDeps & {
   build: (ask: string) => Promise<Built>;
+  /** The scalp timeframes scanned (default just 5-minute). */
+  frames?: SignalTimeframe[];
+  /** The confidence an alert needs for a market (learned; default BROADCAST_MIN_CONFIDENCE). */
+  alertBar?: (market: string) => Promise<number>;
   /** Keeps a silent shadow of a setup that isn't sent (signal-shadows.server.ts). */
   shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
 };
@@ -85,12 +89,15 @@ export async function scanAndBroadcast(
 ): Promise<{ checked: number; posted: string[] }> {
   const posted: string[] = [];
   let checked = 0;
-  for (const pair of BROADCAST_MARKETS) {
+  const scans = (deps.frames ?? ["5m"]).flatMap((frame) =>
+    BROADCAST_MARKETS.map((pair) => ({ pair, frame })),
+  );
+  for (const { pair, frame } of scans) {
     let signal: Built;
     try {
-      signal = await deps.build(signalRequest(pair, "5m"));
+      signal = await deps.build(signalRequest(pair, frame));
     } catch (e) {
-      console.warn(`[signals] scan of ${pair} failed`, e);
+      console.warn(`[signals] scan of ${pair} ${frame} failed`, e);
       continue;
     }
     checked++;
@@ -102,12 +109,17 @@ export async function scanAndBroadcast(
       if (why && deps.shadow) await deps.shadow(signal, why);
       continue;
     }
-    if (plan.confidencePct < BROADCAST_MIN_CONFIDENCE) {
+    const bar = deps.alertBar
+      ? await deps.alertBar(plan.market).catch(() => BROADCAST_MIN_CONFIDENCE)
+      : BROADCAST_MIN_CONFIDENCE;
+    if (plan.confidencePct < bar) {
       if (deps.shadow) await deps.shadow(signal, "below_alert");
       continue;
     }
     if (await postOnce(admin, deps, signal, (s) => channelCard(s.reply, plan.confidencePct), true))
-      posted.push(`${plan.market} ${plan.direction}`);
+      posted.push(
+        `${plan.market} ${plan.direction}${frame === "5m" ? "" : ` ${frame.toUpperCase()}`}`,
+      );
   }
   return { checked, posted };
 }
@@ -250,7 +262,7 @@ async function postOnce(
   await deps.follow?.(signal, messageId, text);
   await admin.from(POSTS).insert({
     market: plan.market,
-    timeframe: "5M",
+    timeframe: signal.summary?.timeframe ?? "5M",
     direction: plan.direction,
     confidence_pct: plan.confidencePct,
     entry: plan.entry,
@@ -306,7 +318,9 @@ export function deskConfirmer(
       /* no veto kept */
     }
     const pair: SignalPair = plan.market.startsWith("XAU") ? "XAU" : "BTC";
-    const out = await read(signalRequest(pair, "5m")).catch(() => null);
+    // The same chart the alert came from (5- or 15-minute).
+    const frame: SignalTimeframe = signal.summary?.timeframe === "15M" ? "15m" : "5m";
+    const out = await read(signalRequest(pair, frame)).catch(() => null);
     if (!out?.desk) return withDesk(signal, "no_ai");
     const { deskBacks } = await import("./signal-desk.server");
     if (deskBacks(out.desk, plan.direction) && out.signal.plan?.direction === plan.direction)

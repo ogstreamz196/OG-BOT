@@ -38,6 +38,8 @@ export type MarketReport = {
   bySetup: Stat[];
   /** By what the live-trial pair checks said (feeds.checks); empty before any. */
   byCheck: Stat[];
+  /** By the chart the signal came from (5-minute, 15-minute, …). */
+  byTimeframe: Stat[];
   /** Shadow trades by why they weren't sent; null when there's no shadow table yet. */
   shadows: Stat[] | null;
   timing: TimingStats;
@@ -81,6 +83,7 @@ export type LiveRow = {
   best_target: number;
   confidence_pct: number;
   created_at: string;
+  timeframe?: string | null;
   entered_at?: string | null;
   closed_at?: string | null;
   feeds: {
@@ -225,7 +228,7 @@ export function buildReport(
       unit: string;
       size: number;
       overall: Tally;
-      groups: Record<"band" | "session" | "desk" | "setup" | "check", Map<string, Tally>>;
+      groups: Record<"band" | "session" | "desk" | "setup" | "check" | "frame", Map<string, Tally>>;
       shadows: Map<string, Tally>;
     }
   >();
@@ -244,6 +247,7 @@ export function buildReport(
           desk: new Map(),
           setup: new Map(),
           check: new Map(),
+          frame: new Map(),
         },
         shadows: new Map(),
       };
@@ -272,6 +276,7 @@ export function buildReport(
     add(m.groups.session, ukSession(Date.parse(row.created_at)), win, r.pips);
     add(m.groups.desk, row.feeds?.desk ?? "none", win, r.pips);
     add(m.groups.setup, row.feeds?.setup ?? "Main chart engine", win, r.pips);
+    add(m.groups.frame, row.timeframe ?? "?", win, r.pips);
     for (const [check, verdict] of Object.entries(row.feeds?.checks ?? {}))
       if (verdict) add(m.groups.check, `${check}:${verdict}`, win, r.pips);
   }
@@ -332,6 +337,13 @@ export function buildReport(
           ),
           byDesk: order(m.groups.desk, Object.keys(DESK), (k) => DESK[k] ?? k, spread),
           bySetup: order(m.groups.setup, ["Main chart engine"], (k) => k, spread),
+          byTimeframe: order(
+            m.groups.frame,
+            ["5M", "15M", "1M", "1H"],
+            (k) =>
+              ({ "5M": "5-minute", "15M": "15-minute", "1M": "1-minute", "1H": "1-hour" })[k] ?? k,
+            spread,
+          ),
           byCheck: order(
             m.groups.check,
             Object.keys(CHECK_NAMES),
@@ -374,7 +386,7 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
     admin
       .from("trade_signals")
       .select(
-        "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, confidence_pct, created_at, entered_at, closed_at, feeds",
+        "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, confidence_pct, created_at, timeframe, entered_at, closed_at, feeds",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: true })

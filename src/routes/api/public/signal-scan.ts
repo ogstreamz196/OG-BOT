@@ -100,7 +100,17 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         const startedAt = Date.now();
         // Setups that aren't sent are followed silently for the Boss's report.
         const { recordShadow } = await import("@/lib/signal-shadows.server");
-        const confirm = deskConfirmer(supabaseAdmin, (ask) => deskRead(ask), {
+        // The AI desk's automatic runs come out of a daily budget, so more
+        // trades never run the free AI keys dry; past it, the chart decides alone.
+        const { takeDeskRun, deskRunsToday } = await import("@/lib/signal-ai-budget.server");
+        const budgeted = async (ask: string, onlyWithSignal: boolean) => {
+          const s = await buildTradeSignal(ask);
+          if (onlyWithSignal && !s.plan) return { signal: s, desk: null };
+          if (!(await takeDeskRun(supabaseAdmin))) return { signal: s, desk: null };
+          return deskRead(ask, { onlyWithSignal });
+        };
+        const { alertBar } = await import("@/lib/signal-alert-bar.server");
+        const confirm = deskConfirmer(supabaseAdmin, (ask) => budgeted(ask, false), {
           now: Date.now,
           askUntil: startedAt + 20_000,
           onVeto: (s) => recordShadow(supabaseAdmin, s.summary, "desk_no"),
@@ -115,6 +125,10 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               () =>
                 scanAndBroadcast(supabaseAdmin, {
                   build: buildTradeSignal,
+                  // 15-minute scalps too: more setups, each still checked the same way.
+                  frames: ["5m", "15m"],
+                  // The alert bar comes down only where trades under it have been winning.
+                  alertBar: (market) => alertBar(supabaseAdmin, market),
                   post: postToSignalsChannel,
                   follow,
                   confirm,
@@ -125,7 +139,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             ),
             maybeDeskScout(supabaseAdmin, {
               // The AIs are only asked when the chart engine has a setup.
-              read: (ask) => deskRead(ask, { onlyWithSignal: true }),
+              read: (ask) => budgeted(ask, true),
               news: economicCalendar,
               post: postToSignalsChannel,
               follow,
@@ -137,6 +151,11 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             posted: passes.flatMap((p) => p.posted),
             passes: passes.length,
             desk,
+            aiRunsToday: await deskRunsToday(supabaseAdmin),
+            alertBars: {
+              XAUUSD: await alertBar(supabaseAdmin, "XAUUSD"),
+              BTCUSD: await alertBar(supabaseAdmin, "BTCUSD"),
+            },
           };
           return Response.json({ ok: true, ...result });
         } catch (e) {
