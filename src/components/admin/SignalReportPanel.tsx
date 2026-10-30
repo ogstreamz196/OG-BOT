@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { BarChart3, Loader2 } from "lucide-react";
 import { getSignalReport, type ReportDays } from "@/lib/signal-report.functions";
-import type { MarketReport, Stat } from "@/lib/signal-report.server";
+import type { MarketReport, Stat, TimingStats } from "@/lib/signal-report.server";
 import { cn } from "@/lib/utils";
 import { AdminSection } from "./AdminSection";
 
@@ -89,6 +89,7 @@ function MarketBlock({
         </p>
       </div>
       <Table title="Overall" rows={[m.overall]} unit={m.unit} />
+      <Timing t={m.timing} unit={m.unit} />
       <Table title="By confidence" rows={m.byBand} unit={m.unit} />
       <Table title="By session (UK time)" rows={m.bySession} unit={m.unit} />
       <Table title="By what the AI desk said" rows={m.byDesk} unit={m.unit} />
@@ -185,6 +186,47 @@ function Table({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+const num = (n: number | null, suffix: string) => (n == null ? "–" : `${n}${suffix}`);
+
+/** How late the alerts went out, and how long trades take. */
+function Timing({ t, unit }: { t: TimingStats; unit: string }) {
+  const rows: [string, string, string?][] = [
+    ["Candle close to alert", num(t.delaySec, "s"), "median"],
+    ["AI check before posting", num(t.checkSec, "s"), "median"],
+    [
+      "Price moved by the time it posted",
+      t.driftPips == null ? "–" : `${t.driftPips >= 0 ? "+" : "−"}${Math.abs(t.driftPips)} ${unit}`,
+      "+ is towards the take profit",
+    ],
+    [
+      "Pending entries filled",
+      t.fillRate == null ? "–" : `${Math.round(t.fillRate * 100)}%`,
+      t.fillMin == null ? undefined : `median ${t.fillMin} min to fill`,
+    ],
+    ["Time to take profit", num(t.winMin, " min"), "median, after the fill"],
+    ["Time to stop loss", num(t.lossMin, " min"), "median, after the fill"],
+    ["Closed on a time stop", String(t.timeStops)],
+  ];
+  return (
+    <div className="rounded-xl border border-border">
+      <p className="border-b border-border px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Timing{t.alerts ? ` · ${t.alerts} timed alerts` : ""}
+      </p>
+      <ul className="divide-y divide-border">
+        {rows.map(([label, value, note]) => (
+          <li key={label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm text-foreground">{label}</p>
+              {note && <p className="text-xs text-muted-foreground">{note}</p>}
+            </div>
+            <p className="text-sm font-black tabular-nums text-foreground">{value}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

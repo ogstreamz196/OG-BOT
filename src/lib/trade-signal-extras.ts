@@ -83,6 +83,50 @@ export function volumeNote(ratio: number): string | null {
 
 export type CalendarEvent = { title: string; currency: string; at: number; impact: string };
 
+/** New York's weekday (0 Sunday … 6 Saturday) and minutes since midnight at `t`. */
+function newYorkClock(t: number): { day: number; minutes: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date(t))
+      .map((x) => [x.type, x.value]),
+  );
+  const day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday);
+  return { day, minutes: Number(p.hour) * 60 + Number(p.minute) };
+}
+
+/** Before and after a high-impact USD release, scalps sit out (minutes). */
+export const NEWS_BLACKOUT = { before: 5, after: 10 } as const;
+
+/**
+ * The moments scalps get hurt, or null: the brokers' daily rollover (New York
+ * 16:55–18:05, about 10pm UK, when spreads blow wide), a few minutes either
+ * side of high-impact USD news, and gold's last hour before the weekend close
+ * (Friday 16:00 New York). Pure, so it can be tested.
+ */
+export function blackout(t: number, opts: { gold: boolean; news: CalendarEvent[] }): string | null {
+  const { day, minutes } = newYorkClock(t);
+  if (minutes >= 16 * 60 + 55 && minutes < 18 * 60 + 5)
+    return "Rollover: spreads are blown wide right now, so I'm sitting it out.";
+  if (opts.gold && day === 5 && minutes >= 16 * 60)
+    return "Gold's about to shut for the weekend, so I'm not opening anything now.";
+  const hit = opts.news.find(
+    (e) =>
+      e.impact === "High" &&
+      e.currency === "USD" &&
+      t >= e.at - NEWS_BLACKOUT.before * 60_000 &&
+      t < e.at + NEWS_BLACKOUT.after * 60_000,
+  );
+  return hit
+    ? `Big US news (${hit.title}) right now: price whips both ways, so I'm sitting it out.`
+    : null;
+}
+
 /** Parses the free weekly calendar feed (Forex Factory JSON format). */
 export function parseCalendar(json: unknown): CalendarEvent[] {
   if (!Array.isArray(json)) return [];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReport, type LiveRow, type ShadowDone } from "./signal-report.server";
+import { buildReport, timingStats, type LiveRow, type ShadowDone } from "./signal-report.server";
 
 // The Boss's signal report: where the wins and losses come from.
 
@@ -110,5 +110,58 @@ describe("buildReport", () => {
         flat: 1,
       },
     ]);
+  });
+});
+
+describe("timingStats", () => {
+  it("how late alerts went out, how far price had moved, and how long trades took", () => {
+    const at = (iso: string) => Date.parse(iso);
+    const rows = [
+      // Posted 25s after the 09:00 close, built 18s before; price already 1.5 up on a buy.
+      row({
+        created_at: "2026-11-02T09:00:25Z",
+        entered_at: "2026-11-02T09:00:25Z",
+        closed_at: "2026-11-02T09:12:25Z",
+        feeds: {
+          timing: {
+            candleAt: at("2026-11-02T09:00:00Z"),
+            builtAt: at("2026-11-02T09:00:07Z"),
+            postedAt: at("2026-11-02T09:00:25Z"),
+            pricePosted: 2650.15,
+          },
+        },
+      }),
+      // A pullback entry that filled 6 minutes later, then stopped 20 minutes after.
+      row({
+        entry: 2660,
+        stop: 2655,
+        status: "stopped",
+        best_target: 0,
+        created_at: "2026-11-02T10:00:00Z",
+        entered_at: "2026-11-02T10:06:00Z",
+        closed_at: "2026-11-02T10:26:00Z",
+      }),
+      // One never filled; one closed on a time stop.
+      row({ entry: 2670, status: "unfilled", best_target: 0, created_at: "2026-11-02T11:00:00Z" }),
+      row({
+        entry: 2680,
+        status: "expired",
+        best_target: 0,
+        created_at: "2026-11-02T12:00:00Z",
+        entered_at: "2026-11-02T12:00:00Z",
+        feeds: { holdFor: 30 },
+      }),
+    ];
+    expect(timingStats(rows, 0.1)).toEqual({
+      alerts: 1,
+      delaySec: 25,
+      checkSec: 18,
+      driftPips: 1.5,
+      fillRate: 0.5,
+      fillMin: 6,
+      winMin: 12,
+      lossMin: 20,
+      timeStops: 1,
+    });
   });
 });

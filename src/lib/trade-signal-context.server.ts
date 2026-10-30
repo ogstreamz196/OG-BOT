@@ -25,6 +25,7 @@ import type { DeskDecision } from "./signal-desk.server";
 import { CARD_LOT, lotMoney } from "./trade-bias";
 import {
   DEFAULT_TUNING,
+  NO_TIME_LIMIT,
   aggregate,
   buildPlan,
   decimalsFor,
@@ -179,7 +180,31 @@ const CANDLE_TTL: Record<Interval, number> = {
   "5m": 15_000,
   "1m": 10_000,
 };
-const candleCache = new Map<string, { exp: number; value: { data: Candle[]; source: string } }>();
+const candleCache = new Map<
+  string,
+  { exp: number; at: number; value: { data: Candle[]; source: string } }
+>();
+const INTERVAL_MS: Record<Interval, number> = {
+  "1m": 60_000,
+  "5m": 300_000,
+  "15m": 900_000,
+  "1h": 3_600_000,
+  "1d": 86_400_000,
+};
+
+/**
+ * A cached chart is stale once a new candle has closed since it was fetched:
+ * the scan right after a 5-minute close reads the closed candle, not the
+ * chart from a few seconds before it. Pure, so it can be tested.
+ */
+export function cachedChartFresh(
+  hit: { exp: number; at: number },
+  interval: Interval,
+  now: number,
+): boolean {
+  const ms = INTERVAL_MS[interval];
+  return hit.exp > now && Math.floor(hit.at / ms) === Math.floor(now / ms);
+}
 const inflight = new Map<string, Promise<{ data: Candle[]; source: string }>>();
 /** Sources that refused us (e.g. a region block) are skipped for a while. */
 const sourceDownUntil = new Map<string, number>();
@@ -202,7 +227,7 @@ export async function candles(
 ): Promise<{ data: Candle[]; source: string }> {
   const key = `${inst.code}:${interval}`;
   const hit = candleCache.get(key);
-  if (hit && hit.exp > Date.now()) return hit.value;
+  if (hit && cachedChartFresh(hit, interval, Date.now())) return hit.value;
   const running = inflight.get(key);
   if (running) return running;
 
@@ -262,7 +287,8 @@ export async function candles(
   inflight.set(key, job);
   try {
     const value = await job;
-    if (value.data.length) candleCache.set(key, { exp: Date.now() + CANDLE_TTL[interval], value });
+    if (value.data.length)
+      candleCache.set(key, { exp: Date.now() + CANDLE_TTL[interval], at: Date.now(), value });
     return value;
   } finally {
     inflight.delete(key);
@@ -466,7 +492,20 @@ async function cryptoFlow(inst: Instrument): Promise<CryptoFlow | null> {
  * same way) and `entry: "stop"` for confirmation entries (stored as pending
  * like a limit, but filled when price breaks through).
  */
+/** A 5-minute scalp's learned time limits, for feeds (none when they're off). */
+function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: number }) {
+  if (entryLabel !== "5M") return {};
+  return {
+    ...(t.holdFor < NO_TIME_LIMIT ? { holdFor: t.holdFor } : {}),
+    ...(t.fillWithin < NO_TIME_LIMIT ? { fillWithin: t.fillWithin } : {}),
+  };
+}
+
 export type SignalFeeds = {
+  /** Minutes a filled trade gets before it's closed on time (learned; absent = the whole validity). */
+  holdFor?: number;
+  /** Minutes a pending entry waits to fill (learned; absent = the whole validity). */
+  fillWithin?: number;
   /** What the AI desk said about an auto-posted alert (the Boss's report groups by it). */
   desk?: "backed" | "no_ai" | "unanimous";
   /** The extra chart setup that made it, when one did (trade-setups.ts). */
@@ -598,7 +637,7 @@ export function cardToSend(s: TradeSignalResult): { reply: string; plan?: Signal
   if (s.bias && s.biasReply) return { reply: s.biasReply, plan: s.bias };
   return { reply: s.reply };
 }
-const cache = new Map<string, TradeSignalResult & { exp: number }>();
+const cache = new Map<string, TradeSignalResult & { exp: number; at?: number }>();
 
 function frameLine(f: FrameRead, fmt: (n: number) => string): string {
   const e200 = Number.isFinite(f.ema200) ? `, 200 EMA ${fmt(f.ema200)}` : "";
@@ -667,7 +706,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         : "1H";
   const key = `${inst.code}:${style}:${entryIv}`;
   const hit = cache.get(key);
-  if (hit && hit.exp > Date.now())
+  // Not past the close of a new entry candle, so a fresh setup is never hidden.
+  if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
     return {
       block: hit.block,
       expiresAt: hit.expiresAt,
@@ -753,7 +793,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       expiresAt: null,
       reply: `I can't pull a live chart for ${inst.label} right now, so I won't make up entry, stop or target levels. Try again in a minute.`,
     };
-    cache.set(key, { exp: Date.now() + 30_000, ...result });
+    cache.set(key, { exp: Date.now() + 30_000, at: Date.now(), ...result });
     return result;
   }
 
@@ -791,12 +831,20 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       verdict: "wait",
       waitReason: `Can't confirm the real ${inst.label} price right now, so no levels.`,
     };
+  // Scalps sit out the moments that hurt them: the daily rollover, big US
+  // news and gold's last hour before the weekend (blackout).
+  const { blackout } = await import("./trade-signal-extras");
+  const sitOut = fast
+    ? blackout(Date.now(), { gold: inst.code === "XAUUSD", news: calendar })
+    : null;
+  if (sitOut && plan.verdict === "trade") plan = { ...plan, verdict: "wait", waitReason: sitOut };
   // No engine setup right now (and the market's open): on the 5-minute chart,
   // an extra setup the learning loop has proven for this market takes its place.
   if (
     plan.verdict === "wait" &&
     fast === "5m" &&
     !spotUnconfirmed &&
+    !sitOut &&
     !/\bclosed\b/i.test(plan.waitReason ?? "")
   ) {
     const { liveSetups } = await import("./signal-learning.server");
@@ -964,6 +1012,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(spotOk && inst.spot ? { spot: inst.spot } : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
       ...(plan.setup ? { setup: plan.setup } : {}),
+      // The learned time limits (5-minute scalps): the tracker applies them.
+      ...timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING),
     },
     style,
     timeframe: entryLabel,
@@ -1011,7 +1061,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // No clean setup (market open): the risky market-bias call instead.
   const shut = /\bclosed\b/i.test(plan.waitReason ?? "");
   const biasArgs: BiasArgs | undefined =
-    shut || spotUnconfirmed
+    shut || spotUnconfirmed || sitOut
       ? undefined
       : {
           inst,
@@ -1052,7 +1102,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     ...(biasCall ? { bias: biasCall.plan, biasReply: biasCall.reply } : {}),
     ...(biasArgs ? { biasArgs } : {}),
   };
-  cache.set(key, { exp: Date.now() + (fast ? 10_000 : 60_000), ...result });
+  cache.set(key, { exp: Date.now() + (fast ? 10_000 : 60_000), at: Date.now(), ...result });
   const oldest = cache.keys().next().value;
   if (cache.size > 200 && oldest) cache.delete(oldest);
   return result;

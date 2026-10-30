@@ -60,6 +60,11 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         type Follow = NonNullable<import("@/lib/signal-broadcast.server").ScanDeps["follow"]>;
         const follow: Follow = async (signal, messageId, card) => {
           if (!signal.plan || chatId === null) return;
+          // Timing, for the Boss's report: how long after the candle closed
+          // it went out, and where price was by then.
+          const { alertTiming } = await import("@/lib/signal-timing.server");
+          const timing = await alertTiming(signal, Date.now()).catch(() => null);
+          if (timing) signal.plan.feeds = { ...(signal.plan.feeds ?? {}), timing };
           // Clutter free: this pair's older alert and its updates go.
           await sc.clearOlderPair(supabaseAdmin, chatId, signal.plan.market, messageId);
           await sc.trackSignalMessage(supabaseAdmin, chatId, messageId, signal.plan.market, "card");
