@@ -27,6 +27,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // Now and then, the Boss's Vantage invite link in the signals chat.
           const { maybePostPromo } = await import("@/lib/invite-promo.server");
           const promo = await maybePostPromo(supabaseAdmin);
+          // The setups that weren't sent, followed silently for the Boss's report.
+          const { followShadows } = await import("@/lib/signal-shadows.server");
+          const shadows = await followShadows(supabaseAdmin);
           // Not busy (nothing to send this minute): study past signals and learn.
           const { maybeLearn } = await import("@/lib/signal-learning.server");
           const learning = events === 0 ? await maybeLearn(supabaseAdmin) : "busy";
@@ -38,6 +41,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             mt5,
             promo,
             learning,
+            shadows,
           });
         } catch (e) {
           console.error("[signals] watch failed", e);

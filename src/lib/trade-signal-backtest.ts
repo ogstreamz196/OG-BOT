@@ -213,6 +213,11 @@ export type LearnSample = {
   expiresAt: number;
   /** The extra chart setups showing at the same moment (trade-setups.ts). */
   setups?: SetupHit[];
+  /**
+   * What a trade costs to take (the broker's spread and slippage), in price,
+   * taken off every filled trade when it's scored. Set when learning, never stored.
+   */
+  cost?: number;
 };
 
 /** Past setups every `step` entry candles between `from` and `to` (see LearnSample). */

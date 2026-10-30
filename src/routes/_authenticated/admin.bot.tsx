@@ -15,6 +15,7 @@ import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
 import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
+import { SignalReportPanel } from "@/components/admin/SignalReportPanel";
 import { Mt5Panel } from "@/components/admin/Mt5Panel";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
@@ -44,6 +45,7 @@ function SignalsTab() {
   return (
     <>
       <SignalRecordPanel />
+      <SignalReportPanel />
       <Mt5Panel />
       <SignalsPortalPanel />
       <Suspense

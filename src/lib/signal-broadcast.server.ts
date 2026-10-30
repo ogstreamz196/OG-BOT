@@ -40,8 +40,20 @@ type Built = {
     confidencePct: number;
     entry: number;
     expiresAt: string;
+    /** Where it came from: what the AI desk said is stored with the trade (feeds.desk). */
+    feeds?: Record<string, unknown>;
   };
+  /** The engine's full read (levels even for a wait), for shadow trades. */
+  summary?: import("./trade-signal-context.server").SignalSummary;
 };
+
+type ShadowReason = import("./signal-shadows.server").ShadowReason;
+
+/** The same signal with what the AI desk said about it, kept with the trade. */
+function withDesk(signal: Built, desk: "backed" | "no_ai" | "unanimous"): Built {
+  if (!signal.plan) return signal;
+  return { ...signal, plan: { ...signal.plan, feeds: { ...(signal.plan.feeds ?? {}), desk } } };
+}
 
 type PostDeps = {
   /** Posts to the channel; resolves with the message id, or null if it didn't go. */
@@ -58,6 +70,8 @@ type PostDeps = {
 
 export type ScanDeps = PostDeps & {
   build: (ask: string) => Promise<Built>;
+  /** Keeps a silent shadow of a setup that isn't sent (signal-shadows.server.ts). */
+  shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
 };
 
 /** The card as posted; the card itself carries the confidence %. */
@@ -81,7 +95,17 @@ export async function scanAndBroadcast(
     }
     checked++;
     const plan = signal.plan;
-    if (!plan || plan.confidencePct < BROADCAST_MIN_CONFIDENCE) continue;
+    // What isn't sent is still followed, silently, for the Boss's report.
+    if (!plan) {
+      const { waitReasonKind } = await import("./signal-shadows.server");
+      const why = waitReasonKind(signal.summary?.waitReason);
+      if (why && deps.shadow) await deps.shadow(signal, why);
+      continue;
+    }
+    if (plan.confidencePct < BROADCAST_MIN_CONFIDENCE) {
+      if (deps.shadow) await deps.shadow(signal, "below_alert");
+      continue;
+    }
     if (await postOnce(admin, deps, signal, (s) => channelCard(s.reply, plan.confidencePct), true))
       posted.push(`${plan.market} ${plan.direction}`);
   }
@@ -207,7 +231,12 @@ const vetoKey = (market: string) => `signals.deskVeto.${market}`;
 export function deskConfirmer(
   admin: Admin,
   read: (ask: string) => Promise<DeskRead>,
-  opts: { now: () => number; askUntil: number },
+  opts: {
+    now: () => number;
+    askUntil: number;
+    /** Called with each alert the desk turns down (kept as a shadow trade). */
+    onVeto?: (signal: Built) => Promise<void>;
+  },
 ): (signal: Built) => Promise<Built | null> {
   return async (signal) => {
     const plan = signal.plan;
@@ -230,10 +259,11 @@ export function deskConfirmer(
     }
     const pair: SignalPair = plan.market.startsWith("XAU") ? "XAU" : "BTC";
     const out = await read(signalRequest(pair, "5m")).catch(() => null);
-    if (!out?.desk) return signal;
+    if (!out?.desk) return withDesk(signal, "no_ai");
     const { deskBacks } = await import("./signal-desk.server");
     if (deskBacks(out.desk, plan.direction) && out.signal.plan?.direction === plan.direction)
-      return out.signal;
+      return withDesk(out.signal, "backed");
+    await opts.onVeto?.(signal).catch(() => undefined);
     const at = new Date(now).toISOString();
     await admin.from("site_content").upsert(
       {
@@ -393,7 +423,9 @@ export async function maybeDeskScout(admin: Admin, deps: DeskScoutDeps): Promise
         if (!read.desk) return `${pair}: ${read.signal.plan ? "desk didn't decide" : "no setup"}`;
         if (!deskAgrees(read.desk)) return `${pair}: desk split`;
         if (!plan || plan.direction !== read.desk.direction) return `${pair}: no signal that way`;
-        const posted = await postOnce(admin, deps, read.signal, (s) => deskCard(s.reply));
+        const posted = await postOnce(admin, deps, withDesk(read.signal, "unanimous"), (s) =>
+          deskCard(s.reply),
+        );
         return posted ? `${pair}: posted ${plan.direction}` : `${pair}: already posted`;
       }),
     );

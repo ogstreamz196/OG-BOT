@@ -321,3 +321,62 @@ describe("the desk checks the chart engine's 70%+ alerts", () => {
     expect(late.asked()).toBe(0);
   });
 });
+
+describe("what isn't sent is shadowed, and alerts carry the desk's say", () => {
+  test("waits and under-70 setups become shadows; a turned-down alert too", async () => {
+    const { db } = fakeDb();
+    const shadows: string[] = [];
+    const vetoed: string[] = [];
+    const followed: unknown[] = [];
+    const wait = {
+      reply: "wait",
+      summary: { waitReason: "Too quiet: price is barely moving, so targets rarely get reached." },
+    } as never;
+    const deps = {
+      build: async (ask: string) => (/xau|gold/i.test(ask) ? wait : signal("BTCUSD", "SELL", 64)),
+      post: async () => 1,
+      shadow: async (_s: unknown, why: string) => void shadows.push(why),
+      now: () => T0,
+    };
+    await scanAndBroadcast(db, deps);
+    expect(shadows).toEqual(["quiet", "below_alert"]);
+
+    const { db: db2 } = fakeDb();
+    const confirm = deskConfirmer(
+      db2,
+      async () => ({ signal: signal("XAUUSD", "BUY", 80), desk: desk("SELL", ["SELL", "SELL"]) }),
+      {
+        now: () => T0,
+        askUntil: T0 + 20_000,
+        onVeto: async (s) => void vetoed.push(s.plan!.market),
+      },
+    );
+    await scanAndBroadcast(db2, {
+      build: async (ask: string) =>
+        /xau|gold/i.test(ask) ? signal("XAUUSD", "BUY", 80) : { reply: "" },
+      post: async () => 1,
+      confirm,
+      now: () => T0,
+    });
+    expect(vetoed).toEqual(["XAUUSD"]);
+
+    const { db: db3 } = fakeDb();
+    const backing = deskConfirmer(
+      db3,
+      async () => ({
+        signal: signal("XAUUSD", "BUY", 80),
+        desk: desk("BUY", ["BUY", "BUY", "WAIT"]),
+      }),
+      { now: () => T0, askUntil: T0 + 20_000 },
+    );
+    await scanAndBroadcast(db3, {
+      build: async (ask: string) =>
+        /xau|gold/i.test(ask) ? signal("XAUUSD", "BUY", 80) : { reply: "" },
+      post: async () => 1,
+      confirm: backing,
+      follow: async (s) => void followed.push(s.plan!.feeds),
+      now: () => T0,
+    });
+    expect(followed).toEqual([{ desk: "backed" }]);
+  });
+});
