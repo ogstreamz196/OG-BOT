@@ -54,6 +54,12 @@ export async function runOgChat(
     !nativeApp && !!detectTradeIntent(lastUserText),
   );
 
+  // How OG B0T feels about them (og-bond.ts): read from this message and
+  // saved while everything else loads. Never shown to anyone.
+  const bondPromise = import("@/lib/og-bond.server")
+    .then((m) => m.bondTurn(supabaseAdmin, context.userId, lastUserText))
+    .catch(() => ({ note: "", score: 0, kind: "chat" as const }));
+
   // Account dossier and Sports Guide only need who's asking and what, so they
   // load alongside the user context instead of after it.
   const dossierPromise = import("@/lib/og-user-dossier.server")
@@ -159,6 +165,7 @@ export async function runOgChat(
     promoResult,
     phrases,
     { block: tradeBlock, expiresAt: signalExpiresAt },
+    bond,
   ] = await Promise.all([
     dossierPromise,
     sportsPromise,
@@ -169,6 +176,7 @@ export async function runOgChat(
       : Promise.resolve(null),
     cp.pickCatchphrases(supabaseAdmin as never, context.userId, cp.toneFor(data.mode, foulMouth)),
     tradePromise,
+    bondPromise,
   ]);
   const baseSystem = buildSystemPrompt({
     mode: data.mode,
@@ -228,6 +236,8 @@ export async function runOgChat(
     tradeNote +
     footballNote +
     resultsNote +
+    // Last, so it outranks the roast instructions above for OG B0T's friends.
+    bond.note +
     nativeAppNote;
 
   // 1b. Learn fresh insults from the latest user message (fire-and-forget upsert).
@@ -361,7 +371,8 @@ export async function runOgChat(
     );
     if (data.mode === "og" && foulMouth && (!data.language || /^english$/i.test(data.language))) {
       const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
-      reply = ensureFoulFlavour(reply);
+      const { isFriend } = await import("@/lib/og-bond");
+      reply = ensureFoulFlavour(reply, Math.random, isFriend(bond.score));
     }
     if (promo) {
       const { ensureCodeInReply } = await import("@/lib/vip-promo.server");
