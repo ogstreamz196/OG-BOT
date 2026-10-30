@@ -323,6 +323,65 @@ describe("accuracy wiring", () => {
     expect(spot.block).toMatch(/chart moved \+12\.\d+ onto the Swissquote spot price/);
   });
 
+  it("trials the US dollar check on gold: a buy into a surging dollar is marked down", async () => {
+    const last = bars(1000, 2000, 0.2, HOUR).at(-1)!.c;
+    const q = { spreadProfilePrices: [{ bid: last - 0.1, ask: last + 0.1 }] };
+    // 80 closed hours, flat until the last 5, which move from `from` to `to`.
+    const yahoo = (from: number, to: number) => {
+      const now = Date.now();
+      const ts = Array.from({ length: 80 }, (_, i) => Math.floor((now - (81 - i) * HOUR) / 1000));
+      const closes = ts.map((_, i) => (i < 75 ? from : from + ((to - from) * (i - 74)) / 5));
+      return ok({
+        chart: {
+          result: [
+            {
+              timestamp: ts,
+              indicators: {
+                quote: [
+                  {
+                    open: closes,
+                    high: closes,
+                    low: closes,
+                    close: closes,
+                    volume: closes.map(() => 0),
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+    };
+    const feed = (eurFrom: number, eurTo: number, yieldTo = 4.2) =>
+      vi.fn(async (url: string) => {
+        if (url.includes("swissquote")) return ok([q, q, q]);
+        if (url.includes("EURUSD")) return yahoo(eurFrom, eurTo);
+        if (url.includes("TNX")) return yahoo(4.2, yieldTo);
+        const interval = new URL(url).searchParams.get("interval");
+        if (!url.includes("binance") || !url.includes("klines"))
+          return new Response("no", { status: 404 });
+        const ms = interval === "1d" ? 24 * HOUR : HOUR;
+        return ok(binanceRows(bars(1000, 2000, 0.2, ms)));
+      });
+    vi.resetModules();
+    stubFetch(feed(1.1, 1.1));
+    const steady = await (
+      await import("./trade-signal-context.server")
+    ).buildTradeSignal("gold signal");
+    vi.resetModules();
+    stubFetch(feed(1.1, 1.095, 4.3));
+    const surging = await (
+      await import("./trade-signal-context.server")
+    ).buildTradeSignal("gold signal");
+    const a = steady.summary!;
+    const b = surging.summary!;
+    expect(a.direction).toBe("BUY");
+    expect(b.confidencePct).toBeLessThan(a.confidencePct);
+    expect(b.cautions[0]).toMatch(/US dollar's against it/);
+    if (surging.plan) expect(surging.plan.feeds.checks).toEqual({ dollar: "against" });
+    expect(surging.block).toContain("PAIR CHECKS (live trial):");
+  });
+
   it("prices gold from the gold perpetual, each feed moved by its own gap to spot", async () => {
     vi.resetModules();
     const { buildTradeSignal: build } = await import("./trade-signal-context.server");

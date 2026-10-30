@@ -13,6 +13,7 @@ const SESSION_NAMES: Record<string, string> = {
   london: "London session",
   newyork: "New York session",
   evening: "Evening",
+  weekend: "Weekend",
 };
 
 /**
@@ -94,6 +95,9 @@ function MarketBlock({
       <Table title="By session (UK time)" rows={m.bySession} unit={m.unit} />
       <Table title="By what the AI desk said" rows={m.byDesk} unit={m.unit} />
       <Table title="By setup" rows={m.bySetup} unit={m.unit} />
+      {m.byCheck.length > 0 && (
+        <Table title="Pair checks (live trial)" rows={m.byCheck} unit={m.unit} />
+      )}
       {m.shadows === null ? (
         <p className="text-xs text-muted-foreground">
           Shadow trades start once their table is set up.

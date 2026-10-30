@@ -24,6 +24,14 @@ import { calibrationLine } from "./trade-signal-backtest";
 import type { DeskDecision } from "./signal-desk.server";
 import { CARD_LOT, lotMoney } from "./trade-bias";
 import {
+  adjustConfidence,
+  dollarRead,
+  flowRead as takerFlow,
+  flowVerdict,
+  goldVerdict,
+  type CheckVerdict,
+} from "./pair-checks";
+import {
   DEFAULT_TUNING,
   NO_TIME_LIMIT,
   aggregate,
@@ -90,6 +98,8 @@ async function fromBinance(
       l: +String(r[3]),
       c: +String(r[4]),
       v: +String(r[5]),
+      // Taker (aggressive) buy volume, for the order-flow check.
+      ...(r[9] != null && Number.isFinite(+String(r[9])) ? { tb: +String(r[9]) } : {}),
     })),
   );
 }
@@ -113,6 +123,8 @@ async function fromBinanceFutures(
       l: +String(r[3]),
       c: +String(r[4]),
       v: +String(r[5]),
+      // Taker (aggressive) buy volume, for the order-flow check.
+      ...(r[9] != null && Number.isFinite(+String(r[9])) ? { tb: +String(r[9]) } : {}),
     })),
   );
 }
@@ -447,6 +459,26 @@ function soft<T>(job: Promise<T>, fallback: T, ms = EXTRA_MS): Promise<T> {
   ]);
 }
 
+/** The US 10-year Treasury yield (Yahoo), for gold's dollar check. */
+const US10Y: Instrument = {
+  label: "US 10-year yield",
+  code: "US10Y",
+  asset: "index",
+  yahoo: "^TNX",
+};
+
+/** Closed hourly EUR/USD and US 10-year yield candles, for gold's dollar check (pair-checks.ts). */
+async function dollarCandles(): Promise<{ eurusd: Candle[]; yields: Candle[] } | null> {
+  const eur = detectTradeIntent("EURUSD signal 1h");
+  if (!eur) return null;
+  const [e, y] = await Promise.all([
+    candles(eur, "1h"),
+    candles(US10Y, "1h").catch(() => ({ data: [] as Candle[], source: "" })),
+  ]);
+  const closed = (cs: Candle[]) => cs.filter((c) => c.t + 3_600_000 <= Date.now());
+  return { eurusd: closed(e.data), yields: closed(y.data) };
+}
+
 let calendarCache: { exp: number; value: CalendarEvent[] } | null = null;
 
 /** This week's economic calendar (free Forex Factory feed), cached for an hour. */
@@ -502,6 +534,8 @@ function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: nu
 }
 
 export type SignalFeeds = {
+  /** What the live-trial pair checks said (pair-checks.ts): gold's dollar, bitcoin's flow. */
+  checks?: { dollar?: "with" | "against" | "flat"; flow?: "with" | "against" | "flat" };
   /** Minutes a filled trade gets before it's closed on time (learned; absent = the whole validity). */
   holdFor?: number;
   /** Minutes a pending entry waits to fill (learned; absent = the whole validity). */
@@ -722,6 +756,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     };
 
   const tracker = import("./trade-signal-tracker.server");
+  // Gold reads the US dollar and yields alongside its own chart (pair-checks.ts).
+  const dollarJob = inst.code === "XAUUSD" ? soft(dollarCandles(), null) : Promise.resolve(null);
   const [daily, hourly, fifteen, quick, news, feedPrice, calendar, flow, record, spot, saved] =
     await Promise.all([
       candles(inst, "1d"),
@@ -860,6 +896,46 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       if (fromSetup) plan = fromSetup;
     }
   }
+  // Live trial: what drives each pair, beside the chart. Gold against the US
+  // dollar and yields; bitcoin against who's hitting the market (taker flow).
+  // Each check that agrees adds a little confidence, one against takes more
+  // off, and a setup pushed under the floor waits. Kept with the trade.
+  const checks: { dollar?: CheckVerdict; flow?: CheckVerdict } = {};
+  const checkNotes: string[] = [];
+  if (plan.verdict === "trade") {
+    const dollarData = await dollarJob;
+    const dollar = dollarData ? dollarRead(dollarData.eurusd, dollarData.yields) : null;
+    if (dollar) {
+      checks.dollar = goldVerdict(plan.direction, dollar.dollar);
+      checkNotes.push(`US dollar check: ${dollar.note}`);
+    }
+    if (inst.asset === "crypto") {
+      const entryMs = { "1m": 60_000, "5m": 300_000 }[fast ?? "5m"] ?? 300_000;
+      const flowNow = takerFlow(entryCandles.filter((c) => c.t + entryMs <= Date.now()));
+      if (flowNow) {
+        checks.flow = flowVerdict(plan.direction, flowNow.buyShare);
+        checkNotes.push(`Order flow check: ${flowNow.note}`);
+      }
+    }
+    const verdicts = Object.values(checks);
+    if (verdicts.length) {
+      const pct = adjustConfidence(plan.confidencePct, verdicts);
+      const against = checks.dollar === "against" || checks.flow === "against";
+      const why =
+        checks.dollar === "against"
+          ? `The US dollar's against it (${plan.direction === "BUY" ? "strengthening" : "weakening"}), and gold usually moves the other way.`
+          : "The order flow's against it: the other side is hitting the market harder.";
+      plan = {
+        ...plan,
+        confidencePct: pct,
+        confidence: pct >= 75 ? "High" : pct >= 62 ? "Medium" : "Low",
+        ...(against ? { cautions: [why, ...plan.cautions] } : {}),
+      };
+      const floor = (tuning ?? DEFAULT_TUNING).minConfidence;
+      if (against && pct < floor)
+        plan = { ...plan, verdict: "wait", waitReason: `Trial check: ${why}` };
+    }
+  }
   const price = Number.isFinite(live) && live > 0 ? live : lo.close;
   const dp = decimalsFor(inst, price);
   const fmt = (n: number) =>
@@ -948,6 +1024,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     `Confluence score: ${plan.score} of ±${plan.maxScore}`,
     `Reasons: ${[...plan.reasons, ...extraReasons].join("; ")}`,
   );
+  if (checkNotes.length) lines.push("", "PAIR CHECKS (live trial):", ...checkNotes);
   if (newsLines.length)
     lines.push("", "HIGH-IMPACT NEWS DURING THIS SIGNAL (economic calendar):", ...newsLines);
   if (record) lines.push("", `TRACK RECORD: ${record}`);
@@ -1012,6 +1089,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(spotOk && inst.spot ? { spot: inst.spot } : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
       ...(plan.setup ? { setup: plan.setup } : {}),
+      // What the live-trial pair checks said (the Boss's report groups by it).
+      ...(Object.keys(checks).length ? { checks } : {}),
       // The learned time limits (5-minute scalps): the tracker applies them.
       ...timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING),
     },
