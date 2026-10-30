@@ -708,6 +708,39 @@ export type Database = {
         }
         Relationships: []
       }
+      og_bonds: {
+        Row: {
+          chat_day: string | null
+          chat_today: number
+          compliments: number
+          created_at: string
+          insults: number
+          score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_day?: string | null
+          chat_today?: number
+          compliments?: number
+          created_at?: string
+          insults?: number
+          score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_day?: string | null
+          chat_today?: number
+          compliments?: number
+          created_at?: string
+          insults?: number
+          score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       og_bot_remote_tokens: {
         Row: {
           created_at: string
@@ -3334,6 +3367,13 @@ export type Database = {
         Returns: number
       }
       my_generation_terms: { Args: never; Returns: Json }
+      og_bond_nudge: {
+        Args: { p_delta: number; p_kind: string; p_user_id: string }
+        Returns: {
+          after_score: number
+          before_score: number
+        }[]
+      }
       og_learn_insult: {
         Args: { p_phrase: string; p_user_id: string }
         Returns: undefined
