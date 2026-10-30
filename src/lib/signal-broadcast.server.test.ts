@@ -23,7 +23,7 @@ function fakeDb(opts: { broken?: boolean } = {}) {
       gt: (c: string, v: unknown) => (filters.push((r) => String(r[c]) > String(v)), q),
       gte: (c: string, v: unknown) => (filters.push((r) => String(r[c]) >= String(v)), q),
       insert: (row: Row) => {
-        rows.push({ ...row, created_at: new Date().toISOString() });
+        rows.push({ created_at: new Date().toISOString(), ...row });
         return Promise.resolve({ error: null });
       },
       then: (resolve: (v: unknown) => void) =>
@@ -156,6 +156,55 @@ describe("auto-posted scalp signals", () => {
     });
     expect((await scanAndBroadcast(db, deps(gold, T0 + 10 * 60_000))).posted).toEqual([]);
     expect((await scanAndBroadcast(db, deps(gold, T0 + 21 * 60_000))).posted).toEqual([
+      "XAUUSD BUY",
+    ]);
+  });
+
+  test("several trades run at once: a new setup goes out beside a running one", async () => {
+    const { db, tables } = fakeDb();
+    const at = (entry: number, direction: "BUY" | "SELL" = "BUY") => ({
+      XAU: {
+        ...card("XAUUSD", direction, 90, 120),
+        plan: { ...card("XAUUSD", direction, 90, 120).plan, entry },
+        summary: { stop: direction === "BUY" ? entry - 5 : entry + 5 },
+      },
+      BTC: { reply: "" },
+    });
+    const running = (message_id: number) =>
+      tables.trade_signals.push({
+        market: "XAUUSD",
+        sender_worker: "trade",
+        message_id,
+        status: "open",
+        closed_at: null,
+        created_at: new Date().toISOString(),
+      });
+    expect((await scanAndBroadcast(db, deps(at(100) as never))).posted).toEqual(["XAUUSD BUY"]);
+    running(1);
+    // Five minutes on, a different buy: too soon after the running one.
+    expect((await scanAndBroadcast(db, deps(at(110) as never, T0 + 5 * 60_000))).posted).toEqual(
+      [],
+    );
+    // Twelve minutes on, the same setup found again (within half the risk): no.
+    expect((await scanAndBroadcast(db, deps(at(102) as never, T0 + 12 * 60_000))).posted).toEqual(
+      [],
+    );
+    // A new setup well away from the first: it runs alongside it.
+    expect((await scanAndBroadcast(db, deps(at(110) as never, T0 + 12 * 60_000))).posted).toEqual([
+      "XAUUSD BUY",
+    ]);
+    running(2);
+    // A sell can run beside them too, and that's three: the most at once.
+    expect(
+      (await scanAndBroadcast(db, deps(at(120, "SELL") as never, T0 + 13 * 60_000))).posted,
+    ).toEqual(["XAUUSD SELL"]);
+    running(3);
+    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 30 * 60_000))).posted).toEqual(
+      [],
+    );
+    // One of them hits its take profit: room for another.
+    tables.trade_signals[0].status = "tp3";
+    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 31 * 60_000))).posted).toEqual([
       "XAUUSD BUY",
     ]);
   });

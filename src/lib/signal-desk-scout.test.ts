@@ -32,7 +32,7 @@ function fakeDb() {
         return Promise.resolve({ error: null });
       },
       insert: (row: Row) => {
-        rows.push({ ...row, created_at: new Date().toISOString() });
+        rows.push({ created_at: new Date().toISOString(), ...row });
         return Promise.resolve({ error: null });
       },
       then: (resolve: (v: unknown) => void) => resolve({ data: found().reverse(), error: null }),
