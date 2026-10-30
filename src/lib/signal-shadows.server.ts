@@ -28,7 +28,8 @@ export type ShadowReason =
   | "choppy"
   | "mixed"
   | "no_room"
-  | "blackout";
+  | "blackout"
+  | "trial_check";
 
 /** What the report calls each reason. */
 export const SHADOW_REASONS: Record<ShadowReason, string> = {
@@ -41,6 +42,7 @@ export const SHADOW_REASONS: Record<ShadowReason, string> = {
   mixed: "Timeframes disagree",
   no_room: "No room to the next level",
   blackout: "Blackout (rollover, big news, Friday close)",
+  trial_check: "Pair check said no (dollar or order flow)",
 };
 
 /** Why the engine waited, as a shadow reason; null for waits worth nothing (closed, no spot price). */
@@ -53,6 +55,7 @@ export function waitReasonKind(waitReason: string | undefined): ShadowReason | n
   if (/timeframes disagree/i.test(w)) return "mixed";
   if (/^Not enough room/i.test(w)) return "no_room";
   if (/^Rollover:|about to shut for the weekend|^Big US news/i.test(w)) return "blackout";
+  if (/^Trial check:/i.test(w)) return "trial_check";
   return null;
 }
 

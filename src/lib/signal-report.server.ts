@@ -36,6 +36,8 @@ export type MarketReport = {
   bySession: Stat[];
   byDesk: Stat[];
   bySetup: Stat[];
+  /** By what the live-trial pair checks said (feeds.checks); empty before any. */
+  byCheck: Stat[];
   /** Shadow trades by why they weren't sent; null when there's no shadow table yet. */
   shadows: Stat[] | null;
   timing: TimingStats;
@@ -85,6 +87,7 @@ export type LiveRow = {
     bias?: boolean;
     desk?: string;
     setup?: string;
+    checks?: { dollar?: string; flow?: string };
     holdFor?: number;
     timing?: { candleAt?: number; builtAt?: number; postedAt?: number; pricePosted?: number };
   } | null;
@@ -155,6 +158,15 @@ const BANDS: [string, number, number][] = [
   ["80–90%", 80, 100],
 ];
 
+const CHECK_NAMES: Record<string, string> = {
+  "dollar:with": "US dollar with it",
+  "dollar:flat": "US dollar steady",
+  "dollar:against": "US dollar against it",
+  "flow:with": "Order flow with it",
+  "flow:flat": "Order flow even",
+  "flow:against": "Order flow against it",
+};
+
 const DESK: Record<string, string> = {
   backed: "AI desk backed it",
   unanimous: "Every AI agreed (scout)",
@@ -213,7 +225,7 @@ export function buildReport(
       unit: string;
       size: number;
       overall: Tally;
-      groups: Record<"band" | "session" | "desk" | "setup", Map<string, Tally>>;
+      groups: Record<"band" | "session" | "desk" | "setup" | "check", Map<string, Tally>>;
       shadows: Map<string, Tally>;
     }
   >();
@@ -226,7 +238,13 @@ export function buildReport(
         unit: Number(pip) > 0 ? "pips" : "points",
         size,
         overall: empty(),
-        groups: { band: new Map(), session: new Map(), desk: new Map(), setup: new Map() },
+        groups: {
+          band: new Map(),
+          session: new Map(),
+          desk: new Map(),
+          setup: new Map(),
+          check: new Map(),
+        },
         shadows: new Map(),
       };
       markets.set(code, m);
@@ -254,6 +272,8 @@ export function buildReport(
     add(m.groups.session, ukSession(Date.parse(row.created_at)), win, r.pips);
     add(m.groups.desk, row.feeds?.desk ?? "none", win, r.pips);
     add(m.groups.setup, row.feeds?.setup ?? "Main chart engine", win, r.pips);
+    for (const [check, verdict] of Object.entries(row.feeds?.checks ?? {}))
+      if (verdict) add(m.groups.check, `${check}:${verdict}`, win, r.pips);
   }
 
   for (const s of shadows ?? []) {
@@ -312,6 +332,12 @@ export function buildReport(
           ),
           byDesk: order(m.groups.desk, Object.keys(DESK), (k) => DESK[k] ?? k, spread),
           bySetup: order(m.groups.setup, ["Main chart engine"], (k) => k, spread),
+          byCheck: order(
+            m.groups.check,
+            Object.keys(CHECK_NAMES),
+            (k) => CHECK_NAMES[k] ?? k,
+            spread,
+          ),
           shadows:
             shadows === null
               ? null

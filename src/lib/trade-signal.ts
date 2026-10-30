@@ -37,7 +37,16 @@ export type Instrument = {
 export type Style = "scalp" | "intraday" | "swing";
 
 /** One price bar; `v` is volume when the feed has it. */
-export type Candle = { t: number; o: number; h: number; l: number; c: number; v?: number };
+export type Candle = {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v?: number;
+  /** Taker (aggressive) buy volume, when the feed says (Binance). */
+  tb?: number;
+};
 
 const FX = [
   "EUR",
@@ -564,17 +573,27 @@ export function volatilityRatio(candles: Candle[]): number {
 }
 
 /** The UK time-of-day block a moment falls in: 0 is 00:00–04:00 … 5 is 20:00–24:00. */
-/** The trading sessions the learning loop tunes separately, by UK hour. */
+/**
+ * The trading sessions the learning loop tunes separately, by UK hour on
+ * weekdays. Saturdays and Sundays (UK) are their own session: bitcoin trades
+ * on through the weekend with thin volume and more fake moves.
+ */
 export const SESSIONS = [
   { id: "asia", name: "Asian session", from: 0, to: 7 },
   { id: "london", name: "London session", from: 7, to: 12 },
   { id: "newyork", name: "New York session", from: 12, to: 17 },
   { id: "evening", name: "evening", from: 17, to: 24 },
+  { id: "weekend", name: "weekend", from: 0, to: 0 },
 ] as const;
 export type SessionId = (typeof SESSIONS)[number]["id"];
 
 /** Which session `t` falls in (UK time). */
 export function ukSession(t: number): SessionId {
+  const day = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+  }).format(new Date(t));
+  if (day === "Sat" || day === "Sun") return "weekend";
   const raw = ukHour(new Date(t));
   const h = Number.isFinite(raw) ? raw % 24 : 0;
   return SESSIONS.find((s) => h >= s.from && h < s.to)?.id ?? "evening";
