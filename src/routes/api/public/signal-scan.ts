@@ -93,9 +93,12 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         // asked in the first 20s of this run (pg_cron gives the call 50s);
         // later finds wait for the next run, a minute away at most.
         const startedAt = Date.now();
+        // Setups that aren't sent are followed silently for the Boss's report.
+        const { recordShadow } = await import("@/lib/signal-shadows.server");
         const confirm = deskConfirmer(supabaseAdmin, (ask) => deskRead(ask), {
           now: Date.now,
           askUntil: startedAt + 20_000,
+          onVeto: (s) => recordShadow(supabaseAdmin, s.summary, "desk_no"),
         });
         try {
           // Every 10 seconds through the minute, so a top setup goes out as
@@ -110,6 +113,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   post: postToSignalsChannel,
                   follow,
                   confirm,
+                  shadow: (s, why) => recordShadow(supabaseAdmin, s.summary, why),
                   now: Date.now,
                 }),
               { everyMs: 10_000, lastStartMs: 40_000 },

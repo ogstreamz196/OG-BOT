@@ -553,6 +553,22 @@ export function volatilityRatio(candles: Candle[]): number {
 }
 
 /** The UK time-of-day block a moment falls in: 0 is 00:00–04:00 … 5 is 20:00–24:00. */
+/** The trading sessions the learning loop tunes separately, by UK hour. */
+export const SESSIONS = [
+  { id: "asia", name: "Asian session", from: 0, to: 7 },
+  { id: "london", name: "London session", from: 7, to: 12 },
+  { id: "newyork", name: "New York session", from: 12, to: 17 },
+  { id: "evening", name: "evening", from: 17, to: 24 },
+] as const;
+export type SessionId = (typeof SESSIONS)[number]["id"];
+
+/** Which session `t` falls in (UK time). */
+export function ukSession(t: number): SessionId {
+  const raw = ukHour(new Date(t));
+  const h = Number.isFinite(raw) ? raw % 24 : 0;
+  return SESSIONS.find((s) => h >= s.from && h < s.to)?.id ?? "evening";
+}
+
 export function ukBlock(t: number): number {
   const h = Number(
     new Intl.DateTimeFormat("en-GB", {

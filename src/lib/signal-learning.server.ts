@@ -14,7 +14,15 @@
 import type { LearnSample } from "./trade-signal-backtest";
 import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
 import { SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
-import { DEFAULT_TUNING, detectTradeIntent, scaleTargets, type Tuning } from "./trade-signal";
+import {
+  DEFAULT_TUNING,
+  detectTradeIntent,
+  scaleTargets,
+  SESSIONS,
+  ukSession,
+  type SessionId,
+  type Tuning,
+} from "./trade-signal";
 
 type Admin = any;
 
@@ -27,6 +35,14 @@ const LEARN_DAYS = 14;
 /** Fewer filled trades than this and a setting can't be judged. */
 export const MIN_TRADES = 20;
 const HISTORY = 12;
+
+/**
+ * What one trade costs at a typical broker (spread plus a little slippage), in
+ * price: gold about 35 cents an ounce, bitcoin about $15. Learning takes it off
+ * every filled trade, so settings that only win small don't look better than
+ * they bank.
+ */
+export const SPREAD_COST: Record<string, number> = { XAUUSD: 0.35, BTCUSD: 15 };
 
 /** The markets it studies: gold through PAX Gold, as live gold signals are. */
 export const LEARN_MARKETS = [
@@ -68,6 +84,11 @@ export type MarketLearning = {
   lesson?: string;
   /** How each extra chart setup did, and whether it's earned live use. */
   setups?: Partial<Record<SetupId, SetupStats>>;
+  /**
+   * A setting of its own for each trading session with enough trades to learn
+   * from (see learnSessions); the others use the market's.
+   */
+  sessions?: Partial<Record<SessionId, SessionLearning>>;
   history: {
     at: string;
     tuning: Tuning;
@@ -76,6 +97,15 @@ export type MarketLearning = {
     n: number;
     kept: boolean;
   }[];
+};
+
+export type SessionLearning = {
+  tuning: Tuning;
+  /** Filled trades in that session over the period studied, and how they did. */
+  n: number;
+  winRate: number;
+  avgR: number;
+  lesson: string;
 };
 
 export type LearningState = { v: 1; markets: Record<string, MarketLearning> };
@@ -178,6 +208,8 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
         r += ((3 - best) / 3) * Math.max(floor, last != null ? inR(last) : 0);
       }
     }
+    // Every filled trade pays the spread, so small targets are judged on what they really bank.
+    r -= (s.cost ?? 0) / s.raw.risk;
     n++;
     sumR += r;
     if (best >= 1) wins++;
@@ -330,9 +362,60 @@ export async function learningState(): Promise<LearningState> {
 }
 
 /** The learned setting for a market, or the hand-set rules. */
-export async function learnedTuning(market: string): Promise<Tuning> {
-  const t = (await learningState()).markets[market]?.tuning;
+/** The setting live signals use: the session's own if it has one, else the market's. */
+export async function learnedTuning(market: string, at = Date.now()): Promise<Tuning> {
+  const m = (await learningState()).markets[market];
+  const t = m?.sessions?.[ukSession(at)]?.tuning ?? m?.tuning;
   return t ? safeTuning(t) : DEFAULT_TUNING;
+}
+
+/**
+ * A setting per trading session: each session's past setups studied on their
+ * own (the same rules: beat the current setting on the first 70%, hold up on
+ * the rest, move halfway). A session needs MIN_TRADES filled trades under its
+ * starting setting or it isn't given one (it uses the market's). The live
+ * confidence floor still applies. Pure, so it can be tested.
+ */
+export function learnSessions(
+  samples: LearnSample[],
+  market: Tuning,
+  had: Partial<Record<SessionId, SessionLearning>>,
+  rand: () => number,
+  label: string,
+  days: number,
+  floor: number | null,
+): Partial<Record<SessionId, SessionLearning>> {
+  const out: Partial<Record<SessionId, SessionLearning>> = {};
+  for (const s of SESSIONS) {
+    const mine = samples.filter((x) => ukSession(x.t) === s.id);
+    const start = had[s.id]?.tuning ? safeTuning(had[s.id]!.tuning) : market;
+    if (evaluate(mine, start).n < MIN_TRADES) continue;
+    const res = learnFromSamples(mine, start, rand, `${label} (${s.name})`, days);
+    const tuning = safeTuning({
+      ...res.next,
+      minConfidence: Math.max(res.next.minConfidence, floor ?? 0),
+    });
+    const after = evaluate(mine, tuning);
+    out[s.id] = {
+      tuning,
+      n: after.n,
+      winRate: after.winRate,
+      avgR: after.avgR,
+      lesson: res.lesson,
+    };
+  }
+  return out;
+}
+
+/** One line on the sessions' records, for the lesson. */
+function sessionLesson(sessions: Partial<Record<SessionId, SessionLearning>>): string {
+  const parts = SESSIONS.flatMap((s) => {
+    const x = sessions[s.id];
+    return x
+      ? [`${s.name} ${Math.round(x.winRate * 100)}% of ${x.n} (avg ${x.avgR.toFixed(2)})`]
+      : [];
+  });
+  return parts.length ? `By session, after spread: ${parts.join(", ")}.` : "";
 }
 
 /** The extra setups that have earned live use for a market. */
@@ -371,6 +454,9 @@ export async function maybeLearn(
     // each time until it reaches 90 days): see signal-samples.server.ts.
     const { gatherSamples } = await import("./signal-samples.server");
     const { samples, days, added } = await gatherSamples(admin, market, inst, now, fetcher);
+    // Every trade pays the spread.
+    const cost = SPREAD_COST[market.code] ?? 0;
+    for (const s of samples) s.cost = cost;
     const had = state.markets[market.code];
     const label = market.code === "XAUUSD" ? "Gold" : "Bitcoin";
     const studied = learnFromSamples(
@@ -395,14 +481,28 @@ export async function maybeLearn(
         : studied;
     const at = new Date(now).toISOString();
     const setups = evaluateSetups(samples, out.next);
+    // Each session (Asia, London, New York, evening) with enough trades gets a
+    // setting of its own, never below the live confidence floor.
+    const sessions = learnSessions(
+      samples,
+      out.next,
+      had?.sessions ?? {},
+      seeded(now + 1),
+      label,
+      days || LEARN_DAYS,
+      floor,
+    );
     state.markets[market.code] = {
       tuning: out.next,
       runs: (had?.runs ?? 0) + 1,
       lastRunAt: at,
       lastChangeAt: out.kept ? at : had?.lastChangeAt,
       current: out.after,
-      lesson: `${out.lesson} ${setupLesson(setups)}`.trim(),
+      lesson: `${out.lesson} ${setupLesson(setups)} ${sessionLesson(sessions)}`
+        .replace(/\s+/g, " ")
+        .trim(),
       setups,
+      sessions,
       history: [
         ...(had?.history ?? []),
         {
@@ -504,6 +604,7 @@ export function evaluateSetups(
           raw: { risk: h.risk, targets: h.targets, atr: h.atr },
           path: s.path,
           expiresAt: s.expiresAt,
+          cost: s.cost,
         })),
     );
     if (!asSamples.length) continue;

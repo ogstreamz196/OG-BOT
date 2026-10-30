@@ -6,6 +6,8 @@ import {
   MIN_TRADES,
   evaluate,
   learnFromSamples,
+  learnSessions,
+  learnedTuning,
   liveFloor,
   losingBlocks,
   maybeLearn,
@@ -239,5 +241,56 @@ describe("quiet charts and losing hours", () => {
     const out = learnFromSamples(samples, DEFAULT_TUNING, seeded(2), "Gold");
     expect(out.next.skipBlocks).toEqual([0]);
     expect(out.lesson).toContain("sitting out 00:00–04:00 UK");
+  });
+});
+
+describe("spread", () => {
+  it("every filled trade pays it, in the engine's risk units", () => {
+    const s = [sample(0, 0.1), sample(1, 0.1)];
+    const free = evaluate(s, DEFAULT_TUNING);
+    const paid = evaluate(
+      s.map((x) => ({ ...x, cost: 0.5 })),
+      DEFAULT_TUNING,
+    );
+    // 0.5 of price on a risk of 10 is 0.05R a trade.
+    expect(free.sumR - paid.sumR).toBeCloseTo(0.1, 6);
+    expect(paid.wins).toBe(free.wins);
+  });
+});
+
+describe("learnSessions", () => {
+  // Hourly samples from 00:00 UK (GMT in winter): each UK hour gets its own.
+  const day = Date.parse("2026-11-02T00:00:00Z");
+  const at = (h: number, i: number) => day + i * 86_400_000 + h * 3600_000;
+  const inHour = (h: number, i: number, dipR: number) => {
+    const x = sample(0, dipR);
+    const t = at(h, i);
+    return {
+      ...x,
+      t,
+      path: x.path.map((c, k) => ({ ...c, t: t + k * 5 * MIN })),
+      expiresAt: t + 3600_000,
+    };
+  };
+
+  it("gives a session its own setting when its trades teach one, never under the live floor", () => {
+    // London (08:00–11:00) keeps getting shaken out of a tight stop; the
+    // Asian session is clean; New York has too few trades to judge.
+    const samples = [
+      ...Array.from({ length: 60 }, (_, i) => inHour(8 + (i % 3), i, 1.22)),
+      ...Array.from({ length: 60 }, (_, i) => inHour(2 + (i % 3), i, 0.1)),
+      ...Array.from({ length: 5 }, (_, i) => inHour(13, i, 0.1)),
+    ];
+    const out = learnSessions(samples, DEFAULT_TUNING, {}, seeded(7), "Gold", 30, 65);
+    expect(out.london!.tuning.stopRoom).toBeGreaterThan(DEFAULT_TUNING.stopRoom);
+    expect(out.asia!.n).toBeGreaterThanOrEqual(MIN_TRADES);
+    expect(out.newyork).toBeUndefined();
+    expect(out.evening).toBeUndefined();
+    for (const x of Object.values(out)) expect(x!.tuning.minConfidence).toBeGreaterThanOrEqual(65);
+  });
+
+  it("live signals use their session's setting, else the market's", async () => {
+    // Without anything learned, the hand-set rules.
+    expect(await learnedTuning("NOPE", Date.now())).toEqual(DEFAULT_TUNING);
   });
 });

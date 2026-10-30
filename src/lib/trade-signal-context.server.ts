@@ -467,6 +467,10 @@ async function cryptoFlow(inst: Instrument): Promise<CryptoFlow | null> {
  * like a limit, but filled when price breaks through).
  */
 export type SignalFeeds = {
+  /** What the AI desk said about an auto-posted alert (the Boss's report groups by it). */
+  desk?: "backed" | "no_ai" | "unanimous";
+  /** The extra chart setup that made it, when one did (trade-setups.ts). */
+  setup?: string;
   /** The real market's perpetual (gold's XAUUSDT), tried first by the tracker. */
   futures?: string;
   binance?: string;
@@ -959,6 +963,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(offset ? { offset } : {}),
       ...(spotOk && inst.spot ? { spot: inst.spot } : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
+      ...(plan.setup ? { setup: plan.setup } : {}),
     },
     style,
     timeframe: entryLabel,
