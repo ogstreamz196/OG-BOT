@@ -40,6 +40,8 @@ export type MarketReport = {
   byCheck: Stat[];
   /** By the chart the signal came from (5-minute, 15-minute, …). */
   byTimeframe: Stat[];
+  /** Trades let through by a filter that learned to switch itself off (feeds.relaxed). */
+  byRelaxed: Stat[];
   /** Shadow trades by why they weren't sent; null when there's no shadow table yet. */
   shadows: Stat[] | null;
   timing: TimingStats;
@@ -91,6 +93,7 @@ export type LiveRow = {
     desk?: string;
     setup?: string;
     checks?: { dollar?: string; flow?: string };
+    relaxed?: string;
     holdFor?: number;
     timing?: { candleAt?: number; builtAt?: number; postedAt?: number; pricePosted?: number };
   } | null;
@@ -228,7 +231,10 @@ export function buildReport(
       unit: string;
       size: number;
       overall: Tally;
-      groups: Record<"band" | "session" | "desk" | "setup" | "check" | "frame", Map<string, Tally>>;
+      groups: Record<
+        "band" | "session" | "desk" | "setup" | "check" | "frame" | "relaxed",
+        Map<string, Tally>
+      >;
       shadows: Map<string, Tally>;
     }
   >();
@@ -248,6 +254,7 @@ export function buildReport(
           setup: new Map(),
           check: new Map(),
           frame: new Map(),
+          relaxed: new Map(),
         },
         shadows: new Map(),
       };
@@ -277,6 +284,7 @@ export function buildReport(
     add(m.groups.desk, row.feeds?.desk ?? "none", win, r.pips);
     add(m.groups.setup, row.feeds?.setup ?? "Main chart engine", win, r.pips);
     add(m.groups.frame, row.timeframe ?? "?", win, r.pips);
+    if (row.feeds?.relaxed) add(m.groups.relaxed, row.feeds.relaxed, win, r.pips);
     for (const [check, verdict] of Object.entries(row.feeds?.checks ?? {}))
       if (verdict) add(m.groups.check, `${check}:${verdict}`, win, r.pips);
   }
@@ -342,6 +350,12 @@ export function buildReport(
             ["5M", "15M", "1M", "1H"],
             (k) =>
               ({ "5M": "5-minute", "15M": "15-minute", "1M": "1-minute", "1H": "1-hour" })[k] ?? k,
+            spread,
+          ),
+          byRelaxed: order(
+            m.groups.relaxed,
+            Object.keys(SHADOW_REASONS),
+            (k) => SHADOW_REASONS[k as ShadowReason] ?? k,
             spread,
           ),
           byCheck: order(

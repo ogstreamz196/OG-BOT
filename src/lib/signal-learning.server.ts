@@ -34,8 +34,8 @@ type Admin = any;
 
 export const LEARNING_KEY = "signals.learning";
 const RUN_KEY = "signals.learning.lastRun";
-/** One market per run, so each is studied about every 4 hours. */
-export const LEARN_EVERY_MS = 2 * 3600_000;
+/** One market per run, so each is studied about every 2 hours. */
+export const LEARN_EVERY_MS = 3600_000;
 /** The days a study covers when no history is kept (see signal-samples). */
 const LEARN_DAYS = 14;
 /** Fewer filled trades than this and a setting can't be judged. */

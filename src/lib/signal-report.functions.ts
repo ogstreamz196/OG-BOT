@@ -30,10 +30,31 @@ export const getSignalReport = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { signalReport } = await import("./signal-report.server");
     const { learningState } = await import("./signal-learning.server");
-    const [report, learning] = await Promise.all([
+    const { filtersState, LEARNED_FILTERS } = await import("./signal-filter-learning.server");
+    const { SHADOW_REASONS } = await import("./signal-shadows.server");
+    const [report, learning, filterState] = await Promise.all([
       signalReport(supabaseAdmin, data.days),
       learningState().catch(() => null),
+      filtersState(supabaseAdmin),
     ]);
+    // Which filters each market has learned to switch off, and on what record.
+    const filters = Object.fromEntries(
+      ["XAUUSD", "BTCUSD"].map((market) => [
+        market,
+        LEARNED_FILTERS.map((f) => {
+          const x = filterState.markets[market]?.[f];
+          const rec = x?.relaxed ? x.live : x?.shadow;
+          return {
+            name: SHADOW_REASONS[f],
+            relaxed: !!x?.relaxed,
+            since: x?.since ?? null,
+            wins: rec?.wins ?? 0,
+            losses: rec?.losses ?? 0,
+            net: rec?.net ?? 0,
+          };
+        }),
+      ]),
+    );
     // What the learning loop is using in each session right now.
     const sessions = Object.fromEntries(
       Object.entries(learning?.markets ?? {}).map(([market, m]) => [
@@ -47,5 +68,5 @@ export const getSignalReport = createServerFn({ method: "GET" })
         })),
       ]),
     );
-    return { report, sessions };
+    return { report, sessions, filters };
   });

@@ -50,9 +50,16 @@ type Built = {
 type ShadowReason = import("./signal-shadows.server").ShadowReason;
 
 /** The same signal with what the AI desk said about it, kept with the trade. */
-function withDesk(signal: Built, desk: "backed" | "no_ai" | "unanimous"): Built {
+function withDesk(
+  signal: Built,
+  desk: "backed" | "no_ai" | "unanimous" | "relaxed",
+  extra: Record<string, unknown> = {},
+): Built {
   if (!signal.plan) return signal;
-  return { ...signal, plan: { ...signal.plan, feeds: { ...(signal.plan.feeds ?? {}), desk } } };
+  return {
+    ...signal,
+    plan: { ...signal.plan, feeds: { ...(signal.plan.feeds ?? {}), desk, ...extra } },
+  };
 }
 
 type PostDeps = {
@@ -296,12 +303,20 @@ export function deskConfirmer(
     askUntil: number;
     /** Called with each alert the desk turns down (kept as a shadow trade). */
     onVeto?: (signal: Built) => Promise<void>;
+    /**
+     * True when the desk's "no" has been learned off for this market (its
+     * turned-down alerts kept winning): the alert goes out without asking.
+     */
+    skipDesk?: (market: string) => Promise<boolean>;
   },
 ): (signal: Built) => Promise<Built | null> {
   return async (signal) => {
     const plan = signal.plan;
     if (!plan) return null;
     const now = opts.now();
+    // The desk's "no" learned off here: no need to ask (saves the AI too).
+    if (await opts.skipDesk?.(plan.market).catch(() => false))
+      return withDesk(signal, "relaxed", { relaxed: "desk_no" });
     if (now > opts.askUntil) return null;
     try {
       const { data } = await admin
