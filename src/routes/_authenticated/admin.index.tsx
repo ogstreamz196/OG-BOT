@@ -5,10 +5,10 @@ import {
   CheckCircle2,
   ChevronRight,
   FlaskConical,
-  Gift,
   Hourglass,
   Loader2,
   Sparkles,
+  ToggleRight,
   UserSearch,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,7 +54,7 @@ function AdminDashboard() {
             <SectionHeading title="Quick actions" desc="The things you do most" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <QuickAction to="/admin/users" Icon={UserSearch} label="Find a member" />
-              <QuickAction to="/admin/coins" tab="grant" Icon={Gift} label="Grant coins" />
+              <QuickAction to="/admin/system" tab="access" Icon={ToggleRight} label="Free access" />
               <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG B0T persona" />
               <QuickAction
                 to="/admin/system"
@@ -111,7 +111,7 @@ function QuickAction({
 }: {
   to: "/admin/users" | "/admin/coins" | "/admin/bot" | "/admin/system";
   tab?: string;
-  Icon: typeof Gift;
+  Icon: typeof ToggleRight;
   label: string;
 }) {
   return (

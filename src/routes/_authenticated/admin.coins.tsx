@@ -1,11 +1,11 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Coins, Gift, Receipt, Scale, ShoppingBag, Tags, Users } from "lucide-react";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
+import { Coins, Receipt, Scale, ShoppingBag, Tags, Users, Webhook } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
 import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { OgCoinsPanel } from "@/components/admin/OgCoinsPanel";
-import { MintCoinsPanel } from "@/components/admin/MintCoinsPanel";
+import { WebhooksAdminPage } from "@/components/admin/WebhooksAdminPage";
 import { PricingControls } from "@/components/admin/PricingControls";
 import { AccountantLogPanel } from "@/components/admin/AccountantLogPanel";
 import { StoreAdminPanel } from "@/components/admin/StoreAdminPanel";
@@ -15,6 +15,10 @@ import { ReferralsAuditPage } from "@/components/admin/ReferralsAuditPage";
 export const Route = createFileRoute("/_authenticated/admin/coins")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
+  // Giving coins is done on the member's own page now (Members).
+  beforeLoad: ({ search }) => {
+    if (search.tab === "grant") throw redirect({ to: "/admin/users" });
+  },
   component: AdminCoinsPage,
 });
 
@@ -25,13 +29,6 @@ const TABS: readonly BossTab[] = [
     Icon: Coins,
     hint: "How many coins exist, who holds them and where they came from.",
     Panel: OgCoinsPanel,
-  },
-  {
-    value: "grant",
-    label: "Grant coins",
-    Icon: Gift,
-    hint: "Give coins to a member. Every grant is in the Boss actions log (System).",
-    Panel: MintCoinsPanel,
   },
   {
     value: "prices",
@@ -53,6 +50,13 @@ const TABS: readonly BossTab[] = [
     Icon: Receipt,
     hint: "Every card payment and refund, for your accounts.",
     Panel: AccountantLogPanel,
+  },
+  {
+    value: "webhooks",
+    label: "Stripe events",
+    Icon: Webhook,
+    hint: "Stripe events as they arrive, and whether coins were credited.",
+    Panel: WebhooksAdminPage,
   },
   {
     value: "coin-check",

@@ -79,7 +79,7 @@ const TABS: readonly BossTab[] = [
     value: "persona",
     label: "Persona",
     Icon: Sparkles,
-    hint: "How OG B0T talks, plus the foul mouth switch.",
+    hint: "How OG B0T talks: script, voice and dictionary.",
     Panel: OgPersonaPanel,
   },
   {

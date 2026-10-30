@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { centerActiveChild } from "@/components/admin/BossNav";
-import { useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -18,26 +18,29 @@ export type BossTab = {
  * the dashboard can link straight to it and a refresh stays put.
  */
 export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: ReactNode }) {
-  const initial = useRouterState({
-    select: (s) => {
-      const t = (s.location.search as Record<string, unknown> | undefined)?.tab;
-      return typeof t === "string" && tabs.some((x) => x.value === t) ? t : tabs[0].value;
-    },
+  const routerTab = useRouterState({
+    select: (s) => (s.location.search as Record<string, unknown> | undefined)?.tab,
   });
-  const [tab, setTab] = useState(initial);
+  const pick = (t: unknown) =>
+    typeof t === "string" && tabs.some((x) => x.value === t) ? t : tabs[0].value;
+  const [tab, setTab] = useState(() => pick(routerTab));
+  // Follow ?tab= when a link (e.g. the Boss search) opens another tab on this page.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setTab(pick(routerTab)), [routerTab]);
   const current = tabs.find((t) => t.value === tab) ?? tabs[0];
   const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => centerActiveChild(listRef.current, '[data-state="active"]'), [tab]);
+  const navigate = useNavigate();
 
   function select(next: string) {
     setTab(next);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", next);
-      window.history.replaceState(window.history.state, "", url);
-    } catch {
-      /* address bar sync is a convenience only */
-    }
+    // Through the router (not history directly) so it knows the open tab.
+    void navigate({
+      to: ".",
+      search: (prev: Record<string, unknown>) => ({ ...prev, tab: next }),
+      replace: true,
+      resetScroll: false,
+    });
   }
 
   return (

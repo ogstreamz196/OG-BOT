@@ -291,8 +291,8 @@ export function OnboardingWizard() {
             </li>
             <li>
               Stripe rows → open{" "}
-              <Link to="/admin/system" search={{ tab: "webhooks" }} className="underline">
-                System → Payments webhook
+              <Link to="/admin/coins" search={{ tab: "webhooks" }} className="underline">
+                Money → Stripe events
               </Link>{" "}
               and check Stripe events are arriving.
             </li>

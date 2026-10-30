@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, Link, Outlet, useChildMatches } from "@tanst
 import { adjustCoinsAsBoss } from "@/lib/admin-coins";
 import { VipAcknowledgements } from "@/components/admin/VipAcknowledgements";
 import { useMemo, useState, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   Search,
@@ -26,11 +26,12 @@ import {
 import { DeleteAccountDialog } from "@/components/admin/DeleteAccountDialog";
 import { BossPasswordInline } from "@/components/admin/BossPasswordCard";
 import { VipExpiryDialog, useVipExpiry, formatVipExpiry } from "@/components/admin/VipExpiryDialog";
-import { listBossMembers, type BossMember } from "@/lib/admin-members.functions";
+import type { BossMember } from "@/lib/admin-members.functions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { maskDevIdentity } from "@/lib/dev-identity";
+import { useBossMembers } from "@/hooks/use-boss-members";
+import { memberMatches } from "@/lib/boss-search";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { sendTelegramDm } from "@/lib/telegram-admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
+  // ?q= opens the list already searched (the Boss search's "see all" link).
+  validateSearch: (s: Record<string, unknown>): { q?: string } =>
+    typeof s.q === "string" && s.q ? { q: s.q } : {},
   component: AdminUsersRoute,
 });
 
@@ -108,23 +112,16 @@ function AdminUsersPage() {
   const { isAdmin, isLoading: roleLoading } = useRole();
   const isMobile = useIsMobile();
   const pageSize = isMobile ? MOBILE_PAGE_SIZE : PAGE_SIZE;
-  const [q, setQ] = useState("");
+  const startQ = Route.useSearch().q ?? "";
+  const [q, setQ] = useState(startQ);
+  useEffect(() => setQ(startQ), [startQ]);
   const [filter, setFilter] = useState<MemberFilter>("all");
   const [sort, setSort] = useState<SortKey>("joined");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [showBulk, setShowBulk] = useState(false);
 
-  const fetchMembers = useServerFn(listBossMembers);
-  const usersQ = useQuery({
-    queryKey: ["admin-users-list"],
-    enabled: isAdmin,
-    queryFn: async (): Promise<ProfileRow[]> => {
-      const { members } = await fetchMembers();
-      return members.map((m) => maskDevIdentity(m));
-    },
-    staleTime: 30_000,
-  });
+  const usersQ = useBossMembers(isAdmin);
   const all = useMemo(() => usersQ.data ?? [], [usersQ.data]);
 
   const counts = useMemo(() => {
@@ -137,17 +134,7 @@ function AdminUsersPage() {
     const needle = q.trim().toLowerCase();
     const test = FILTERS.find((f) => f.key === filter)?.test ?? (() => true);
     let list = all.filter(test);
-    if (needle) {
-      const bare = needle.replace(/^@/, "");
-      list = list.filter(
-        (u) =>
-          (u.email ?? "").toLowerCase().includes(needle) ||
-          (u.display_name ?? "").toLowerCase().includes(needle) ||
-          (u.telegram_username ?? "").toLowerCase().includes(bare) ||
-          (u.og_vip_id ?? "").toLowerCase().includes(needle) ||
-          u.id.toLowerCase().startsWith(needle),
-      );
-    }
+    if (needle) list = list.filter((u) => memberMatches(u, needle));
     const time = (s: string | null) => (s ? new Date(s).getTime() : 0);
     return [...list].sort((a, b) => {
       let cmp = 0;
@@ -194,7 +181,8 @@ function AdminUsersPage() {
         <div className="boss-ui mx-auto max-w-7xl space-y-5">
           <BossNav />
           <VipAcknowledgements />
-          <div className="flex justify-end">
+          {/* The header has this toggle from md up; phones get it here. */}
+          <div className="flex justify-end md:hidden">
             <AdminEditModeToggle />
           </div>
 

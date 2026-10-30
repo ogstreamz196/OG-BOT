@@ -126,7 +126,7 @@ const ROUTES: RouteEntry[] = [
     path: "/admin/webhooks",
     file: "_authenticated/admin.webhooks.tsx",
     guard: "admin",
-    note: "Redirects to System (Payments webhook)",
+    note: "Redirects to Money (Stripe events)",
   },
   { path: "/admin/api-keys", file: "_authenticated/admin.api-keys.tsx", guard: "admin" },
   { path: "/admin/debug-context", file: "_authenticated/admin.debug-context.tsx", guard: "admin" },

@@ -1,20 +1,19 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { adminGetPersonaDefaults } from "@/lib/persona-admin.functions";
-import { Bot, Loader2, Save, Skull } from "lucide-react";
+import { Bot, Loader2, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Link } from "@tanstack/react-router";
 import { useSiteContent, useSetSiteContent } from "@/hooks/use-site-content";
-import { useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
 import { toast } from "sonner";
 
 // Persona now lives in Boss → OG Bot; keep the old link working.
 
-/** Persona editor + the real (server-backed) foul mouth switch. Rendered inside the gated OG Bot page. */
+/** Persona editor. Rendered inside the gated OG Bot page. */
 export function OgPersonaPanel() {
   const { isAdmin, isLoading } = useRole();
   const { get, isLoading: loadingContent } = useSiteContent();
@@ -25,9 +24,6 @@ export function OgPersonaPanel() {
   const [voice, setVoice] = useState("");
   const [dictionary, setDictionary] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const { foulMouth } = useFoulMouth();
-  const setFoulMouth = useSetFoulMouth();
 
   useEffect(() => {
     if (loadingContent || !isAdmin) return;
@@ -77,15 +73,6 @@ export function OgPersonaPanel() {
     }
   }
 
-  async function toggleFoul(next: boolean) {
-    try {
-      await setFoulMouth.mutateAsync(next);
-      toast.success(next ? "Foul mouth mode: ON 🤬" : "Foul mouth mode: OFF");
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  }
-
   return (
     <div className="max-w-3xl space-y-6">
       <p className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -94,26 +81,13 @@ export function OgPersonaPanel() {
         widget and Telegram. Saving applies to the next message.
       </p>
 
-      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-        <div className="flex items-start gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-destructive/10 text-destructive">
-            <Skull className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Foul mouth mode (your chats)</p>
-            <p className="text-xs text-muted-foreground">
-              Your own setting, not everyone's. When ON, OG B0T drops the language filter and talks
-              raw in your chats. Members flip their own switch.
-            </p>
-          </div>
-        </div>
-        <Switch
-          checked={foulMouth}
-          onCheckedChange={toggleFoul}
-          disabled={setFoulMouth.isPending}
-          aria-label="Toggle foul mouth mode"
-        />
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Your own foul mouth switch is in{" "}
+        <Link to="/settings" hash="preferences" className="text-primary underline">
+          Settings → Preferences
+        </Link>
+        , the same place members flip theirs.
+      </p>
 
       <div className="space-y-2">
         <Label htmlFor="og-script">Script (system prompt)</Label>
