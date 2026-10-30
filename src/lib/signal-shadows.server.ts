@@ -88,8 +88,10 @@ export async function recordShadow(
   if (!Number.isFinite(expires) || expires <= now) return;
   const slot = Math.floor(now / SLOT_MS);
   // The desk's no's are kept apart, so a scanner shadow in the same slot can't hide one.
-  const key = `${s.market}:${reason === "desk_no" ? "desk:" : ""}${slot}`;
-  const lane = `${s.market}:${reason === "desk_no" ? "desk" : "scan"}`;
+  // 5-minute scalps keep their old keys; other timeframes get their own slots.
+  const tf = s.timeframe && s.timeframe !== "5M" ? `${s.timeframe}:` : "";
+  const key = `${s.market}:${tf}${reason === "desk_no" ? "desk:" : ""}${slot}`;
+  const lane = `${s.market}:${tf}${reason === "desk_no" ? "desk" : "scan"}`;
   if (recorded.get(lane) === key) return;
   recorded.set(lane, key);
   const market = s.entryType === "market";

@@ -95,6 +95,7 @@ function MarketBlock({
       <Table title="By session (UK time)" rows={m.bySession} unit={m.unit} />
       <Table title="By what the AI desk said" rows={m.byDesk} unit={m.unit} />
       <Table title="By setup" rows={m.bySetup} unit={m.unit} />
+      <Table title="By chart" rows={m.byTimeframe} unit={m.unit} />
       {m.byCheck.length > 0 && (
         <Table title="Pair checks (live trial)" rows={m.byCheck} unit={m.unit} />
       )}
