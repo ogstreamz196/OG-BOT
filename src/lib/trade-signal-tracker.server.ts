@@ -10,7 +10,8 @@ import { backtestKey, parseSavedBacktest, type SavedBacktest } from "./trade-sig
 import { shiftCandles, spotOffset } from "./trade-signal-extras";
 import {
   ACTIVE_STATUSES,
-  advanceSignal,
+  advanceTimed,
+  limitsFrom,
   isActive,
   targetsReached,
   trackRecordText,
@@ -200,10 +201,11 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
       return `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`;
     case "unfilled":
       return `⏳ Price never came to my entry, so I've cancelled it`;
+    // Only shown for a learned time stop (a plain expiry posts nothing).
     case "expired":
       return row.last_price != null
-        ? `⏳ Time's up on this one. Price is at ${fmt(row.last_price)} (${move(row.entry, row.last_price)})`
-        : `⏳ Time's up on this signal`;
+        ? `⏱ It's gone nowhere, so I'm closing it at ${fmt(row.last_price)} (${move(row.entry, row.last_price)}). Not wasting more time on it`
+        : `⏱ It's gone nowhere, so I'm closing it. Not wasting more time on it`;
     case "cancelled":
       return `⚠️ The ${HIGHER[row.timeframe] ?? "higher"} trend turned ${e.bias}, so ${row.status === "pending" ? "I've cancelled it" : "I'm closing it up"}`;
   }
@@ -517,8 +519,11 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           targets: [Number(row.tp1), Number(row.tp2), Number(row.tp3)] as [number, number, number],
           status: row.status,
           expiresAt: Date.parse(row.expires_at),
+          ...(row.entered_at ? { enteredAt: Date.parse(row.entered_at) } : {}),
         };
-        let result = advanceSignal(tracked, fresh, now);
+        // The learned time limits: fill in time, and close a trade that's gone nowhere.
+        const limits = limitsFrom(row.feeds, created);
+        let result = advanceTimed(tracked, fresh, now, limits);
         // The minute still forming: fills and profit hits are announced the
         // moment price trades there, not when the minute closes. Only that
         // good news is taken early; anything touching a stop waits for the
@@ -529,7 +534,17 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           offset,
         ).at(-1);
         if (forming && isActive(result.status)) {
-          const peek = advanceSignal({ ...tracked, status: result.status }, [forming], now);
+          const filledNow = result.events.find((e) => e.kind === "filled")?.at;
+          const peek = advanceTimed(
+            {
+              ...tracked,
+              status: result.status,
+              ...(filledNow != null ? { enteredAt: filledNow } : {}),
+            },
+            [forming],
+            now,
+            limits,
+          );
           if (peek.events.length && peek.events.every((e) => EARLY_EVENTS.has(e.kind))) {
             result = { status: peek.status, events: [...result.events, ...peek.events] };
             // That minute is done with: its closed candle isn't judged again.
@@ -538,8 +553,15 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         }
         let status = result.status;
         // Running out of time isn't news: the status changes, nothing is posted.
+        // A learned time stop is: members are told to close it.
+        const entered = result.events.find((e) => e.kind === "filled")?.at ?? tracked.enteredAt;
+        const timeStopped =
+          !!limits.holdMs &&
+          entered != null &&
+          entered + limits.holdMs < tracked.expiresAt &&
+          now >= entered + limits.holdMs;
         const lines = result.events
-          .filter((e) => e.kind !== "expired")
+          .filter((e) => e.kind !== "expired" || timeStopped)
           // One take profit: its hit is one line, not three.
           .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
           .map((e) =>

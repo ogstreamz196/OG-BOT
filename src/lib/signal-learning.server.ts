@@ -12,10 +12,16 @@
 // safe bounds. Every run writes a plain lesson, which live signals and the
 // AI desk read. Everything lives in site_content "signals.learning".
 import type { LearnSample } from "./trade-signal-backtest";
-import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
+import {
+  advanceTimed,
+  targetsReached,
+  type SignalStatus,
+  type TimeLimits,
+} from "./trade-signal-outcome";
 import { SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
 import {
   DEFAULT_TUNING,
+  NO_TIME_LIMIT,
   detectTradeIntent,
   scaleTargets,
   SESSIONS,
@@ -61,6 +67,8 @@ export const BOUNDS = {
   minConfidence: [51, 80],
   pullback: [0, 1],
   minVol: [0, 0.8],
+  holdFor: [10, 60],
+  fillWithin: [5, 60],
 } as const;
 
 export type Evaluation = {
@@ -125,8 +133,13 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
     pullback: v("pullback"),
     minVol: v("minVol"),
     skipBlocks: v("skipBlocks"),
+    holdFor: v("holdFor"),
+    fillWithin: v("fillWithin"),
   };
   return {
+    // Whole 5 minutes, so one candle's noise can't move them.
+    holdFor: Math.round(clamp(t.holdFor!, BOUNDS.holdFor) / 5) * 5,
+    fillWithin: Math.round(clamp(t.fillWithin!, BOUNDS.fillWithin) / 5) * 5,
     pullback: Number(round(clamp(t.pullback!, BOUNDS.pullback), 0.05).toFixed(2)),
     stopRoom: Number(round(clamp(t.stopRoom!, BOUNDS.stopRoom), 0.05).toFixed(2)),
     scale: [0, 1, 2].map((i) =>
@@ -149,6 +162,14 @@ const oneTarget = (tp: number): [number, number, number] => [tp, tp, tp];
  * pullback entry moves with the pullback depth, and the whole plan (the
  * engine's risk and targets) moves with it.
  */
+/** A setting's time limits for a setup sent at `t` (none at NO_TIME_LIMIT). */
+export function timeLimits(tune: Tuning, t: number): TimeLimits {
+  return {
+    ...(tune.fillWithin < NO_TIME_LIMIT ? { fillBy: t + tune.fillWithin * 60_000 } : {}),
+    ...(tune.holdFor < NO_TIME_LIMIT ? { holdMs: tune.holdFor * 60_000 } : {}),
+  };
+}
+
 export function applyTuning(s: LearnSample, tune: Tuning) {
   const side = s.direction === "BUY" ? 1 : -1;
   const pull = s.raw.pull;
@@ -180,20 +201,26 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
     if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
     const { entry, stop, targets } = applyTuning(s, tune);
-    const res = advanceSignal(
+    // With the setting's time limits: the entry's to fill in time, and a trade
+    // that's gone nowhere is closed on time.
+    const market = s.entryType === "market";
+    const res = advanceTimed(
       {
         direction: s.direction,
         entryType: s.entryType === "stop" ? "stop" : "limit",
         entry,
         stop,
         targets,
-        status: s.entryType === "market" ? "open" : "pending",
+        status: market ? "open" : "pending",
         expiresAt: s.expiresAt,
+        ...(market ? { enteredAt: s.t } : {}),
       },
       s.path,
       s.expiresAt,
+      timeLimits(tune, s.t),
     );
-    const entered = s.entryType === "market" || res.events.some((e) => e.kind === "filled");
+    const filledAt = market ? s.t : res.events.find((e) => e.kind === "filled")?.at;
+    const entered = filledAt != null;
     if (!entered) continue;
     const best = Math.max(0, ...res.events.map((e) => targetsReached(e.kind as SignalStatus)));
     const side = s.direction === "BUY" ? 1 : -1;
@@ -203,7 +230,11 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     else {
       for (let k = 0; k < best; k++) r += inR(targets[k]) / 3;
       if (res.status === "expired" || res.status === "cancelled") {
-        const last = s.path.at(-1)?.c;
+        // Out at the last price before it was closed (on time, or at the end).
+        const hold = timeLimits(tune, s.t).holdMs;
+        const until =
+          hold && filledAt != null ? Math.min(s.expiresAt, filledAt + hold) : s.expiresAt;
+        const last = s.path.filter((c) => c.t < until).at(-1)?.c;
         const floor = best >= 1 ? 0 : inR(stop);
         r += ((3 - best) / 3) * Math.max(floor, last != null ? inR(last) : 0);
       }
@@ -257,6 +288,8 @@ export function candidates(current: Tuning, rand: () => number, count = 32): Tun
         pullback: nudge(current.pullback, 0.25),
         minVol: nudge(current.minVol, 0.15),
         skipBlocks: current.skipBlocks,
+        holdFor: nudge(current.holdFor, 15),
+        fillWithin: nudge(current.fillWithin, 15),
       }),
     );
   return out;
@@ -268,7 +301,13 @@ const describe = (t: Tuning) =>
   `stop room ${t.stopRoom.toFixed(2)}×, targets pulled to ${t.scale.map(pct).join("/")}, ` +
   `trading from ${t.minConfidence}% confidence, pullback entries ${pct(t.pullback)} of the way back to the 20 EMA` +
   (t.minVol > 0 ? `, only when the chart is at least ${pct(t.minVol)} as lively as normal` : "") +
-  (t.skipBlocks.length ? `, sitting out ${t.skipBlocks.map(blockName).join(" and ")} UK` : "");
+  (t.skipBlocks.length ? `, sitting out ${t.skipBlocks.map(blockName).join(" and ")} UK` : "") +
+  (t.holdFor < NO_TIME_LIMIT
+    ? `, closing a trade that's gone nowhere after ${t.holdFor} minutes`
+    : "") +
+  (t.fillWithin < NO_TIME_LIMIT
+    ? `, cancelling an entry not filled within ${t.fillWithin} minutes`
+    : "");
 
 /**
  * One study of past setups: keeps the current setting unless another one
@@ -310,6 +349,8 @@ export function learnFromSamples(
       pullback: (now.pullback + best.pullback) / 2,
       minVol: (now.minVol + best.minVol) / 2,
       skipBlocks: now.skipBlocks,
+      holdFor: (now.holdFor + best.holdFor) / 2,
+      fillWithin: (now.fillWithin + best.fillWithin) / 2,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
     if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;

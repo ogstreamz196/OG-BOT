@@ -38,6 +38,28 @@ export type MarketReport = {
   bySetup: Stat[];
   /** Shadow trades by why they weren't sent; null when there's no shadow table yet. */
   shadows: Stat[] | null;
+  timing: TimingStats;
+};
+
+/** How late the alerts went out, and how long trades took (medians). */
+export type TimingStats = {
+  /** Auto-posted alerts with timing kept (feeds.timing). */
+  alerts: number;
+  /** Seconds from the entry candle closing to the alert going out. */
+  delaySec: number | null;
+  /** Seconds from the signal being built to it going out (the AI desk's check, mostly). */
+  checkSec: number | null;
+  /** How far price had moved from the entry by then, in the market's unit (+ is towards the take profit). */
+  driftPips: number | null;
+  /** Share of signals with a pending entry that filled. */
+  fillRate: number | null;
+  /** Minutes from the signal to the fill (pending entries). */
+  fillMin: number | null;
+  /** Minutes from the fill to the take profit, and to the stop loss. */
+  winMin: number | null;
+  lossMin: number | null;
+  /** Trades closed on a learned time stop. */
+  timeStops: number;
 };
 
 export type SignalReport = { days: number; markets: MarketReport[]; at: string };
@@ -57,8 +79,65 @@ export type LiveRow = {
   best_target: number;
   confidence_pct: number;
   created_at: string;
-  feeds: { bias?: boolean; desk?: string; setup?: string } | null;
+  entered_at?: string | null;
+  closed_at?: string | null;
+  feeds: {
+    bias?: boolean;
+    desk?: string;
+    setup?: string;
+    holdFor?: number;
+    timing?: { candleAt?: number; builtAt?: number; postedAt?: number; pricePosted?: number };
+  } | null;
 };
+
+const median = (xs: number[]) => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return Math.round((s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) * 10) / 10;
+};
+
+/** Timing for one market's signals (pure). */
+export function timingStats(rows: LiveRow[], size: number): TimingStats {
+  const mins = (a?: string | null, b?: string | null) => {
+    const x = Date.parse(a ?? "");
+    const y = Date.parse(b ?? "");
+    return Number.isFinite(x) && Number.isFinite(y) && y >= x ? (y - x) / 60_000 : NaN;
+  };
+  const timed = rows.filter((r) => r.feeds?.timing?.postedAt);
+  const delay: number[] = [];
+  const check: number[] = [];
+  const drift: number[] = [];
+  for (const r of timed) {
+    const t = r.feeds!.timing!;
+    if (t.candleAt) delay.push((t.postedAt! - t.candleAt) / 1000);
+    if (t.builtAt) check.push((t.postedAt! - t.builtAt) / 1000);
+    if (t.pricePosted)
+      drift.push(((t.pricePosted - Number(r.entry)) * (r.direction === "BUY" ? 1 : -1)) / size);
+  }
+  // Pending entries: filled within a few seconds of the signal is a market entry.
+  const waited = rows.filter(
+    (r) => r.status === "unfilled" || mins(r.created_at, r.entered_at) >= 0.5,
+  );
+  const filledLate = waited.filter((r) => r.entered_at);
+  const won = rows.filter((r) => /^tp[123]$/.test(r.status));
+  const lost = rows.filter((r) => r.status === "stopped");
+  const fin = (xs: LiveRow[]) =>
+    median(xs.map((r) => mins(r.entered_at, r.closed_at)).filter(Number.isFinite));
+  return {
+    alerts: timed.length,
+    delaySec: median(delay),
+    checkSec: median(check),
+    driftPips: drift.length
+      ? Math.round((drift.reduce((a, b) => a + b, 0) / drift.length) * 10) / 10
+      : null,
+    fillRate: waited.length ? filledLate.length / waited.length : null,
+    fillMin: median(filledLate.map((r) => mins(r.created_at, r.entered_at))),
+    winMin: fin(won),
+    lossMin: fin(lost),
+    timeStops: rows.filter((r) => r.status === "expired" && Number(r.feeds?.holdFor) > 0).length,
+  };
+}
 
 export type ShadowDone = {
   market: string;
@@ -210,9 +289,12 @@ export function buildReport(
       .sort(([a], [b]) => (a === "XAUUSD" ? -1 : b === "XAUUSD" ? 1 : a.localeCompare(b)))
       .map(([code, m]) => {
         const spread = r1((SPREAD_COST[code] ?? 0) / m.size);
+        // Timing over this market's signals (bias calls left out, one per setup).
+        const rows = [...setups.values()].map((x) => x.row).filter((r) => r.market === code);
         return {
           market: code,
           label: m.label,
+          timing: timingStats(rows, m.size),
           unit: m.unit,
           spread,
           overall: stat("All signals", m.overall, spread),
@@ -266,7 +348,7 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
     admin
       .from("trade_signals")
       .select(
-        "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, confidence_pct, created_at, feeds",
+        "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, confidence_pct, created_at, entered_at, closed_at, feeds",
       )
       .gte("created_at", since)
       .order("created_at", { ascending: true })

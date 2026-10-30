@@ -531,8 +531,19 @@ export type Tuning = {
   minVol: number;
   /** UK time-of-day blocks (ukBlock: 0 is 00:00–04:00 … 5 is 20:00–24:00) that have been losing. */
   skipBlocks: number[];
+  /**
+   * Minutes a filled 5-minute scalp is given before it's closed on time
+   * (60 is the whole hour it's valid for, i.e. no time stop).
+   */
+  holdFor: number;
+  /** Minutes a pending entry waits to fill before it's cancelled (60 is the whole hour). */
+  fillWithin: number;
 };
+/** A time limit of this many minutes or more is no limit (5-minute scalps last an hour). */
+export const NO_TIME_LIMIT = 60;
 export const DEFAULT_TUNING: Tuning = {
+  holdFor: NO_TIME_LIMIT,
+  fillWithin: NO_TIME_LIMIT,
   pullback: 0.5,
   minVol: 0,
   skipBlocks: [],

@@ -113,8 +113,19 @@ export function brokerSymbol(market: string): string {
 const round = (n: number, dp: number) => Number(n.toFixed(Math.max(0, Math.min(8, dp))));
 
 /** The MetaApi trade request for a signal (pure, so it can be tested). */
-export function tradeRequest(plan: SignalPlan, symbol: string, ticketTag: string) {
+export function tradeRequest(
+  plan: SignalPlan,
+  symbol: string,
+  ticketTag: string,
+  now = Date.now(),
+) {
   const buy = plan.direction === "BUY";
+  // A pending order waits only as long as the signal's learned fill window.
+  const fillWithin = Number(plan.feeds?.fillWithin);
+  const expires =
+    fillWithin > 0
+      ? new Date(Math.min(Date.parse(plan.expiresAt), now + fillWithin * 60_000)).toISOString()
+      : plan.expiresAt;
   const dp = plan.decimals;
   const actionType =
     plan.entryType === "market"
@@ -139,7 +150,7 @@ export function tradeRequest(plan: SignalPlan, symbol: string, ticketTag: string
       ? {}
       : {
           openPrice: round(plan.entry, dp),
-          expiration: { type: "ORDER_TIME_SPECIFIED", time: plan.expiresAt },
+          expiration: { type: "ORDER_TIME_SPECIFIED", time: expires },
         }),
     comment: "OG B0T",
     clientId: ticketTag.slice(0, 20),

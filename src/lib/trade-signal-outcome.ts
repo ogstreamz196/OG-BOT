@@ -136,6 +136,64 @@ export function advanceSignal(
   return { status, events };
 }
 
+/** Learned time limits on a trade (absolute deadline for the entry, then a hold). */
+export type TimeLimits = {
+  /** A pending entry not filled by this time (ms) is cancelled. */
+  fillBy?: number;
+  /** A filled trade still going this long (ms) after its fill is closed on time. */
+  holdMs?: number;
+};
+
+/**
+ * advanceSignal with time limits: the entry has to fill by `fillBy`, and once
+ * in, the trade gets `holdMs` before it's closed on time (an "expired" event),
+ * both inside the signal's own validity. `enteredAt` is when an already open
+ * trade filled. Used by the live tracker and the learning replay alike.
+ */
+export function advanceTimed(
+  signal: TrackedSignal & { enteredAt?: number },
+  candles: Candle[],
+  now: number,
+  limits: TimeLimits = {},
+): { status: SignalStatus; events: OutcomeEvent[] } {
+  const end = signal.expiresAt;
+  if (signal.status === "pending") {
+    const deadline = Math.min(end, limits.fillBy ?? end);
+    const first = advanceSignal({ ...signal, expiresAt: deadline }, candles, now);
+    const fill = first.events.find((e) => e.kind === "filled");
+    if (!fill) return first;
+    const i = first.events.indexOf(fill);
+    // Stopped on the very candle it filled: that's settled.
+    if (first.events[i + 1]?.kind === "stopped" && first.events[i + 1].at === fill.at) return first;
+    // In: follow on from the fill under the hold, not the entry's deadline.
+    const rest = advanceTimed(
+      { ...signal, status: "open", enteredAt: fill.at },
+      candles.filter((c) => c.t > fill.at),
+      now,
+      { holdMs: limits.holdMs },
+    );
+    return { status: rest.status, events: [...first.events.slice(0, i + 1), ...rest.events] };
+  }
+  const until =
+    limits.holdMs && signal.enteredAt != null
+      ? Math.min(end, signal.enteredAt + limits.holdMs)
+      : end;
+  return advanceSignal({ ...signal, expiresAt: until }, candles, now);
+}
+
+/** The time limits stored with a signal (feeds.fillWithin / feeds.holdFor, in minutes). */
+export function limitsFrom(
+  feeds: { fillWithin?: unknown; holdFor?: unknown } | null | undefined,
+  createdAt: number,
+): TimeLimits {
+  const fill = Number(feeds?.fillWithin);
+  const hold = Number(feeds?.holdFor);
+  return {
+    ...(fill > 0 ? { fillBy: createdAt + fill * 60_000 } : {}),
+    ...(hold > 0 ? { holdMs: hold * 60_000 } : {}),
+  };
+}
+
 /* ── Track record ──────────────────────────────────────────────────────── */
 
 export type ClosedSignal = { status: SignalStatus; best_target: number; entered: boolean };
