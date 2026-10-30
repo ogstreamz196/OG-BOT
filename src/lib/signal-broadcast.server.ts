@@ -112,23 +112,36 @@ export async function scanAndBroadcast(
   return { checked, posted };
 }
 
-type PostRow = { direction: string; message_id?: number | null; created_at?: string };
+type PostRow = {
+  direction: string;
+  message_id?: number | null;
+  created_at?: string;
+  entry?: number | null;
+};
 
 /** After a stop loss, the same side isn't posted again for this long. */
 export const AFTER_STOP_MS = 15 * 60_000;
+/** Most alerts one market can have running at once. */
+export const MAX_RUNNING_PER_MARKET = 3;
+/** A second same-side alert waits at least this long after the last running one. */
+export const SAME_SIDE_GAP_MS = 10 * 60_000;
+/** Entries closer than this share of the risk are the same setup, not a new trade. */
+export const SAME_SETUP_R = 0.5;
+
+type TradeState = "running" | "stopped_recently" | "over";
 
 /**
- * Whether the trade behind a still-valid alert is over: it hit its take
- * profit, or its stop loss at least AFTER_STOP_MS ago, or was called off.
- * Unknown (no tracked trade, no table) counts as still running.
+ * Where the trade behind a still-valid alert stands: running (or unknown: no
+ * tracked trade, no table), stopped out less than AFTER_STOP_MS ago, or over
+ * (take profit, called off, or stopped out longer ago).
  */
-async function tradeOver(
+async function tradeState(
   admin: Admin,
   market: string,
   post: PostRow,
   now: number,
-): Promise<boolean> {
-  if (!post.message_id) return false;
+): Promise<TradeState> {
+  if (!post.message_id) return "running";
   try {
     let q = admin
       .from("trade_signals")
@@ -141,22 +154,53 @@ async function tradeOver(
       q = q.gte("created_at", new Date(Date.parse(post.created_at) - 5 * 60_000).toISOString());
     const { data, error } = await q.order("created_at", { ascending: false }).limit(1);
     const row = ((data ?? []) as { status: string; closed_at: string | null }[])[0];
-    if (error || !row) return false;
+    if (error || !row) return "running";
     const { isActive } = await import("./trade-signal-outcome");
-    if (isActive(row.status as never)) return false;
+    if (isActive(row.status as never)) return "running";
     if (row.status === "stopped") {
       const closed = Date.parse(row.closed_at ?? "");
-      return Number.isFinite(closed) && now - closed >= AFTER_STOP_MS;
+      return Number.isFinite(closed) && now - closed >= AFTER_STOP_MS ? "over" : "stopped_recently";
     }
-    return true;
+    return "over";
   } catch {
-    return false;
+    return "running";
   }
 }
 
 /**
- * Posts an alert unless this market already has a still-valid post going the
- * same way whose trade is still running (or just stopped out), then follows it and logs it in signal_broadcasts. True if it went.
+ * Whether a new alert may run alongside the market's other still-valid ones.
+ * Several trades can run at once: up to MAX_RUNNING_PER_MARKET per market,
+ * either side. A same-side one waits SAME_SIDE_GAP_MS after the last running
+ * one on that side, must enter at least SAME_SETUP_R of the risk away from
+ * each of them (else it's the same setup found again), and that side sits out
+ * AFTER_STOP_MS after a stop loss.
+ */
+async function roomForAnother(
+  admin: Admin,
+  plan: NonNullable<Built["plan"]>,
+  stop: number | undefined,
+  posts: PostRow[],
+  now: number,
+): Promise<boolean> {
+  const states = await Promise.all(posts.map((p) => tradeState(admin, plan.market, p, now)));
+  const running = posts.filter((_, i) => states[i] === "running");
+  if (running.length >= MAX_RUNNING_PER_MARKET) return false;
+  const same = (p: PostRow) => p.direction === plan.direction;
+  if (posts.some((p, i) => same(p) && states[i] === "stopped_recently")) return false;
+  const risk = stop != null ? Math.abs(plan.entry - stop) : NaN;
+  for (const p of running.filter(same)) {
+    const at = Date.parse(p.created_at ?? "");
+    if (Number.isFinite(at) && now - at < SAME_SIDE_GAP_MS) return false;
+    if (risk > 0 && p.entry != null && Math.abs(Number(p.entry) - plan.entry) < SAME_SETUP_R * risk)
+      return false;
+  }
+  return true;
+}
+
+/**
+ * Posts an alert when there's room for it alongside the market's other
+ * running ones (roomForAnother), then follows it and logs it in
+ * signal_broadcasts. True if it went.
  */
 async function postOnce(
   admin: Admin,
@@ -171,23 +215,25 @@ async function postOnce(
   const nowIso = new Date(deps.now()).toISOString();
   const { data: live, error } = await admin
     .from(POSTS)
-    .select("direction, message_id, created_at")
+    .select("direction, message_id, created_at, entry")
     .eq("market", plan.market)
     .gt("expires_at", nowIso)
     .order("created_at", { ascending: false })
-    .limit(1);
+    .limit(20);
   // Without the table there's no way to tell repeats apart: post nothing.
   if (error) {
     console.warn("[signals] broadcast check failed", error.message);
     return false;
   }
-  const last = ((live ?? []) as PostRow[])[0];
-  // Same way again: only once the last alert's trade is over, so a trending
-  // market isn't sat out for the rest of the hour after a quick take profit.
+  // Several trades can run at once, but not the same setup twice.
   if (
-    last &&
-    last.direction === plan.direction &&
-    !(await tradeOver(admin, plan.market, last, deps.now()))
+    !(await roomForAnother(
+      admin,
+      plan,
+      signal.summary?.stop,
+      (live ?? []) as PostRow[],
+      deps.now(),
+    ))
   )
     return false;
 
@@ -210,6 +256,8 @@ async function postOnce(
     entry: plan.entry,
     expires_at: plan.expiresAt,
     message_id: messageId,
+    // The scan's own clock, so the same-side gap is measured on one clock.
+    created_at: new Date(deps.now()).toISOString(),
   });
   return true;
 }
