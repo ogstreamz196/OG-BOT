@@ -1358,6 +1358,30 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_learn_samples: {
+        Row: {
+          created_at: string
+          market: string
+          sample: Json
+          t: number
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          market: string
+          sample: Json
+          t: number
+          version: number
+        }
+        Update: {
+          created_at?: string
+          market?: string
+          sample?: Json
+          t?: number
+          version?: number
+        }
+        Relationships: []
+      }
       signal_results: {
         Row: {
           best_target: number
