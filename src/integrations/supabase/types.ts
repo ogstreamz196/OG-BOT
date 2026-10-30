@@ -1427,6 +1427,81 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_shadows: {
+        Row: {
+          closed_at: string | null
+          confidence_pct: number
+          created_at: string
+          decimals: number
+          direction: string
+          entered_at: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          key: string
+          label: string
+          last_candle_at: string | null
+          market: string
+          offset: number
+          outcome: string | null
+          pip: number | null
+          pips: number | null
+          reason: string
+          status: string
+          stop: number
+          timeframe: string
+          tp: number
+        }
+        Insert: {
+          closed_at?: string | null
+          confidence_pct: number
+          created_at?: string
+          decimals?: number
+          direction: string
+          entered_at?: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          key: string
+          label: string
+          last_candle_at?: string | null
+          market: string
+          offset?: number
+          outcome?: string | null
+          pip?: number | null
+          pips?: number | null
+          reason: string
+          status: string
+          stop: number
+          timeframe?: string
+          tp: number
+        }
+        Update: {
+          closed_at?: string | null
+          confidence_pct?: number
+          created_at?: string
+          decimals?: number
+          direction?: string
+          entered_at?: string | null
+          entry?: number
+          entry_type?: string
+          expires_at?: string
+          key?: string
+          label?: string
+          last_candle_at?: string | null
+          market?: string
+          offset?: number
+          outcome?: string | null
+          pip?: number | null
+          pips?: number | null
+          reason?: string
+          status?: string
+          stop?: number
+          timeframe?: string
+          tp?: number
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           key: string
