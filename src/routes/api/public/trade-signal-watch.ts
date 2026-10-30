@@ -33,6 +33,10 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // Not busy (nothing to send this minute): study past signals and learn.
           const { maybeLearn } = await import("@/lib/signal-learning.server");
           const learning = events === 0 ? await maybeLearn(supabaseAdmin) : "busy";
+          // The filters learn too: each one switches itself off or back on per
+          // market from how the setups it blocked (or let through) did.
+          const { maybeStudyFilters } = await import("@/lib/signal-filter-learning.server");
+          const filters = events === 0 ? await maybeStudyFilters(supabaseAdmin) : "busy";
           return Response.json({
             ok: true,
             passes: passes.length,
@@ -41,6 +45,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             mt5,
             promo,
             learning,
+            filters,
             shadows,
           });
         } catch (e) {

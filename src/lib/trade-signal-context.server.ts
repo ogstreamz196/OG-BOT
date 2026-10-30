@@ -534,6 +534,8 @@ function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: nu
 }
 
 export type SignalFeeds = {
+  /** The learned-off filter that let this signal through (signal-filter-learning.server.ts). */
+  relaxed?: string;
   /** What the live-trial pair checks said (pair-checks.ts): gold's dollar, bitcoin's flow. */
   checks?: { dollar?: "with" | "against" | "flat"; flow?: "with" | "against" | "flat" };
   /** Minutes a filled trade gets before it's closed on time (learned; absent = the whole validity). */
@@ -867,12 +869,35 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       verdict: "wait",
       waitReason: `Can't confirm the real ${inst.label} price right now, so no levels.`,
     };
+  // The filters learn too (signal-filter-learning.server.ts): one whose
+  // blocked setups keep winning is switched off for this market, so its
+  // setups trade, tagged, until they stop winning.
+  const { relaxedFilters } = await import("./signal-filter-learning.server");
+  const { waitReasonKind, SHADOW_REASONS } = await import("./signal-shadows.server");
+  const relaxed = await relaxedFilters(inst.code).catch(() => new Set<string>());
+  let relaxedBy: string | undefined;
+  const waitKind =
+    plan.verdict === "wait" && !spotUnconfirmed ? waitReasonKind(plan.waitReason) : null;
+  if (waitKind && relaxed.has(waitKind as never)) {
+    relaxedBy = waitKind;
+    plan = {
+      ...plan,
+      verdict: "trade",
+      waitReason: undefined,
+      cautions: [
+        `Normally I'd sit this one out (${SHADOW_REASONS[waitKind].toLowerCase()}), but lately those have been winning.`,
+        ...plan.cautions,
+      ],
+    };
+  }
   // Scalps sit out the moments that hurt them: the daily rollover, big US
   // news and gold's last hour before the weekend (blackout).
   const { blackout } = await import("./trade-signal-extras");
-  const sitOut = fast
+  const blackedOut = fast
     ? blackout(Date.now(), { gold: inst.code === "XAUUSD", news: calendar })
     : null;
+  const sitOut = blackedOut && !relaxed.has("blackout") ? blackedOut : null;
+  if (blackedOut && !sitOut && plan.verdict === "trade") relaxedBy ??= "blackout";
   if (sitOut && plan.verdict === "trade") plan = { ...plan, verdict: "wait", waitReason: sitOut };
   // No engine setup right now (and the market's open): on the 5-minute chart,
   // an extra setup the learning loop has proven for this market takes its place.
@@ -932,8 +957,10 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         ...(against ? { cautions: [why, ...plan.cautions] } : {}),
       };
       const floor = (tuning ?? DEFAULT_TUNING).minConfidence;
-      if (against && pct < floor)
-        plan = { ...plan, verdict: "wait", waitReason: `Trial check: ${why}` };
+      if (against && pct < floor) {
+        if (relaxed.has("trial_check")) relaxedBy ??= "trial_check";
+        else plan = { ...plan, verdict: "wait", waitReason: `Trial check: ${why}` };
+      }
     }
   }
   const price = Number.isFinite(live) && live > 0 ? live : lo.close;
@@ -1089,6 +1116,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(spotOk && inst.spot ? { spot: inst.spot } : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
       ...(plan.setup ? { setup: plan.setup } : {}),
+      // A learned-off filter that let this one through (its live record decides if it stays off).
+      ...(relaxedBy && plan.verdict === "trade" ? { relaxed: relaxedBy } : {}),
       // What the live-trial pair checks said (the Boss's report groups by it).
       ...(Object.keys(checks).length ? { checks } : {}),
       // The learned time limits (5-minute scalps): the tracker applies them.

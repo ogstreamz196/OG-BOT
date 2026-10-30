@@ -114,6 +114,11 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           now: Date.now,
           askUntil: startedAt + 20_000,
           onVeto: (s) => recordShadow(supabaseAdmin, s.summary, "desk_no"),
+          // The desk's "no" can be learned off, like any other filter.
+          skipDesk: async (market) => {
+            const { relaxedFilters } = await import("@/lib/signal-filter-learning.server");
+            return (await relaxedFilters(market)).has("desk_no");
+          },
         });
         try {
           // Every 10 seconds through the minute, so a top setup goes out as

@@ -66,7 +66,12 @@ export function SignalReportPanel() {
       ) : (
         <div className="space-y-6">
           {data.report.markets.map((m) => (
-            <MarketBlock key={m.market} m={m} sessions={data.sessions[m.market] ?? []} />
+            <MarketBlock
+              key={m.market}
+              m={m}
+              sessions={data.sessions[m.market] ?? []}
+              filters={data.filters[m.market] ?? []}
+            />
           ))}
         </div>
       )}
@@ -74,12 +79,23 @@ export function SignalReportPanel() {
   );
 }
 
+type FilterRow = {
+  name: string;
+  relaxed: boolean;
+  since: string | null;
+  wins: number;
+  losses: number;
+  net: number;
+};
+
 function MarketBlock({
   m,
   sessions,
+  filters,
 }: {
   m: MarketReport;
   sessions: { id: string; minConfidence: number; stopRoom: number; n: number; winRate: number }[];
+  filters: FilterRow[];
 }) {
   return (
     <div className="space-y-3">
@@ -96,6 +112,10 @@ function MarketBlock({
       <Table title="By what the AI desk said" rows={m.byDesk} unit={m.unit} />
       <Table title="By setup" rows={m.bySetup} unit={m.unit} />
       <Table title="By chart" rows={m.byTimeframe} unit={m.unit} />
+      {m.byRelaxed.length > 0 && (
+        <Table title="Let through by a learned-off filter" rows={m.byRelaxed} unit={m.unit} />
+      )}
+      <Filters rows={filters} unit={m.unit} />
       {m.byCheck.length > 0 && (
         <Table title="Pair checks (live trial)" rows={m.byCheck} unit={m.unit} />
       )}
@@ -229,6 +249,42 @@ function Timing({ t, unit }: { t: TimingStats; unit: string }) {
               {note && <p className="text-xs text-muted-foreground">{note}</p>}
             </div>
             <p className="text-sm font-black tabular-nums text-foreground">{value}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Each filter: on, or learned off for this market, and the record that decided it. */
+function Filters({ rows, unit }: { rows: FilterRow[]; unit: string }) {
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-xl border border-border">
+      <p className="border-b border-border px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Filters (learning)
+      </p>
+      <ul className="divide-y divide-border">
+        {rows.map((f) => (
+          <li key={f.name} className="grid grid-cols-[1fr_auto] items-center gap-x-3 px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm text-foreground">{f.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {f.wins + f.losses
+                  ? `${f.relaxed ? "Let through" : "Blocked"}: ${f.wins} won · ${f.losses} lost · ${f.net >= 0 ? "+" : "−"}${Math.abs(f.net).toFixed(1)} ${unit} net`
+                  : "Not enough trades yet"}
+              </p>
+            </div>
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-xs font-bold",
+                f.relaxed
+                  ? "border-amber-400/60 text-amber-300"
+                  : "border-emerald-400/60 text-emerald-400",
+              )}
+            >
+              {f.relaxed ? "Off (learned)" : "On"}
+            </span>
           </li>
         ))}
       </ul>
