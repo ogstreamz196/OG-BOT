@@ -17,8 +17,13 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         const token = request.headers.get("x-ogbot-retry-token") ?? "";
         const { data: ok } = await supabaseAdmin.rpc("verify_song_retry_token", { p_token: token });
         if (!ok) return new Response("Forbidden", { status: 403 });
-        const { scanAndBroadcast, maybeDeskScout, postToSignalsChannel, signalsChannelReady } =
-          await import("@/lib/signal-broadcast.server");
+        const {
+          scanAndBroadcast,
+          maybeDeskScout,
+          deskConfirmer,
+          postToSignalsChannel,
+          signalsChannelReady,
+        } = await import("@/lib/signal-broadcast.server");
         // Not set up yet: don't spend time building signals nobody will see.
         if (!signalsChannelReady()) return Response.json({ ok: true, skipped: "not_configured" });
         // Golden rule: if the target is a group OG B0T isn't in, the trade
@@ -83,10 +88,19 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             senderWorker: "trade",
           });
         };
+        // Every AI works with the chart engine: a 70%+ alert goes out only
+        // when the AI desk backs it. The desk takes up to ~22s, so it's only
+        // asked in the first 20s of this run (pg_cron gives the call 50s);
+        // later finds wait for the next run, a minute away at most.
+        const startedAt = Date.now();
+        const confirm = deskConfirmer(supabaseAdmin, (ask) => deskRead(ask), {
+          now: Date.now,
+          askUntil: startedAt + 20_000,
+        });
         try {
           // Every 10 seconds through the minute, so a top setup goes out as
           // soon as it appears rather than at the next minute. Alongside it,
-          // once an hour, the AI desk scouts both markets (posts only when
+          // every 10 minutes, the AI desk scouts both markets (posts only when
           // every AI agrees).
           const [passes, desk] = await Promise.all([
             repeatWithin(
@@ -95,6 +109,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   build: buildTradeSignal,
                   post: postToSignalsChannel,
                   follow,
+                  confirm,
                   now: Date.now,
                 }),
               { everyMs: 10_000, lastStartMs: 40_000 },

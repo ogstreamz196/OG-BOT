@@ -373,25 +373,35 @@ const BINANCE_INTERVAL: Record<keyof CandleSets, string> = {
 /** Binance's public market-data mirror first, then its main API. */
 const BINANCE_HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"];
 
-/** Every candle from `start` to `end` for a Binance spot symbol, 1000 at a time. */
+/** Binance's USDⓈ-M futures API (perpetuals such as the gold one, XAUUSDT). */
+const BINANCE_FUTURES_KLINES = "https://fapi.binance.com/fapi/v1/klines";
+
+/**
+ * Every candle from `start` to `end` for a Binance spot symbol, 1000 at a
+ * time; with `futures`, for a USDⓈ-M perpetual instead.
+ */
 export async function fetchBinanceHistory(
   symbol: string,
   key: keyof CandleSets,
   start: number,
   end: number,
   fetcher: typeof fetch = fetch,
+  opts: { futures?: boolean } = {},
 ): Promise<Candle[]> {
   const out: Candle[] = [];
   let from = start;
   let host = 0;
+  const hosts = opts.futures
+    ? [BINANCE_FUTURES_KLINES]
+    : BINANCE_HOSTS.map((h) => `${h}/api/v3/klines`);
   for (let page = 0; page < 400 && from < end; page++) {
     const url =
-      `${BINANCE_HOSTS[host]}/api/v3/klines?symbol=${symbol}` +
+      `${hosts[host]}?symbol=${symbol}` +
       `&interval=${BINANCE_INTERVAL[key]}&startTime=${from}&endTime=${end}&limit=1000`;
     const res = await fetcher(url).catch(() => null);
     if (!res?.ok) {
       // Switch host once and retry the same page.
-      if (host + 1 < BINANCE_HOSTS.length) {
+      if (host + 1 < hosts.length) {
         host++;
         page--;
         continue;

@@ -323,7 +323,39 @@ describe("accuracy wiring", () => {
     expect(spot.block).toMatch(/chart moved \+12\.\d+ onto the Swissquote spot price/);
   });
 
-  it("never marks gold down for the gold token's thin volume (bitcoin's volume still counts)", async () => {
+  it("prices gold from the gold perpetual, each feed moved by its own gap to spot", async () => {
+    vi.resetModules();
+    const { buildTradeSignal: build } = await import("./trade-signal-context.server");
+    // The perpetual answers every timeframe but the daily, which comes from
+    // the PAX Gold token trading 15 higher; spot sits 2 above the perpetual.
+    const fut = bars(1000, 2000, 0.2, HOUR);
+    const last = fut.at(-1)!.c;
+    const q = { spreadProfilePrices: [{ bid: last + 1.9, ask: last + 2.1 }] };
+    stubFetch(
+      vi.fn(async (url: string) => {
+        if (url.includes("swissquote")) return ok([q, q, q]);
+        const interval = new URL(url).searchParams.get("interval");
+        if (!url.includes("klines")) return new Response("no", { status: 404 });
+        if (url.includes("fapi"))
+          return interval === "1d" ? new Response("no", { status: 500 }) : ok(binanceRows(fut));
+        if (!url.includes("binance")) return new Response("no", { status: 404 });
+        // The token's daily ends 15 above the perpetual's latest price.
+        return ok(binanceRows(bars(365, last + 15 - 0.2 * 364, 0.2, 24 * HOUR)));
+      }),
+    );
+    const signal = await build("gold signal");
+    expect(signal.plan!.feeds.futures).toBe("XAUUSDT");
+    expect(signal.plan!.feeds.spot).toBe("XAU/USD");
+    // The signal's own gap is the perpetual's (about 2), not the token's.
+    expect(signal.plan!.feeds.offset).toBeCloseTo(2, 0);
+    expect(signal.block).toContain("source: Binance futures");
+    // Today's range (the token's daily) lands on spot too, not 15 above it.
+    const range = signal.block!.match(/today's range ([\d.]+) – ([\d.]+)/);
+    expect(range).not.toBeNull();
+    expect(Number(range![2])).toBeLessThan(last + 2 + 1);
+  });
+
+  it("never marks gold down for the gold token's thin volume, but the gold perpetual's counts", async () => {
     // The last three candles trade a tenth of the usual volume.
     const thin = (b: ReturnType<typeof bars>) =>
       binanceRows(b).map((r, i, all) => {
@@ -331,9 +363,10 @@ describe("accuracy wiring", () => {
         row[5] = i >= all.length - 3 ? "1" : "10";
         return row;
       });
-    const feed = (start: number) =>
+    const feed = (start: number, futures = true) =>
       vi.fn(async (url: string) => {
         if (url.includes("swissquote")) return ok([]);
+        if (!futures && url.includes("fapi")) return new Response("no", { status: 451 });
         const interval = new URL(url).searchParams.get("interval");
         if (!url.includes("binance") || !url.includes("klines"))
           return new Response("no", { status: 404 });
@@ -347,13 +380,21 @@ describe("accuracy wiring", () => {
       await import("./trade-signal-context.server")
     ).buildTradeSignal("btc signal");
     expect(btc.summary!.cautions.some((c) => light.test(c))).toBe(true);
+    // The gold perpetual is down: the PAX Gold token's volume never counts.
     vi.resetModules();
-    stubFetch(feed(2000));
+    stubFetch(feed(2000, false));
     const gold = await (
       await import("./trade-signal-context.server")
     ).buildTradeSignal("gold signal");
     expect(gold.summary).toBeDefined();
     expect(gold.summary!.cautions.some((c) => light.test(c))).toBe(false);
+    // From the gold perpetual, it's the real market's volume, so it counts.
+    vi.resetModules();
+    stubFetch(feed(2000));
+    const perp = await (
+      await import("./trade-signal-context.server")
+    ).buildTradeSignal("gold signal");
+    expect(perp.summary!.cautions.some((c) => light.test(c))).toBe(true);
   });
 
   it("says no trade while gold is shut for the weekend, and tracks nothing", async () => {

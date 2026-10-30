@@ -1,15 +1,16 @@
 /**
  * Auto-posted scalp signals. Every minute (pg_cron → /api/public/signal-scan)
  * the gold and bitcoin 5-minute scalps are built with the same engine as the
- * bot, and any scoring 70% confidence or more are posted to the signals
- * channel by the separate signals bot, with the % on the card.
+ * bot, and any scoring 70% confidence or more go to the AI desk; the ones it
+ * backs are posted to the signals channel by the separate signals bot, with
+ * the % on the card.
  *
  * Confidence is indicator agreement (see buildPlan in trade-signal.ts), never a
  * win rate, and it tops out at 90%: a 90% signal is one where every timeframe
  * agrees and nothing (chop, momentum against, light volume, a quiet session)
  * knocks points off.
  *
- * Once an hour, and a few minutes after the times the market usually moves
+ * Every 10 minutes, and a few minutes after the times the market usually moves
  * (opens, US data, the gold fix, the London close, high-impact USD news), the
  * AI desk also scouts both markets (maybeDeskScout) and
  * posts the card when every AI agrees, whatever the confidence.
@@ -45,6 +46,12 @@ type Built = {
 type PostDeps = {
   /** Posts to the channel; resolves with the message id, or null if it didn't go. */
   post: (text: string) => Promise<number | null>;
+  /**
+   * The AI desk's check on a chart-engine alert, just before it's posted:
+   * the signal to post (the chief may have moved the take profit), or null
+   * when the desk is against it (or it's too late in this run to ask).
+   */
+  confirm?: (signal: Built) => Promise<Built | null>;
   follow?: (signal: Built, messageId: number, card: string) => Promise<void>;
   now: () => number;
 };
@@ -75,23 +82,72 @@ export async function scanAndBroadcast(
     checked++;
     const plan = signal.plan;
     if (!plan || plan.confidencePct < BROADCAST_MIN_CONFIDENCE) continue;
-    if (await postOnce(admin, deps, signal, channelCard(signal.reply, plan.confidencePct)))
+    if (await postOnce(admin, deps, signal, (s) => channelCard(s.reply, plan.confidencePct), true))
       posted.push(`${plan.market} ${plan.direction}`);
   }
   return { checked, posted };
 }
 
+type PostRow = { direction: string; message_id?: number | null; created_at?: string };
+
+/** After a stop loss, the same side isn't posted again for this long. */
+export const AFTER_STOP_MS = 15 * 60_000;
+
+/**
+ * Whether the trade behind a still-valid alert is over: it hit its take
+ * profit, or its stop loss at least AFTER_STOP_MS ago, or was called off.
+ * Unknown (no tracked trade, no table) counts as still running.
+ */
+async function tradeOver(
+  admin: Admin,
+  market: string,
+  post: PostRow,
+  now: number,
+): Promise<boolean> {
+  if (!post.message_id) return false;
+  try {
+    let q = admin
+      .from("trade_signals")
+      .select("status, closed_at")
+      .eq("market", market)
+      .eq("sender_worker", "trade")
+      .eq("message_id", post.message_id);
+    // Message ids are per chat: only a trade recorded with this post.
+    if (post.created_at)
+      q = q.gte("created_at", new Date(Date.parse(post.created_at) - 5 * 60_000).toISOString());
+    const { data, error } = await q.order("created_at", { ascending: false }).limit(1);
+    const row = ((data ?? []) as { status: string; closed_at: string | null }[])[0];
+    if (error || !row) return false;
+    const { isActive } = await import("./trade-signal-outcome");
+    if (isActive(row.status as never)) return false;
+    if (row.status === "stopped") {
+      const closed = Date.parse(row.closed_at ?? "");
+      return Number.isFinite(closed) && now - closed >= AFTER_STOP_MS;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Posts an alert unless this market already has a still-valid post going the
- * same way, then follows it and logs it in signal_broadcasts. True if it went.
+ * same way whose trade is still running (or just stopped out), then follows it and logs it in signal_broadcasts. True if it went.
  */
-async function postOnce(admin: Admin, deps: PostDeps, signal: Built, card: string) {
+async function postOnce(
+  admin: Admin,
+  deps: PostDeps,
+  found: Built,
+  card: (s: Built) => string,
+  askDesk = false,
+) {
+  let signal = found;
   const plan = signal.plan;
   if (!plan) return false;
   const nowIso = new Date(deps.now()).toISOString();
   const { data: live, error } = await admin
     .from(POSTS)
-    .select("direction")
+    .select("direction, message_id, created_at")
     .eq("market", plan.market)
     .gt("expires_at", nowIso)
     .order("created_at", { ascending: false })
@@ -101,12 +157,27 @@ async function postOnce(admin: Admin, deps: PostDeps, signal: Built, card: strin
     console.warn("[signals] broadcast check failed", error.message);
     return false;
   }
-  const last = ((live ?? []) as { direction: string }[])[0];
-  if (last && last.direction === plan.direction) return false;
+  const last = ((live ?? []) as PostRow[])[0];
+  // Same way again: only once the last alert's trade is over, so a trending
+  // market isn't sat out for the rest of the hour after a quick take profit.
+  if (
+    last &&
+    last.direction === plan.direction &&
+    !(await tradeOver(admin, plan.market, last, deps.now()))
+  )
+    return false;
 
-  const messageId = await deps.post(card);
+  // Every AI works with the chart engine: an engine alert only goes out when
+  // the desk backs it (asked only now, so repeats never cost an AI call).
+  if (askDesk && deps.confirm) {
+    const backed = await deps.confirm(signal);
+    if (!backed?.plan || backed.plan.direction !== plan.direction) return false;
+    signal = backed;
+  }
+  const text = card(signal);
+  const messageId = await deps.post(text);
   if (messageId === null) return false;
-  await deps.follow?.(signal, messageId, card);
+  await deps.follow?.(signal, messageId, text);
   await admin.from(POSTS).insert({
     market: plan.market,
     timeframe: "5M",
@@ -119,8 +190,65 @@ async function postOnce(admin: Admin, deps: PostDeps, signal: Built, card: strin
   return true;
 }
 
+/** After the desk turns an alert down, that side of that market isn't re-asked for this long. */
+export const DESK_VETO_MS = 10 * 60_000;
+const vetoKey = (market: string) => `signals.deskVeto.${market}`;
+
+/**
+ * The AI desk's check on the chart engine's 70%+ alerts (PostDeps.confirm).
+ * The whole desk reads the market (deskRead, the same as a member's request)
+ * and the alert goes out when it backs the engine's side (deskBacks), with
+ * the chief's take profit. Turned down, that side waits DESK_VETO_MS before
+ * the desk is asked again. When no AI can answer at all, the engine's own
+ * alert stands, so signals don't vanish on an AI outage. Past `askUntil`
+ * nothing is asked (the run would overrun its time) and the alert waits for
+ * the next run, without a veto.
+ */
+export function deskConfirmer(
+  admin: Admin,
+  read: (ask: string) => Promise<DeskRead>,
+  opts: { now: () => number; askUntil: number },
+): (signal: Built) => Promise<Built | null> {
+  return async (signal) => {
+    const plan = signal.plan;
+    if (!plan) return null;
+    const now = opts.now();
+    if (now > opts.askUntil) return null;
+    try {
+      const { data } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", vetoKey(plan.market))
+        .maybeSingle();
+      const veto = JSON.parse((data as { value?: string } | null)?.value ?? "null") as {
+        direction?: string;
+        until?: number;
+      } | null;
+      if (veto?.direction === plan.direction && Number(veto.until) > now) return null;
+    } catch {
+      /* no veto kept */
+    }
+    const pair: SignalPair = plan.market.startsWith("XAU") ? "XAU" : "BTC";
+    const out = await read(signalRequest(pair, "5m")).catch(() => null);
+    if (!out?.desk) return signal;
+    const { deskBacks } = await import("./signal-desk.server");
+    if (deskBacks(out.desk, plan.direction) && out.signal.plan?.direction === plan.direction)
+      return out.signal;
+    const at = new Date(now).toISOString();
+    await admin.from("site_content").upsert(
+      {
+        key: vetoKey(plan.market),
+        value: JSON.stringify({ direction: plan.direction, until: now + DESK_VETO_MS }),
+        updated_at: at,
+      },
+      { onConflict: "key" },
+    );
+    return null;
+  };
+}
+
 /** How often the AI desk scouts gold and bitcoin for the signals chat. */
-export const DESK_SCOUT_EVERY_MS = 60 * 60_000;
+export const DESK_SCOUT_EVERY_MS = 10 * 60_000;
 const DESK_SCOUT_LAST = "signals.deskScout.lastAt";
 const DESK_SCOUT_SLOT = "signals.deskScout.lastSlot";
 
@@ -193,14 +321,14 @@ export function keySlotDue(
   return due ? { id: due.id, label: due.label } : null;
 }
 
-/** Whether the hourly desk scout is due (pure, so it can be tested). */
+/** Whether the 10-minute desk scout is due (pure, so it can be tested). */
 export function deskScoutDue(lastAt: string | null, now: number): boolean {
   const last = lastAt ? Date.parse(lastAt) : NaN;
   // A little early is fine: the minute cron never lands on the same second.
   return !Number.isFinite(last) || now - last >= DESK_SCOUT_EVERY_MS - 30_000;
 }
 
-/** The hourly scout's heading (members never hear about the desk). */
+/** The scout's heading (members never hear about the desk). */
 export function deskCard(reply: string): string {
   return reply;
 }
@@ -218,7 +346,7 @@ export type DeskScoutDeps = PostDeps & {
 };
 
 /**
- * Once an hour, gold and bitcoin go through the same AI desk as a member's
+ * Every 10 minutes, gold and bitcoin go through the same AI desk as a member's
  * request. A market is posted only when every AI on the desk agrees and the
  * engine has a real signal that way, whatever its confidence; separate from
  * the 70%+ scanner. Market-bias calls are never posted. Says what happened.
@@ -231,7 +359,7 @@ export async function maybeDeskScout(admin: Admin, deps: DeskScoutDeps): Promise
       .eq("key", DESK_SCOUT_LAST)
       .maybeSingle();
     const now = deps.now();
-    const hourly = deskScoutDue((data as { value?: string } | null)?.value ?? null, now);
+    const regular = deskScoutDue((data as { value?: string } | null)?.value ?? null, now);
     // The extra layer: a check a few minutes after the times the market moves.
     const { data: slotRow } = await admin
       .from("site_content")
@@ -240,9 +368,9 @@ export async function maybeDeskScout(admin: Admin, deps: DeskScoutDeps): Promise
       .maybeSingle();
     const news = deps.news ? await deps.news().catch(() => []) : [];
     const slot = keySlotDue(now, news, (slotRow as { value?: string } | null)?.value ?? null);
-    if (!hourly && !slot) return "not due";
+    if (!regular && !slot) return "not due";
     // Claim it first, so two runs at once can't both scout. A key-time check
-    // counts as the hour's too, so they don't land minutes apart.
+    // counts as the regular one too, so they don't land minutes apart.
     const at = new Date(now).toISOString();
     await admin
       .from("site_content")
@@ -265,7 +393,7 @@ export async function maybeDeskScout(admin: Admin, deps: DeskScoutDeps): Promise
         if (!read.desk) return `${pair}: ${read.signal.plan ? "desk didn't decide" : "no setup"}`;
         if (!deskAgrees(read.desk)) return `${pair}: desk split`;
         if (!plan || plan.direction !== read.desk.direction) return `${pair}: no signal that way`;
-        const posted = await postOnce(admin, deps, read.signal, deskCard(read.signal.reply));
+        const posted = await postOnce(admin, deps, read.signal, (s) => deskCard(s.reply));
         return posted ? `${pair}: posted ${plan.direction}` : `${pair}: already posted`;
       }),
     );

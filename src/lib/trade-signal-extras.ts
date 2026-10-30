@@ -246,6 +246,18 @@ export function spotOffset(spot: number, proxy: number): number {
   return Math.abs(gap) / proxy > 0.03 ? 0 : gap;
 }
 
+/**
+ * The gap from a chart feed to the spot quote, or null when spot can't be
+ * confirmed (no quote, no feed price, or more than 3% apart). Unlike
+ * spotOffset, a confirmed gap of exactly 0 (the gold perpetual sitting right
+ * on spot) still counts as confirmed.
+ */
+export function spotGap(spot: number, feed: number): { offset: number } | null {
+  if (!(spot > 0) || !(feed > 0)) return null;
+  const gap = spot - feed;
+  return Math.abs(gap) / feed > 0.03 ? null : { offset: gap };
+}
+
 /** A candle series moved by a fixed amount (for spot-adjusted charts). */
 export function shiftCandles<T extends { o: number; h: number; l: number; c: number }>(
   candles: T[],

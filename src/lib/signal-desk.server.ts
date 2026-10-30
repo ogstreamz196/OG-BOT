@@ -10,7 +10,8 @@
 // The AIs only choose a direction and explain it. Every price (entry, stop,
 // targets) is still worked out in code, so pips and results stay exact.
 // Only free tiers are used (free Google keys for the chief), never the paid
-// Gemini key, and any failure falls back to the engine's own card.
+// Gemini key nor OpenRouter (kept for the group roasts), and any failure
+// falls back to the engine's own card.
 import { freeFallbackTargets, type AiChatTarget } from "./ai-endpoint.server";
 
 export type DeskLean = "BUY" | "SELL" | "WAIT";
@@ -54,7 +55,8 @@ export const DESK_ROLES: DeskRole[] = [
     emoji: "⚡",
     focus:
       "RSI, MACD, ADX and volume: is the move just starting, still strong, or running out of steam right now",
-    model: /nemotron/,
+    // Not OpenRouter's model (kept for the group roasts): Groq's GPT-OSS.
+    model: /gpt-oss/,
   },
   {
     id: "risk",
@@ -204,7 +206,9 @@ export async function runDesk(
   chartData: string,
   band?: TakeProfitBand,
 ): Promise<DeskDecision | null> {
-  const free = freeFallbackTargets(false);
+  // OpenRouter's free model is what the group roasts swear with, and its
+  // daily allowance is small: the desk (now every 10 minutes) leaves it alone.
+  const free = freeFallbackTargets(false).filter((t) => t.provider !== "openrouter");
   if (!free.length) return null;
   const outer = AbortSignal.timeout(DESK_BUDGET_MS);
   const roles = rolesWithTargets(free);
@@ -297,6 +301,18 @@ export function deskLines(d: DeskDecision): string[] {
     }),
     `👑 Chief's call: ${d.direction}${d.call ? ` · ${d.call}` : ""}`,
   ];
+}
+
+/**
+ * The desk backs a chart-engine alert going `direction`: the chief (or, with
+ * no chief, the weighted vote) calls that side, and more analysts lean with
+ * it than against it (waits count for neither).
+ */
+export function deskBacks(d: DeskDecision | null, direction: "BUY" | "SELL"): boolean {
+  if (!d || d.direction !== direction) return false;
+  const withIt = d.findings.filter((f) => f.lean === direction).length;
+  const against = d.findings.filter((f) => f.lean !== direction && f.lean !== "WAIT").length;
+  return withIt > against;
 }
 
 /** Analysts who must answer before the desk counts as unanimous. */

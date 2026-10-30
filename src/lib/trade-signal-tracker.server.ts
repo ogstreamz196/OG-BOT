@@ -431,6 +431,7 @@ function instrumentFor(row: Row): Instrument {
     label: row.label,
     code: row.market,
     asset: row.feeds.binance && !row.feeds.binance.startsWith("PAXG") ? "crypto" : "forex",
+    ...(row.feeds.futures ? { futures: row.feeds.futures } : {}),
     binance: row.feeds.binance,
     kraken: row.feeds.kraken,
     yahoo: row.feeds.yahoo,
@@ -495,8 +496,12 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         // the proxy is re-measured each pass (liveOffset), the original kept
         // when the quote's missing or jumps.
         const stored = Number(row.feeds.offset) || 0;
+        // (A spot-confirmed signal can start with no gap at all: the gold
+        // perpetual sitting right on spot. It's re-measured all the same.)
         const offset =
-          stored && raw.length ? liveOffset(stored, spotNow, raw[raw.length - 1].c) : stored;
+          (stored || row.feeds.spot) && raw.length
+            ? liveOffset(stored, spotNow, raw[raw.length - 1].c)
+            : stored;
         const closed = shiftCandles(closedRaw, offset);
         const lastPrice = raw.length ? raw[raw.length - 1].c + offset : NaN;
         const created = Date.parse(row.created_at);
