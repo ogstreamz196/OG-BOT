@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BossSearch } from "@/components/admin/BossSearch";
 
 /**
  * Every Boss area, in one place. The dashboard cards and the tab bar both read
@@ -27,7 +28,7 @@ export const BOSS_AREAS = [
   {
     to: "/admin/users",
     label: "Members",
-    desc: "Find people, change coins, VIP and roles",
+    desc: "Find people, give or take coins, VIP and roles",
     icon: Users,
     group: "run",
   },
@@ -41,21 +42,21 @@ export const BOSS_AREAS = [
   {
     to: "/admin/coins",
     label: "Money",
-    desc: "Coins, prices, the OG Store, card payments and money checks",
+    desc: "Coins, prices, the OG Store, payments and money checks",
     icon: Coins,
     group: "run",
   },
   {
     to: "/admin/bot",
     label: "OG B0T",
-    desc: "Persona, Telegram, alerts and live users",
+    desc: "Persona, Telegram, alerts, signals and live users",
     icon: Bot,
     group: "bot",
   },
   {
     to: "/admin/system",
     label: "System",
-    desc: "API keys, diagnostics, free access and the Boss actions log",
+    desc: "Free access, API keys, diagnostics and the Boss actions log",
     icon: Settings2,
     group: "check",
   },
@@ -92,7 +93,7 @@ export function BossNav() {
 
   return (
     <div className="boss-ui mb-5 space-y-3">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-card">
           <ShieldCheck className="h-5 w-5 text-primary" />
         </div>
@@ -104,6 +105,7 @@ export function BossNav() {
             {current?.desc ?? "Control panel"}
           </p>
         </div>
+        <BossSearch className="order-last w-full sm:order-none sm:w-72" />
         <a
           href="/auth"
           target="_blank"

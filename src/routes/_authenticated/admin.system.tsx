@@ -1,13 +1,5 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import {
-  ClipboardCheck,
-  FlaskConical,
-  History,
-  KeyRound,
-  ToggleRight,
-  Webhook,
-  Wrench,
-} from "lucide-react";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
+import { ClipboardCheck, FlaskConical, History, KeyRound, ToggleRight, Wrench } from "lucide-react";
 import { TransferReadiness } from "@/components/admin/TransferReadiness";
 import { ApiHub } from "@/components/admin/ApiHub";
 import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
@@ -20,7 +12,6 @@ import { BossNav } from "@/components/admin/BossNav";
 import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { BossAuditLog } from "@/components/admin/BossAuditLog";
 import { FreeAccessPanel } from "@/components/admin/FreeAccessPanel";
-import { WebhooksAdminPage } from "@/components/admin/WebhooksAdminPage";
 import { RouteMapPage } from "@/components/admin/RouteMapPage";
 import { DebugContextPage } from "@/components/admin/DebugContextPage";
 import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
@@ -28,6 +19,12 @@ import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 export const Route = createFileRoute("/_authenticated/admin/system")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
+  // The Stripe webhook moved to Money; old links follow it.
+  beforeLoad: ({ search }) => {
+    if (search.tab === "webhooks") {
+      throw redirect({ to: "/admin/coins", search: { tab: "webhooks" } });
+    }
+  },
   component: AdminSystemHub,
 });
 
@@ -85,6 +82,13 @@ function ToolSection({
 
 const TABS: readonly BossTab[] = [
   {
+    value: "access",
+    label: "Free access",
+    Icon: ToggleRight,
+    hint: "Switch VIP features on for everyone for a while.",
+    Panel: FreeAccessPanel,
+  },
+  {
     value: "apis",
     label: "API keys",
     Icon: KeyRound,
@@ -104,20 +108,6 @@ const TABS: readonly BossTab[] = [
     Icon: FlaskConical,
     hint: "Run a full app, Telegram or foul-mouth check when something feels off.",
     Panel: Diagnostics,
-  },
-  {
-    value: "webhooks",
-    label: "Payments webhook",
-    Icon: Webhook,
-    hint: "Stripe events as they arrive, and whether coins were credited.",
-    Panel: WebhooksAdminPage,
-  },
-  {
-    value: "access",
-    label: "Access",
-    Icon: ToggleRight,
-    hint: "Switch VIP features on for everyone for a while (free access).",
-    Panel: FreeAccessPanel,
   },
   {
     value: "actions",
