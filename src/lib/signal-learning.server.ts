@@ -11,21 +11,10 @@
 // just fitting noise), and then it only moves halfway there, inside fixed
 // safe bounds. Every run writes a plain lesson, which live signals and the
 // AI desk read. Everything lives in site_content "signals.learning".
-import {
-  collectSamples,
-  fetchBinanceHistory,
-  historyNeeded,
-  type LearnSample,
-} from "./trade-signal-backtest";
+import type { LearnSample } from "./trade-signal-backtest";
 import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
 import { SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
-import {
-  DEFAULT_TUNING,
-  detectTradeIntent,
-  scaleTargets,
-  type CandleSets,
-  type Tuning,
-} from "./trade-signal";
+import { DEFAULT_TUNING, detectTradeIntent, scaleTargets, type Tuning } from "./trade-signal";
 
 type Admin = any;
 
@@ -33,16 +22,15 @@ export const LEARNING_KEY = "signals.learning";
 const RUN_KEY = "signals.learning.lastRun";
 /** One market per run, so each is studied about every 4 hours. */
 export const LEARN_EVERY_MS = 2 * 3600_000;
+/** The days a study covers when no history is kept (see signal-samples). */
 const LEARN_DAYS = 14;
-/** A setup every 30 minutes of the period. */
-const SAMPLE_STEP = 6;
 /** Fewer filled trades than this and a setting can't be judged. */
 export const MIN_TRADES = 20;
 const HISTORY = 12;
 
 /** The markets it studies: gold through PAX Gold, as live gold signals are. */
 export const LEARN_MARKETS = [
-  { code: "XAUUSD", symbol: "PAXGUSDT", ask: "XAUUSD signal 5m" },
+  { code: "XAUUSD", symbol: "PAXGUSDT", futures: "XAUUSDT", ask: "XAUUSD signal 5m" },
   { code: "BTCUSD", symbol: "BTCUSDT", ask: "BTCUSD signal 5m" },
 ] as const;
 
@@ -260,6 +248,7 @@ export function learnFromSamples(
   current: Tuning,
   rand: () => number,
   label: string,
+  days: number = LEARN_DAYS,
 ): { next: Tuning; kept: boolean; before: Evaluation; after: Evaluation; lesson: string } {
   const sorted = [...samples].sort((a, b) => a.t - b.t);
   const cut = Math.floor(sorted.length * 0.7);
@@ -300,10 +289,10 @@ export function learnFromSamples(
   const kept = next !== now;
   const after = evaluate(sorted, next);
   const lesson = kept
-    ? `${label}: over the last ${LEARN_DAYS} days, ${describe(next)} won ${pct(after.winRate)} of ${after.n} trades (avg ${r2(after.avgR)}), up from ${pct(before.winRate)} (avg ${r2(before.avgR)}) with the old setting, so I've switched to it.`
+    ? `${label}: over the last ${days} days, ${describe(next)} won ${pct(after.winRate)} of ${after.n} trades (avg ${r2(after.avgR)}), up from ${pct(before.winRate)} (avg ${r2(before.avgR)}) with the old setting, so I've switched to it.`
     : before.n >= MIN_TRADES
-      ? `${label}: over the last ${LEARN_DAYS} days, my setting (${describe(now)}) won ${pct(before.winRate)} of ${before.n} trades (avg ${r2(before.avgR)}); nothing I tried did reliably better, so I'm keeping it.`
-      : `${label}: only ${before.n} trades in the last ${LEARN_DAYS} days, too few to learn from; keeping my setting.`;
+      ? `${label}: over the last ${days} days, my setting (${describe(now)}) won ${pct(before.winRate)} of ${before.n} trades (avg ${r2(before.avgR)}); nothing I tried did reliably better, so I'm keeping it.`
+      : `${label}: only ${before.n} trades in the last ${days} days, too few to learn from; keeping my setting.`;
   return { next, kept, before, after, lesson };
 }
 
@@ -378,21 +367,19 @@ export async function maybeLearn(
         (Date.parse(state.markets[b.code]?.lastRunAt ?? "") || 0),
     )[0];
     const inst = detectTradeIntent(market.ask) ?? undefined;
-    const { start, need } = historyNeeded("5M", LEARN_DAYS, now);
-    const sets: CandleSets = { daily: [], hourly: [], fifteen: [], five: [], minute: [] };
-    for (const [key, from] of Object.entries(need) as [keyof CandleSets, number][])
-      sets[key] = await fetchBinanceHistory(market.symbol, key, from, now, fetcher);
-    const samples = collectSamples({
-      sets,
-      frame: "5M",
-      from: start,
-      to: now,
-      inst,
-      step: SAMPLE_STEP,
-    });
+    // The kept history, topped up with what's new (and a week further back
+    // each time until it reaches 90 days): see signal-samples.server.ts.
+    const { gatherSamples } = await import("./signal-samples.server");
+    const { samples, days, added } = await gatherSamples(admin, market, inst, now, fetcher);
     const had = state.markets[market.code];
     const label = market.code === "XAUUSD" ? "Gold" : "Bitcoin";
-    const studied = learnFromSamples(samples, had?.tuning ?? DEFAULT_TUNING, seeded(now), label);
+    const studied = learnFromSamples(
+      samples,
+      had?.tuning ?? DEFAULT_TUNING,
+      seeded(now),
+      label,
+      days || LEARN_DAYS,
+    );
     // What really happened beats any replay: a confidence band that's been
     // losing live raises the floor (never lowers it).
     const live = await liveResults(admin, market.code, now);
@@ -429,7 +416,7 @@ export async function maybeLearn(
       ].slice(-HISTORY),
     };
     await save(admin, LEARNING_KEY, JSON.stringify(state));
-    return `${label}: ${out.kept ? "learned a better setting" : "kept its setting"} (${samples.length} setups, ${out.after.n} trades)`;
+    return `${label}: ${out.kept ? "learned a better setting" : "kept its setting"} (${samples.length} setups over ${days} days, ${added} new, ${out.after.n} trades)`;
   } catch (e) {
     console.warn("[signals] learning failed", e instanceof Error ? e.message : "error");
     return "failed: error";

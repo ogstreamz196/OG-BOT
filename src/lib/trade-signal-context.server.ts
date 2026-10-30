@@ -16,7 +16,7 @@ import {
   parseSwissquoteMid,
   parseYahooPrice,
   shiftCandles,
-  spotOffset,
+  spotGap,
   volumeNote,
   volumeRatio,
 } from "./trade-signal-extras";
@@ -80,6 +80,29 @@ async function fromBinance(
 ): Promise<Candle[]> {
   const rows = (await getJson(
     `${host}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
+  )) as unknown[][];
+  return clean(
+    rows.map((r) => ({
+      t: Number(r[0]),
+      o: +String(r[1]),
+      h: +String(r[2]),
+      l: +String(r[3]),
+      c: +String(r[4]),
+      v: +String(r[5]),
+    })),
+  );
+}
+
+/** Binance's USDⓈ-M futures API (the gold perpetual, XAUUSDT). */
+export const FUTURES_SOURCE = "Binance futures";
+
+async function fromBinanceFutures(
+  symbol: string,
+  interval: Interval,
+  limit: number,
+): Promise<Candle[]> {
+  const rows = (await getJson(
+    `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
   )) as unknown[][];
   return clean(
     rows.map((r) => ({
@@ -185,7 +208,9 @@ export async function candles(
 
   const limit = interval === "1d" ? 365 : interval === "1h" ? 1000 : 500;
   const tries: [string, () => Promise<Candle[]>][] = [];
-  const { binance, kraken, yahoo } = inst;
+  const { binance, kraken, yahoo, futures } = inst;
+  // The real market's perpetual first (gold), then the proxy token.
+  if (futures) tries.push([FUTURES_SOURCE, () => fromBinanceFutures(futures, interval, limit)]);
   if (binance) {
     tries.push(["Binance", () => fromBinance(binance, interval, limit)]);
     tries.push([
@@ -442,6 +467,8 @@ async function cryptoFlow(inst: Instrument): Promise<CryptoFlow | null> {
  * like a limit, but filled when price breaks through).
  */
 export type SignalFeeds = {
+  /** The real market's perpetual (gold's XAUUSDT), tried first by the tracker. */
+  futures?: string;
   binance?: string;
   kraken?: string;
   yahoo?: string;
@@ -677,19 +704,38 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
 
   // Proxy charts (gold token, silver futures) are moved onto the spot price
   // brokers quote, so every level matches what members see.
-  const proxyNow =
-    Number.isFinite(feedPrice) && feedPrice > 0
-      ? feedPrice
-      : (hourly.data[hourly.data.length - 1]?.c ?? NaN);
-  const offset = spotOffset(spot, proxyNow);
-  const live = offset ? spot : feedPrice;
+  // Gold can come from two feeds (the gold perpetual, or the PAX Gold token
+  // if the perpetual is down), each with its own gap to spot, so every series
+  // is moved by the gap of the feed it came from.
+  const latest = (fromFutures: boolean) =>
+    [quick, fifteen, hourly, daily]
+      .find((x) => (x.source === FUTURES_SOURCE) === fromFutures && x.data.length)
+      ?.data.at(-1)?.c ?? NaN;
+  // The proxy token's price: its live ticker, else its freshest candle.
+  const proxyNow = Number.isFinite(feedPrice) && feedPrice > 0 ? feedPrice : latest(false);
+  const futuresNow = latest(true);
+  const gapFor = (source: string) =>
+    spotGap(spot, source === FUTURES_SOURCE ? futuresNow : proxyNow);
+  const shifted = (x: { data: Candle[]; source: string }) =>
+    shiftCandles(x.data, gapFor(x.source)?.offset ?? 0);
+  // The entry chart's feed decides the signal's own gap (what the tracker follows).
+  const entrySeries = fast ? quick : style === "scalp" ? fifteen : hourly;
+  const entryGap = gapFor(entrySeries.source);
+  const offset = entryGap?.offset ?? 0;
+  const spotOk = !!entryGap;
+  const live = spotOk
+    ? spot
+    : entrySeries.source === FUTURES_SOURCE && futuresNow > 0
+      ? futuresNow
+      : feedPrice;
+  const dailyOnSpot = shifted(daily);
   const { frames, entryCandles, middleCandles } = framesFor(
     {
-      daily: shiftCandles(daily.data, offset),
-      hourly: shiftCandles(hourly.data, offset),
-      fifteen: shiftCandles(fifteen.data, offset),
-      five: fast === "5m" ? shiftCandles(quick.data, offset) : [],
-      minute: fast === "1m" ? shiftCandles(quick.data, offset) : [],
+      daily: dailyOnSpot,
+      hourly: shifted(hourly),
+      fifteen: shifted(fifteen),
+      five: fast === "5m" ? shifted(quick) : [],
+      minute: fast === "1m" ? shifted(quick) : [],
     },
     style,
     fast,
@@ -707,9 +753,10 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     return result;
   }
 
-  // A proxy feed's volume (the PAX Gold token for gold) says nothing about
-  // the real market, so it never counts for or against a signal there.
-  const volume = inst.spot ? NaN : volumeRatio(entryCandles);
+  // A proxy token's volume (PAX Gold) says nothing about the real market, so
+  // it never counts there; the gold perpetual's volume is the real market's.
+  const volume =
+    inst.spot && entrySeries.source !== FUTURES_SOURCE ? NaN : volumeRatio(entryCandles);
   // What OG B0T has learned from past setups (stop room, target pull-in,
   // confidence floor); the hand-set rules until it has learned anything.
   const { learnedTuning } = await import("./signal-learning.server");
@@ -733,7 +780,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   });
   // A proxy chart (gold from PAX Gold) without a confirmed spot price would
   // print the token's prices, not the real market's: no levels until it's back.
-  const spotUnconfirmed = !!inst.spot && !offset;
+  const spotUnconfirmed = !!inst.spot && !spotOk;
   if (spotUnconfirmed && plan.verdict === "trade")
     plan = {
       ...plan,
@@ -778,8 +825,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   plan.stop = shown(plan.stop);
   plan.targets = [shown(plan.targets[0]), shown(plan.targets[1]), shown(plan.targets[2])];
 
-  const lastDay = daily.data[daily.data.length - 1];
-  const prevDay = daily.data[daily.data.length - 2];
+  // On the spot price too, so today's range and change match the levels.
+  const lastDay = dailyOnSpot[dailyOnSpot.length - 1];
+  const prevDay = dailyOnSpot[dailyOnSpot.length - 2];
   const change = prevDay ? ((price - prevDay.c) / prevDay.c) * 100 : NaN;
   const asOf = new Date(entryCandles[entryCandles.length - 1]?.t ?? Date.now())
     .toISOString()
@@ -904,11 +952,12 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     market: inst.code,
     label: inst.label,
     feeds: {
+      ...(inst.futures ? { futures: inst.futures } : {}),
       binance: inst.binance,
       kraken: inst.kraken,
       yahoo: inst.yahoo,
       ...(offset ? { offset } : {}),
-      ...(offset && inst.spot ? { spot: inst.spot } : {}),
+      ...(spotOk && inst.spot ? { spot: inst.spot } : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
     },
     style,
@@ -1188,10 +1237,12 @@ async function buildBias(
     market: o.inst.code,
     label: o.inst.label,
     feeds: {
+      ...(o.feeds.futures ? { futures: o.feeds.futures } : {}),
       binance: o.feeds.binance,
       kraken: o.feeds.kraken,
       yahoo: o.feeds.yahoo,
       ...(o.offset ? { offset: o.offset } : {}),
+      ...(o.feeds.spot ? { spot: o.feeds.spot } : {}),
       ...(read.entryType === "stop" ? { entry: "stop" as const } : {}),
       bias: true,
     },

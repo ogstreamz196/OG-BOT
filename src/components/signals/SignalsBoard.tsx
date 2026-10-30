@@ -19,6 +19,8 @@ import type { SignalSummary } from "@/lib/trade-signal-context.server";
 import type { SignalRecord } from "@/lib/signal-record.server";
 
 const GROUPS = ["All", "Metals", "Crypto", "Forex", "Indices"] as const;
+/** Group filters only earn their place with more than a couple of markets. */
+const SHOW_GROUPS = BOARD_MARKETS.length > 2;
 type Group = (typeof GROUPS)[number];
 const GROUP_OF = Object.fromEntries(BOARD_MARKETS.map((m) => [m.code, m.group])) as Record<
   string,
@@ -114,23 +116,27 @@ export function SignalsBoard() {
             onChange={(v) => setFrame(v as BoardFrame)}
             label="Timeframe"
           />
-          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
-            {GROUPS.map((g) => (
-              <button
-                key={g}
-                onClick={() => setGroup(g)}
-                aria-pressed={group === g}
-                className={cn(
-                  "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-colors",
-                  group === g
-                    ? "border-emerald-400 bg-emerald-500 text-black"
-                    : "border-border bg-background/60 text-foreground/80 hover:border-emerald-400/60",
-                )}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
+          {SHOW_GROUPS && (
+            <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
+              {GROUPS.filter((g) => g === "All" || BOARD_MARKETS.some((m) => m.group === g)).map(
+                (g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGroup(g)}
+                    aria-pressed={group === g}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-colors",
+                      group === g
+                        ? "border-emerald-400 bg-emerald-500 text-black"
+                        : "border-border bg-background/60 text-foreground/80 hover:border-emerald-400/60",
+                    )}
+                  >
+                    {g}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
         </div>
       </header>
 

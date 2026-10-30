@@ -16,6 +16,11 @@ export type Instrument = {
   yahoo?: string;
   /** Binance spot symbol (crypto, and PAXG as a spot-gold proxy). */
   binance?: string;
+  /**
+   * Binance USDⓈ-M perpetual tracking the real market (gold: XAUUSDT, one
+   * troy ounce of spot gold, listed January 2026). Tried before `binance`.
+   */
+  futures?: string;
   /** Kraken pair (crypto fallback). */
   kraken?: string;
   /** Size of one pip, when traders talk in pips. */
@@ -98,13 +103,14 @@ const FIXED: { re: RegExp; make: () => Instrument }[] = [
       label: "XAU/USD (Gold)",
       code: "XAUUSD",
       asset: "metal",
+      futures: "XAUUSDT",
       binance: "PAXGUSDT",
       kraken: "PAXGUSD",
       yahoo: "GC=F",
       pip: 0.1,
       spot: "XAU/USD",
       sourceNote:
-        "priced from PAX Gold (tracks spot gold); your broker may differ by a dollar or two",
+        "priced from Binance's gold perpetual (PAX Gold if it's down), moved onto spot gold; your broker may differ by a dollar or two",
     }),
   },
   {

@@ -49,7 +49,9 @@ describe("runDesk", () => {
       seen.find((b) => b.messages[0].content.includes(`${role} analyst`))!;
     expect(by("Trend").model).toBe("openai/gpt-oss-120b");
     expect(by("Levels").model).toBe("qwen/qwen3.8-27b");
-    expect(by("Momentum").model).toBe("nvidia/nemotron");
+    expect(by("Momentum").model).toBe("openai/gpt-oss-120b");
+    // OpenRouter's free model is left for the group roasts.
+    expect(seen.some((b) => b.model === "nvidia/nemotron")).toBe(false);
     expect(by("Risk").model).toBe("openai-fast");
     // Wave 2 sees wave 1's findings; the chief sees everyone's.
     expect(by("Momentum").messages[1].content).toContain("Trend analyst: SELL");

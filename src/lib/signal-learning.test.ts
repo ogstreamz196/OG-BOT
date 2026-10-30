@@ -177,7 +177,7 @@ describe("maybeLearn", () => {
     const out = await maybeLearn(admin, now, fakeBinance());
     const took = Date.now() - started;
     expect(out).toMatch(
-      /^Gold: (learned a better setting|kept its setting) \(\d+ setups, \d+ trades\)$/,
+      /^Gold: (learned a better setting|kept its setting) \(\d+ setups over 14 days, 0 new, \d+ trades\)$/,
     );
     const state = parseLearning(admin.rows["signals.learning"]);
     expect(state.markets.XAUUSD).toMatchObject({ runs: 1, history: [expect.any(Object)] });

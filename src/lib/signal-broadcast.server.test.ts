@@ -10,8 +10,10 @@ type Row = Record<string, unknown>;
 
 /** Just enough of the database client for signal_broadcasts. */
 function fakeDb(opts: { broken?: boolean } = {}) {
-  const rows: Row[] = [];
-  const from = () => {
+  const tables: Record<string, Row[]> = { signal_broadcasts: [], trade_signals: [] };
+  const rows = tables.signal_broadcasts;
+  const from = (name: string) => {
+    const rows = (tables[name] ??= []);
     const filters: ((r: Row) => boolean)[] = [];
     const q = {
       select: () => q,
@@ -19,6 +21,7 @@ function fakeDb(opts: { broken?: boolean } = {}) {
       limit: () => q,
       eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
       gt: (c: string, v: unknown) => (filters.push((r) => String(r[c]) > String(v)), q),
+      gte: (c: string, v: unknown) => (filters.push((r) => String(r[c]) >= String(v)), q),
       insert: (row: Row) => {
         rows.push({ ...row, created_at: new Date().toISOString() });
         return Promise.resolve({ error: null });
@@ -32,7 +35,7 @@ function fakeDb(opts: { broken?: boolean } = {}) {
     };
     return q;
   };
-  return { db: { from }, rows };
+  return { db: { from }, rows, tables };
 }
 
 const T0 = Date.parse("2026-10-25T12:00:00Z");
@@ -111,6 +114,49 @@ describe("auto-posted scalp signals", () => {
     // After the post's valid-until, a fresh one can go out.
     expect((await scanAndBroadcast(db, deps(flipped, T0 + 61 * 60_000))).posted).toEqual([
       "XAUUSD SELL",
+    ]);
+  });
+
+  test("the same side goes out again once the last alert's trade is over", async () => {
+    const { db, tables } = fakeDb();
+    const gold = { XAU: card("XAUUSD", "BUY", 90, 60), BTC: { reply: "" } };
+    expect((await scanAndBroadcast(db, deps(gold))).posted).toEqual(["XAUUSD BUY"]);
+    // The alert's trade, as the tracker keeps it (message 1 in the channel).
+    const trade: Row = {
+      market: "XAUUSD",
+      sender_worker: "trade",
+      message_id: 1,
+      status: "open",
+      closed_at: null,
+      // Recorded as the alert went out (the fake stamps posts with the real clock).
+      created_at: new Date().toISOString(),
+    };
+    tables.trade_signals.push(trade);
+    // Still running: no repeat.
+    expect((await scanAndBroadcast(db, deps(gold, T0 + 5 * 60_000))).posted).toEqual([]);
+    // Take profit hit ten minutes in: the next buy can go straight out.
+    Object.assign(trade, { status: "tp3", closed_at: new Date(T0 + 10 * 60_000).toISOString() });
+    expect((await scanAndBroadcast(db, deps(gold, T0 + 11 * 60_000))).posted).toEqual([
+      "XAUUSD BUY",
+    ]);
+  });
+
+  test("after a stop loss, the same side waits 15 minutes", async () => {
+    const { db, tables } = fakeDb();
+    const gold = { XAU: card("XAUUSD", "BUY", 90, 60), BTC: { reply: "" } };
+    await scanAndBroadcast(db, deps(gold));
+    tables.trade_signals.push({
+      market: "XAUUSD",
+      sender_worker: "trade",
+      message_id: 1,
+      status: "stopped",
+      closed_at: new Date(T0 + 5 * 60_000).toISOString(),
+      // Recorded as the alert went out (the fake stamps posts with the real clock).
+      created_at: new Date().toISOString(),
+    });
+    expect((await scanAndBroadcast(db, deps(gold, T0 + 10 * 60_000))).posted).toEqual([]);
+    expect((await scanAndBroadcast(db, deps(gold, T0 + 21 * 60_000))).posted).toEqual([
+      "XAUUSD BUY",
     ]);
   });
 

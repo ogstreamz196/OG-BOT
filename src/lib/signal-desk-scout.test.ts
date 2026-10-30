@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { deskCard, deskScoutDue, maybeDeskScout } from "./signal-broadcast.server";
-import { deskAgrees, type DeskDecision } from "./signal-desk.server";
+import {
+  DESK_VETO_MS,
+  deskCard,
+  deskConfirmer,
+  deskScoutDue,
+  maybeDeskScout,
+  scanAndBroadcast,
+} from "./signal-broadcast.server";
+import { deskAgrees, deskBacks, type DeskDecision } from "./signal-desk.server";
 
 type Row = Record<string, unknown>;
 
@@ -82,10 +89,10 @@ describe("deskAgrees", () => {
 });
 
 describe("deskScoutDue", () => {
-  test("once an hour", () => {
+  test("every 10 minutes", () => {
     expect(deskScoutDue(null, T0)).toBe(true);
-    expect(deskScoutDue(new Date(T0 - 30 * 60_000).toISOString(), T0)).toBe(false);
-    expect(deskScoutDue(new Date(T0 - 59.6 * 60_000).toISOString(), T0)).toBe(true);
+    expect(deskScoutDue(new Date(T0 - 5 * 60_000).toISOString(), T0)).toBe(false);
+    expect(deskScoutDue(new Date(T0 - 9.6 * 60_000).toISOString(), T0)).toBe(true);
   });
 });
 
@@ -111,7 +118,7 @@ describe("maybeDeskScout", () => {
     expect(out).toContain("XAU: posted BUY");
     expect(out).toContain("BTC: desk split");
     expect(tables.signal_broadcasts).toHaveLength(1);
-    // The hour is claimed: a minute later it doesn't scout again.
+    // The slot is claimed: a minute later it doesn't scout again.
     const again = await maybeDeskScout(db, {
       read: async () => {
         throw new Error("shouldn't scout");
@@ -224,5 +231,93 @@ describe("key-time checks", () => {
       now: () => londonOpen + 5 * 60_000,
     });
     expect(again).toBe("not due");
+  });
+});
+
+describe("deskBacks", () => {
+  test("the chief's side, with more analysts for it than against", () => {
+    expect(deskBacks(desk("BUY", ["BUY", "BUY", "SELL", "WAIT"]), "BUY")).toBe(true);
+    expect(deskBacks(desk("BUY", ["BUY", "WAIT", "WAIT"]), "BUY")).toBe(true);
+    expect(deskBacks(desk("BUY", ["BUY", "SELL", "SELL"]), "BUY")).toBe(false);
+    expect(deskBacks(desk("SELL", ["SELL", "SELL", "SELL"]), "BUY")).toBe(false);
+    expect(deskBacks(null, "BUY")).toBe(false);
+  });
+});
+
+describe("the desk checks the chart engine's 70%+ alerts", () => {
+  const scanDeps = (
+    db: unknown,
+    read: Parameters<typeof deskConfirmer>[1],
+    now = T0,
+    askUntil = T0 + 20_000,
+  ) => {
+    const posted: string[] = [];
+    let asked = 0;
+    return {
+      posted,
+      asked: () => asked,
+      deps: {
+        build: async (ask: string) =>
+          /xau|gold/i.test(ask) ? signal("XAUUSD", "BUY", 80) : { reply: "wait" },
+        post: async (text: string) => (posted.push(text), posted.length),
+        confirm: deskConfirmer(
+          db,
+          async (ask) => {
+            asked++;
+            return read(ask);
+          },
+          { now: () => now, askUntil },
+        ),
+        now: () => now,
+      },
+    };
+  };
+
+  test("posted when the desk backs it, with the chief's take profit", async () => {
+    const { db } = fakeDb();
+    const moved = { ...signal("XAUUSD", "BUY", 80), reply: "card with the chief's take profit" };
+    const run = scanDeps(db, async () => ({
+      signal: moved,
+      desk: desk("BUY", ["BUY", "BUY", "WAIT", "SELL"]),
+    }));
+    expect((await scanAndBroadcast(db, run.deps)).posted).toEqual(["XAUUSD BUY"]);
+    expect(run.posted).toEqual(["card with the chief's take profit"]);
+    // A repeat never asks the AIs again.
+    const again = scanDeps(db, async () => {
+      throw new Error("shouldn't ask");
+    });
+    expect((await scanAndBroadcast(db, again.deps)).posted).toEqual([]);
+    expect(again.asked()).toBe(0);
+  });
+
+  test("turned down, that side isn't re-asked for 10 minutes", async () => {
+    const { db } = fakeDb();
+    const against = async () => ({
+      signal: signal("XAUUSD", "BUY", 80),
+      desk: desk("SELL", ["SELL", "SELL", "BUY"]),
+    });
+    const run = scanDeps(db, against);
+    expect((await scanAndBroadcast(db, run.deps)).posted).toEqual([]);
+    expect(run.asked()).toBe(1);
+    const soon = scanDeps(db, against, T0 + 60_000, T0 + 80_000);
+    await scanAndBroadcast(db, soon.deps);
+    expect(soon.asked()).toBe(0);
+    const later = scanDeps(db, against, T0 + DESK_VETO_MS + 1, T0 + DESK_VETO_MS + 20_000);
+    await scanAndBroadcast(db, later.deps);
+    expect(later.asked()).toBe(1);
+  });
+
+  test("with no AI answering, the engine's alert stands; too late in a run, it waits", async () => {
+    const { db } = fakeDb();
+    const down = scanDeps(db, async () => ({ signal: signal("XAUUSD", "BUY", 80), desk: null }));
+    expect((await scanAndBroadcast(db, down.deps)).posted).toEqual(["XAUUSD BUY"]);
+    const { db: db2 } = fakeDb();
+    const late = scanDeps(
+      db2,
+      async () => ({ signal: signal("XAUUSD", "BUY", 80), desk: null }),
+      T0 + 30_000,
+    );
+    expect((await scanAndBroadcast(db2, late.deps)).posted).toEqual([]);
+    expect(late.asked()).toBe(0);
   });
 });

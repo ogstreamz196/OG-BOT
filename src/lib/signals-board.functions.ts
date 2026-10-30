@@ -3,19 +3,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SignalSummary } from "./trade-signal-context.server";
 import type { SignalRecord } from "./signal-record.server";
 
-/** The markets on the OG Signals page, and how each is asked for. */
+/**
+ * The markets on the OG Signals page, and how each is asked for: gold and
+ * bitcoin only, the two the bot posts, learns and is followed on.
+ */
 export const BOARD_MARKETS = [
   { code: "XAUUSD", ask: "gold", group: "Metals" },
-  { code: "XAGUSD", ask: "silver", group: "Metals" },
   { code: "BTCUSD", ask: "BTCUSD", group: "Crypto" },
-  { code: "ETHUSD", ask: "ETHUSD", group: "Crypto" },
-  { code: "SOLUSD", ask: "SOLUSD", group: "Crypto" },
-  { code: "EURUSD", ask: "EURUSD", group: "Forex" },
-  { code: "GBPUSD", ask: "GBPUSD", group: "Forex" },
-  { code: "USDJPY", ask: "USDJPY", group: "Forex" },
-  { code: "NAS100", ask: "nas100", group: "Indices" },
-  { code: "US30", ask: "us30", group: "Indices" },
-  { code: "USOIL", ask: "wti", group: "Indices" },
 ] as const;
 
 export type BoardFrame = "1H" | "15M";
