@@ -7,13 +7,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
-  `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
-  emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
-  sign-in, `src/routes/lovable/email` and the database client's schema.
-  **Paused (checked by the Boss's Claude, 2026-10-31):** the partner's
-  Claude ran out of usage before starting this; no branch or PR exists for
-  it yet. Pick up from step 3 in `docs/lovable-exit-plan.md`.
+- Partner's Claude · `hub-apply` · **Started 2026-10-31 ~17:20 (Boss's
+  go-ahead):** OG B0T's structure into the OGSTREAMZ hub (`og_bot`) through
+  the database connection (no GitHub secret), then a snapshot copy of all
+  data from Lovable Cloud, member accounts with password hashes, and a dummy
+  account password test. Touches the hub database and `supabase/hub/`,
+  `docs/`. Live app stays on Lovable. After that: leaving Lovable steps 3–5.
 
 ## Where things stand (handover)
 
