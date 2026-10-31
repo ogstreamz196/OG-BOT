@@ -79,6 +79,7 @@
 - [ ] Age rating questionnaires 16+/17+ at store submission (owner)
 
 - [x] Add alt text to DodgyLogo mascot in welcome.tsx (SEO agent_content:content)
-- [ ] Sync latest lovable-sync (trade/learning data kept permanently, no 120-day purge), publish, then check the signals chat and the Boss signal report load normally
-- [ ] Keep trade_signals, signal_learn_samples and signal_shadows forever: no clean-up, retention job or migration that deletes their rows
+- [x] Sync latest lovable-sync (trade/learning data kept permanently, no 120-day purge), publish, then check the signals chat and the Boss signal report load normally
+- [x] Keep trade_signals, signal_learn_samples and signal_shadows forever: no clean-up, retention job or migration that deletes their rows (guard test src/lib/trade-data-kept.test.ts)
+
 
