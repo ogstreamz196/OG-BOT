@@ -568,6 +568,10 @@ function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: nu
 }
 
 export type SignalFeeds = {
+  /** Learned breakeven: move the stop to entry once this many risks in profit. */
+  beAt?: number;
+  /** The stop has moved to the entry (the breakeven fired). */
+  protected?: boolean;
   /** The learned-off filter that let this signal through (signal-filter-learning.server.ts). */
   relaxed?: string;
   /** What the live-trial pair checks said (pair-checks.ts): gold's dollar, bitcoin's flow. */
@@ -1127,9 +1131,32 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // Confidence is indicator agreement (51–90%), not a win rate.
   // One take profit: by default the Quick Scalp (pulled in from TP1); the desk
   // may pick another inside the safe band around it (tpRange).
+  // Learned exits (5-minute scalps): a breakeven and/or a runner.
+  const exits = entryLabel === "5M" ? (tuning ?? DEFAULT_TUNING) : DEFAULT_TUNING;
+  const { exitTargets } = await import("./signal-learning.server");
+  const targetsFor = (tp: number) => {
+    const t = exitTargets(plan.entry, tp, exits.runner);
+    return [t[0], shown(t[1]), shown(t[2])] as [number, number, number];
+  };
+  const bePrice = exits.beAt
+    ? shown(
+        plan.entry +
+          (plan.direction === "BUY" ? 1 : -1) * Math.abs(plan.entry - plan.stop) * exits.beAt,
+      )
+    : null;
+  const exitLines = (tp: number) => {
+    const run = targetsFor(tp)[2];
+    return [
+      ...(run !== tp
+        ? [`🏃 I'll bank a third at ${fmt(tp)} and let the rest run to ${fmt(run)}`]
+        : []),
+      ...(bePrice != null ? [`🔒 Stop to my entry once it reaches ${fmt(bePrice)}`] : []),
+    ];
+  };
   const cardFor = (tp: number) =>
     [
       ...tradeLines(fmt, inst, plan.entry, plan.entryType, plan.direction, plan.stop, tp),
+      ...exitLines(tp),
       "",
       `⏱ ${entryLabel} · 💪 ${plan.confidencePct}%`,
       ...(plan.setup ? [`🧩 ${plan.setup}`] : []),
@@ -1161,6 +1188,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(Object.keys(checks).length ? { checks } : {}),
       // The learned time limits (5-minute scalps): the tracker applies them.
       ...timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING),
+      // The learned breakeven, in risks (the tracker works out the price).
+      ...(exits.beAt ? { beAt: exits.beAt } : {}),
     },
     style,
     timeframe: entryLabel,
@@ -1168,8 +1197,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     entry: plan.entry,
     entryType: plan.entryType,
     stop: plan.stop,
-    // One take profit: all three levels on it, so one hit closes the trade.
-    targets: [plan.targets[0], plan.targets[0], plan.targets[0]],
+    // One take profit: all three levels on it, so one hit closes the trade;
+    // with a learned runner, a third there and the rest further on.
+    targets: targetsFor(plan.targets[0]),
     confidencePct: plan.confidencePct,
     quality: plan.quality,
     decimals: dp,
@@ -1242,7 +1272,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
             const tp = Number(picked.toFixed(dp));
             return {
               reply: cardFor(tp),
-              plan: { ...plan2, targets: [tp, tp, tp] as [number, number, number] },
+              plan: { ...plan2, targets: targetsFor(tp) },
             };
           },
         }),

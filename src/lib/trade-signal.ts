@@ -547,10 +547,23 @@ export type Tuning = {
   holdFor: number;
   /** Minutes a pending entry waits to fill before it's cancelled (60 is the whole hour). */
   fillWithin: number;
+  /**
+   * Breakeven: once a trade is this many times its risk in profit (before the
+   * take profit), the stop moves to the entry. 0 is off.
+   */
+  beAt: number;
+  /**
+   * A runner: a third is banked at the take profit and the rest runs to this
+   * many times the take profit's distance, the stop at the entry meanwhile.
+   * 0 is off (one take profit closes the lot).
+   */
+  runner: number;
 };
 /** A time limit of this many minutes or more is no limit (5-minute scalps last an hour). */
 export const NO_TIME_LIMIT = 60;
 export const DEFAULT_TUNING: Tuning = {
+  beAt: 0,
+  runner: 0,
   holdFor: NO_TIME_LIMIT,
   fillWithin: NO_TIME_LIMIT,
   pullback: 0.5,

@@ -70,7 +70,14 @@ export const BOUNDS = {
   minVol: [0, 0.8],
   holdFor: [10, 60],
   fillWithin: [5, 60],
+  /** 0 (off) or in this range. */
+  beAt: [0.5, 1.5],
+  runner: [1.5, 3],
 } as const;
+
+/** A switchable setting: off (0) below most of its range's start, else inside it on `step`s. */
+const switchable = (v: number, [lo, hi]: readonly [number, number], step: number) =>
+  !(v >= lo * 0.75) ? 0 : Math.round(clamp(v, [lo, hi]) / step) * step;
 
 export type Evaluation = {
   /** Filled trades. */
@@ -136,8 +143,12 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
     skipBlocks: v("skipBlocks"),
     holdFor: v("holdFor"),
     fillWithin: v("fillWithin"),
+    beAt: v("beAt"),
+    runner: v("runner"),
   };
   return {
+    beAt: switchable(Number(t.beAt), BOUNDS.beAt, 0.25),
+    runner: switchable(Number(t.runner), BOUNDS.runner, 0.25),
     // Whole 5 minutes, so one candle's noise can't move them.
     holdFor: Math.round(clamp(t.holdFor!, BOUNDS.holdFor) / 5) * 5,
     fillWithin: Math.round(clamp(t.fillWithin!, BOUNDS.fillWithin) / 5) * 5,
@@ -156,7 +167,12 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
   };
 }
 
-const oneTarget = (tp: number): [number, number, number] => [tp, tp, tp];
+/** The three tracked levels: all on the take profit, or a third there and the rest to the runner. */
+export function exitTargets(entry: number, tp: number, runner: number): [number, number, number] {
+  if (!runner) return [tp, tp, tp];
+  const run = entry + (tp - entry) * runner;
+  return [tp, run, run];
+}
 
 /**
  * The entry, stop and take profit a past setup gets under a setting. A
@@ -177,11 +193,15 @@ export function applyTuning(s: LearnSample, tune: Tuning) {
   const entry = pull ? pull.price + (pull.mean - pull.price) * tune.pullback : s.entry;
   const shift = entry - s.entry;
   const raw = s.raw.targets.map((t) => t + shift) as [number, number, number];
+  const stop = entry - side * s.raw.risk * tune.stopRoom;
+  // One take profit (the Quick Scalp), as live signals have; with a runner,
+  // a third there and the rest further on.
+  const tp = scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0];
   return {
     entry,
-    stop: entry - side * s.raw.risk * tune.stopRoom,
-    // One take profit (the Quick Scalp), as live signals have.
-    targets: oneTarget(scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0]),
+    stop,
+    targets: exitTargets(entry, tp, tune.runner),
+    ...(tune.beAt ? { beTrigger: entry + side * Math.abs(entry - stop) * tune.beAt } : {}),
   };
 }
 
@@ -201,7 +221,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     // Too quiet, or a time of day it sits out (unknown readings never filter).
     if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
     if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
-    const { entry, stop, targets } = applyTuning(s, tune);
+    const { entry, stop, targets, beTrigger } = applyTuning(s, tune);
     // With the setting's time limits: the entry's to fill in time, and a trade
     // that's gone nowhere is closed on time.
     const market = s.entryType === "market";
@@ -219,6 +239,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
           status: market ? "open" : "pending",
           expiresAt: s.expiresAt,
           ...(market ? { enteredAt: s.t } : {}),
+          ...(beTrigger != null ? { beTrigger } : {}),
         },
         half,
       ),
@@ -301,6 +322,10 @@ export function candidates(current: Tuning, rand: () => number, count = 32): Tun
         skipBlocks: current.skipBlocks,
         holdFor: nudge(current.holdFor, 15),
         fillWithin: nudge(current.fillWithin, 15),
+        // Exits: nudged when on, and now and then switched on or off.
+        beAt: rand() < 0.25 ? (current.beAt ? 0 : 0.5 + rand()) : nudge(current.beAt, 0.25),
+        runner:
+          rand() < 0.25 ? (current.runner ? 0 : 1.5 + rand() * 1.5) : nudge(current.runner, 0.4),
       }),
     );
   return out;
@@ -318,6 +343,10 @@ const describe = (t: Tuning) =>
     : "") +
   (t.fillWithin < NO_TIME_LIMIT
     ? `, cancelling an entry not filled within ${t.fillWithin} minutes`
+    : "") +
+  (t.beAt ? `, stop to entry once it's ${t.beAt}× the risk in profit` : "") +
+  (t.runner
+    ? `, banking a third at the take profit and running the rest to ${t.runner}× its distance`
     : "");
 
 /**
@@ -362,6 +391,9 @@ export function learnFromSamples(
       skipBlocks: now.skipBlocks,
       holdFor: (now.holdFor + best.holdFor) / 2,
       fillWithin: (now.fillWithin + best.fillWithin) / 2,
+      // Switching an exit on or off can't be done halfway: the better one's.
+      beAt: !now.beAt !== !best.beAt ? best.beAt : (now.beAt + best.beAt) / 2,
+      runner: !now.runner !== !best.runner ? best.runner : (now.runner + best.runner) / 2,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
     if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;
