@@ -7,26 +7,38 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · (next branch) · Leaving Lovable, steps 2–5 (plan in
-  `docs/lovable-exit-plan.md`): waiting on the Boss's database-project
-  choice. Will touch `vite.config.ts`, a new `wrangler.jsonc`, sign-in and
-  `src/routes/lovable/email`.
+- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
+  `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
+  emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
+  sign-in, `src/routes/lovable/email` and the database client's schema.
 
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-10-31 · #165** · Leaving Lovable, step 2
+  prepared: OG B0T's whole database structure as the `og_bot` schema for the
+  OGSTREAMZ hub (Boss's choice), in `supabase/hub/` (not
+  `supabase/migrations`, so Lovable never applies it). Found and recorded the
+  live changes Lovable made outside the migrations (`01_drift_from_live.sql`);
+  the result matches live object for object. `scripts/hub/build-og-bot-init.sh`
+  rebuilds `og_bot_init.sql`; `.github/workflows/og-bot-hub.yml` applies,
+  verifies or rolls it back when `supabase/hub/request.json` changes on
+  lovable-sync (secret `OG_BOT_HUB_DB_URL`). Nothing applied to the hub yet.
+  No Lovable migration. **If you add a migration on Lovable, run the build
+  script again** so the hub copy keeps up.
+
 - **Partner's Claude · 2026-10-31 · #164** · Leaving Lovable, step 1
   (`docs/lovable-exit-plan.md`): `src/lib/connectors.server.ts` sends
   Telegram, Google Drive/Sheets and Stripe calls straight to the real API
   when that service's own key is set (`OG_BOT_TOKEN`; `GOOGLE_OAUTH_CLIENT_ID`
-  + `_SECRET` + `_REFRESH_TOKEN`; `STRIPE_SECRET_KEY`), else through the
-  gateway as before. Every gateway caller now uses it. The Telegram webhook
-  accepts the old secret and one derived from `OG_BOT_TOKEN` (or
-  `TELEGRAM_WEBHOOK_SECRET`). API keys health page shows "own key" or
-  "gateway". No migration. Open: the Google keys aren't set yet, so Google
-  still uses the gateway; check whether Lovable's Stripe connector is the
-  Boss's own Stripe account before setting `STRIPE_SECRET_KEY`.
+  - `_SECRET` + `_REFRESH_TOKEN`; `STRIPE_SECRET_KEY`), else through the
+    gateway as before. Every gateway caller now uses it. The Telegram webhook
+    accepts the old secret and one derived from `OG_BOT_TOKEN` (or
+    `TELEGRAM_WEBHOOK_SECRET`). API keys health page shows "own key" or
+    "gateway". No migration. Open: the Google keys aren't set yet, so Google
+    still uses the gateway; check whether Lovable's Stripe connector is the
+    Boss's own Stripe account before setting `STRIPE_SECRET_KEY`.
 
 - **Boss's Claude · 2026-10-31 · #163** · Desktop header had no room at
   1280–1440 (logos squashed, title cut): removed the header "Search songs"
