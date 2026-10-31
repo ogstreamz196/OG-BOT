@@ -11,6 +11,7 @@ import { shiftCandles, spotOffset } from "./trade-signal-extras";
 import {
   ACTIVE_STATUSES,
   advanceTimed,
+  brokerLevels,
   limitsFrom,
   isActive,
   targetsReached,
@@ -490,7 +491,18 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
     const closedRaw = raw.filter((c) => c.t + MINUTE <= now);
     const trendCache = new Map<string, Promise<string | null>>();
     // Proxy charts (gold): the live spot quote, to re-check the gap each pass.
-    const spotNow = inst.spot ? await ctx.spotPrice(inst).catch(() => NaN) : NaN;
+    // (Gold and bitcoin follow Vantage's own price when MetaApi's set up.)
+    const brokered = ctx.BROKER_MARKETS.has(inst.code);
+    const spotNow = inst.spot || brokered ? await ctx.spotPrice(inst).catch(() => NaN) : NaN;
+    // Hits judged as Vantage judges them: half its spread either side of the mid.
+    let half = 0;
+    if (brokered) {
+      const bq = await import("./broker-quotes.server");
+      const model = await bq.spreadModel();
+      half =
+        (bq.latestSpread(model, inst.code, now) ?? bq.typicalSpread(model, inst.code, now) ?? 0) /
+        2;
+    }
 
     await Promise.all(
       group.map(async (row) => {
@@ -523,7 +535,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         };
         // The learned time limits: fill in time, and close a trade that's gone nowhere.
         const limits = limitsFrom(row.feeds, created);
-        let result = advanceTimed(tracked, fresh, now, limits);
+        const atBroker = brokerLevels(tracked, half);
+        let result = advanceTimed(atBroker, fresh, now, limits);
         // The minute still forming: fills and profit hits are announced the
         // moment price trades there, not when the minute closes. Only that
         // good news is taken early; anything touching a stop waits for the
@@ -537,7 +550,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           const filledNow = result.events.find((e) => e.kind === "filled")?.at;
           const peek = advanceTimed(
             {
-              ...tracked,
+              ...atBroker,
               status: result.status,
               ...(filledNow != null ? { enteredAt: filledNow } : {}),
             },

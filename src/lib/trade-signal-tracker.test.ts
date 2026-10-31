@@ -68,6 +68,9 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 vi.mock("./trade-signal-context.server", () => ({
   candles: async () => ({ data: candles }),
   higherTrend: async () => null,
+  // No broker connected in these tests: mid-price hits, as before.
+  BROKER_MARKETS: new Set<string>(),
+  spotPrice: async () => NaN,
 }));
 vi.mock("./telegram-api.server", () => ({
   telegramCall: async (method: string, body: { text: string; message_ids?: number[] }) => {

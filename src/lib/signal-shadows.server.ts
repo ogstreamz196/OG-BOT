@@ -29,7 +29,8 @@ export type ShadowReason =
   | "mixed"
   | "no_room"
   | "blackout"
-  | "trial_check";
+  | "trial_check"
+  | "spread";
 
 /** What the report calls each reason. */
 export const SHADOW_REASONS: Record<ShadowReason, string> = {
@@ -43,6 +44,7 @@ export const SHADOW_REASONS: Record<ShadowReason, string> = {
   no_room: "No room to the next level",
   blackout: "Blackout (rollover, big news, Friday close)",
   trial_check: "Pair check said no (dollar or order flow)",
+  spread: "Vantage's spread blown out",
 };
 
 /** Why the engine waited, as a shadow reason; null for waits worth nothing (closed, no spot price). */
@@ -56,6 +58,7 @@ export function waitReasonKind(waitReason: string | undefined): ShadowReason | n
   if (/^Not enough room/i.test(w)) return "no_room";
   if (/^Rollover:|about to shut for the weekend|^Big US news/i.test(w)) return "blackout";
   if (/^Trial check:/i.test(w)) return "trial_check";
+  if (/^Vantage's spread is blown out/i.test(w)) return "spread";
   return null;
 }
 
@@ -175,7 +178,9 @@ export async function followShadows(admin: Admin, now = Date.now()): Promise<str
     if (error) return "skipped: no shadow table";
     const rows = (data ?? []) as ShadowRow[];
     if (!rows.length) return "none running";
-    const { advanceSignal, isActive } = await import("./trade-signal-outcome");
+    const { advanceSignal, brokerLevels, isActive } = await import("./trade-signal-outcome");
+    const bq = await import("./broker-quotes.server");
+    const spreads = await bq.spreadModel();
     const { candles } = await import("./trade-signal-context.server");
     const { detectTradeIntent } = await import("./trade-signal");
     const { shiftCandles } = await import("./trade-signal-extras");
@@ -193,16 +198,21 @@ export async function followShadows(admin: Admin, now = Date.now()): Promise<str
         const seen = row.last_candle_at ? Date.parse(row.last_candle_at) : -Infinity;
         const fresh = bars.filter((c) => c.t >= from && c.t > seen);
         const tp = Number(row.tp);
+        // Judged on Vantage's bid and ask, like live trades.
+        const half = (bq.typicalSpread(spreads, market, now) ?? 0) / 2;
         const res = advanceSignal(
-          {
-            direction: row.direction,
-            entryType: row.entry_type === "stop" ? "stop" : "limit",
-            entry: Number(row.entry),
-            stop: Number(row.stop),
-            targets: [tp, tp, tp],
-            status: row.status as "pending" | "open",
-            expiresAt: Date.parse(row.expires_at),
-          },
+          brokerLevels(
+            {
+              direction: row.direction,
+              entryType: row.entry_type === "stop" ? ("stop" as const) : ("limit" as const),
+              entry: Number(row.entry),
+              stop: Number(row.stop),
+              targets: [tp, tp, tp] as [number, number, number],
+              status: row.status as "pending" | "open",
+              expiresAt: Date.parse(row.expires_at),
+            },
+            half,
+          ),
           fresh,
           now,
         );

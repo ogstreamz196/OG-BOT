@@ -25,7 +25,8 @@ export const getMt5Status = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const m = await import("./mt5-autotrade.server");
     const configured = m.metaApiConfigured();
-    const [autotrade, link, info, trades] = await Promise.all([
+    const bq = await import("./broker-quotes.server");
+    const [autotrade, link, info, trades, commission, spreads] = await Promise.all([
       m.autotradeOn(supabaseAdmin),
       m.copyLink(supabaseAdmin),
       configured ? m.metaApi<AccountInfo>("/account-information") : null,
@@ -36,11 +37,36 @@ export const getMt5Status = createServerFn({ method: "GET" })
         )
         .order("created_at", { ascending: false })
         .limit(15),
+      (supabaseAdmin as any)
+        .from("site_content")
+        .select("value")
+        .eq("key", bq.COMMISSION_KEY)
+        .maybeSingle(),
+      (supabaseAdmin as any)
+        .from("site_content")
+        .select("value")
+        .eq("key", bq.SPREADS_KEY)
+        .maybeSingle(),
     ]);
+    // Vantage's spread as the bot has measured it: the latest and the usual for now.
+    const model = bq.parseSpreads((spreads.data as { value?: string } | null)?.value);
+    const now = Date.now();
+    const spread = Object.fromEntries(
+      ["XAUUSD", "BTCUSD"].map((mk) => [
+        mk,
+        {
+          latest: bq.latestSpread(model, mk, now),
+          usual: bq.typicalSpread(model, mk, now),
+          readings: model.markets[mk]?.overall?.n ?? 0,
+        },
+      ]),
+    );
     return {
       configured,
       autotrade,
       copyLink: link,
+      commissionPerLot: Number((commission.data as { value?: string } | null)?.value) || 0,
+      spread,
       account: info?.ok && info.data ? info.data : null,
       accountError: configured && !info?.ok ? `MetaApi answered ${info?.status ?? 0}` : null,
       tradesReady: !trades.error,
@@ -75,6 +101,8 @@ export const saveMt5Settings = createServerFn({ method: "POST" })
           .max(500)
           .refine((v) => v === "" || /^https:\/\/[^\s]+$/.test(v), "Use a full https:// link")
           .optional(),
+        /** USD per 1.0 lot, round turn (0 on a Standard account). */
+        commissionPerLot: z.number().min(0).max(100).optional(),
       })
       .parse(d),
   )
@@ -88,6 +116,10 @@ export const saveMt5Settings = createServerFn({ method: "POST" })
     if (data.autotrade !== undefined)
       rows.push({ key: AUTOTRADE_KEY, value: data.autotrade ? "on" : "off" });
     if (data.copyLink !== undefined) rows.push({ key: COPY_LINK_KEY, value: data.copyLink });
+    if (data.commissionPerLot !== undefined) {
+      const { COMMISSION_KEY } = await import("./broker-quotes.server");
+      rows.push({ key: COMMISSION_KEY, value: String(data.commissionPerLot) });
+    }
     for (const r of rows) {
       const { error } = await db
         .from("site_content")

@@ -14,6 +14,7 @@
 import type { LearnSample } from "./trade-signal-backtest";
 import {
   advanceTimed,
+  brokerLevels,
   targetsReached,
   type SignalStatus,
   type TimeLimits,
@@ -204,17 +205,23 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     // With the setting's time limits: the entry's to fill in time, and a trade
     // that's gone nowhere is closed on time.
     const market = s.entryType === "market";
+    // Hit the way the broker hits them: a buy fills on the ask and closes on
+    // the bid, half the spread either side of these mid-price candles.
+    const half = (s.cost ?? 0) / 2;
     const res = advanceTimed(
-      {
-        direction: s.direction,
-        entryType: s.entryType === "stop" ? "stop" : "limit",
-        entry,
-        stop,
-        targets,
-        status: market ? "open" : "pending",
-        expiresAt: s.expiresAt,
-        ...(market ? { enteredAt: s.t } : {}),
-      },
+      brokerLevels(
+        {
+          direction: s.direction,
+          entryType: s.entryType === "stop" ? "stop" : "limit",
+          entry,
+          stop,
+          targets,
+          status: market ? "open" : "pending",
+          expiresAt: s.expiresAt,
+          ...(market ? { enteredAt: s.t } : {}),
+        },
+        half,
+      ),
       s.path,
       s.expiresAt,
       timeLimits(tune, s.t),
@@ -234,13 +241,17 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
         const hold = timeLimits(tune, s.t).holdMs;
         const until =
           hold && filledAt != null ? Math.min(s.expiresAt, filledAt + hold) : s.expiresAt;
-        const last = s.path.filter((c) => c.t < until).at(-1)?.c;
+        // Closed at the bid (a buy) or the ask (a sell), not the mid.
+        const lastMid = s.path.filter((c) => c.t < until).at(-1)?.c;
+        const last = lastMid != null ? lastMid - side * half : undefined;
         const floor = best >= 1 ? 0 : inR(stop);
         r += ((3 - best) / 3) * Math.max(floor, last != null ? inR(last) : 0);
       }
     }
-    // Every filled trade pays the spread, so small targets are judged on what they really bank.
-    r -= (s.cost ?? 0) / s.raw.risk;
+    // A market entry pays the ask (a buy) or the bid (a sell), half a spread
+    // off the mid it was priced at; every filled trade pays any commission.
+    if (market) r -= half / s.raw.risk;
+    r -= (s.fee ?? 0) / s.raw.risk;
     n++;
     sumR += r;
     if (best >= 1) wins++;
@@ -496,8 +507,16 @@ export async function maybeLearn(
     const { gatherSamples } = await import("./signal-samples.server");
     const { samples, days, added } = await gatherSamples(admin, market, inst, now, fetcher);
     // Every trade pays the spread.
-    const cost = SPREAD_COST[market.code] ?? 0;
-    for (const s of samples) s.cost = cost;
+    // Vantage's own spread for each setup's hour of the week (measured), else
+    // the hand-set typical one; plus any commission (Raw/Pro ECN accounts).
+    const bq = await import("./broker-quotes.server");
+    const model = await bq.spreadModel();
+    const fee = await bq.commissionPrice(market.code);
+    const fallback = SPREAD_COST[market.code] ?? 0;
+    for (const s of samples) {
+      s.cost = bq.typicalSpread(model, market.code, s.t) ?? fallback;
+      s.fee = fee;
+    }
     const had = state.markets[market.code];
     const label = market.code === "XAUUSD" ? "Gold" : "Bitcoin";
     const studied = learnFromSamples(

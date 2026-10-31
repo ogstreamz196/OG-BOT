@@ -136,6 +136,26 @@ export function advanceSignal(
   return { status, events };
 }
 
+/**
+ * A signal's levels as they're hit on mid-price candles at a broker quoting
+ * a bid and an ask `half` either side: a buy fills on the ask and closes on
+ * the bid (its entry needs the mid half a spread lower, its stop and take
+ * profit half a spread higher), a sell the other way round. Prices shown and
+ * results stay on the signal's own levels; only when they're reached moves.
+ */
+export function brokerLevels<
+  T extends Pick<TrackedSignal, "direction" | "entry" | "stop" | "targets">,
+>(signal: T, half: number): T {
+  if (!(half > 0)) return signal;
+  const s = signal.direction === "BUY" ? 1 : -1;
+  return {
+    ...signal,
+    entry: signal.entry - s * half,
+    stop: signal.stop + s * half,
+    targets: signal.targets.map((t) => t + s * half) as [number, number, number],
+  };
+}
+
 /** Learned time limits on a trade (absolute deadline for the entry, then a hold). */
 export type TimeLimits = {
   /** A pending entry not filled by this time (ms) is cancelled. */

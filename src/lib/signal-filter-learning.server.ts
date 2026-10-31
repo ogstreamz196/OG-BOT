@@ -191,7 +191,12 @@ export async function maybeStudyFilters(admin: Admin, now = Date.now()): Promise
         Number(sh.find((r) => Number(r.pip) > 0)?.pip) ||
         Number(lv.find((r) => Number(r.pip) > 0)?.pip) ||
         1;
-      const spread = (SPREAD_COST[market] ?? 0) / size;
+      // Vantage's measured cost per trade (spread plus any commission).
+      const { costPerTrade } = await import("./broker-quotes.server");
+      const cost = await costPerTrade(market, SPREAD_COST[market] ?? 0).catch(
+        () => SPREAD_COST[market] ?? 0,
+      );
+      const spread = cost / size;
       const m = (state.markets[market] ??= {});
       for (const f of LEARNED_FILTERS) {
         const shadowTrades: FilterTrade[] = sh

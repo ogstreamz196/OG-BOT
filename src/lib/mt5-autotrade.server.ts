@@ -61,7 +61,7 @@ function base(): string {
 /** One MetaApi call; `{ ok, data }` and never throws. The token is never logged. */
 export async function metaApi<T = unknown>(
   path: string,
-  init: { method?: "GET" | "POST"; body?: unknown } = {},
+  init: { method?: "GET" | "POST"; body?: unknown; timeoutMs?: number } = {},
 ): Promise<{ ok: boolean; status: number; data: T | null }> {
   const token = process.env["METAAPI_TOKEN"];
   if (!token || !process.env["METAAPI_ACCOUNT_ID"]) return { ok: false, status: 0, data: null };
@@ -70,7 +70,7 @@ export async function metaApi<T = unknown>(
       method: init.method ?? "GET",
       headers: { "auth-token": token, "Content-Type": "application/json" },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(init.timeoutMs ?? 15_000),
     });
     const data = (await res.json().catch(() => null)) as T | null;
     return { ok: res.ok, status: res.status, data };

@@ -111,7 +111,12 @@ export async function alertBar(admin: Admin, market: string, now = Date.now()): 
           pips: ((Number(won ? r.tp1 : r.stop) - Number(r.entry)) * side) / unit,
         });
       }
-      return learnedBar(trades, (SPREAD_COST[market] ?? 0) / size);
+      // Vantage's measured cost per trade (spread plus any commission).
+      const { costPerTrade } = await import("./broker-quotes.server");
+      const cost = await costPerTrade(market, SPREAD_COST[market] ?? 0).catch(
+        () => SPREAD_COST[market] ?? 0,
+      );
+      return learnedBar(trades, cost / size);
     });
   } catch {
     return BROADCAST_MIN_CONFIDENCE;

@@ -3,7 +3,8 @@
 // confidence band, trading session, what the AI desk said and which chart
 // setup made them; the shadow trades (signal-shadows.server.ts) show how the
 // setups each filter blocked would have done. Pips are shown before and after
-// a typical spread (SPREAD_COST), since small take profits live or die on it.
+// the cost of a trade at Vantage (measured spread plus any commission; SPREAD_COST
+// until measured), since small take profits live or die on it.
 import { resultFor, setupKey } from "./signal-results.server";
 import { SPREAD_COST } from "./signal-learning.server";
 import { SESSIONS, ukSession } from "./trade-signal";
@@ -210,6 +211,8 @@ export function buildReport(
   shadows: ShadowDone[] | null,
   days: number,
   now = Date.now(),
+  /** Cost per trade in price by market (measured at Vantage); SPREAD_COST if missing. */
+  costs: Record<string, number> = {},
 ): SignalReport {
   // The same setup sent to several chats is one signal.
   const setups = new Map<string, { row: LiveRow; best: number; stopped: boolean }>();
@@ -321,7 +324,7 @@ export function buildReport(
     markets: [...markets.entries()]
       .sort(([a], [b]) => (a === "XAUUSD" ? -1 : b === "XAUUSD" ? 1 : a.localeCompare(b)))
       .map(([code, m]) => {
-        const spread = r1((SPREAD_COST[code] ?? 0) / m.size);
+        const spread = r1((costs[code] ?? SPREAD_COST[code] ?? 0) / m.size);
         // Timing over this market's signals (bias calls left out, one per setup).
         const rows = [...setups.values()].map((x) => x.row).filter((r) => r.market === code);
         return {
@@ -420,5 +423,15 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
   } catch {
     shadows = null; // no shadow table yet
   }
-  return buildReport(live, shadows, days, now);
+  // Vantage's measured cost per trade (spread plus any commission).
+  const { costPerTrade } = await import("./broker-quotes.server");
+  const costs = Object.fromEntries(
+    await Promise.all(
+      ["XAUUSD", "BTCUSD"].map(async (m) => [
+        m,
+        await costPerTrade(m, SPREAD_COST[m] ?? 0).catch(() => SPREAD_COST[m] ?? 0),
+      ]),
+    ),
+  );
+  return buildReport(live, shadows, days, now, costs);
 }
