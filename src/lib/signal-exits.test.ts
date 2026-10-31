@@ -94,3 +94,40 @@ describe("learning exits", () => {
     });
   });
 });
+
+describe("learned entry style", () => {
+  // A buy found at 100 with the 20 EMA at 98 and the break level at 101: the
+  // engine went in at the price now.
+  const s: LearnSample = {
+    t: 0,
+    direction: "BUY",
+    entry: 100,
+    entryType: "market",
+    confidencePct: 70,
+    verdict: "trade",
+    raw: {
+      risk: 4,
+      targets: [104, 108, 112],
+      atr: 4,
+      alt: { price: 100, mean: 98, breakAt: 101 },
+    },
+    path: [],
+    expiresAt: 60 * MIN,
+  };
+  it("tries the same setup on a pullback, on a break, or now; the stop and targets move with it", async () => {
+    const { applyTuning } = await import("./signal-learning.server");
+    const at = (entryStyle: number) => applyTuning(s, { ...DEFAULT_TUNING, entryStyle });
+    expect(at(0)).toMatchObject({ entry: 100, type: "market" });
+    expect(at(1)).toMatchObject({ entry: 99, type: "limit" });
+    expect(at(2)).toMatchObject({ entry: 101, type: "stop" });
+    expect(at(3)).toMatchObject({ entry: 100, type: "market" });
+    expect(at(2).stop - at(0).stop).toBeCloseTo(1, 6);
+    // A setup saved before entry styles existed only ever uses the engine's.
+    expect(
+      applyTuning(
+        { ...s, raw: { ...s.raw, alt: undefined } },
+        { ...DEFAULT_TUNING, entryStyle: 2 },
+      ),
+    ).toMatchObject({ entry: 100, type: "market" });
+  });
+});

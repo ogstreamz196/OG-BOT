@@ -145,8 +145,12 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
     fillWithin: v("fillWithin"),
     beAt: v("beAt"),
     runner: v("runner"),
+    entryStyle: v("entryStyle"),
   };
   return {
+    entryStyle: [0, 1, 2, 3].includes(Math.round(Number(t.entryStyle)))
+      ? Math.round(Number(t.entryStyle))
+      : 0,
     beAt: switchable(Number(t.beAt), BOUNDS.beAt, 0.25),
     runner: switchable(Number(t.runner), BOUNDS.runner, 0.25),
     // Whole 5 minutes, so one candle's noise can't move them.
@@ -190,7 +194,22 @@ export function timeLimits(tune: Tuning, t: number): TimeLimits {
 export function applyTuning(s: LearnSample, tune: Tuning) {
   const side = s.direction === "BUY" ? 1 : -1;
   const pull = s.raw.pull;
-  const entry = pull ? pull.price + (pull.mean - pull.price) * tune.pullback : s.entry;
+  const alt = s.raw.alt;
+  const style = alt ? tune.entryStyle : 0;
+  // The engine's own entry (a pullback moves with the learned depth), or the
+  // learned entry style on the same setup: pullback, break or now.
+  let entry = pull ? pull.price + (pull.mean - pull.price) * tune.pullback : s.entry;
+  let type: LearnSample["entryType"] = s.entryType;
+  if (alt && style === 1) {
+    entry = alt.price + (alt.mean - alt.price) * tune.pullback;
+    type = "limit";
+  } else if (alt && style === 2) {
+    entry = alt.breakAt;
+    type = "stop";
+  } else if (alt && style === 3) {
+    entry = alt.price;
+    type = "market";
+  }
   const shift = entry - s.entry;
   const raw = s.raw.targets.map((t) => t + shift) as [number, number, number];
   const stop = entry - side * s.raw.risk * tune.stopRoom;
@@ -199,6 +218,7 @@ export function applyTuning(s: LearnSample, tune: Tuning) {
   const tp = scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0];
   return {
     entry,
+    type,
     stop,
     targets: exitTargets(entry, tp, tune.runner),
     ...(tune.beAt ? { beTrigger: entry + side * Math.abs(entry - stop) * tune.beAt } : {}),
@@ -221,10 +241,10 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     // Too quiet, or a time of day it sits out (unknown readings never filter).
     if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
     if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
-    const { entry, stop, targets, beTrigger } = applyTuning(s, tune);
+    const { entry, type, stop, targets, beTrigger } = applyTuning(s, tune);
     // With the setting's time limits: the entry's to fill in time, and a trade
     // that's gone nowhere is closed on time.
-    const market = s.entryType === "market";
+    const market = type === "market";
     // Hit the way the broker hits them: a buy fills on the ask and closes on
     // the bid, half the spread either side of these mid-price candles.
     const half = (s.cost ?? 0) / 2;
@@ -232,7 +252,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
       brokerLevels(
         {
           direction: s.direction,
-          entryType: s.entryType === "stop" ? "stop" : "limit",
+          entryType: type === "stop" ? "stop" : "limit",
           entry,
           stop,
           targets,
@@ -326,6 +346,8 @@ export function candidates(current: Tuning, rand: () => number, count = 32): Tun
         beAt: rand() < 0.25 ? (current.beAt ? 0 : 0.5 + rand()) : nudge(current.beAt, 0.25),
         runner:
           rand() < 0.25 ? (current.runner ? 0 : 1.5 + rand() * 1.5) : nudge(current.runner, 0.4),
+        // Now and then another way in.
+        entryStyle: rand() < 0.2 ? Math.floor(rand() * 4) : current.entryStyle,
       }),
     );
   return out;
@@ -343,6 +365,9 @@ const describe = (t: Tuning) =>
     : "") +
   (t.fillWithin < NO_TIME_LIMIT
     ? `, cancelling an entry not filled within ${t.fillWithin} minutes`
+    : "") +
+  (t.entryStyle
+    ? `, entering ${["", "on a pullback", "on a break", "at the price now"][t.entryStyle]} every time`
     : "") +
   (t.beAt ? `, stop to entry once it's ${t.beAt}× the risk in profit` : "") +
   (t.runner
@@ -394,6 +419,8 @@ export function learnFromSamples(
       // Switching an exit on or off can't be done halfway: the better one's.
       beAt: !now.beAt !== !best.beAt ? best.beAt : (now.beAt + best.beAt) / 2,
       runner: !now.runner !== !best.runner ? best.runner : (now.runner + best.runner) / 2,
+      // A way in can't be blended either.
+      entryStyle: best.entryStyle,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
     if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;

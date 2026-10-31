@@ -21,7 +21,7 @@ type Admin = any;
 
 const TABLE = "signal_learn_samples";
 /** Bump when buildPlan / collectSamples change what a sample holds. */
-export const SAMPLE_VERSION = 1;
+export const SAMPLE_VERSION = 2;
 /** How far back the loop learns from, once the history is built. */
 export const LEARN_DAYS = 90;
 /** What's replayed when nothing's kept yet (or there's no table). */
@@ -159,6 +159,8 @@ export async function gatherSamples(
     .delete()
     .eq("market", m.code)
     .lt("t", now - KEEP_DAYS * DAY);
+  // Samples from an older engine (another SAMPLE_VERSION) are no use any more.
+  await admin.from(TABLE).delete().eq("market", m.code).neq("version", SAMPLE_VERSION);
 
   const samples: LearnSample[] = [];
   for (let page = 0; page < 20; page++) {
