@@ -8,6 +8,7 @@ import type { Instrument } from "./trade-signal";
 import type { SignalFeeds, SignalPlan } from "./trade-signal-context.server";
 import { backtestKey, parseSavedBacktest, type SavedBacktest } from "./trade-signal-backtest";
 import { shiftCandles, spotOffset } from "./trade-signal-extras";
+import { usdPerLotMove } from "./trade-bias";
 import {
   ACTIVE_STATUSES,
   advanceTimed,
@@ -180,6 +181,91 @@ function formatter(row: Row) {
     return `${signed >= 0 ? "+" : "−"}${size}`;
   };
   return { fmt, move };
+}
+
+/**
+ * The signals chat talks in money: a move as cash on `lots` (the demo's lot,
+ * else CARD_LOT), "+$2.53". Pips/points when the market's lot size is unknown.
+ */
+function cashMove(row: Row, lots: number) {
+  const { move } = formatter(row);
+  const per = usdPerLotMove(row.market, Number(row.entry));
+  return (from: number, to: number) => {
+    if (!per) return move(from, to);
+    const v = (row.direction === "BUY" ? to - from : from - to) * per * lots;
+    return money(v);
+  };
+}
+
+const money = (v: number) =>
+  `${v >= 0 ? "+" : "−"}$${Math.abs(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The signals chat's short update lines, in cash (the Boss's choice).
+ * `pnl` (the demo's result, spread counted) is used on the line that closes
+ * the trade, so it matches the balance.
+ */
+export function chatLine(
+  row: Row,
+  e: OutcomeEvent | { kind: "cancelled"; bias: string },
+  lots: number,
+  pnl?: number,
+): string {
+  const { fmt } = formatter(row);
+  const cash = cashMove(row, lots);
+  const lock = lockOf(row);
+  const closed = (from: number, to: number) => (pnl != null ? money(pnl) : cash(from, to));
+  switch (e.kind) {
+    case "filled":
+      return `✅ In at ${fmt(row.entry)}`;
+    case "tp1":
+      return singleTarget(row)
+        ? `🎯 Take profit hit · ${closed(row.entry, row.tp1)}`
+        : `🎯 First take profit hit · ${cash(row.entry, row.tp1)} · stop to ${fmt(lock?.stop ?? row.entry)}`;
+    case "tp2":
+      return `🎯 Second take profit hit · ${cash(row.entry, row.tp2)}`;
+    case "tp3":
+      return `🏁 Final take profit hit · ${closed(row.entry, row.tp3)}`;
+    case "stopped":
+      return `🛑 Stopped out · ${closed(row.entry, row.stop)}`;
+    case "breakeven":
+      return lock
+        ? `🔒 Out at the locked stop · ${closed(row.entry, lock.stop)}`
+        : `⚖️ Out at breakeven · ${closed(row.entry, row.entry)}`;
+    case "protected":
+      return lock
+        ? `🔒 70% there · stop moved to ${fmt(lock.stop)} (${cash(row.entry, lock.stop)} locked)`
+        : `🔒 Stop moved to my entry`;
+    case "unfilled":
+      return `⏳ Entry not reached · cancelled`;
+    case "expired":
+      return row.last_price != null
+        ? `⏱ Closed on time at ${fmt(row.last_price)} · ${closed(row.entry, row.last_price)}`
+        : `⏱ Closed on time`;
+    case "cancelled":
+      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancelled" : "closed"}`;
+  }
+}
+
+/** The signals chat's live price line, in cash: "📍 77372.40 (+$2.53) · 14:09". */
+export function chatLiveLine(row: Row, price: number, now: number, lots: number): string {
+  const { fmt } = formatter(row);
+  const when = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(now));
+  return row.status === "pending"
+    ? `📍 ${fmt(price)} · waiting for entry · ${when}`
+    : `📍 ${fmt(price)} (${cashMove(row, lots)(row.entry, price)}) · ${when}`;
+}
+
+/** The signals chat's short take profit move line. */
+export function chatTpMoveLine(row: Row, move: TpMove, from: number): string {
+  const { fmt } = formatter(row);
+  return move.kind === "extend"
+    ? `🚀 Take profit moved to ${fmt(move.tp)} (was ${fmt(from)}) · letting it run`
+    : `✋ Take profit moved in to ${fmt(move.tp)} (was ${fmt(from)}) · stalled at ${fmt(move.best)}`;
 }
 
 /** A signal with one take profit (all three levels on it). */
@@ -647,18 +733,23 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           entered != null &&
           entered + limits.holdMs < tracked.expiresAt &&
           now >= entered + limits.holdMs;
-        const lines = result.events
+        const shown = result.events
           .filter((e) => e.kind !== "expired" || timeStopped)
           // One take profit: its hit is one line, not three; a runner's two
           // last levels are one too.
           .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
-          .filter((e) => !(e.kind === "tp2" && Number(row.tp2) === Number(row.tp3)))
-          .map((e) =>
-            eventLine(
-              { ...row, last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price },
-              e,
-            ),
-          );
+          .filter((e) => !(e.kind === "tp2" && Number(row.tp2) === Number(row.tp3)));
+        // The signals chat gets short lines in cash, on the demo's lot.
+        const inChat = !!row.chat_id && (await sc0.isSignalsChat(row.chat_id));
+        const { CARD_LOT } = await import("./trade-bias");
+        const chatLots = Number(row.feeds?.paper?.lots) || CARD_LOT;
+        const atLast = {
+          ...row,
+          last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price,
+        };
+        const lines = shown.map((e) =>
+          inChat ? chatLine(atLast, e, chatLots) : eventLine(atLast, e),
+        );
 
         // Before TP1, a flip in the higher-timeframe trend calls the setup off.
         // Not for a market-bias call: it can lean against that trend on purpose.
@@ -677,7 +768,12 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           }
           const bias = await job;
           if (bias && opposite(row.direction, bias)) {
-            lines.push(eventLine({ ...row, status }, { kind: "cancelled", bias }));
+            const ev = { kind: "cancelled" as const, bias };
+            lines.push(
+              inChat
+                ? chatLine({ ...row, status }, ev, chatLots)
+                : eventLine({ ...row, status }, ev),
+            );
             status = "cancelled";
           }
         }
@@ -703,7 +799,11 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           if (mv) {
             const dp = Math.max(0, Math.min(8, Number(row.decimals) || 2));
             const tp = Number(mv.tp.toFixed(dp));
-            lines.push(tpMoveLine(row, { ...mv, tp }, from));
+            lines.push(
+              inChat
+                ? chatTpMoveLine(row, { ...mv, tp }, from)
+                : tpMoveLine(row, { ...mv, tp }, from),
+            );
             update.tp1 = update.tp2 = update.tp3 = tp;
             row.feeds = {
               ...row.feeds,
@@ -764,7 +864,13 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             ...row.feeds,
             paper: { ...paper, pnl, ...(balance != null ? { balance } : {}) },
           };
-          if (entered && balance != null) {
+          // The signals chat: the closing line carries the demo's result
+          // (spread counted), so the card matches the balance.
+          const closing = shown.length && !isActive(status) ? shown[shown.length - 1] : null;
+          const at = closing ? lines.indexOf(chatLine(atLast, closing, chatLots)) : -1;
+          if (inChat && entered && at >= 0) {
+            lines[at] = chatLine(atLast, closing!, chatLots, pnl);
+          } else if (entered && balance != null) {
             const money = (n: number) =>
               `$${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             lines.push(`💰 ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one`);
@@ -805,7 +911,11 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             text: journalCard(
               row.card!,
               log,
-              live ? liveLine({ ...row, status }, lastPrice, now) : null,
+              live
+                ? inChat
+                  ? chatLiveLine({ ...row, status }, lastPrice, now, chatLots)
+                  : liveLine({ ...row, status }, lastPrice, now)
+                : null,
               !!(row.entered_at || update.entered_at),
             ),
             disable_web_page_preview: true,
