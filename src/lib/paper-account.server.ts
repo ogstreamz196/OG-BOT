@@ -116,6 +116,39 @@ export function paperLots(
 const usd = (n: number) =>
   `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/**
+ * The demo's line in the results post at the bottom of the signals chat,
+ * refreshed after every alert and update, so everyone sees the balance live.
+ */
+export function demoLine(start: number, balance: number): string {
+  const diff = Math.round((balance - start) * 100) / 100;
+  const pct = start > 0 ? (diff / start) * 100 : 0;
+  const sign = diff >= 0 ? "+" : "−";
+  const mood = diff > 0 ? "📈" : diff < 0 ? "📉" : "💰";
+  return (
+    `${mood} ${usd(start)} DEMO: ${usd(balance)} ` +
+    `(${sign}${usd(Math.abs(diff))} · ${sign}${Math.abs(pct).toFixed(1)}%)`
+  );
+}
+
+/** OG B0T's one-off "money where my mouth is" post when the demo starts. */
+export function demoAnnouncement(start: number): string {
+  const amount = usd(start).replace(/\.00$/, "");
+  return [
+    "💸 PUTTING MY MONEY WHERE MY MOUTH IS",
+    "",
+    `Talk is cheap. So from right now, every alert my trade bot drops in here gets traded on a ${amount} demo Vantage Standard account. Same entries, same stops, same take profits you see on the cards.`,
+    "",
+    "0.1 lot a trade, 0.3 when I'm properly sure of a quick scalp. Spreads counted, no commission on Standard, no fiddling the numbers.",
+    "",
+    "The win/loss counter carries on as it is. The balance updates live on every card and in the results at the bottom of the chat.",
+    "",
+    `${amount} on the line. Let's see who's talking rubbish. 👀`,
+    "",
+    "🧪 Demo money, real prices. Educational, not financial advice.",
+  ].join("\n");
+}
+
 /** The test account's lines on an alert card. */
 export function paperLines(balance: number, lots: number, big: boolean): string[] {
   return [

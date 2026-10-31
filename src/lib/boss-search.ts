@@ -138,6 +138,13 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "fleet workers bot tokens on off switch webhook",
   },
   {
+    title: "Signals demo account & start fresh",
+    where: area("OG B0T", "Telegram"),
+    to: "/admin/bot",
+    tab: "telegram",
+    keywords: "1000 demo test account balance purge signals chat vantage",
+  },
+  {
     title: "Telegram groups",
     where: area("OG B0T", "Telegram"),
     to: "/admin/bot",

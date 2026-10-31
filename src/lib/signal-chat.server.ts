@@ -126,9 +126,15 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
       () => null,
     );
     if (!record) return "skipped: the signal record can't be read";
+    // The demo account's live balance, when it's running.
+    const pa = await import("./paper-account.server");
+    const demo = await pa
+      .paperState(admin)
+      .then(async (st) => (st ? pa.demoLine(st.start, await pa.paperBalance(admin, st)) : null))
+      .catch(() => null);
     const message = {
       chat_id: chatId,
-      text: resultsAnnouncement(record),
+      text: resultsAnnouncement(record, demo),
       disable_notification: true,
       disable_web_page_preview: true,
     };

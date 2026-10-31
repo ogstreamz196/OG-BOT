@@ -112,3 +112,21 @@ describe("card lines", () => {
     expect(parsePaper("nope")).toBeNull();
   });
 });
+
+describe("the $1,000 demo shown to everyone", () => {
+  it("shows the balance and the change since the start", async () => {
+    const { demoLine } = await import("./paper-account.server");
+    expect(demoLine(1000, 1042.3)).toBe("📈 $1,000.00 DEMO: $1,042.30 (+$42.30 · +4.2%)");
+    expect(demoLine(1000, 970)).toBe("📉 $1,000.00 DEMO: $970.00 (−$30.00 · −3.0%)");
+    expect(demoLine(1000, 1000)).toBe("💰 $1,000.00 DEMO: $1,000.00 (+$0.00 · +0.0%)");
+  });
+
+  it("announces it once, as demo money and not advice", async () => {
+    const { demoAnnouncement } = await import("./paper-account.server");
+    const text = demoAnnouncement(1000);
+    expect(text).toMatch(/^💸 PUTTING MY MONEY WHERE MY MOUTH IS/);
+    expect(text).toContain("$1,000 demo Vantage Standard account");
+    expect(text).toContain("counter carries on as it is");
+    expect(text).toContain("not financial advice");
+  });
+});
