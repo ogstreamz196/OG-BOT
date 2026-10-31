@@ -11,10 +11,22 @@ add to it before merging. See `CLAUDE.md` for the routine.
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
   sign-in, `src/routes/lovable/email` and the database client's schema.
+  **Paused (checked by the Boss's Claude, 2026-10-31):** the partner's
+  Claude ran out of usage before starting this; no branch or PR exists for
+  it yet. Pick up from step 3 in `docs/lovable-exit-plan.md`.
 
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-10-31 · this PR** · Progress check after the
+  partner's Claude ran out of usage, read-only apart from this log: #164–#167
+  all merged, no open PRs, no unmerged branches. Type check and build pass;
+  the tests pass (one run hit a timing flake in the BTC card test under load,
+  then two clean full runs). Databases: the OGSTREAMZ hub has no `og_bot`
+  tables yet (step 2 not applied, `supabase/hub/request.json` is `none`,
+  waiting on the Boss's `OG_BOT_HUB_DB_URL` GitHub secret); the OG-BOT project
+  is active and empty; O.G VAULT is paused. Steps 3–5 not started. Docs only.
 
 - **Partner's Claude · 2026-10-31 · #167** · Built on the Boss's Claude's test
   account (#159/#160): a $1,000 demo that starts **without** a purge, so the
