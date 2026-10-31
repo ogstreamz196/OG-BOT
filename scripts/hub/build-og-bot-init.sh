@@ -10,6 +10,9 @@
 #   3. apply supabase/hub/02_to_og_bot.sql (public → og_bot, hub rules)
 #   4. dump og_bot, plus the auth.users triggers and realtime tables
 #
+# Newer pg_dump adds \restrict lines, which only psql understands: they're
+# left out so the file also runs through SQL tools.
+#
 # Usage: scripts/hub/build-og-bot-init.sh
 set -euo pipefail
 
@@ -72,7 +75,7 @@ OUT="$ROOT/supabase/hub/og_bot_init.sql"
   echo "-- Changes nothing that belongs to another app."
   echo
   "$BIN/pg_dump" -h "$WORK" -p "$PORT" -U postgres -d build --schema-only -n og_bot \
-    --no-owner --no-comments | grep -v '^--' | sed '/^$/N;/^\n$/D'
+    --no-owner --no-comments | grep -v '^--' | grep -v '^\\' | sed '/^$/N;/^\n$/D'
   echo
   echo "-- Triggers on the shared auth.users table (see 02_to_og_bot.sql)."
   "${PSQL[@]}" -d build -At -c "select pg_get_triggerdef(t.oid) || ';' from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'auth' and c.relname = 'users' and t.tgname like 'og_bot_%' order by t.tgname"

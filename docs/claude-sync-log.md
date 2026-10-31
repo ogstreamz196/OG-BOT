@@ -7,12 +7,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `hub-apply` · **Started 2026-10-31 ~17:20 (Boss's
-  go-ahead):** OG B0T's structure into the OGSTREAMZ hub (`og_bot`) through
-  the database connection (no GitHub secret), then a snapshot copy of all
-  data from Lovable Cloud, member accounts with password hashes, and a dummy
-  account password test. Touches the hub database and `supabase/hub/`,
-  `docs/`. Live app stays on Lovable. After that: leaving Lovable steps 3–5.
+- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
+  `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
+  emails, the final data copy. Not started. Will touch `vite.config.ts`, a
+  new `wrangler.jsonc`, sign-in, `src/routes/lovable/email` and the
+  database client's schema.
 
 ## Where things stand (handover)
 
@@ -34,6 +33,19 @@ merged work, not open work.
   The dollar live line ("📍 … (+$…) · time") on a card update hasn't been
   seen yet; check the 16:45 card's next update. Partner's Claude's own open
   work is only leaving Lovable steps 3–5 (paused, see **In progress**).
+- **OG B0T in the hub (partner's Claude, 2026-10-31, 23:00):** the
+  `og_bot` schema is applied in the OGSTREAMZ hub (migration `og_bot_init`)
+  and holds a full snapshot of Lovable Cloud's data from 22:53 UTC, including
+  106 members with password hashes (a password test passed). Nothing live
+  uses it yet, and it goes stale as Lovable keeps writing. **If you add a
+  migration on Lovable, apply the same change to `og_bot` in the hub too**
+  (and to the build), or re-run the build and add the difference. How the
+  copy works, and its 10-requests-at-a-time rule, are in
+  `supabase/hub/README.md`. Open: the Boss exposes `og_bot` in the API
+  settings; the dummy account in the hub waits on a Boss-approved delete;
+  `extensions.http` is now installed in the hub (used for the apply); the
+  edge function `og-bot-import` is switched off (it can be deleted).
+
 - **Both Claudes fixed the same failing tests at once** (#180 merged, the
   Boss's Claude's #181 closed unmerged as a duplicate). To stop that: put
   your line under **In progress** and push it _before_ you start, even for a
@@ -72,6 +84,18 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-10-31 · #188** · Leaving Lovable step 2 done
+  without a GitHub secret: `og_bot` applied in the hub through the database
+  connection (the hub fetched `og_bot_init.sql` @ 6ac2f97 from GitHub and
+  checked its md5), then a snapshot copy of all data from Lovable Cloud
+  (members with password hashes, every `og_bot` table; counts match) through
+  a temporary hub edge function, now switched off. Password test passed with
+  a dummy account. Incident: the first copy attempt opened ~95 connections
+  at once and the hub ran out for about a minute (22:42–22:43 UTC); stopped
+  and cleaned up, everything answered normally after. Rule now in
+  `supabase/hub/README.md`: at most 10 requests at a time. The build script
+  drops pg_dump's `\restrict` lines. No Lovable migration.
 
 - **Boss's Claude · 2026-10-31 · #187** · More entries, not random ones
   (Boss's ask: "super fast scalps, wicks and reversals"): two new extra

@@ -39,3 +39,48 @@ The other actions are `verify` (counts only) and `rollback`.
 - **Scheduled jobs:** these are Lovable Cloud's `pg_cron` jobs (signal scan, signal watch, song retries, reminders, daily coin floor, VIP expiry). They become Cloudflare Worker cron triggers.
 - **New-member alert URL:** `notify_boss_new_user` still points at the Lovable app URL. It changes when hosting moves.
 - **Data:** members, their data and the copy itself are step 5.
+
+## Applied (2026-10-31, partner's Claude)
+
+- **Structure.** `og_bot_init.sql` (commit 6ac2f97) is in the hub as the
+  migration `og_bot_init`. It was applied through the database connection,
+  not the GitHub workflow: the hub fetched the exact file from GitHub and
+  checked its md5 before running it. Result: 81 tables, 117 functions, 119
+  rules and 10 realtime tables. Vault and Booking are untouched. The
+  workflow's `apply` now refuses because `og_bot` exists; `verify` and
+  `rollback` still work once `OG_BOT_HUB_DB_URL` is set.
+- **Data, as a snapshot.** Copied at 22:40–22:53 UTC: 106 members into
+  `auth.users`, with password hashes and Google links (the two D.EV
+  accounts already existed, and their rows were pointed at the hub's ids),
+  plus every row of every `og_bot` table. Per-table counts match Lovable
+  Cloud at the time of the copy. The live app keeps writing to Lovable, so
+  this goes stale: copy again at the switch.
+- **Passwords carry over.** A dummy account signed up on the live site
+  could sign in to the hub with the same password, and a wrong password was
+  refused. Both sides store bcrypt `$2a$10$`. The dummy was deleted on
+  Lovable; in the hub it still waits on a Boss-approved delete.
+
+## How the data copy works (to run it again at the switch)
+
+Only the database connections are needed, no secrets:
+
+1. Deploy a temporary edge function `og-bot-import` in the hub
+   (`verify_jwt` off, a fresh one-time token). It takes
+   `{token, schema, table, rows}`, maps the two D.EV ids, and inserts with
+   `jsonb_populate_recordset … on conflict do nothing`. It must open one
+   connection per request and close it (`sql.end()`).
+2. Pause `og_bot`'s user triggers during the copy (`disable trigger user`),
+   so copied rows don't pay referrals, send alerts and so on.
+3. From Lovable Cloud's database, `net.http_post` the rows in this order:
+   `auth.users`, `auth.identities`, then the tables in foreign-key waves.
+   **At most 10 requests at a time and at most 250 rows each.** Lovable's
+   sender only goes out once a minute, and bigger batches can fail with an
+   HTTP/2 stream error.
+4. Compare per-table counts, turn the triggers back on, move the sequences
+   past the copied rows, and switch the endpoint off.
+
+**Lesson (incident, 22:42–22:43 UTC):** the first attempt sent about 95
+requests at once, and the function kept every connection open. For about a
+minute the hub ran out of connections. Vault, Booking and OG B0T were
+checked afterwards and all answered normally. Never send more than 10 at a
+time.
