@@ -958,15 +958,23 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     !sitOut &&
     !/\bclosed\b/i.test(plan.waitReason ?? "")
   ) {
-    const { liveSetups } = await import("./signal-learning.server");
-    const allowed = await liveSetups(inst.code).catch(() => [] as string[]);
-    if (allowed.length) {
+    const { liveSetupStats, provenConfidence } = await import("./signal-learning.server");
+    const proven = await liveSetupStats(inst.code).catch(() => ({}) as Record<string, never>);
+    if (Object.keys(proven).length) {
       const { findSetups, setupPlan } = await import("./trade-setups");
       const closed = entryCandles.filter((c) => c.t + 300_000 <= Date.now());
       const floor = tuning?.minConfidence ?? 0;
-      const hit = findSetups(closed, hi.bias).find(
-        (h) => allowed.includes(h.id) && h.confidencePct >= floor,
-      );
+      // A proven setup is as sure as it has been accurate (its own win rate),
+      // so only the accurate ones clear the alert bar. Fast scalps (wick
+      // rejections, exhaustion reversals) come in here too.
+      const hit = findSetups(closed, hi.bias)
+        .filter((h) => h.id in proven)
+        .map((h) => ({
+          ...h,
+          confidencePct: provenConfidence(h.confidencePct, proven[h.id as keyof typeof proven]),
+        }))
+        .sort((x, y) => y.confidencePct - x.confidencePct)
+        .find((h) => h.confidencePct >= floor);
       const fromSetup = hit ? setupPlan(plan, hit, live, tuning ?? DEFAULT_TUNING) : null;
       if (fromSetup) plan = fromSetup;
     }

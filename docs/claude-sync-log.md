@@ -57,6 +57,8 @@ merged work, not open work.
 - **Trade management:** lots 0.05 to 0.3 learned from wins and losses
   (`chooseLot`), the 70/30 profit lock (`PROFIT_LOCK`), take profit moves
   (`tpMove`). Rules in AGENTS.md.
+- **Wick and reversal scalps (#187):** waiting on the learning loop to
+  prove them; the Boss's report and the lesson show each setup's record.
 - **Open ideas, not started:** teach the learning loop to replay take profit
   moves (`feeds.tpMoves` is being recorded); count a profit-lock exit as a
   win in the counter (Boss hasn't decided); drop the time in front of each
@@ -71,6 +73,16 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-10-31 · #187** · More entries, not random ones
+  (Boss's ask: "super fast scalps, wicks and reversals"): two new extra
+  setups in `trade-setups.ts`, wick rejection and exhaustion reversal, quick
+  targets (1 to 2 risks). Like the others they only go live per market after
+  the learning loop proves them (12+ trades, 50%+ wins, making money), and a
+  live setup's confidence is now its proven win rate (`provenConfidence`), so
+  only accurate ones clear the alert bar. `SAMPLE_VERSION` 4: the history
+  rebuilds from 14 days back (older samples kept, never deleted), so the new
+  setups need a few days of studies before any can go live. No migration.
 
 - **Boss's Claude · 2026-10-31 · #186** · The Boss saw 1 win, 3 losses and a
   balance of $1,002.15 in the results post. Cause: the counter counted every

@@ -600,6 +600,24 @@ export async function liveSetups(market: string): Promise<SetupId[]> {
   return SETUP_IDS.filter((id) => stats[id]?.live);
 }
 
+/**
+ * How sure to be of a proven setup: its own win rate in the latest study, so
+ * only setups that have really been accurate clear the alert bar. Between
+ * 55% and 85%; the chart's own reading when it's higher. Pure.
+ */
+export function provenConfidence(chart: number, stats: Pick<SetupStats, "winRate"> | undefined) {
+  if (!stats) return chart;
+  return Math.min(85, Math.max(55, chart, Math.round(stats.winRate * 100)));
+}
+
+/** The live extra setups' study results for a market. */
+export async function liveSetupStats(
+  market: string,
+): Promise<Partial<Record<SetupId, SetupStats>>> {
+  const stats = (await learningState()).markets[market]?.setups ?? {};
+  return Object.fromEntries(SETUP_IDS.filter((id) => stats[id]?.live).map((id) => [id, stats[id]]));
+}
+
 /** The latest lesson for a market, for the AI desk to read. */
 export async function learnedLesson(market: string): Promise<string | null> {
   return (await learningState()).markets[market]?.lesson ?? null;

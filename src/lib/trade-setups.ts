@@ -12,6 +12,7 @@
 import { adx } from "./trade-signal-extras";
 import {
   atr,
+  ema,
   scaleTargets,
   type Candle,
   type FrameRead,
@@ -19,15 +20,28 @@ import {
   type Tuning,
 } from "./trade-signal";
 
-export type SetupId = "breakout_retest" | "sweep_reclaim" | "range_fade";
+export type SetupId =
+  | "breakout_retest"
+  | "sweep_reclaim"
+  | "range_fade"
+  | "wick_rejection"
+  | "exhaustion_reversal";
 
-export const SETUP_IDS: SetupId[] = ["breakout_retest", "sweep_reclaim", "range_fade"];
+export const SETUP_IDS: SetupId[] = [
+  "breakout_retest",
+  "sweep_reclaim",
+  "range_fade",
+  "wick_rejection",
+  "exhaustion_reversal",
+];
 
 /** What members see on the card. */
 export const SETUP_NAMES: Record<SetupId, string> = {
   breakout_retest: "Breakout & retest",
   sweep_reclaim: "Liquidity sweep & reclaim",
   range_fade: "Range fade",
+  wick_rejection: "Wick rejection",
+  exhaustion_reversal: "Exhaustion reversal",
 };
 
 export type SetupHit = {
@@ -144,6 +158,87 @@ function rangeFade(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "a
   return null;
 }
 
+/**
+ * Wick rejection (a fast scalp): the last closed candle is a big one (at
+ * least 0.8 ATR from top to bottom) with a long wick (60%+ of it, twice the
+ * body or more) that made the lowest low (highest high) of the last 20
+ * candles, and it closed in the other end's 40%: price tested a level and got
+ * thrown back. In on the close, the stop just past the wick's tip, quick
+ * targets (1, 1.5 and 2 risks).
+ */
+function wickRejection(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const last = cs[cs.length - 1];
+  const range = last.h - last.l;
+  if (!(range >= a * 0.8)) return null;
+  const body = Math.abs(last.c - last.o);
+  const prior = cs.slice(-21, -1);
+  for (const side of [1, -1] as const) {
+    // BUY: a long lower wick off the lows; SELL: a long upper wick off the highs.
+    const wick = side === 1 ? Math.min(last.o, last.c) - last.l : last.h - Math.max(last.o, last.c);
+    if (wick < range * 0.6 || wick < body * 2) continue;
+    const tip = side === 1 ? last.l : last.h;
+    const tested =
+      side === 1
+        ? tip <= Math.min(...prior.map((c) => c.l))
+        : tip >= Math.max(...prior.map((c) => c.h));
+    if (!tested) continue;
+    const where = side === 1 ? (last.c - last.l) / range : (last.h - last.c) / range;
+    if (where < 0.6) continue;
+    const risk = clampRisk(Math.abs(last.c - (tip - side * a * 0.1)), a, 0.4, 1.5);
+    return {
+      id: "wick_rejection",
+      direction: side === 1 ? "BUY" : "SELL",
+      entry: last.c,
+      risk,
+      targets: inR(last.c, side, risk, [1, 1.5, 2]),
+    };
+  }
+  return null;
+}
+
+/**
+ * Exhaustion reversal (a fast scalp): four of the five candles before the
+ * last ran the same way, price got stretched 2 ATR or more from the 20 EMA,
+ * and the last candle went the other way and swallowed the one before it
+ * (closed past its open). In on the close, the stop just past the run's
+ * extreme, quick targets (1, 1.5 and 2 risks).
+ */
+function exhaustionReversal(
+  cs: Candle[],
+  a: number,
+): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const last = cs[cs.length - 1];
+  const prev = cs[cs.length - 2];
+  const run = cs.slice(-6, -1);
+  const mean = ema(
+    cs.slice(-60).map((c) => c.c),
+    20,
+  ).at(-2);
+  if (mean == null || !Number.isFinite(mean)) return null;
+  // side: the way the reversal trades (BUY after a run down).
+  for (const side of [1, -1] as const) {
+    const against = run.filter((c) => (c.c - c.o) * side < 0).length;
+    if (against < 4) continue;
+    const stretch = (mean - prev.c) * side;
+    if (stretch < a * 2) continue;
+    const turns = (last.c - last.o) * side > 0 && (last.c - prev.o) * side > 0;
+    if (!turns) continue;
+    const extreme =
+      side === 1
+        ? Math.min(...cs.slice(-3).map((c) => c.l))
+        : Math.max(...cs.slice(-3).map((c) => c.h));
+    const risk = clampRisk(Math.abs(last.c - (extreme - side * a * 0.1)), a, 0.5, 1.5);
+    return {
+      id: "exhaustion_reversal",
+      direction: side === 1 ? "BUY" : "SELL",
+      entry: last.c,
+      risk,
+      targets: inR(last.c, side, risk, [1, 1.5, 2]),
+    };
+  }
+  return null;
+}
+
 const clampRisk = (r: number, a: number, lo: number, hi: number) =>
   Math.min(Math.max(r, a * lo), a * hi);
 
@@ -158,7 +253,13 @@ export function findSetups(candles: Candle[], higher?: FrameRead["bias"]): Setup
   if (candles.length < MIN_CANDLES) return [];
   const a = atr(candles.slice(-50), 14);
   if (!Number.isFinite(a) || a <= 0) return [];
-  const hits = [breakoutRetest(candles, a), sweepReclaim(candles, a), rangeFade(candles, a)];
+  const hits = [
+    breakoutRetest(candles, a),
+    sweepReclaim(candles, a),
+    rangeFade(candles, a),
+    wickRejection(candles, a),
+    exhaustionReversal(candles, a),
+  ];
   return hits
     .filter((h): h is NonNullable<typeof h> => !!h && h.risk > 0)
     .map((h) => {
