@@ -50,6 +50,17 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-10-31 · #180** · Lovable's publish check showed
+  6 failing tests (alert repeats, the 15-minute wait after a stop, trades side
+  by side, and 2 desk-scout tests). Cause: `chatPurgedAt()` reads the live
+  database, and Lovable's build machine has it. Since the Boss's purge there
+  is a real purge time, and the tests' pretend October clock makes every
+  pretend alert look older than it. Test-only fix: both files mock
+  `chatPurgedAt` to null. Reproduced the failure and confirmed the fix with a
+  live purge time simulated. Live alerts are unaffected (they're always
+  stamped after the purge). **Any new test that runs the scan must mock
+  `chatPurgedAt` the same way.** No migration.
+
 - **Partner's Claude · 2026-10-31 · #179** · The Boss wants a full fresh start
   now: "Purge & start" (freshStart) posts OG B0T's "money where my mouth
   is" announcement (`demoAnnouncement(start, true)`: chat cleared, counter
