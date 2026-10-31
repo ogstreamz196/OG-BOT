@@ -73,6 +73,9 @@ export const BOUNDS = {
   /** 0 (off) or in this range. */
   beAt: [0.5, 1.5],
   runner: [1.5, 3],
+  stopPad: [0.1, 0.6],
+  /** 0 (off) or in this range. */
+  tpPad: [0.1, 0.6],
 } as const;
 
 /** A switchable setting: off (0) below most of its range's start, else inside it on `step`s. */
@@ -146,8 +149,12 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
     beAt: v("beAt"),
     runner: v("runner"),
     entryStyle: v("entryStyle"),
+    stopPad: v("stopPad"),
+    tpPad: v("tpPad"),
   };
   return {
+    stopPad: Number(round(clamp(Number(t.stopPad), BOUNDS.stopPad), 0.05).toFixed(2)),
+    tpPad: Number(switchable(Number(t.tpPad), BOUNDS.tpPad, 0.05).toFixed(2)),
     entryStyle: [0, 1, 2, 3].includes(Math.round(Number(t.entryStyle)))
       ? Math.round(Number(t.entryStyle))
       : 0,
@@ -211,11 +218,23 @@ export function applyTuning(s: LearnSample, tune: Tuning) {
     type = "market";
   }
   const shift = entry - s.entry;
+  // A stop behind a swing moves with the learned pad (the engine used 0.25 ATR).
+  const risk = s.raw.padded
+    ? Math.max(s.raw.atr * 0.5, s.raw.risk + ((tune.stopPad ?? 0.25) - 0.25) * s.raw.atr)
+    : s.raw.risk;
   const raw = s.raw.targets.map((t) => t + shift) as [number, number, number];
-  const stop = entry - side * s.raw.risk * tune.stopRoom;
+  // TP1 is one risk out, so it moves with the risk.
+  raw[0] += side * (risk - s.raw.risk);
+  const stop = entry - side * risk * tune.stopRoom;
   // One take profit (the Quick Scalp), as live signals have; with a runner,
-  // a third there and the rest further on.
-  const tp = scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0];
+  // a third there and the rest further on. Learned: just short of the first
+  // level (or round number) in the way, when that's nearer.
+  let tp = scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0];
+  if (tune.tpPad > 0 && s.raw.ahead != null) {
+    const capped = s.raw.ahead + shift - side * tune.tpPad * s.raw.atr;
+    const reach = (capped - entry) * side;
+    if (reach >= risk * 0.3 && reach < Math.abs(tp - entry)) tp = capped;
+  }
   return {
     entry,
     type,
@@ -348,6 +367,8 @@ export function candidates(current: Tuning, rand: () => number, count = 32): Tun
           rand() < 0.25 ? (current.runner ? 0 : 1.5 + rand() * 1.5) : nudge(current.runner, 0.4),
         // Now and then another way in.
         entryStyle: rand() < 0.2 ? Math.floor(rand() * 4) : current.entryStyle,
+        stopPad: nudge(current.stopPad, 0.15),
+        tpPad: rand() < 0.2 ? (current.tpPad ? 0 : 0.1 + rand() * 0.5) : nudge(current.tpPad, 0.1),
       }),
     );
   return out;
@@ -369,6 +390,8 @@ const describe = (t: Tuning) =>
   (t.entryStyle
     ? `, entering ${["", "on a pullback", "on a break", "at the price now"][t.entryStyle]} every time`
     : "") +
+  (t.stopPad !== 0.25 ? `, the stop ${t.stopPad} ATR beyond the swing` : "") +
+  (t.tpPad ? `, taking profit ${t.tpPad} ATR short of the next level or round number` : "") +
   (t.beAt ? `, stop to entry once it's ${t.beAt}× the risk in profit` : "") +
   (t.runner
     ? `, banking a third at the take profit and running the rest to ${t.runner}× its distance`
@@ -421,6 +444,8 @@ export function learnFromSamples(
       runner: !now.runner !== !best.runner ? best.runner : (now.runner + best.runner) / 2,
       // A way in can't be blended either.
       entryStyle: best.entryStyle,
+      stopPad: (now.stopPad + best.stopPad) / 2,
+      tpPad: !now.tpPad !== !best.tpPad ? best.tpPad : (now.tpPad + best.tpPad) / 2,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
     if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;

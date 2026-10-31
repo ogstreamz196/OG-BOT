@@ -131,3 +131,42 @@ describe("learned entry style", () => {
     ).toMatchObject({ entry: 100, type: "market" });
   });
 });
+
+describe("take profit and stop around real levels", () => {
+  // A buy at 100 whose stop hid behind a swing (risk 4 with the 0.25 ATR pad,
+  // ATR 4), with a level in the way at 103.
+  const s: LearnSample = {
+    t: 0,
+    direction: "BUY",
+    entry: 100,
+    entryType: "market",
+    confidencePct: 70,
+    verdict: "trade",
+    raw: { risk: 4, targets: [104, 108, 112], atr: 4, ahead: 103, padded: true },
+    path: [],
+    expiresAt: 60 * MIN,
+  };
+  it("the stop pad moves the stop (and the first target with the risk)", async () => {
+    const { applyTuning } = await import("./signal-learning.server");
+    const base = applyTuning(s, DEFAULT_TUNING);
+    const wider = applyTuning(s, { ...DEFAULT_TUNING, stopPad: 0.5 });
+    // One more ATR of pad: risk 4 → 5, so the stop is 1.2 further down.
+    expect(base.stop - wider.stop).toBeCloseTo(1.2, 6);
+    expect(wider.targets[0]).toBeGreaterThan(base.targets[0]);
+  });
+  it("with a take-profit pad, the target sits just short of the level in the way", async () => {
+    const { applyTuning } = await import("./signal-learning.server");
+    // Pulled-in TP1 is about 103.2: past the level at 103.
+    expect(applyTuning(s, DEFAULT_TUNING).targets[0]).toBeGreaterThan(103);
+    expect(applyTuning(s, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeCloseTo(102.6, 6);
+    // Too close to bother (under 0.3 of the risk): left alone.
+    const near = { ...s, raw: { ...s.raw, ahead: 100.5 } };
+    expect(applyTuning(near, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeGreaterThan(103);
+  });
+  it("round numbers: gold every $10, bitcoin every $500", async () => {
+    const { roundStepFor } = await import("./trade-signal");
+    expect(roundStepFor("XAUUSD")).toBe(10);
+    expect(roundStepFor("BTCUSD")).toBe(500);
+    expect(roundStepFor("EURUSD")).toBeUndefined();
+  });
+});

@@ -34,6 +34,7 @@ import {
 import {
   DEFAULT_TUNING,
   NO_TIME_LIMIT,
+  roundStepFor,
   aggregate,
   buildPlan,
   decimalsFor,
@@ -896,6 +897,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   let plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
+    roundStep: roundStepFor(inst.code),
     tuning,
   });
   // A proxy chart (gold from PAX Gold) without a confirmed spot price would
