@@ -218,6 +218,8 @@ export type LearnSample = {
    * taken off every filled trade when it's scored. Set when learning, never stored.
    */
   cost?: number;
+  /** The broker's commission per trade, in price, taken off every filled trade. */
+  fee?: number;
 };
 
 /** Past setups every `step` entry candles between `from` and `to` (see LearnSample). */

@@ -247,16 +247,34 @@ describe("quiet charts and losing hours", () => {
 });
 
 describe("spread", () => {
-  it("every filled trade pays it, in the engine's risk units", () => {
+  it("a market entry pays half the spread up front, and commission comes off every trade", () => {
     const s = [sample(0, 0.1), sample(1, 0.1)];
     const free = evaluate(s, DEFAULT_TUNING);
     const paid = evaluate(
-      s.map((x) => ({ ...x, cost: 0.5 })),
+      s.map((x) => ({ ...x, cost: 0.5, fee: 0.2 })),
       DEFAULT_TUNING,
     );
-    // 0.5 of price on a risk of 10 is 0.05R a trade.
-    expect(free.sumR - paid.sumR).toBeCloseTo(0.1, 6);
+    // Half of 0.5, plus 0.2 commission, on a risk of 10: 0.045R a trade.
+    expect(free.sumR - paid.sumR).toBeCloseTo(0.09, 6);
     expect(paid.wins).toBe(free.wins);
+  });
+
+  it("targets and stops are hit on the bid (a buy), so a spread can turn a near-win into a loss", () => {
+    // Highs reach exactly the take profit on the mid: on the bid they fall short.
+    const t = 0;
+    const near: LearnSample = {
+      ...sample(0, 0.1),
+      raw: { risk: 10, targets: [110, 120, 130], atr: 10 },
+      path: [
+        { t, o: 100, h: 108, l: 99.5, c: 100 },
+        { t: t + 5 * MIN, o: 100, h: 108, l: 87.9, c: 88 },
+      ],
+    };
+    const tp = evaluate([near], DEFAULT_TUNING);
+    const wide = evaluate([{ ...near, cost: 1 }], DEFAULT_TUNING);
+    expect(tp.wins + tp.losses).toBe(1);
+    expect(wide.wins).toBeLessThanOrEqual(tp.wins);
+    expect(wide.sumR).toBeLessThan(tp.sumR);
   });
 });
 

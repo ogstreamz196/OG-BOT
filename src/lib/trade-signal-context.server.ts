@@ -436,8 +436,24 @@ const spotCache = new Map<string, { exp: number; value: number }>();
  * Spot price brokers quote (Swissquote's free feed) for markets charted from
  * a proxy, e.g. gold from the PAX Gold token. NaN when unavailable.
  */
+/** Where each market's last spot price came from ("vantage" or "swissquote"). */
+export const spotSource = new Map<string, "vantage" | "swissquote">();
+/** The markets Vantage (through MetaApi) can price. */
+export const BROKER_MARKETS = new Set(["XAUUSD", "BTCUSD"]);
+
 export async function spotPrice(inst: Instrument): Promise<number> {
+  // Vantage's own price first (the Boss's broker, through MetaApi), so every
+  // level is on the price members trade; Swissquote when that's not set up.
+  if (BROKER_MARKETS.has(inst.code)) {
+    const { brokerQuote } = await import("./broker-quotes.server");
+    const q = await brokerQuote(inst.code).catch(() => null);
+    if (q) {
+      spotSource.set(inst.code, "vantage");
+      return q.mid;
+    }
+  }
   if (!inst.spot) return NaN;
+  spotSource.set(inst.code, "swissquote");
   const hit = spotCache.get(inst.spot);
   if (hit && hit.exp > Date.now()) return hit.value;
   const value = await getJson(
@@ -457,6 +473,24 @@ function soft<T>(job: Promise<T>, fallback: T, ms = EXTRA_MS): Promise<T> {
     job.catch(() => fallback),
     new Promise<T>((r) => setTimeout(() => r(fallback), ms)),
   ]);
+}
+
+/** Over this many times the usual spread for the hour, scalps sit it out. */
+export const SPREAD_GUARD = 2;
+
+/** A reason to sit out when Vantage's spread right now is blown out, else null. Never throws. */
+async function spreadBlownOut(market: string): Promise<string | null> {
+  if (!BROKER_MARKETS.has(market)) return null;
+  try {
+    const bq = await import("./broker-quotes.server");
+    const [q, model] = await Promise.all([bq.brokerQuote(market), bq.spreadModel()]);
+    const usual = bq.typicalSpread(model, market, Date.now());
+    if (!q || !usual || q.spread <= usual * SPREAD_GUARD) return null;
+    const dp = market === "BTCUSD" ? 1 : 2;
+    return `Vantage's spread is blown out right now (${q.spread.toFixed(dp)} against a usual ${usual.toFixed(dp)}), so I'm sitting it out.`;
+  } catch {
+    return null;
+  }
 }
 
 /** The US 10-year Treasury yield (Yahoo), for gold's dollar check. */
@@ -896,7 +930,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   const blackedOut = fast
     ? blackout(Date.now(), { gold: inst.code === "XAUUSD", news: calendar })
     : null;
-  const sitOut = blackedOut && !relaxed.has("blackout") ? blackedOut : null;
+  // Vantage's spread blown out (over twice its usual for this hour): no new scalps.
+  const spreadNote = fast ? await spreadBlownOut(inst.code) : null;
+  const sitOut = (blackedOut && !relaxed.has("blackout") ? blackedOut : null) ?? spreadNote;
   if (blackedOut && !sitOut && plan.verdict === "trade") relaxedBy ??= "blackout";
   if (sitOut && plan.verdict === "trade") plan = { ...plan, verdict: "wait", waitReason: sitOut };
   // No engine setup right now (and the market's open): on the 5-minute chart,
@@ -994,7 +1030,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ? fifteen.source
       : hourly.source || daily.source;
   const spotNote = offset
-    ? `chart moved ${offset > 0 ? "+" : "−"}${fmt(Math.abs(offset))} onto the Swissquote spot price`
+    ? `chart moved ${offset > 0 ? "+" : "−"}${fmt(Math.abs(offset))} onto ${spotSource.get(inst.code) === "vantage" ? "Vantage's live price" : "the Swissquote spot price"}`
     : inst.sourceNote;
   const source = [chartSource, spotNote].filter(Boolean).join("; ");
 
@@ -1113,7 +1149,10 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       kraken: inst.kraken,
       yahoo: inst.yahoo,
       ...(offset ? { offset } : {}),
-      ...(spotOk && inst.spot ? { spot: inst.spot } : {}),
+      // Followed on the same price: the spot quote, or Vantage's own for bitcoin.
+      ...(spotOk && (inst.spot || spotSource.get(inst.code) === "vantage")
+        ? { spot: inst.spot ?? "vantage" }
+        : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
       ...(plan.setup ? { setup: plan.setup } : {}),
       // A learned-off filter that let this one through (its live record decides if it stays off).

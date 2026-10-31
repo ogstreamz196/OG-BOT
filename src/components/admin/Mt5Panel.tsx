@@ -18,10 +18,15 @@ export function Mt5Panel() {
   const save = useServerFn(saveMt5Settings);
   const { data, isLoading } = useQuery({ queryKey: KEY, queryFn: () => load() });
   const [link, setLink] = useState("");
+  const [fee, setFee] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => setLink(data?.copyLink ?? ""), [data?.copyLink]);
+  useEffect(() => setFee(String(data?.commissionPerLot ?? 0)), [data?.commissionPerLot]);
 
-  async function update(values: { autotrade?: boolean; copyLink?: string }, done: string) {
+  async function update(
+    values: { autotrade?: boolean; copyLink?: string; commissionPerLot?: number },
+    done: string,
+  ) {
     setBusy(true);
     try {
       await save({ data: values });
@@ -112,6 +117,51 @@ export function Mt5Panel() {
             <p className="text-xs text-muted-foreground">
               Shown as "📋 Copy my trades" on the copy bot's posts. Add the copy bot in Telegram →
               Worker Fleet with the "Copy trading" job, on the signals chat.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="font-bold text-foreground" htmlFor="mt5-fee">
+              Commission per lot (USD, round turn)
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="mt5-fee"
+                inputMode="decimal"
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                disabled={
+                  busy ||
+                  !Number.isFinite(Number(fee)) ||
+                  Number(fee) < 0 ||
+                  Number(fee) > 100 ||
+                  Number(fee) === (data.commissionPerLot ?? 0)
+                }
+                onClick={() => void update({ commissionPerLot: Number(fee) }, "Commission saved")}
+              >
+                Save
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              0 on a Vantage Standard STP account (the cost is in the spread). On Raw ECN or Pro
+              ECN, enter what Vantage charges per 1.0 lot for opening and closing together. The bot
+              counts it on every trade when it learns.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Vantage spread measured by the bot:{" "}
+              {(["XAUUSD", "BTCUSD"] as const)
+                .map((mk) => {
+                  const s = data.spread?.[mk];
+                  const dp = mk === "BTCUSD" ? 1 : 2;
+                  const label = mk === "XAUUSD" ? "gold" : "bitcoin";
+                  return s?.latest != null
+                    ? `${label} ${s.latest.toFixed(dp)} now${s.usual != null ? `, usually ${s.usual.toFixed(dp)} at this hour` : ""}`
+                    : `${label} not measured yet`;
+                })
+                .join(" · ")}
             </p>
           </div>
 

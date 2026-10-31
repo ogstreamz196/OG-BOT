@@ -27,6 +27,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // Now and then, the Boss's Vantage invite link in the signals chat.
           const { maybePostPromo } = await import("@/lib/invite-promo.server");
           const promo = await maybePostPromo(supabaseAdmin);
+          // Vantage's spread, measured each minute (learning, the guard, hits on bid and ask).
+          const { recordSpreads } = await import("@/lib/broker-quotes.server");
+          const spreads = await recordSpreads(supabaseAdmin);
           // The setups that weren't sent, followed silently for the Boss's report.
           const { followShadows } = await import("@/lib/signal-shadows.server");
           const shadows = await followShadows(supabaseAdmin);
@@ -46,6 +49,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             promo,
             learning,
             filters,
+            spreads,
             shadows,
           });
         } catch (e) {
