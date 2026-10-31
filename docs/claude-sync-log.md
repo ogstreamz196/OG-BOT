@@ -19,11 +19,16 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-Updated by the Boss's Claude, 2026-10-31, after #178. Nothing open: no open
+Updated by the Boss's Claude, 2026-10-31, after #182. Nothing open: no open
 PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
 merged work, not open work.
 
-- **Live once Lovable publishes:** #170 to #176. The Boss has the publish
+- **Both Claudes fixed the same failing tests at once** (#180 merged, the
+  Boss's Claude's #181 closed unmerged as a duplicate). To stop that: put
+  your line under **In progress** and push it *before* you start, even for a
+  five-minute fix.
+- **Live once Lovable publishes:** #170 to #180 (#177, #178 and #182 are
+  notes only; #180 is tests only). The Boss has the publish
   prompts; if a later check shows the signals chat still in the old long
   layout or in points, Lovable hasn't published yet.
 - **Signals chat, as the Boss wants it now:** four-line cards
@@ -38,9 +43,10 @@ merged work, not open work.
   moves (`feeds.tpMoves` is being recorded); count a profit-lock exit as a
   win in the counter (Boss hasn't decided); drop the time in front of each
   card update (offered, no answer yet).
-- **Boss's to-dos:** GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
-  Lovable waits on it), expose `og_bot` after the apply, press the demo or
-  Purge & start button once if no test account is running, Google keys,
+- **Boss's to-dos:** press Purge & start at $1,000 once #179 is published
+  (the partner's Claude's ask: clears the chat, counter from zero, posts the
+  "money where my mouth is" message; no data deleted); GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
+  Lovable waits on it), expose `og_bot` after the apply, Google keys,
   check the Stripe account before `STRIPE_SECRET_KEY`. OG-BOT and O.G VAULT
   database projects are paused on purpose; OGSTREAMZ is the only active one.
 - **Leaving Lovable steps 3 to 5:** the partner's Claude's, paused (see In
