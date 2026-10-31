@@ -19,6 +19,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · On the Boss's say-so, the empty
+  OG-BOT database project is paused; O.G VAULT was already paused. The only
+  active project in the org is now the OGSTREAMZ hub (the live app still runs
+  on Lovable Cloud, which is separate and untouched). Restore OG-BOT only if
+  the Boss asks. Docs only.
+
 - **Boss's Claude · 2026-10-31 · this PR** · Progress check after the
   partner's Claude ran out of usage, read-only apart from this log: #164–#167
   all merged, no open PRs, no unmerged branches. Type check and build pass;
