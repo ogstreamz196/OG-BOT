@@ -8,7 +8,26 @@ Keys and passwords never go in chat or in the repo. They go only in the
 Lovable secrets form (today) or the Cloudflare and Supabase dashboards
 (later).
 
-## Step 1 · Own keys for connected services (done in this PR)
+## Boss's to-do
+
+Things only the Boss can do. Claudes: remind the Boss when work is waiting
+on one of these, and tick it off here once done.
+
+- [ ] **Add the hub database secret in GitHub** (unblocks step 2).
+  1. In the database dashboard, open the **OGSTREAMZ** project, click
+     **Connect**, choose **Session pooler**, and copy the URI.
+  2. Put your database password in place of `[YOUR-PASSWORD]`. To reset it,
+     go to Project Settings → Database → Reset database password.
+  3. In GitHub (ogstreamz196/OG-BOT), go to Settings → Secrets and
+     variables → Actions → New repository secret. Name it
+     `OG_BOT_HUB_DB_URL` and paste the URI as its value.
+  4. Tell Claude "done". Claude then runs the apply.
+- [ ] **After the apply:** in the OGSTREAMZ dashboard, go to Settings → API →
+      Exposed schemas and add `og_bot`.
+- [ ] **Decide about the restored OG-BOT database project.** It's empty and
+      unused, since OG B0T is staying in the hub. It could be paused again.
+
+## Step 1 · Own keys for connected services (done in PR #164)
 
 Today Telegram, Google Drive, Google Sheets and Stripe calls can go through
 Lovable's connector gateway (`connector-gateway.lovable.dev`, using

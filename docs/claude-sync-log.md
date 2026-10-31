@@ -16,6 +16,14 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-10-31 · #166** · Added a "Boss's to-do" list at the
+  top of `docs/lovable-exit-plan.md`: the GitHub secret `OG_BOT_HUB_DB_URL`
+  (step 2 waits on it), exposing `og_bot` after the apply, and the restored,
+  empty OG-BOT database project. Also outside the repo: Vault confirmed fully
+  on the hub, Vault's 119 older install-history rows copied into the hub
+  (checksums match), the old O.G VAULT project paused, OG-BOT project
+  restored (empty). OG B0T stays in the hub. Docs only.
+
 - **Partner's Claude · 2026-10-31 · #165** · Leaving Lovable, step 2
   prepared: OG B0T's whole database structure as the `og_bot` schema for the
   OGSTREAMZ hub (Boss's choice), in `supabase/hub/` (not
