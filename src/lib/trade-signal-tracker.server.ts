@@ -767,9 +767,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           if (entered && balance != null) {
             const money = (n: number) =>
               `$${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            lines.push(
-              `💰 Test account: ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one · balance now ${money(balance)}`,
-            );
+            lines.push(`💰 ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one`);
           } else update.feeds = { ...row.feeds };
         }
 

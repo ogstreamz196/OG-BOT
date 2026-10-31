@@ -19,6 +19,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · Results post clutter free (Boss's
+  ask): header, streak line, last 10 as ✅/🛑, "🏆 75% win rate · ✅ 3 · 🛑 1",
+  each market in cash from the demo ("₿ Bitcoin −$17.30", `paperByMarket`)
+  instead of pips, and "💰 Balance: $…" (no "$1,000 DEMO", no change since
+  start, since date or running/cancelled). A closed trade's card line is just
+  "💰 +$… on this one". No migration.
+
 - **Boss's Claude · 2026-10-31 · this PR** · Signals-chat cards trimmed to
   what the Boss wants: the trade, the stop, the take profit (with the demo
   lot's money) and timeframe and confidence (`compactCard` in

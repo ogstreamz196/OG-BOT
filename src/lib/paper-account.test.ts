@@ -175,18 +175,10 @@ describe("card lines", () => {
 });
 
 describe("the $1,000 demo shown to everyone", () => {
-  it("shows the balance and the change since the start", async () => {
+  it("shows just the balance, no starting amount", async () => {
     const { demoLine } = await import("./paper-account.server");
-    expect(demoLine(1000, 1042.3)).toBe("📈 $1,000 DEMO: $1,042.30 (+$42.30 · +4.2%)");
-    expect(demoLine(1000, 970)).toBe("📉 $1,000 DEMO: $970 (−$30 · −3.0%)");
-    expect(demoLine(1000, 1000)).toBe("💰 $1,000 DEMO: $1,000 (+$0 · +0.0%)");
-  });
-
-  it("never shows .00 on a whole balance, but keeps real cents", async () => {
-    const { demoLine } = await import("./paper-account.server");
-    const line = demoLine(1000, 1000);
-    expect(line).not.toContain(".00");
-    expect(demoLine(1000, 999.5)).toContain("$999.50");
+    expect(demoLine(1000, 1042.3)).toBe("💰 Balance: $1,042.30");
+    expect(demoLine(1000, 1000)).toBe("💰 Balance: $1,000");
   });
 
   it("announces it once, as demo money and not advice", async () => {

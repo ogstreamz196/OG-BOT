@@ -27,7 +27,7 @@ export const VANTAGE_INTRO =
 export function testModeNote(start: number): string {
   return (
     `🧪 TEST MODE starts now. I'm putting ${usd(start)} on a fresh Vantage Standard account and trading every alert in here with it: 0.05 to 0.3 lot a trade, bigger when I'm properly sure and my calls like it have been paying, smaller after a loss. ` +
-    "Spreads counted, no commission on Standard, no fiddling the numbers. Every card shows the balance as it stands. Let's see how we do."
+    "Spreads counted, no commission on Standard, no fiddling the numbers. The results at the bottom of the chat show the balance as it stands. Let's see how we do."
   );
 }
 
