@@ -13,6 +13,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · #163** · Desktop header had no room at
+  1280–1440 (logos squashed, title cut): removed the header "Search songs"
+  box, which did nothing (nothing listened to its `sonix:search` event; the
+  Music page has its own search boxes); the brand lockup no longer shrinks,
+  the title takes the rest and is text-xl until 2xl. `AppShell.tsx` only. No
+  migration.
 - **Boss's Claude · 2026-10-31 · #162** · Added `CLAUDE.md` (the routine
   both Claudes follow) and this log. No migration.
 - **Boss's Claude · 2026-10-31 · #161** · Phones: focused fields scroll clear

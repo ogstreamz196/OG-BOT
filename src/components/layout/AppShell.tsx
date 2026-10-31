@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { Search, ShieldCheck, LogOut, Crown, MoreVertical } from "lucide-react";
+import { ShieldCheck, LogOut, Crown, MoreVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SwipeToOpenSidebar } from "@/components/layout/SwipeToOpenSidebar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -138,27 +137,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               {/* Clipped to its column, so it can never run under the badges on the right. */}
               <div className="flex min-w-0 items-center gap-2 overflow-hidden sm:gap-3">
                 {!pathname.startsWith("/messenger") && (
-                  <div className="hidden min-[480px]:block">
+                  <div className="hidden shrink-0 min-[480px]:block">
                     <BrandLockup compact />
                   </div>
                 )}
-                <div className="hidden min-w-0 sm:block">
-                  <h1 className="font-display truncate text-base font-black leading-tight tracking-tight text-gradient-brand sm:text-xl lg:text-2xl">
+                <div className="hidden min-w-0 flex-1 sm:block">
+                  <h1 className="font-display truncate text-base font-black leading-tight tracking-tight text-gradient-brand sm:text-xl 2xl:text-2xl">
                     {title}
                   </h1>
-                </div>
-                <div className="relative ml-2 hidden w-full max-w-xs lg:block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search songs"
-                    className="h-9 border-white/10 bg-white/5 pl-9"
-                    onChange={(event) => {
-                      window.dispatchEvent(
-                        new CustomEvent("sonix:search", { detail: event.target.value }),
-                      );
-                    }}
-                  />
                 </div>
               </div>
 
