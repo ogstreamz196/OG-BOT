@@ -1,4 +1,13 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+
+// The scan reads the Boss's last chat purge from the live database. These
+// tests run on a pretend clock (October 2026), so a real purge time would
+// make every pretend alert look older than it and break them (seen on
+// Lovable's build machine, which has the database). No purge here.
+vi.mock("./signal-chat.server", async (orig) => ({
+  ...(await orig<object>()),
+  chatPurgedAt: async () => null,
+}));
 import {
   BROADCAST_MIN_CONFIDENCE,
   channelCard,
