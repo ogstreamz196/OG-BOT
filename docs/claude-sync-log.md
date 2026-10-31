@@ -24,9 +24,20 @@ Purge & start at $1,000 at 16:40; the demo runs from there. Nothing open: no ope
 PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
 merged work, not open work.
 
+- **Partner's Claude (updated 2026-10-31, 17:00):** back after a pause the
+  Boss asked for; no open PRs or branches of its own. Since #180 it has only
+  read live state and written this note. Live at 16:59 UTC: Purge & start
+  ran at 16:40:25 (`signals.chat.purgedAt`), demo `{start: 1000}` from then.
+  The first card after it (BTC sell, 16:45) is in the four-line layout with
+  dollars on 0.05 lot (`why`: "76% sure, 20 calls like it lost -0.3R on
+  average") and is still open. A BTC sell from 16:40:20, five seconds before
+  the purge, is also still open: it's followed quietly and doesn't count.
+  The dollar live line ("📍 … (+$…) · time") on a card update hasn't been
+  seen yet; check the 16:45 card's next update. Partner's Claude's own open
+  work is only leaving Lovable steps 3–5 (paused, see **In progress**).
 - **Both Claudes fixed the same failing tests at once** (#180 merged, the
   Boss's Claude's #181 closed unmerged as a duplicate). To stop that: put
-  your line under **In progress** and push it *before* you start, even for a
+  your line under **In progress** and push it _before_ you start, even for a
   five-minute fix.
 - **Published and checked by Lovable (2026-10-31):** everything up to #182.
   712 tests pass, 6 skipped, none failing (the 6 signal checks included);
@@ -50,9 +61,7 @@ merged work, not open work.
   moves (`feeds.tpMoves` is being recorded); count a profit-lock exit as a
   win in the counter (Boss hasn't decided); drop the time in front of each
   card update (offered, no answer yet).
-- **Boss's to-dos:** press Purge & start at $1,000 once #179 is published
-  (the partner's Claude's ask: clears the chat, counter from zero, posts the
-  "money where my mouth is" message; no data deleted); GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
+- **Boss's to-dos:** GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
   Lovable waits on it), expose `og_bot` after the apply, Google keys,
   check the Stripe account before `STRIPE_SECRET_KEY`. OG-BOT and O.G VAULT
   database projects are paused on purpose; OGSTREAMZ is the only active one.
@@ -62,6 +71,10 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-10-31 · #185** · Notes only: partner's state in
+  **Where things stand** (live check after the 16:40 Purge & start), and the
+  done "press Purge & start" to-do taken off the Boss's list.
 
 - **Boss's Claude · 2026-10-31 · #184** · "No need to give life story": the
   "money where my mouth is" post is three lines (`demoAnnouncement`) and the
