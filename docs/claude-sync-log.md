@@ -15,34 +15,69 @@ add to it before merging. See `CLAUDE.md` for the routine.
   Claude ran out of usage before starting this; no branch or PR exists for
   it yet. Pick up from step 3 in `docs/lovable-exit-plan.md`.
 
+## Where things stand (handover)
+
+<!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+Updated by the Boss's Claude, 2026-10-31, after #176. Nothing open: no PRs,
+no unmerged branches.
+
+- **Live once Lovable publishes:** #170 to #176. The Boss has the publish
+  prompts; if a later check shows the signals chat still in the old long
+  layout or in points, Lovable hasn't published yet.
+- **Signals chat, as the Boss wants it now:** four-line cards
+  (`compactCard`), short updates in cash on the demo's lot (`chatLine`,
+  `chatLiveLine`), a results post with streak, last ten, win rate, each
+  market in cash and "💰 Balance" (`resultsAnnouncement`). Keep it clutter
+  free; the Boss reviews layout before it ships ("show me first").
+- **Trade management:** lots 0.05 to 0.3 learned from wins and losses
+  (`chooseLot`), the 70/30 profit lock (`PROFIT_LOCK`), take profit moves
+  (`tpMove`). Rules in AGENTS.md.
+- **Open ideas, not started:** teach the learning loop to replay take profit
+  moves (`feeds.tpMoves` is being recorded); count a profit-lock exit as a
+  win in the counter (Boss hasn't decided); drop the time in front of each
+  card update (offered, no answer yet).
+- **Boss's to-dos:** GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
+  Lovable waits on it), expose `og_bot` after the apply, press the demo or
+  Purge & start button once if no test account is running, Google keys,
+  check the Stripe account before `STRIPE_SECRET_KEY`. OG-BOT and O.G VAULT
+  database projects are paused on purpose; OGSTREAMZ is the only active one.
+- **Leaving Lovable steps 3 to 5:** the partner's Claude's, paused (see In
+  progress).
+
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-10-31 · this PR** · Signals chat talks in money:
+- **Boss's Claude · 2026-10-31 · #177** · Handover tidy-up: real PR numbers
+  in the log, a **Where things stand** section at the top for whoever picks
+  up next, and two steps added to `CLAUDE.md` (keep that section current;
+  delete your merged branch). Merged branches from today deleted. Docs only.
+
+- **Boss's Claude · 2026-10-31 · #176** · Signals chat talks in money:
   the tracker's updates there are short and in cash on the demo's lot
   (`chatLine`, `chatLiveLine`, `chatTpMoveLine`), and the closing line shows
   the demo's own result. Members' own chats keep the old wording. No migration.
 
-- **Boss's Claude · 2026-10-31 · this PR** · Open signals-chat cards posted in
+- **Boss's Claude · 2026-10-31 · #175** · Open signals-chat cards posted in
   the old long layout switch to the compact one on the tracker's next pass
   (`compactCard` on `row.card`, saved back). No migration.
 
-- **Boss's Claude · 2026-10-31 · this PR** · Results post clutter free (Boss's
+- **Boss's Claude · 2026-10-31 · #174** · Results post clutter free (Boss's
   ask): header, streak line, last 10 as ✅/🛑, "🏆 75% win rate · ✅ 3 · 🛑 1",
   each market in cash from the demo ("₿ Bitcoin −$17.30", `paperByMarket`)
   instead of pips, and "💰 Balance: $…" (no "$1,000 DEMO", no change since
   start, since date or running/cancelled). A closed trade's card line is just
   "💰 +$… on this one". No migration.
 
-- **Boss's Claude · 2026-10-31 · this PR** · Signals-chat cards trimmed to
+- **Boss's Claude · 2026-10-31 · #173** · Signals-chat cards trimmed to
   what the Boss wants: the trade, the stop, the take profit (with the demo
   lot's money) and timeframe and confidence (`compactCard` in
   `signal-broadcast.server.ts`). No balance, lot or why lines, no profit-lock
   line, no "Every timeframe agrees" heading: the results post covers the
   balance. Cards for members' own requests are unchanged. No migration.
 
-- **Boss's Claude · 2026-10-31 · this PR** · The take profit moves while a
+- **Boss's Claude · 2026-10-31 · #172** · The take profit moves while a
   trade runs, always announced (Boss's ask): further out while price is still
   pushing hard right by it, in when it stalls short and pulls back (`tpMove`,
   `TP_MOVE` in `trade-signal-outcome.ts`; tracker posts it in the card's
@@ -50,7 +85,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
   (the profit lock stays on it), `feeds.tpMoves` records each move for later
   learning. No migration. Open: the learning loop doesn't replay moves yet.
 
-- **Boss's Claude · 2026-10-31 · this PR** · Demo lots and a profit lock, on
+- **Boss's Claude · 2026-10-31 · #171** · Demo lots and a profit lock, on
   the Boss's say-so. Lots now go 0.05 to 0.3 (the Boss's limit) in 0.05
   steps, learned from wins and losses (`chooseLot`, `lotInputs` in
   `paper-account.server.ts`): confidence, how calls like it did lately (in
@@ -61,7 +96,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
   breakeven (`Tuning.beAt` retired), the learning loop judges with it too,
   MT5 stop follows it. Older signals keep their old rule. No migration.
 
-- **Boss's Claude · 2026-10-31 · this PR** · **Boss's rule, for both
+- **Boss's Claude · 2026-10-31 · #170** · **Boss's rule, for both
   Claudes: trade and learning data is never deleted, ever.** "Purge" means
   the Telegram chat and the counters only. Removed the three automatic
   clean-ups that broke it: `signal_learn_samples` over 120 days, samples from
@@ -72,13 +107,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
   add a table to its `KEPT` list when you add learning data. `CLAUDE.md`
   house rule spelled out. No migration.
 
-- **Boss's Claude · 2026-10-31 · this PR** · On the Boss's say-so, the empty
+- **Boss's Claude · 2026-10-31 · #169** · On the Boss's say-so, the empty
   OG-BOT database project is paused; O.G VAULT was already paused. The only
   active project in the org is now the OGSTREAMZ hub (the live app still runs
   on Lovable Cloud, which is separate and untouched). Restore OG-BOT only if
   the Boss asks. Docs only.
 
-- **Boss's Claude · 2026-10-31 · this PR** · Progress check after the
+- **Boss's Claude · 2026-10-31 · #168** · Progress check after the
   partner's Claude ran out of usage, read-only apart from this log: #164–#167
   all merged, no open PRs, no unmerged branches. Type check and build pass;
   the tests pass (one run hit a timing flake in the BTC card test under load,

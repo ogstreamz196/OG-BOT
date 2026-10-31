@@ -35,10 +35,14 @@ sync. Follow this every time.
    `NODE_OPTIONS=--max-old-space-size=6144 npx vite build`.
 3. Update `AGENTS.md` for any behaviour you changed.
 4. Add an entry to `docs/claude-sync-log.md` (newest at the top of
-   **Log**), and take your line out of **In progress**.
+   **Log**, with the real PR number, not "this PR"), take your line out of
+   **In progress**, and refresh **Where things stand** so the other Claude
+   can pick up from there.
 5. PR into `lovable-sync`, merge, then give the person you're working for a
    Lovable prompt (pull lovable-sync, apply any new migrations unchanged,
    publish, and what to check).
+6. Delete your merged branch on GitHub, so open branches always mean open
+   work.
 
 ## House rules
 
