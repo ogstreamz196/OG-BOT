@@ -7,6 +7,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · fix-demo-balance · Results post: counter, markets and
+  balance all from the demo's own trades. Touches `paper-account.server.ts`,
+  `signal-chat.server.ts` (`refreshScore`), tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
