@@ -22,7 +22,7 @@ const usd = (n: number) =>
     .replace(/\.00$/, "")}`;
 
 export const VANTAGE_INTRO =
-  "🚀 This is the broker I trade every one of these signals on: Vantage. Open your account through the button below and you're taking the same trades I take. Standard account, same spreads as mine.";
+  "🚀 I trade every signal on Vantage. Same trades, same spreads: open yours below.";
 
 export function testModeNote(start: number): string {
   return (

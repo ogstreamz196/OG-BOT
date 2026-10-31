@@ -70,7 +70,7 @@ describe("freshStart", () => {
       calls.find((c) => c.body.text === posts[1])!.body.reply_markup.inline_keyboard[0][0].url,
     ).toMatch(/^https:\/\//);
     expect(posts[2]).toMatch(/^💸 PUTTING MY MONEY WHERE MY MOUTH IS[\s\S]*\$1,000 demo/);
-    expect(posts[2]).toMatch(/counter starts from zero/);
+    expect(posts[2]).toMatch(/Counter from zero/);
     // The test account and Standard STP's zero commission are saved.
     const saved = admin.writes.filter((w) => w.op === "upsert").map((w) => (w.row as any).key);
     expect(saved).toEqual(
