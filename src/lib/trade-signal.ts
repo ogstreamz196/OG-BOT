@@ -476,6 +476,12 @@ export type TradePlan = {
     atr: number;
     /** A pullback entry: the price when it was made and the 20 EMA it waits towards. */
     pull?: { price: number; mean: number };
+    /**
+     * Every way in, whichever was used: the price now, the entry chart's 20
+     * EMA a pullback waits towards, and the level a break entry needs. Lets
+     * the learning loop try another entry style on the same setup.
+     */
+    alt?: { price: number; mean: number; breakAt: number };
     /** The entry chart's liveliness (volatilityRatio) and UK time block (ukBlock). */
     vol?: number;
     block?: number | null;
@@ -558,10 +564,18 @@ export type Tuning = {
    * 0 is off (one take profit closes the lot).
    */
   runner: number;
+  /**
+   * How to get in: 0 the engine's choice (a pullback when price is stretched,
+   * a break when momentum's against it, else now), 1 always on a pullback
+   * towards the 20 EMA, 2 always on a break of the last two candles, 3 always
+   * at the price now.
+   */
+  entryStyle: number;
 };
 /** A time limit of this many minutes or more is no limit (5-minute scalps last an hour). */
 export const NO_TIME_LIMIT = 60;
 export const DEFAULT_TUNING: Tuning = {
+  entryStyle: 0,
   beAt: 0,
   runner: 0,
   holdFor: NO_TIME_LIMIT,
@@ -768,20 +782,27 @@ export function buildPlan(
   let entryType: EntryType = "market";
   let entryNote = "Market price now";
   let pull: { price: number; mean: number } | undefined;
-  if (stretchedNow || farFromMean) {
+  // The break level, worked out whichever entry is used (the learner tries them all).
+  const lastTwoBars = entryCandles.slice(-2);
+  const breakAt = long
+    ? Math.max(price, ...lastTwoBars.map((c) => c.h)) + a * 0.1
+    : Math.min(price, ...lastTwoBars.map((c) => c.l)) - a * 0.1;
+  // A learned entry style overrides the engine's choice (classic never does).
+  const style = classic ? 0 : (tune.entryStyle ?? 0);
+  const wantPull = style === 1 || (style === 0 && (stretchedNow || farFromMean));
+  const wantBreak = style === 2 || (style === 0 && !wantPull && momentumAgainst);
+  if (style === 3) {
+    // At the price now.
+  } else if (wantPull) {
     // Part of the way back to the 20 EMA (all the way under the classic
     // rules): a full retrace often never comes and the order never fills.
     const depth = classic ? 1 : tune.pullback;
     entryPx = price + (entry.ema20 - price) * depth;
     pull = { price, mean: entry.ema20 };
     entryType = "limit";
-    entryNote = `Limit on a pullback towards the ${entry.name} 20 EMA (price is stretched right now)`;
-  } else if (momentumAgainst) {
-    const lastTwo = entryCandles.slice(-2);
-    const trigger = long
-      ? Math.max(price, ...lastTwo.map((c) => c.h)) + a * 0.1
-      : Math.min(price, ...lastTwo.map((c) => c.l)) - a * 0.1;
-    entryPx = trigger;
+    entryNote = `Limit on a pullback towards the ${entry.name} 20 EMA${stretchedNow || farFromMean ? " (price is stretched right now)" : ""}`;
+  } else if (wantBreak) {
+    entryPx = breakAt;
     entryType = "stop";
     entryNote = `Only if price ${long ? "breaks above" : "breaks below"} this level (confirms the move)`;
   }
@@ -822,6 +843,7 @@ export function buildPlan(
     targets: [t1, t2, t3] as [number, number, number],
     atr: a,
     ...(pull ? { pull } : {}),
+    alt: { price, mean: entry.ema20, breakAt },
     vol: volRatioNow,
     block: blockNow,
   };

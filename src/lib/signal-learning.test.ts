@@ -127,6 +127,7 @@ describe("learnFromSamples", () => {
       fillWithin: 60,
       beAt: 0,
       runner: 0,
+      entryStyle: 0,
     });
     const noisy = Array.from({ length: 80 }, (_, i) => sample(i, ((i * 37) % 17) / 10));
     const { next } = learnFromSamples(noisy, DEFAULT_TUNING, seeded(11), "Gold");

@@ -29,6 +29,7 @@ function fakeAdmin() {
         eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
         gte: (c: string, v: number) => (filters.push((r) => r[c] >= v), q),
         lt: (c: string, v: number) => (filters.push((r) => r[c] < v), q),
+        neq: (c: string, v: unknown) => (filters.push((r) => r[c] !== v), q),
         order: (_c: string, o: { ascending: boolean }) => ((asc = o.ascending), q),
         limit: (n: number) => ((lim = n), q),
         range: (a: number, b: number) => ((off = a), (lim = b - a + 1), q),
