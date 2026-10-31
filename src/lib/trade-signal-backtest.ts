@@ -8,6 +8,7 @@ import { findSetups, type SetupHit } from "./trade-setups";
 import { advanceSignal, targetsReached, type SignalStatus } from "./trade-signal-outcome";
 import {
   DEFAULT_TUNING,
+  roundStepFor,
   buildPlan,
   framesFor,
   sessionRead,
@@ -259,6 +260,7 @@ export function collectSamples(opts: {
       volumeRatio: volumeRatio(entryCandles),
       session: opts.inst ? sessionRead(opts.inst, t) : undefined,
       tuning: { ...DEFAULT_TUNING, minConfidence: 0 },
+      roundStep: roundStepFor(opts.inst?.code),
     });
     out.push({
       t,

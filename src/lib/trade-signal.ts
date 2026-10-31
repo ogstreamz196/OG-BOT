@@ -482,6 +482,10 @@ export type TradePlan = {
      * the learning loop try another entry style on the same setup.
      */
     alt?: { price: number; mean: number; breakAt: number };
+    /** The first level in the trade's way (support/resistance or a round number). */
+    ahead?: number;
+    /** The risk came from a swing plus the stop pad (so a learned pad can move it). */
+    padded?: boolean;
     /** The entry chart's liveliness (volatilityRatio) and UK time block (ukBlock). */
     vol?: number;
     block?: number | null;
@@ -510,7 +514,14 @@ export type EngineOptions = {
   session?: SessionRead;
   /** Learned stop room, target pull-in and confidence floor (signal-learning.server.ts). */
   tuning?: Tuning;
+  /** The market's round-number step (roundStepFor), a level in its own right. */
+  roundStep?: number;
 };
+
+/** Round numbers price reacts at: gold every $10, bitcoin every $500. */
+export function roundStepFor(code: string | undefined): number | undefined {
+  return code === "XAUUSD" ? 10 : code === "BTCUSD" ? 500 : undefined;
+}
 
 /** A setup needs at least this much room (in R) to the next level in its way. */
 export const MIN_ROOM_R = 1.5;
@@ -571,11 +582,20 @@ export type Tuning = {
    * at the price now.
    */
   entryStyle: number;
+  /** ATRs the stop sits beyond the swing it hides behind (0.25 hand-set). */
+  stopPad: number;
+  /**
+   * The take profit sits this many ATRs short of the first level (or round
+   * number) in the way, when that's nearer than it; 0 is off.
+   */
+  tpPad: number;
 };
 /** A time limit of this many minutes or more is no limit (5-minute scalps last an hour). */
 export const NO_TIME_LIMIT = 60;
 export const DEFAULT_TUNING: Tuning = {
   entryStyle: 0,
+  stopPad: 0.25,
+  tpPad: 0,
   beAt: 0,
   runner: 0,
   holdFor: NO_TIME_LIMIT,
@@ -810,9 +830,13 @@ export function buildPlan(
   const structure = long
     ? support.find((s) => s < entryPx - a * 0.5)
     : resistance.find((r) => r > entryPx + a * 0.5);
-  let risk = structure != null ? Math.abs(entryPx - structure) + a * 0.25 : a * 1.5;
+  // The stop hides behind the swing plus a pad (learned; 0.25 ATR hand-set).
+  const pad = classic ? 0.25 : (tune.stopPad ?? 0.25);
+  const swingRisk = structure != null ? Math.abs(entryPx - structure) + a * pad : NaN;
+  let risk = structure != null ? swingRisk : a * 1.5;
   if (classic) risk = Math.min(Math.max(risk, a * 1), a * 3);
   else risk = risk > a * MAX_STOP_ATR ? a * 2 : Math.max(risk, a * 0.8);
+  const padded = structure != null && risk === swingRisk;
   // Members' stop sits 20% further from the entry than the engine's risk, so
   // the trade has room to breathe; the targets keep the engine's R spacing.
   const stopDistance = classic ? risk : risk * tune.stopRoom;
@@ -838,12 +862,13 @@ export function buildPlan(
   }
   // Targets members are shown and followed on: pulled in from the engine's
   // levels so they're hit more often (classic keeps the old ones to compare).
-  const raw = {
+  const raw: TradePlan["raw"] = {
     risk,
     targets: [t1, t2, t3] as [number, number, number],
     atr: a,
     ...(pull ? { pull } : {}),
     alt: { price, mean: entry.ema20, breakAt },
+    padded,
     vol: volRatioNow,
     block: blockNow,
   };
@@ -855,6 +880,24 @@ export function buildPlan(
       a * 0.05,
       tune.scale,
     );
+  // The first level in the way: support/resistance, or the next round number.
+  const step = opts.roundStep;
+  const nextRound = step
+    ? long
+      ? Math.floor(entryPx / step + 1) * step
+      : Math.ceil(entryPx / step - 1) * step
+    : undefined;
+  const aheadLevel = [ahead[0], nextRound]
+    .filter((x): x is number => x != null && Number.isFinite(x))
+    .sort((x, y) => Math.abs(x - entryPx) - Math.abs(y - entryPx))[0];
+  // Learned: take profit just short of it when it's nearer than the target,
+  // as long as that still leaves a worthwhile move.
+  if (!classic && tune.tpPad > 0 && aheadLevel != null) {
+    const capped = aheadLevel - (long ? 1 : -1) * tune.tpPad * a;
+    const reach = (capped - entryPx) * (long ? 1 : -1);
+    if (reach >= risk * 0.3 && reach < Math.abs(t1s - entryPx)) t1s = capped;
+  }
+  if (aheadLevel != null) raw.ahead = aheadLevel;
   // Reward against the stop members actually use.
   const rr1 = Math.abs(t1s - entryPx) / stopDistance;
   const rr3 = Math.abs(t3 - entryPx) / stopDistance;
