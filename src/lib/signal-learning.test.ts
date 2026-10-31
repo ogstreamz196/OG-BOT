@@ -5,6 +5,8 @@ import {
   BOUNDS,
   MIN_TRADES,
   evaluate,
+  folds,
+  holdsUp,
   learnFromSamples,
   learnSessions,
   learnedTuning,
@@ -317,5 +319,31 @@ describe("learnSessions", () => {
   it("live signals use their session's setting, else the market's", async () => {
     // Without anything learned, the hand-set rules.
     expect(await learnedTuning("NOPE", Date.now())).toEqual(DEFAULT_TUNING);
+  });
+});
+
+describe("walk-forward", () => {
+  it("a setting that only won in one lucky stretch isn't taken, however good its total", () => {
+    // First quarter: dips of 1.22 risks (a wider stop survives, the usual one
+    // is shaken out). The rest: dips of 1.4 (both stopped; wider loses more).
+    const lucky = [
+      ...Array.from({ length: 20 }, (_, i) => sample(i, 1.22)),
+      ...Array.from({ length: 60 }, (_, i) => sample(20 + i, 1.4)),
+    ];
+    const wider = { ...DEFAULT_TUNING, stopRoom: 1.3 };
+    expect(evaluate(lucky, wider).sumR).toBeGreaterThan(evaluate(lucky, DEFAULT_TUNING).sumR);
+    expect(holdsUp(folds(lucky), wider, DEFAULT_TUNING)).toBe(false);
+    expect(learnFromSamples(lucky, DEFAULT_TUNING, seeded(7), "Gold").next.stopRoom).toBe(
+      DEFAULT_TUNING.stopRoom,
+    );
+    // Shaken out all the way through: it holds up, and it's learned.
+    const steady = Array.from({ length: 80 }, (_, i) => sample(i, 1.22));
+    expect(holdsUp(folds(steady), wider, DEFAULT_TUNING)).toBe(true);
+  });
+
+  it("cuts the period into four stretches, oldest first", () => {
+    const s = Array.from({ length: 10 }, (_, i) => sample(i, 0.1));
+    expect(folds(s).map((f) => f.length)).toEqual([3, 3, 3, 1]);
+    expect(folds(s)[0][0].t).toBe(0);
   });
 });
