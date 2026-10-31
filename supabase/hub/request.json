@@ -1,0 +1,4 @@
+{
+  "action": "none",
+  "note": "Change action to apply, verify or rollback and merge into lovable-sync to run it on the OGSTREAMZ hub (see supabase/hub/README.md)."
+}

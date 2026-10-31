@@ -7,14 +7,27 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · (next branch) · Leaving Lovable, steps 2–5 (plan in
-  `docs/lovable-exit-plan.md`): waiting on the Boss's database-project
-  choice. Will touch `vite.config.ts`, a new `wrangler.jsonc`, sign-in and
-  `src/routes/lovable/email`.
+- Partner's Claude · `lovable-exit-hub` · Leaving Lovable, step 2: OG B0T
+  as the `og_bot` schema in the OGSTREAMZ hub (`supabase/hub/`,
+  `scripts/hub/`, `.github/workflows/og-bot-hub.yml`). Next: steps 3–5
+  (`vite.config.ts`, `wrangler.jsonc`, sign-in, `src/routes/lovable/email`,
+  the database client's schema).
 
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-10-31 · #165** · Leaving Lovable, step 2
+  prepared: OG B0T's whole database structure as the `og_bot` schema for the
+  OGSTREAMZ hub (Boss's choice), in `supabase/hub/` (not
+  `supabase/migrations`, so Lovable never applies it). Found and recorded the
+  live changes Lovable made outside the migrations (`01_drift_from_live.sql`);
+  the result matches live object for object. `scripts/hub/build-og-bot-init.sh`
+  rebuilds `og_bot_init.sql`; `.github/workflows/og-bot-hub.yml` applies,
+  verifies or rolls it back when `supabase/hub/request.json` changes on
+  lovable-sync (secret `OG_BOT_HUB_DB_URL`). Nothing applied to the hub yet.
+  No Lovable migration. **If you add a migration on Lovable, run the build
+  script again** so the hub copy keeps up.
 
 - **Partner's Claude · 2026-10-31 · #164** · Leaving Lovable, step 1
   (`docs/lovable-exit-plan.md`): `src/lib/connectors.server.ts` sends

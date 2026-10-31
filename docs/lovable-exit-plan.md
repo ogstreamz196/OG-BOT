@@ -16,11 +16,11 @@ Lovable's connector gateway (`connector-gateway.lovable.dev`, using
 straight to the real service when that service's own key is set, and through
 the gateway otherwise.
 
-| Service | Own key(s) | Status today |
-|---|---|---|
-| Telegram (main bot) | `OG_BOT_TOKEN` | Already set: the main helper already used it. Now every caller uses it. |
-| Google Drive + Sheets | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` (the Boss's Google account) | New. Until they're set, the gateway is used. |
-| Stripe | `STRIPE_SECRET_KEY` (+ `STRIPE_WEBHOOK_SECRET`) | Already supported by `stripe.server.ts`. |
+| Service               | Own key(s)                                                                                                       | Status today                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Telegram (main bot)   | `OG_BOT_TOKEN`                                                                                                   | Already set: the main helper already used it. Now every caller uses it. |
+| Google Drive + Sheets | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` (the Boss's Google account) | New. Until they're set, the gateway is used.                            |
+| Stripe                | `STRIPE_SECRET_KEY` (+ `STRIPE_WEBHOOK_SECRET`)                                                                  | Already supported by `stripe.server.ts`.                                |
 
 **Telegram webhook.** It used to accept only a secret derived from Lovable's
 `TELEGRAM_API_KEY`. It now accepts that one, one derived from `OG_BOT_TOKEN`,
@@ -48,22 +48,36 @@ endpoint in the Boss's account with its signing secret in
 
 **Undo:** remove the own key. That service goes back through the gateway.
 
-## Step 2 · Second database project, built in the background
+## Step 2 · OG B0T's database inside the OGSTREAMZ hub (prepared in PR #165)
 
-All of `supabase/migrations` (in order) and the functions in
-`supabase/functions` go into a new project. Nothing points at it yet.
+The Boss chose to keep OG B0T in the OGSTREAMZ hub, as its own `og_bot`
+schema next to `og_booking` and `padel` (free plan, shared). Files and
+details are in `supabase/hub/README.md`.
 
-**Decision needed.** The OGSTREAMZ organisation is on the free plan, which
-allows 2 active projects. Both are in use (OGSTREAMZ hub, O.G VAULT). A
-paused project named OG-BOT also exists. The options:
+**Findings:**
 
-| Option | Cost | Notes |
-|---|---|---|
-| a. Upgrade the organisation to Pro and restore the paused OG-BOT project | about $25/month, plus compute | Cleanest: its own project, every migration unchanged. |
-| b. Pause another project and restore OG-BOT | free | Only if that project isn't live. |
-| c. Put OG B0T in the OGSTREAMZ hub under an `og_bot` schema, per the hub rules | free | Every one of the 200+ migrations, triggers, RPCs and clients would need rewriting from `public` to `og_bot`. Large and risky. |
+- **Database size.** OG B0T's tables are 11 MB (the hub is 15 MB of 500 MB),
+  and it has 108 members.
+- **Shared accounts.** The only accounts already in the hub are the two
+  D.EV emails, as expected.
+- **Files.** Stored files total 1.95 GB, almost all of it song files. That's
+  more than the hub's 1 GB, so song files go to Cloudflare R2 (hub rule 7).
+- **Repo history.** `supabase/migrations` was incomplete: Lovable changed the
+  live database directly. `supabase/hub/01_drift_from_live.sql` records those
+  changes, and the result was checked object by object against live.
+- **Sign-ups.** OG B0T's sign-up trigger only acts on users tagged
+  `app = og_bot`. Google and self sign-ups call `og_bot.ensure_member()` after
+  sign-in.
 
-**Undo:** delete or pause the new project. Nothing live uses it.
+**To apply:**
+
+1. Add the GitHub secret `OG_BOT_HUB_DB_URL`.
+2. Set `supabase/hub/request.json` to `apply` and merge.
+3. Add `og_bot` to the hub's exposed schemas.
+
+Nothing live uses it until step 5.
+
+**Undo:** the `rollback` action (`og_bot_rollback.sql`).
 
 ## Step 3 · Cloudflare Workers hosting, tested on beta.ogbot.co.uk
 
