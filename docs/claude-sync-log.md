@@ -72,6 +72,14 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · #186** · The Boss saw 1 win, 3 losses and a
+  balance of $1,002.15 in the results post. Cause: the counter counted every
+  70%+ signal since the reset from any chat (members' own requests, trades
+  from before the purge), while the balance and markets counted only the
+  demo's trades. Now, while the demo runs, the whole post comes from the
+  demo's own trades (`demoTally`): a win made money, a loss lost it, so it
+  always adds up. No migration.
+
 - **Partner's Claude · 2026-10-31 · #185** · Notes only: partner's state in
   **Where things stand** (live check after the 16:40 Purge & start), and the
   done "press Purge & start" to-do taken off the Boss's list.

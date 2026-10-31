@@ -71,21 +71,68 @@ export async function startPaper(admin: Admin, start: number, now = Date.now()) 
   return state;
 }
 
-/** The balance: the start plus every closed test trade's result since then. */
-export async function paperBalance(admin: Admin, state: PaperState): Promise<number> {
+type DemoRow = {
+  market: string;
+  closed_at?: string | null;
+  feeds: { paper?: PaperFeeds } | null;
+};
+
+export type DemoTally = {
+  balance: number;
+  wins: number;
+  losses: number;
+  /** Each closed trade, oldest first: "won" made money, "lost" lost it. */
+  form: ("won" | "lost")[];
+  /** Each market's result in dollars. */
+  byMarket: Record<string, number>;
+};
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Everything the results post shows, from one set of trades: the demo's own
+ * (the signals chat's alerts since it started, each with its lot and its
+ * result worked out on the spread). A trade that made money is a win, one that
+ * lost money a loss, one that never filled or closed flat is neither; so the
+ * counter, each market and the balance always add up. Pure.
+ */
+export function demoTally(start: number, rows: DemoRow[]): DemoTally {
+  const closed = rows
+    .map((r) => ({ r, pnl: Number(r.feeds?.paper?.pnl) }))
+    .filter(({ r, pnl }) => Number.isFinite(pnl) && Number(r.feeds?.paper?.lots) > 0)
+    .sort((x, y) => String(x.r.closed_at ?? "").localeCompare(String(y.r.closed_at ?? "")));
+  const out: DemoTally = { balance: start, wins: 0, losses: 0, form: [], byMarket: {} };
+  for (const { r, pnl } of closed) {
+    out.balance += pnl;
+    out.byMarket[r.market] = (out.byMarket[r.market] ?? 0) + pnl;
+    if (pnl > 0) (out.wins++, out.form.push("won"));
+    else if (pnl < 0) (out.losses++, out.form.push("lost"));
+  }
+  out.balance = cents(out.balance);
+  for (const k of Object.keys(out.byMarket)) out.byMarket[k] = cents(out.byMarket[k]);
+  return out;
+}
+
+/** The demo's own trades since it started (read only). */
+async function demoRows(admin: Admin, state: PaperState): Promise<DemoRow[] | null> {
   const { data, error } = await admin
     .from("trade_signals")
-    .select("feeds")
+    .select("market, closed_at, feeds")
     .eq("sender_worker", "trade")
     .gte("created_at", state.startedAt)
     .limit(5000);
-  if (error) return state.start;
-  let total = state.start;
-  for (const r of (data ?? []) as { feeds: { paper?: PaperFeeds } | null }[]) {
-    const pnl = Number(r.feeds?.paper?.pnl);
-    if (Number.isFinite(pnl)) total += pnl;
-  }
-  return Math.round(total * 100) / 100;
+  return error ? null : ((data ?? []) as DemoRow[]);
+}
+
+/** The demo's results (demoTally), or null when they can't be read. */
+export async function demoResults(admin: Admin, state: PaperState): Promise<DemoTally | null> {
+  const rows = await demoRows(admin, state);
+  return rows ? demoTally(state.start, rows) : null;
+}
+
+/** The balance: the start plus every closed demo trade's result since then. */
+export async function paperBalance(admin: Admin, state: PaperState): Promise<number> {
+  return (await demoResults(admin, state))?.balance ?? state.start;
 }
 
 /** The demo's profit or loss per market since it started, in dollars (read only). */
@@ -93,20 +140,7 @@ export async function paperByMarket(
   admin: Admin,
   state: PaperState,
 ): Promise<Record<string, number>> {
-  const { data, error } = await admin
-    .from("trade_signals")
-    .select("market, feeds")
-    .eq("sender_worker", "trade")
-    .gte("created_at", state.startedAt)
-    .limit(5000);
-  if (error) return {};
-  const out: Record<string, number> = {};
-  for (const r of (data ?? []) as { market: string; feeds: { paper?: PaperFeeds } | null }[]) {
-    const pnl = Number(r.feeds?.paper?.pnl);
-    if (Number.isFinite(pnl) && r.feeds?.paper?.lots) out[r.market] = (out[r.market] ?? 0) + pnl;
-  }
-  for (const k of Object.keys(out)) out[k] = Math.round(out[k] * 100) / 100;
-  return out;
+  return (await demoResults(admin, state))?.byMarket ?? {};
 }
 
 /** Whether an alert is an extremely confident quick scalp (the 0.3-lot ones). */

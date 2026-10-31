@@ -194,3 +194,33 @@ describe("the $1,000 demo shown to everyone", () => {
     expect(fresh).not.toContain("carries on");
   });
 });
+
+describe("the results post adds up", () => {
+  const row = (market: string, closed: string, pnl: number | undefined, lots = 0.05) => ({
+    market,
+    closed_at: closed,
+    feeds: { paper: { lots, ...(pnl != null ? { pnl } : {}) } },
+  });
+  it("counts wins and losses from the demo's own money, so they match the balance", async () => {
+    const { demoTally } = await import("./paper-account.server");
+    const t = demoTally(1000, [
+      row("BTCUSD", "2026-10-31T21:00:00Z", 2.06),
+      row("BTCUSD", "2026-10-31T17:50:00Z", -4.65),
+      row("XAUUSD", "2026-10-31T18:30:00Z", 1.2),
+      // Still running, never filled and a 0-lot alert don't count.
+      row("BTCUSD", "", undefined),
+      row("BTCUSD", "2026-10-31T19:00:00Z", 0),
+      row("BTCUSD", "2026-10-31T19:30:00Z", -50, 0),
+    ]);
+    expect(t).toEqual({
+      balance: 998.61,
+      wins: 2,
+      losses: 1,
+      form: ["lost", "won", "won"],
+      byMarket: { BTCUSD: -2.59, XAUUSD: 1.2 },
+    });
+    // The balance is always the start plus each market.
+    const sum = Object.values(t.byMarket).reduce((a, b) => a + b, 0);
+    expect(Math.round((1000 + sum) * 100) / 100).toBe(t.balance);
+  });
+});

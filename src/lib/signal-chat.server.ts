@@ -126,20 +126,20 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
       () => null,
     );
     if (!record) return "skipped: the signal record can't be read";
-    // The demo account's live balance, when it's running.
+    // While the demo runs, the whole post comes from its own trades (the
+    // counter, each market in cash and the balance), so it always adds up.
     const pa = await import("./paper-account.server");
     const state = await pa.paperState(admin).catch(() => null);
-    const demo = state
-      ? await pa
-          .paperBalance(admin, state)
-          .then((b) => pa.demoLine(state.start, b))
-          .catch(() => null)
-      : null;
-    // Each market in cash (the demo's results), not pips.
-    const byMarket = state ? await pa.paperByMarket(admin, state).catch(() => null) : null;
+    const tally = state ? await pa.demoResults(admin, state).catch(() => null) : null;
     const message = {
       chat_id: chatId,
-      text: resultsAnnouncement(record, demo, byMarket),
+      text: tally
+        ? resultsAnnouncement(
+            { ...record, wins: tally.wins, losses: tally.losses, form: tally.form },
+            pa.demoLine(state!.start, tally.balance),
+            tally.byMarket,
+          )
+        : resultsAnnouncement(record),
       disable_notification: true,
       disable_web_page_preview: true,
     };
