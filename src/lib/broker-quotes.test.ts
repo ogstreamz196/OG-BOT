@@ -46,6 +46,8 @@ describe("brokerLevels", () => {
       entry: 99.5,
       stop: 95.5,
       targets: [104.5, 104.5, 104.5],
+      // A stop moved to the entry is hit on the bid too.
+      beStop: 100.5,
     });
     expect(brokerLevels({ ...buy, direction: "SELL" as const }, 0.5)).toMatchObject({
       entry: 100.5,

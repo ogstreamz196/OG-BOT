@@ -62,10 +62,27 @@ export type TrackedSignal = {
   status: SignalStatus;
   /** When the signal stops being valid (ms). */
   expiresAt: number;
+  /**
+   * A learned breakeven: once price reaches this level (before any target),
+   * the stop moves to the entry ("protected"). `isProtected` says it already has.
+   */
+  beTrigger?: number;
+  isProtected?: boolean;
+  /** Where a stop moved to the entry sits (the entry itself, or its broker-side level). */
+  beStop?: number;
 };
 
 export type OutcomeEvent = {
-  kind: "filled" | "tp1" | "tp2" | "tp3" | "stopped" | "breakeven" | "expired" | "unfilled";
+  kind:
+    | "filled"
+    | "tp1"
+    | "tp2"
+    | "tp3"
+    | "stopped"
+    | "breakeven"
+    | "expired"
+    | "unfilled"
+    | "protected";
   /** Candle time the event happened in (ms), or `now` for time-ups. */
   at: number;
   /** The level it happened at. */
@@ -94,6 +111,8 @@ export function advanceSignal(
   const long = signal.direction === "BUY";
   const events: OutcomeEvent[] = [];
   let status = signal.status;
+  let guarded = !!signal.isProtected;
+  const beStop = signal.beStop ?? signal.entry;
   const below = (c: Candle, level: number) => c.l <= level;
   const above = (c: Candle, level: number) => c.h >= level;
   const touchesStop = (c: Candle, level: number) => (long ? below(c, level) : above(c, level));
@@ -115,9 +134,10 @@ export function advanceSignal(
       continue;
     }
     const reached = targetsReached(status);
-    const stopLevel = reached >= 1 ? signal.entry : signal.stop;
+    const atEntry = reached >= 1 || guarded;
+    const stopLevel = atEntry ? beStop : signal.stop;
     if (touchesStop(c, stopLevel)) {
-      status = reached >= 1 ? "breakeven" : "stopped";
+      status = atEntry ? "breakeven" : "stopped";
       events.push({ kind: status, at: c.t, price: stopLevel });
       continue;
     }
@@ -125,6 +145,18 @@ export function advanceSignal(
       if (!touchesTarget(c, signal.targets[i])) break;
       status = (["tp1", "tp2", "tp3"] as const)[i];
       events.push({ kind: status, at: c.t, price: signal.targets[i] });
+    }
+    // The learned breakeven: far enough in profit (and no target yet), the
+    // stop moves to the entry from the next candle on.
+    if (
+      !guarded &&
+      signal.beTrigger != null &&
+      targetsReached(status) === 0 &&
+      isActive(status) &&
+      touchesTarget(c, signal.beTrigger)
+    ) {
+      guarded = true;
+      events.push({ kind: "protected", at: c.t, price: signal.beTrigger });
     }
   }
 
@@ -144,7 +176,10 @@ export function advanceSignal(
  * results stay on the signal's own levels; only when they're reached moves.
  */
 export function brokerLevels<
-  T extends Pick<TrackedSignal, "direction" | "entry" | "stop" | "targets">,
+  T extends Pick<
+    TrackedSignal,
+    "direction" | "entry" | "stop" | "targets" | "beTrigger" | "beStop"
+  >,
 >(signal: T, half: number): T {
   if (!(half > 0)) return signal;
   const s = signal.direction === "BUY" ? 1 : -1;
@@ -153,6 +188,10 @@ export function brokerLevels<
     entry: signal.entry - s * half,
     stop: signal.stop + s * half,
     targets: signal.targets.map((t) => t + s * half) as [number, number, number],
+    // A stop moved to the entry is a stop like any other; the breakeven
+    // trigger is reached like a target.
+    beStop: (signal.beStop ?? signal.entry) + s * half,
+    ...(signal.beTrigger != null ? { beTrigger: signal.beTrigger + s * half } : {}),
   };
 }
 

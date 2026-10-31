@@ -199,7 +199,11 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
     case "stopped":
       return `🛑 Stopped out (${move(row.entry, row.stop)}). I've taken the fucking loss and I'm not chasing it`;
     case "breakeven":
-      return `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`;
+      return row.best_target >= 1
+        ? `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`
+        : `⚖️ It came back to my entry, so I'm out at breakeven. No harm done`;
+    case "protected":
+      return `🔒 It's moving my way, so my stop loss is now at my entry, ${fmt(row.entry)}. Can't lose from here`;
     case "unfilled":
       return `⏳ Price never came to my entry, so I've cancelled it`;
     // Only shown for a learned time stop (a plain expiry posts nothing).
@@ -466,7 +470,7 @@ const opposite = (direction: Row["direction"], bias: string) =>
  * live line. Returns counts for the cron log.
  */
 /** What may be announced from the minute still forming (good news only). */
-const EARLY_EVENTS = new Set(["filled", "tp1", "tp2", "tp3"]);
+const EARLY_EVENTS = new Set(["filled", "tp1", "tp2", "tp3", "protected"]);
 
 export async function watchSignals(now = Date.now()): Promise<{ active: number; events: number }> {
   const admin = await db();
@@ -532,6 +536,17 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           status: row.status,
           expiresAt: Date.parse(row.expires_at),
           ...(row.entered_at ? { enteredAt: Date.parse(row.entered_at) } : {}),
+          // The learned breakeven: stop to entry once this far in profit.
+          ...(Number(row.feeds.beAt) > 0
+            ? {
+                beTrigger:
+                  Number(row.entry) +
+                  (row.direction === "BUY" ? 1 : -1) *
+                    Math.abs(Number(row.entry) - Number(row.stop)) *
+                    Number(row.feeds.beAt),
+                isProtected: !!row.feeds.protected,
+              }
+            : {}),
         };
         // The learned time limits: fill in time, and close a trade that's gone nowhere.
         const limits = limitsFrom(row.feeds, created);
@@ -565,6 +580,16 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           }
         }
         let status = result.status;
+        // The breakeven fired: remembered with the signal, and the Boss's MT5
+        // trade gets its stop moved to the entry too (also after a runner's
+        // first take profit, where the stop moves to the entry anyway).
+        const guarded = result.events.some((e) => e.kind === "protected");
+        if (guarded) row.feeds = { ...row.feeds, protected: true };
+        const firstBank = !singleTarget(row) && result.events.some((e) => e.kind === "tp1");
+        if ((guarded || firstBank) && row.sender_worker === "trade") {
+          const { moveStopToEntry } = await import("./mt5-autotrade.server");
+          await moveStopToEntry(admin, row).catch(() => undefined);
+        }
         // Running out of time isn't news: the status changes, nothing is posted.
         // A learned time stop is: members are told to close it.
         const entered = result.events.find((e) => e.kind === "filled")?.at ?? tracked.enteredAt;
@@ -575,8 +600,10 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           now >= entered + limits.holdMs;
         const lines = result.events
           .filter((e) => e.kind !== "expired" || timeStopped)
-          // One take profit: its hit is one line, not three.
+          // One take profit: its hit is one line, not three; a runner's two
+          // last levels are one too.
           .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
+          .filter((e) => !(e.kind === "tp2" && Number(row.tp2) === Number(row.tp3)))
           .map((e) =>
             eventLine(
               { ...row, last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price },

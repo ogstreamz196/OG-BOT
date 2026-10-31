@@ -112,6 +112,57 @@ export function brokerSymbol(market: string): string {
 
 const round = (n: number, dp: number) => Number(n.toFixed(Math.max(0, Math.min(8, dp))));
 
+/**
+ * The signal's stop moved to its entry (the learned breakeven fired, or a
+ * runner banked its first third): the matching open MT5 position gets its
+ * stop loss moved to the entry too, its take profit kept. Says what happened.
+ */
+export async function moveStopToEntry(
+  admin: Admin,
+  signal: {
+    market: string;
+    label: string;
+    direction: "BUY" | "SELL";
+    entry: number;
+    stop: number;
+    tp1: number;
+    tp2: number;
+    tp3: number;
+    pip: number | null;
+    decimals: number;
+  },
+): Promise<string> {
+  if (!metaApiConfigured()) return "skipped: MetaApi not set up";
+  const { setupKey } = await import("./signal-results.server");
+  const key = setupKey({ id: "", ...signal });
+  const { data } = await admin
+    .from(MT5_TABLE)
+    .select("id, ticket, status, take_profit, stop_loss, entry")
+    .eq("setup_key", key)
+    .eq("status", "open")
+    .maybeSingle();
+  const t = data as Pick<Mt5Trade, "id" | "ticket" | "take_profit" | "stop_loss" | "entry"> | null;
+  if (!t?.ticket) return "no open position";
+  const entry = round(Number(signal.entry), signal.decimals);
+  if (Number(t.stop_loss) === entry) return "already at entry";
+  const res = await metaApi<{ stringCode?: string; message?: string }>("/trade", {
+    method: "POST",
+    body: {
+      actionType: "POSITION_MODIFY",
+      positionId: t.ticket,
+      stopLoss: entry,
+      takeProfit: Number(t.take_profit),
+    },
+  });
+  const ok = res.ok && DONE.has(res.data?.stringCode ?? "");
+  if (ok)
+    await admin
+      .from(MT5_TABLE)
+      .update({ stop_loss: entry, updated_at: new Date().toISOString() })
+      .eq("id", t.id);
+  return ok ? "stop moved to entry" : `failed: ${res.data?.message ?? res.status}`;
+}
+
 /** The MetaApi trade request for a signal (pure, so it can be tested). */
 export function tradeRequest(
   plan: SignalPlan,
