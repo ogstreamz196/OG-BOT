@@ -79,3 +79,6 @@
 - [ ] Age rating questionnaires 16+/17+ at store submission (owner)
 
 - [x] Add alt text to DodgyLogo mascot in welcome.tsx (SEO agent_content:content)
+- [x] Sync lovable-sync #184 (3-line announcement, 1-line Vantage intro), publish, tests pass
+- [ ] Keep trade_signals, signal_learn_samples and signal_shadows forever: no clean-up, retention job or migration that deletes their rows
+
