@@ -102,11 +102,17 @@ export async function freshStart(
   await admin
     .from("site_content")
     .upsert({ key: "promo.invite.lastAt", value: at, updated_at: at }, { onConflict: "key" });
-  const note = await workerApi<{ message_id?: number }>("sendMessage", {
+  // OG B0T's "money where my mouth is" post (the trade bot if OG B0T can't
+  // post there), saying the counter starts from zero too.
+  const { demoAnnouncement } = await import("./paper-account.server");
+  const { telegramApi } = await import("./telegram-api.server");
+  const announce = {
     chat_id: chatId,
-    text: testModeNote(start),
+    text: demoAnnouncement(start, true),
     disable_web_page_preview: true,
-  });
+  };
+  let note = await telegramApi<{ message_id?: number }>("sendMessage", announce);
+  if (!note?.ok) note = await workerApi<{ message_id?: number }>("sendMessage", announce);
 
   // 5. The results post, from zero, at the bottom.
   const { refreshScore } = await import("./signal-chat.server");

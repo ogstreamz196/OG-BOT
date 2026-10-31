@@ -38,7 +38,7 @@ const when = (iso: string) =>
 /**
  * Boss: start the signals chat fresh. One button clears the chat, restarts
  * every counter and the test account at a new balance, and posts the Vantage
- * invite and the test-mode note. Nothing stored is deleted.
+ * invite and OG B0T's announcement. Nothing stored is deleted.
  */
 export function SignalsChatResetPanel() {
   const qc = useQueryClient();
@@ -99,7 +99,7 @@ export function SignalsChatResetPanel() {
     <AdminSection
       icon={<RotateCcw className="h-4 w-4 text-amber-400" />}
       title="Signals chat: demo account"
-      subtitle="Clears the signals chat, starts every counter from zero and the test account at the balance you set, then posts your Vantage invite and the test-mode note. All past trades are kept so the bot keeps learning from them."
+      subtitle="Clears the signals chat, starts every counter from zero and the test account at the balance you set, then posts your Vantage invite and OG B0T's money-where-my-mouth-is announcement. All past trades are kept so the bot keeps learning from them."
     >
       {isLoading || !data ? (
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -183,8 +183,8 @@ export function SignalsChatResetPanel() {
             <AlertDialogTitle>Purge the signals chat and start fresh?</AlertDialogTitle>
             <AlertDialogDescription>
               The chat is cleared, the score and win rate go back to zero, and the test account
-              restarts at {valid ? usd(amount) : "the new balance"}. Then your Vantage invite and
-              the test-mode note go out. Past trades are kept for learning; they just stop counting
+              restarts at {valid ? usd(amount) : "the new balance"}. Then your Vantage invite and OG
+              B0T's announcement go out. Past trades are kept for learning; they just stop counting
               in the chat.
             </AlertDialogDescription>
           </AlertDialogHeader>

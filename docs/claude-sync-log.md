@@ -16,6 +16,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-10-31 · #168** · The Boss wants a full fresh start
+  now: "Purge & start" (freshStart) now posts OG B0T's "money where my mouth
+  is" announcement (`demoAnnouncement(start, true)`: chat cleared, counter
+  from zero) instead of `testModeNote` (kept, unused). The Lovable prompt
+  runs the purge at $1,000 after checking #153–#167 are live. Stored trade
+  data is still never deleted (house rule). No migration.
+
 - **Partner's Claude · 2026-10-31 · #167** · Built on the Boss's Claude's test
   account (#159/#160): a $1,000 demo that starts **without** a purge, so the
   chat and the win/loss counter stay (`demoStart`, Boss button "Start the …

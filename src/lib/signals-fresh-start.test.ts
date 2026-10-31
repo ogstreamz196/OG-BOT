@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 // The fresh start: the chat swept, the record and the test account reset,
-// then the Vantage invite and the test-mode note posted.
+// then the Vantage invite and OG B0T's "money where my mouth is" post.
 
 const calls: { method: string; body: Record<string, any> }[] = [];
 vi.mock("./telegram-worker.server", () => ({
@@ -12,6 +12,8 @@ vi.mock("./telegram-worker.server", () => ({
       : { ok: true };
   },
 }));
+// OG B0T can't post here in the test, so the trade bot posts its message.
+vi.mock("./telegram-api.server", () => ({ telegramApi: async () => null }));
 vi.mock("./signal-chat.server", () => ({
   signalsChatId: async () => -1001234,
   refreshScore: async () => "posted",
@@ -67,7 +69,8 @@ describe("freshStart", () => {
     expect(
       calls.find((c) => c.body.text === posts[1])!.body.reply_markup.inline_keyboard[0][0].url,
     ).toMatch(/^https:\/\//);
-    expect(posts[2]).toMatch(/TEST MODE.*\$1,000/);
+    expect(posts[2]).toMatch(/^💸 PUTTING MY MONEY WHERE MY MOUTH IS[\s\S]*\$1,000 demo/);
+    expect(posts[2]).toMatch(/counter starts from zero/);
     // The test account and Standard STP's zero commission are saved.
     const saved = admin.writes.filter((w) => w.op === "upsert").map((w) => (w.row as any).key);
     expect(saved).toEqual(
