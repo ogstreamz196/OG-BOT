@@ -41,8 +41,9 @@ sync. Follow this every time.
 5. PR into `lovable-sync`, merge, then give the person you're working for a
    Lovable prompt (pull lovable-sync, apply any new migrations unchanged,
    publish, and what to check).
-6. Delete your merged branch on GitHub, so open branches always mean open
-   work.
+6. Old branches stay on GitHub (Claude sessions can't delete them). A branch
+   only counts as open work if it has an open pull request or a line under
+   **In progress**; anything already in `lovable-sync` is done.
 
 ## House rules
 

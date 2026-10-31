@@ -19,8 +19,9 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-Updated by the Boss's Claude, 2026-10-31, after #176. Nothing open: no PRs,
-no unmerged branches.
+Updated by the Boss's Claude, 2026-10-31, after #178. Nothing open: no open
+PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
+merged work, not open work.
 
 - **Live once Lovable publishes:** #170 to #176. The Boss has the publish
   prompts; if a later check shows the signals chat still in the old long
@@ -49,10 +50,15 @@ no unmerged branches.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · #178** · Correction to #177: Claude sessions
+  can't delete GitHub branches, so `CLAUDE.md` now says a branch is open work
+  only with an open PR or an **In progress** line. Docs only.
+
 - **Boss's Claude · 2026-10-31 · #177** · Handover tidy-up: real PR numbers
   in the log, a **Where things stand** section at the top for whoever picks
   up next, and two steps added to `CLAUDE.md` (keep that section current;
-  delete your merged branch). Merged branches from today deleted. Docs only.
+  how to tell open work from old branches). Today's branches stay on GitHub
+  (sessions can't delete branches); all of them are merged. Docs only.
 
 - **Boss's Claude · 2026-10-31 · #176** · Signals chat talks in money:
   the tracker's updates there are short and in cash on the demo's lot
