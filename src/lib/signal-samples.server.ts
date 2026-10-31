@@ -28,8 +28,6 @@ export const LEARN_DAYS = 90;
 export const REPLAY_DAYS = 14;
 /** How much older history each study adds, until LEARN_DAYS is reached. */
 export const BACKFILL_DAYS = 7;
-/** Samples older than this are deleted. */
-const KEEP_DAYS = 120;
 const DAY = 86_400_000;
 /** A setup every 30 minutes of the period. */
 const SAMPLE_STEP = 6;
@@ -154,13 +152,9 @@ export async function gatherSamples(
       if (!error) added += rows.length;
     }
   }
-  await admin
-    .from(TABLE)
-    .delete()
-    .eq("market", m.code)
-    .lt("t", now - KEEP_DAYS * DAY);
-  // Samples from an older engine (another SAMPLE_VERSION) are no use any more.
-  await admin.from(TABLE).delete().eq("market", m.code).neq("version", SAMPLE_VERSION);
+  // Nothing is ever deleted (the Boss's rule): older samples and ones from an
+  // older engine (another SAMPLE_VERSION) stay stored; the reads below only
+  // pick the current version's last LEARN_DAYS.
 
   const samples: LearnSample[] = [];
   for (let page = 0; page < 20; page++) {

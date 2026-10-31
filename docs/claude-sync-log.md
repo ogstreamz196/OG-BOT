@@ -19,6 +19,17 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · **Boss's rule, for both
+  Claudes: trade and learning data is never deleted, ever.** "Purge" means
+  the Telegram chat and the counters only. Removed the three automatic
+  clean-ups that broke it: `signal_learn_samples` over 120 days, samples from
+  an older `SAMPLE_VERSION`, and `signal_shadows` over 120 days. They stay
+  stored now, and the reads already only take the window they need. New
+  guard test `src/lib/trade-data-kept.test.ts` fails if any code or migration
+  deletes from `trade_signals`, `signal_learn_samples` or `signal_shadows`;
+  add a table to its `KEPT` list when you add learning data. `CLAUDE.md`
+  house rule spelled out. No migration.
+
 - **Boss's Claude · 2026-10-31 · this PR** · On the Boss's say-so, the empty
   OG-BOT database project is paused; O.G VAULT was already paused. The only
   active project in the org is now the OGSTREAMZ hub (the live app still runs
