@@ -17,8 +17,10 @@ import {
   profitLock,
   targetsReached,
   trackRecordText,
+  tpMove,
   type OutcomeEvent,
   type SignalStatus,
+  type TpMove,
 } from "./trade-signal-outcome";
 import { cached } from "./server-cache";
 
@@ -185,9 +187,23 @@ export const singleTarget = (row: Pick<Row, "tp1" | "tp3">) => Number(row.tp1) =
 
 /** The signal's profit lock levels, when it has the lock. */
 export function lockOf(
-  row: Pick<Row, "direction" | "entry" | "tp1"> & { feeds: { lock?: boolean } | null },
+  row: Pick<Row, "direction" | "entry" | "tp1"> & {
+    feeds: { lock?: boolean; tp0?: number } | null;
+  },
 ): { trigger: number; stop: number } | null {
-  return row.feeds?.lock ? profitLock(row.direction, Number(row.entry), Number(row.tp1)) : null;
+  // Always from the take profit it was sent with, so moving it doesn't move the lock.
+  const tp = Number(row.feeds?.tp0 ?? row.tp1);
+  return row.feeds?.lock ? profitLock(row.direction, Number(row.entry), tp) : null;
+}
+
+/** What members are told when the take profit moves. */
+export function tpMoveLine(row: Row, move: TpMove, from: number): string {
+  const { fmt } = formatter(row);
+  const way = move.tp > from === (row.direction === "BUY") ? "further" : "in";
+  const dir = move.tp > from ? "up" : "down";
+  return move.kind === "extend"
+    ? `🚀 It's still flying, so I'm moving my take profit ${dir} to ${fmt(move.tp)} (was ${fmt(from)}) and letting it run`
+    : `✋ It stalled at ${fmt(move.best)} and pulled back, so I'm bringing my take profit ${way} to ${fmt(move.tp)} (was ${fmt(from)}) to bank it on the next push`;
 }
 
 export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string }): string {
@@ -663,6 +679,42 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           if (bias && opposite(row.direction, bias)) {
             lines.push(eventLine({ ...row, status }, { kind: "cancelled", bias }));
             status = "cancelled";
+          }
+        }
+
+        // Moving the take profit (one take profit, in the trade, none hit):
+        // further while it's still pushing hard, in when it stalls short.
+        // Always announced, kept with the signal (feeds.tp0 the original,
+        // feeds.tpMoves each move) and mirrored on the Boss's MT5 trade.
+        const enteredMs = row.entered_at
+          ? Date.parse(row.entered_at)
+          : result.events.find((e) => e.kind === "filled")?.at;
+        if (status === "open" && singleTarget(row) && enteredMs != null) {
+          const moves = (row.feeds.tpMoves ?? []) as NonNullable<SignalFeeds["tpMoves"]>;
+          const from = Number(row.tp1);
+          const mv = tpMove({
+            direction: row.direction,
+            entry: Number(row.entry),
+            tp: from,
+            tp0: Number(row.feeds.tp0 ?? row.tp1),
+            candles: closed.filter((c) => c.t >= Math.floor(enteredMs / MINUTE) * MINUTE),
+            moves,
+          });
+          if (mv) {
+            const dp = Math.max(0, Math.min(8, Number(row.decimals) || 2));
+            const tp = Number(mv.tp.toFixed(dp));
+            lines.push(tpMoveLine(row, { ...mv, tp }, from));
+            update.tp1 = update.tp2 = update.tp3 = tp;
+            row.feeds = {
+              ...row.feeds,
+              tp0: Number(row.feeds.tp0 ?? from),
+              tpMoves: [...moves, { kind: mv.kind, from, to: tp, at: new Date(now).toISOString() }],
+            };
+            update.feeds = { ...row.feeds };
+            if (row.sender_worker === "trade") {
+              const { moveTakeProfit } = await import("./mt5-autotrade.server");
+              await moveTakeProfit(admin, row, tp).catch(() => undefined);
+            }
           }
         }
 

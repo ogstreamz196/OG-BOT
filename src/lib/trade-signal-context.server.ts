@@ -575,6 +575,10 @@ export type SignalFeeds = {
   beAt?: number;
   /** The profit lock (PROFIT_LOCK): 70% of the way to TP1, the stop moves to 30% of the way. */
   lock?: boolean;
+  /** The take profit it was sent with, once it's been moved (tpMove). */
+  tp0?: number;
+  /** Each take profit move, oldest first. */
+  tpMoves?: { kind: "extend" | "pull"; from: number; to: number; at: string }[];
   /** The stop has moved (the profit lock, or an older breakeven, fired). */
   protected?: boolean;
   /** The learned-off filter that let this signal through (signal-filter-learning.server.ts). */
