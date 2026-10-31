@@ -3,10 +3,22 @@ import { fetchAiChat, getLiveResearchContext, liveFactsMessage } from "./ai-endp
 
 const realFetch = globalThis.fetch;
 const ENV = { ...process.env };
-/** Swaps in a fake fetch (works under both Vitest and Bun's test runner). */
+/**
+ * Swaps in a fake fetch (works under both Vitest and Bun's test runner).
+ *
+ * The chat usage log is a database write through the same global fetch, so
+ * answering it here keeps "which model was asked?" honest: a test must never
+ * read the cost-panel insert as a Gemini call.
+ */
 function stubFetch(fn: unknown) {
-  globalThis.fetch = fn as typeof fetch;
+  const f = fn as (url: string, init?: RequestInit) => Promise<Response>;
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const u = String(url);
+    if (u.includes("/rest/v1/")) return new Response(JSON.stringify({ data: [] }));
+    return f(u, init);
+  }) as typeof fetch;
 }
+
 beforeEach(() => {
   for (const k of Object.keys(process.env)) {
     if (/_API_KEY$|^GEMINI_/.test(k)) delete process.env[k];
