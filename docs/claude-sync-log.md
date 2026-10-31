@@ -7,11 +7,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `lovable-exit-hub` · Leaving Lovable, step 2: OG B0T
-  as the `og_bot` schema in the OGSTREAMZ hub (`supabase/hub/`,
-  `scripts/hub/`, `.github/workflows/og-bot-hub.yml`). Next: steps 3–5
-  (`vite.config.ts`, `wrangler.jsonc`, sign-in, `src/routes/lovable/email`,
-  the database client's schema).
+- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
+  `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
+  emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
+  sign-in, `src/routes/lovable/email` and the database client's schema.
 
 ## Log
 
@@ -33,13 +32,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
   (`docs/lovable-exit-plan.md`): `src/lib/connectors.server.ts` sends
   Telegram, Google Drive/Sheets and Stripe calls straight to the real API
   when that service's own key is set (`OG_BOT_TOKEN`; `GOOGLE_OAUTH_CLIENT_ID`
-  + `_SECRET` + `_REFRESH_TOKEN`; `STRIPE_SECRET_KEY`), else through the
-  gateway as before. Every gateway caller now uses it. The Telegram webhook
-  accepts the old secret and one derived from `OG_BOT_TOKEN` (or
-  `TELEGRAM_WEBHOOK_SECRET`). API keys health page shows "own key" or
-  "gateway". No migration. Open: the Google keys aren't set yet, so Google
-  still uses the gateway; check whether Lovable's Stripe connector is the
-  Boss's own Stripe account before setting `STRIPE_SECRET_KEY`.
+  - `_SECRET` + `_REFRESH_TOKEN`; `STRIPE_SECRET_KEY`), else through the
+    gateway as before. Every gateway caller now uses it. The Telegram webhook
+    accepts the old secret and one derived from `OG_BOT_TOKEN` (or
+    `TELEGRAM_WEBHOOK_SECRET`). API keys health page shows "own key" or
+    "gateway". No migration. Open: the Google keys aren't set yet, so Google
+    still uses the gateway; check whether Lovable's Stripe connector is the
+    Boss's own Stripe account before setting `STRIPE_SECRET_KEY`.
 
 - **Boss's Claude · 2026-10-31 · #163** · Desktop header had no room at
   1280–1440 (logos squashed, title cut): removed the header "Search songs"
