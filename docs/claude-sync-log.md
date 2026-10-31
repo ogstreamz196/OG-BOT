@@ -7,6 +7,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · wick-scalps · Fast scalps: wick rejection and exhaustion
+  reversal setups, proven per market before going live, confidence from their
+  proven win rate. Touches `trade-setups.ts`, `signal-samples.server.ts`
+  (`SAMPLE_VERSION`), `signal-learning.server.ts`,
+  `trade-signal-context.server.ts`, tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
