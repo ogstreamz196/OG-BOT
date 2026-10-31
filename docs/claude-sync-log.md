@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-Updated by the Boss's Claude, 2026-10-31, after #179. Nothing open: no open
+Updated by the Boss's Claude, 2026-10-31, after #180. Nothing open: no open
 PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
 merged work, not open work.
 
@@ -50,7 +50,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-10-31 · #179** · Fixed 6 checks that failed only on
+- **Boss's Claude · 2026-10-31 · #180** · Fixed 6 checks that failed only on
   Lovable (repeats, 15 minutes after a stop, trades side by side). Cause: the
   alert tests asked the live database for the signals chat's purge time
   (`chatPurgedAt`); with Lovable's real credentials they got the Boss's real
