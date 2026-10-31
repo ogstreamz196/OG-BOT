@@ -233,21 +233,30 @@ export function currentStreak(r: Pick<SignalRecord, "form">) {
   return { result: last, count };
 }
 
-const MARKET_NAMES: Record<string, string> = { XAUUSD: "🥇 Gold", BTCUSD: "₿ Bitcoin" };
-
 /**
  * The signals chat's results post: OG B0T announcing the OG Trade Bot's
  * record, with its current streak and recent form up top.
  */
+const MARKET_NAMES: Record<string, string> = { XAUUSD: "🥇 Gold", BTCUSD: "₿ Bitcoin" };
+
+const cash = (n: number) =>
+  `${n >= 0 ? "+" : "−"}$${Math.abs(n)
+    .toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .replace(/\.00$/, "")}`;
+
 export function resultsAnnouncement(
   r: SignalRecord,
   /** The demo account's line (paper-account demoLine), when it's running. */
   demo?: string | null,
+  /** Each market's demo profit or loss in dollars (paperByMarket), when it's running. */
+  byMarket?: Record<string, number> | null,
 ): string {
+  // Clutter free (the Boss's choice): the streak, the form, the score, each
+  // market in cash and the balance.
   const streak = currentStreak(r);
   const n = streak?.count ?? 0;
   const hype = !streak
-    ? "🏁 Nothing settled yet. Watch this space."
+    ? "🏁 Nothing settled yet"
     : streak.result === "won"
       ? n > 1
         ? `🔥 ${n} wins on the bounce. My boy's cooking!`
@@ -257,25 +266,16 @@ export function resultsAnnouncement(
         : "🛑 Took a loss on the last one. Shake it off, son.";
   const lastTen = r.form.slice(-10);
   const decided = r.wins + r.losses;
-  const sign = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
-  const lines = [
-    `📣 OG TRADE BOT RESULTS${r.since ? ` · since ${ukDate(r.since)}` : ""}`,
+  return [
+    "📣 OG TRADE BOT RESULTS",
     hype,
-    ...(lastTen.length
-      ? [`${lastTen.map((f) => (f === "won" ? "✅" : "🛑")).join("")}  last ${lastTen.length}`]
+    ...(lastTen.length ? [lastTen.map((f) => (f === "won" ? "✅" : "🛑")).join("")] : []),
+    ...(decided
+      ? [`🏆 ${Math.round((r.wins / decided) * 100)}% win rate · ✅ ${r.wins} · 🛑 ${r.losses}`]
       : []),
-    "",
-    decided
-      ? `🏆 ${Math.round((r.wins / decided) * 100)}% win rate · ✅ ${r.wins} won · 🛑 ${r.losses} lost`
-      : `🏆 ✅ ${r.wins} won · 🛑 ${r.losses} lost`,
-  ];
-  const rest = [
-    r.running ? `⏳ ${r.running} running` : "",
-    r.cancelled ? `🚫 ${r.cancelled} cancelled` : "",
-  ].filter(Boolean);
-  if (rest.length) lines.push(rest.join(" · "));
-  for (const m of r.markets)
-    lines.push(`${MARKET_NAMES[m.market] ?? m.label} ${sign(m.pips)} ${m.unit}`);
-  if (demo) lines.push("", demo);
-  return lines.join("\n");
+    ...Object.entries(byMarket ?? {})
+      .filter(([, v]) => Number.isFinite(v))
+      .map(([m, v]) => `${MARKET_NAMES[m] ?? m} ${cash(v)}`),
+    ...(demo ? [demo] : []),
+  ].join("\n");
 }

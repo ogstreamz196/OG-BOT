@@ -9,7 +9,8 @@
 //   market actually did (average result in risks), and the demo's own form
 //   (losses in a row, drop from its best balance) to trade smaller after
 //   mistakes. Never more than MAX_RISK_PCT of the balance lost at the stop.
-// - Every card shows the balance, the lot and why (paperLines); the lot is
+// - The lot is chosen per alert (the signals chat's compact card leaves the
+//   balance, lot and why lines off; paperLines still builds them); the lot is
 //   kept with the trade (feeds.paper) and the card's dollar figures are for it.
 // - When a trade ends, its profit or loss (paperPnl) is worked out like
 //   Vantage would: Standard STP has no commission, the cost is the spread,
@@ -85,6 +86,27 @@ export async function paperBalance(admin: Admin, state: PaperState): Promise<num
     if (Number.isFinite(pnl)) total += pnl;
   }
   return Math.round(total * 100) / 100;
+}
+
+/** The demo's profit or loss per market since it started, in dollars (read only). */
+export async function paperByMarket(
+  admin: Admin,
+  state: PaperState,
+): Promise<Record<string, number>> {
+  const { data, error } = await admin
+    .from("trade_signals")
+    .select("market, feeds")
+    .eq("sender_worker", "trade")
+    .gte("created_at", state.startedAt)
+    .limit(5000);
+  if (error) return {};
+  const out: Record<string, number> = {};
+  for (const r of (data ?? []) as { market: string; feeds: { paper?: PaperFeeds } | null }[]) {
+    const pnl = Number(r.feeds?.paper?.pnl);
+    if (Number.isFinite(pnl) && r.feeds?.paper?.lots) out[r.market] = (out[r.market] ?? 0) + pnl;
+  }
+  for (const k of Object.keys(out)) out[k] = Math.round(out[k] * 100) / 100;
+  return out;
 }
 
 /** Whether an alert is an extremely confident quick scalp (the 0.3-lot ones). */
@@ -296,15 +318,9 @@ const usd2 = (n: number) =>
  * The demo's line in the results post at the bottom of the signals chat,
  * refreshed after every alert and update, so everyone sees the balance live.
  */
-export function demoLine(start: number, balance: number): string {
-  const diff = Math.round((balance - start) * 100) / 100;
-  const pct = start > 0 ? (diff / start) * 100 : 0;
-  const sign = diff >= 0 ? "+" : "−";
-  const mood = diff > 0 ? "📈" : diff < 0 ? "📉" : "💰";
-  return (
-    `${mood} ${usd(start)} DEMO: ${usd(balance)} ` +
-    `(${sign}${usd(Math.abs(diff))} · ${sign}${Math.abs(pct).toFixed(1)}%)`
-  );
+export function demoLine(_start: number, balance: number): string {
+  // Just the balance now (the Boss's choice: no starting amount, no change).
+  return `💰 Balance: ${usd(balance)}`;
 }
 
 /** OG B0T's one-off "money where my mouth is" post when the demo starts. */
@@ -317,7 +333,7 @@ export function demoAnnouncement(start: number): string {
     "",
     "0.05 to 0.3 lot a trade, sized on how sure I am and how my calls like it have been doing, and smaller after a loss. Spreads counted, no commission on Standard, no fiddling the numbers.",
     "",
-    "The win/loss counter carries on as it is. The balance updates live on every card and in the results at the bottom of the chat.",
+    "The win/loss counter carries on as it is. The balance updates live in the results at the bottom of the chat.",
     "",
     `${amount} on the line. Let's see who's talking rubbish. 👀`,
     "",
