@@ -44,6 +44,29 @@ describe("breakeven", () => {
   });
 });
 
+describe("profit lock (70% of the way: stop to 30% of the way)", () => {
+  it("works out the levels either way, none for a take profit on the wrong side", async () => {
+    const { profitLock } = await import("./trade-signal-outcome");
+    expect(profitLock("BUY", 100, 110)).toEqual({ trigger: 107, stop: 103 });
+    expect(profitLock("SELL", 100, 90)).toEqual({ trigger: 93, stop: 97 });
+    expect(profitLock("BUY", 100, 95)).toBeNull();
+  });
+  it("once 70% of the way, a pullback closes at the locked profit, not the old stop", () => {
+    const path = [bar(0, 99.5, 102.9), bar(1, 94, 101)];
+    const r = advanceSignal({ ...buy, beTrigger: 102.8, beStop: 101.2 }, path, 2 * MIN);
+    expect(r.events.map((e) => [e.kind, e.price])).toEqual([
+      ["protected", 102.8],
+      ["breakeven", 101.2],
+    ]);
+  });
+  it("short of 70%, the stop stays where it was", () => {
+    const path = [bar(0, 99.5, 102.5), bar(1, 94, 101)];
+    expect(advanceSignal({ ...buy, beTrigger: 102.8, beStop: 101.2 }, path, 2 * MIN).status).toBe(
+      "stopped",
+    );
+  });
+});
+
 describe("runner", () => {
   it("a third at the take profit, the rest further on", () => {
     expect(exitTargets(100, 104, 0)).toEqual([104, 104, 104]);
@@ -64,13 +87,12 @@ describe("learning exits", () => {
     path,
     expiresAt: 60 * MIN,
   });
-  it("breakeven saves the trades that go most of the way then turn", () => {
-    const turns = sample([bar(0, 99.8, 103.6), bar(1, 94, 101)]);
-    const plain = evaluate([turns], DEFAULT_TUNING);
-    const be = evaluate([turns], { ...DEFAULT_TUNING, beAt: 0.5 });
-    expect(plain.losses).toBe(1);
-    expect(be.losses).toBe(0);
-    expect(be.sumR).toBeGreaterThan(plain.sumR);
+  it("the profit lock: a trade 70% of the way that turns banks a bit instead of losing", () => {
+    const short = evaluate([sample([bar(0, 99.8, 102), bar(1, 94, 101)])], DEFAULT_TUNING);
+    expect(short.losses).toBe(1);
+    const turns = evaluate([sample([bar(0, 99.8, 103.6), bar(1, 94, 101)])], DEFAULT_TUNING);
+    expect(turns.losses).toBe(0);
+    expect(turns.sumR).toBeGreaterThan(0);
   });
   it("a runner pays more when the move keeps going", () => {
     const runs = sample([bar(0, 99.8, 101), bar(1, 101, 112), bar(2, 111, 113)]);
@@ -79,17 +101,17 @@ describe("learning exits", () => {
     expect(runner.wins).toBe(1);
     expect(runner.sumR).toBeGreaterThan(one.sumR);
   });
-  it("switched on only inside their ranges, off otherwise", () => {
+  it("a runner only inside its range; the old learned breakeven is retired", () => {
     expect(safeTuning({ ...DEFAULT_TUNING, beAt: 0.2, runner: 1 })).toMatchObject({
       beAt: 0,
       runner: 0,
     });
     expect(safeTuning({ ...DEFAULT_TUNING, beAt: 0.45, runner: 1.3 })).toMatchObject({
-      beAt: 0.5,
+      beAt: 0,
       runner: 1.5,
     });
     expect(safeTuning({ ...DEFAULT_TUNING, beAt: 9, runner: 9 })).toMatchObject({
-      beAt: 1.5,
+      beAt: 0,
       runner: 3,
     });
   });

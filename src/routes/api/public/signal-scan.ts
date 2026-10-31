@@ -128,8 +128,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           return deskRead(ask, { onlyWithSignal });
         };
         const { alertBar } = await import("@/lib/signal-alert-bar.server");
-        // The test account: every alert shows its balance and lot (0.1, or
-        // 0.3 on an extremely confident quick scalp).
+        // The test account: every alert shows its balance and lot (0.05 to
+        // 0.3, learned from wins and losses: chooseLot).
         type Built = Parameters<
           NonNullable<import("@/lib/signal-broadcast.server").ScanDeps["paper"]>
         >[0];
@@ -143,15 +143,32 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             timeframe: s.summary.timeframe,
             desk: String(s.plan.feeds?.desk ?? ""),
           });
-          const lots = pa.paperLots(s.plan.market, s.plan.entry, s.summary.stop, balance, big);
+          const learned = await pa.lotInputs(
+            supabaseAdmin,
+            state,
+            s.plan.market,
+            s.plan.confidencePct,
+          );
+          const { lots, why } = pa.chooseLot({
+            market: s.plan.market,
+            entry: s.plan.entry,
+            stop: s.summary.stop,
+            balance,
+            confidencePct: s.plan.confidencePct,
+            big,
+            ...learned,
+          });
           const { CARD_LOT } = await import("@/lib/trade-bias");
           return {
             ...s,
             reply: [
               pa.rescaleCardMoney(s.reply, CARD_LOT, lots),
-              ...pa.paperLines(balance, lots, big),
+              ...pa.paperLines(balance, lots, why),
             ].join("\n"),
-            plan: { ...s.plan, feeds: { ...(s.plan.feeds ?? {}), paper: { lots, balance } } },
+            plan: {
+              ...s.plan,
+              feeds: { ...(s.plan.feeds ?? {}), paper: { lots, balance, why } },
+            },
           };
         };
         const confirm = deskConfirmer(supabaseAdmin, (ask) => budgeted(ask, false), {

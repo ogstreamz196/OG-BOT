@@ -6,7 +6,8 @@
 // Rules (deliberately cautious, so the track record never flatters itself):
 // - A limit entry fills when price trades back to it, a stop entry when
 //   price breaks through it; a market entry is live from the start.
-// - After TP1 the stop moves to the entry (the card tells members to do so).
+// - After TP1 the stop moves to the entry (the card tells members to do so),
+//   or to the profit lock when the signal has one (PROFIT_LOCK).
 // - If one candle touches both the stop and a target, the stop counts.
 // - Unfilled limits and open trades end when the signal's time is up.
 
@@ -19,12 +20,32 @@ export type SignalStatus =
   | "tp2"
   | "tp3" // closed: full target
   | "stopped" // closed: stop hit before TP1
-  | "breakeven" // closed: back to entry after TP1
+  | "breakeven" // closed: back to the moved stop (the entry, or the profit lock)
   | "expired" // closed: time up while in the trade
   | "unfilled" // closed: time up before the entry was reached
   | "cancelled"; // closed: the higher-timeframe trend flipped
 
 export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"];
+
+/**
+ * The Boss's profit lock: once price is 70% of the way from the entry to the
+ * take profit, the stop moves to 30% of the way, so the trade banks a bit
+ * even if it turns, with room (the 40% between) not to be knocked out by the
+ * first wiggle.
+ */
+export const PROFIT_LOCK = { at: 0.7, keep: 0.3 } as const;
+
+/** Where the profit lock triggers and where it puts the stop, or null for a bad take profit. */
+export function profitLock(
+  direction: "BUY" | "SELL",
+  entry: number,
+  tp: number,
+): { trigger: number; stop: number } | null {
+  const d = tp - entry;
+  if (!Number.isFinite(d) || d === 0 || Math.sign(d) !== (direction === "BUY" ? 1 : -1))
+    return null;
+  return { trigger: entry + d * PROFIT_LOCK.at, stop: entry + d * PROFIT_LOCK.keep };
+}
 
 /**
  * Which of a chat's signal messages a new signal may delete: never a card
@@ -63,12 +84,13 @@ export type TrackedSignal = {
   /** When the signal stops being valid (ms). */
   expiresAt: number;
   /**
-   * A learned breakeven: once price reaches this level (before any target),
-   * the stop moves to the entry ("protected"). `isProtected` says it already has.
+   * Once price reaches this level (before any target), the stop moves to
+   * `beStop` ("protected"): the profit lock, or an older learned breakeven.
+   * `isProtected` says it already has.
    */
   beTrigger?: number;
   isProtected?: boolean;
-  /** Where a stop moved to the entry sits (the entry itself, or its broker-side level). */
+  /** Where the moved stop sits: the entry (default), or the profit lock; broker-side when shifted. */
   beStop?: number;
 };
 

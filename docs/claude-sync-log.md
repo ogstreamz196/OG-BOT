@@ -19,6 +19,17 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · Demo lots and a profit lock, on
+  the Boss's say-so. Lots now go 0.05 to 0.3 (the Boss's limit) in 0.05
+  steps, learned from wins and losses (`chooseLot`, `lotInputs` in
+  `paper-account.server.ts`): confidence, how calls like it did lately (in
+  risks), smaller after losses in a row or a drop from the best balance, the
+  stop never risking over 5% of the balance. Every card says why. **Profit
+  lock** (`PROFIT_LOCK`, `profitLock` in `trade-signal-outcome.ts`): 70% of
+  the way to TP1, the stop moves to 30% of the way; replaces the learned
+  breakeven (`Tuning.beAt` retired), the learning loop judges with it too,
+  MT5 stop follows it. Older signals keep their old rule. No migration.
+
 - **Boss's Claude · 2026-10-31 · this PR** · **Boss's rule, for both
   Claudes: trade and learning data is never deleted, ever.** "Purge" means
   the Telegram chat and the counters only. Removed the three automatic
