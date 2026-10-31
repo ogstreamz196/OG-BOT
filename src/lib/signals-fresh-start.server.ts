@@ -1,9 +1,12 @@
-// A fresh start for the signals chat, run once by the Boss (POST
-// /api/public/signal-scan {"freshStart": true}): every message the bots can
-// still delete there goes (Telegram only lets bots delete messages under 48
-// hours old), the 70%+ record restarts from zero, the test account starts at
-// the chosen balance, and the chat gets the Boss's Vantage invite and a note
-// saying the test has begun. Then the normal signal flow carries on, every
+// A fresh start for the signals chat, from the Boss's Purge button (Boss →
+// OG Bot → Telegram) or POST /api/public/signal-scan {"freshStart": true}:
+// every message the bots can still delete there goes (Telegram only lets bots
+// delete messages under 48 hours old), every counter restarts (the 70%+
+// record, the results post, the test account at the chosen balance), and the
+// chat gets the Boss's Vantage invite and a note saying the test has begun.
+// No stored data is deleted or changed: the purge time is noted
+// (signals.chat.purgedAt) and older trades stay quiet in the chat while the
+// AI keeps learning from them. Then the normal signal flow carries on, every
 // alert showing the test account's balance (paper-account.server.ts).
 import { INVITE_LINK } from "./invite-promo.server";
 
@@ -57,12 +60,16 @@ export async function freshStart(
     else refused ??= res?.description ?? "no answer";
   }
 
-  // 2. Forget what was posted there: running trades carry on quietly (their
-  //    cards are gone), live alerts stop blocking new ones.
+  // 2. Nothing stored is deleted or changed (the AI keeps learning from
+  //    every past trade): the purge time is noted, and from now on what came
+  //    before it stays quiet in the chat and stops counting there.
   const at = new Date(now).toISOString();
-  await admin.from("signal_chat_messages").delete().eq("chat_id", chatId);
-  await admin.from("trade_signals").update({ chat_id: null }).eq("chat_id", chatId);
-  await admin.from("signal_broadcasts").update({ expires_at: at }).gt("expires_at", at);
+  const { PURGED_KEY } = await import("./signal-chat.server");
+  await admin
+    .from("site_content")
+    .upsert({ key: PURGED_KEY, value: at, updated_at: at }, { onConflict: "key" });
+  const { forgetCached } = await import("./server-cache");
+  forgetCached("signals-chat-purged");
 
   // 3. The record from zero, and the test account at the start balance.
   const { data: owner } = await admin

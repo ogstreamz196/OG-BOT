@@ -10,6 +10,7 @@ import { OgBotPing } from "@/components/admin/OgBotPing";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
 import { TelegramFleetPanel } from "@/components/admin/TelegramFleetPanel";
 import { TelegramGroupsPanel } from "@/components/admin/TelegramGroupsPanel";
+import { SignalsChatResetPanel } from "@/components/admin/SignalsChatResetPanel";
 import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
 import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
@@ -61,6 +62,7 @@ function TelegramTab() {
   return (
     <>
       <TelegramWebhookStatus />
+      <SignalsChatResetPanel />
       <TelegramFleetPanel />
       <TelegramGroupsPanel />
     </>
