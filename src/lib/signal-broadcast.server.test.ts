@@ -1,10 +1,17 @@
-import { describe, expect, test } from "vitest";
+import { vi, describe, expect, test } from "vitest";
 import {
   BROADCAST_MIN_CONFIDENCE,
   channelCard,
   scanAndBroadcast,
   type ScanDeps,
 } from "./signal-broadcast.server";
+
+// The signals chat's purge time comes from the live database; tests must
+// never read it (with real credentials, a recent purge hid every test post).
+vi.mock("./signal-chat.server", async (real) => ({
+  ...(await real<object>()),
+  chatPurgedAt: async () => null,
+}));
 
 type Row = Record<string, unknown>;
 

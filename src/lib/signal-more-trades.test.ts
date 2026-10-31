@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { vi, describe, expect, it } from "vitest";
 import { BAR_MIN_DECIDED, learnedBar, type BandTrade } from "./signal-alert-bar.server";
 import { DESK_RUNS_PER_DAY, runsToday, takeDeskRun } from "./signal-ai-budget.server";
 import { BROADCAST_MIN_CONFIDENCE, scanAndBroadcast } from "./signal-broadcast.server";
+
+// The signals chat's purge time comes from the live database; tests must
+// never read it (with real credentials, a recent purge hid every test post).
+vi.mock("./signal-chat.server", async (real) => ({
+  ...(await real<object>()),
+  chatPurgedAt: async () => null,
+}));
 
 // More trades without running the free AI keys dry: 15-minute scalps too, an
 // alert bar that only comes down where trades under it have been winning, and

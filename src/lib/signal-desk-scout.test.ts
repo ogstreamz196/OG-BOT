@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { vi, describe, expect, test } from "vitest";
 import {
   DESK_VETO_MS,
   deskCard,
@@ -8,6 +8,13 @@ import {
   scanAndBroadcast,
 } from "./signal-broadcast.server";
 import { deskAgrees, deskBacks, type DeskDecision } from "./signal-desk.server";
+
+// The signals chat's purge time comes from the live database; tests must
+// never read it (with real credentials, a recent purge hid every test post).
+vi.mock("./signal-chat.server", async (real) => ({
+  ...(await real<object>()),
+  chatPurgedAt: async () => null,
+}));
 
 type Row = Record<string, unknown>;
 

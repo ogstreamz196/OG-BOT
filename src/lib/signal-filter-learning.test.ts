@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { vi, describe, expect, it } from "vitest";
 import {
   RELAX_MIN_DECIDED,
   TIGHTEN_MIN_DECIDED,
@@ -7,6 +7,13 @@ import {
   type FilterTrade,
 } from "./signal-filter-learning.server";
 import { deskConfirmer } from "./signal-broadcast.server";
+
+// The signals chat's purge time comes from the live database; tests must
+// never read it (with real credentials, a recent purge hid every test post).
+vi.mock("./signal-chat.server", async (real) => ({
+  ...(await real<object>()),
+  chatPurgedAt: async () => null,
+}));
 
 // The filters learn: one whose blocked setups keep winning switches itself
 // off for that market, and back on if what it then lets through loses.
