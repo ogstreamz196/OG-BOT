@@ -1,6 +1,6 @@
 import { cached } from "@/lib/server-cache";
 import { createFileRoute } from "@tanstack/react-router";
-import { createHash, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 import { buildSystemPrompt, detectSongIntent } from "@/lib/og-persona.server";
 import { pickCatchphrases, catchphraseNote, toneFor } from "@/lib/og-catchphrases.server";
 import type { UserContextSummary } from "@/lib/og-persona-public";
@@ -44,9 +44,6 @@ const TOKEN_RE = /^(t_[a-f0-9]{32}|[a-f0-9]{24})$/;
 const BOSS_TELEGRAM_USERNAMES = ["ogstreamz", "ogstreamz196"] as const;
 const BOSS_EMAIL = "ogstreamz196@gmail.com";
 
-function deriveSecret(key: string): string {
-  return createHash("sha256").update(`telegram-webhook:${key}`).digest("base64url");
-}
 
 function safeEqual(a: string, b: string): boolean {
   const la = Buffer.from(a);
@@ -2121,12 +2118,14 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const tgKey = process.env.TELEGRAM_API_KEY;
-        if (!tgKey) return new Response("not_configured", { status: 500 });
+        // Lovable's key or the bot's own token (connectors.server.ts).
+        const { telegramWebhookSecrets } = await import("@/lib/connectors.server");
+        const secrets = await telegramWebhookSecrets();
+        if (!secrets.length) return new Response("not_configured", { status: 500 });
 
-        const expected = deriveSecret(tgKey);
         const got = request.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
-        if (!safeEqual(got, expected)) return new Response("unauthorized", { status: 401 });
+        if (!secrets.some((s) => safeEqual(got, s)))
+          return new Response("unauthorized", { status: 401 });
 
         const update = await request.json().catch(() => null);
         const updateId: number | undefined =

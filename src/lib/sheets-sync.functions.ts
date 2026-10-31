@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorReady } from "@/lib/connectors.server";
 
 async function assertBossOrAdmin(context: { supabase: unknown; userId: string }) {
   const supabase = context.supabase as {
@@ -29,7 +30,7 @@ export const getSheetsConfig = createServerFn({ method: "GET" })
     return {
       sheetId: id,
       updatedAt: data?.updated_at ?? null,
-      connectorPresent: !!process.env.LOVABLE_API_KEY && !!process.env.GOOGLE_SHEETS_API_KEY,
+      connectorPresent: connectorReady("google_sheets"),
     };
   });
 

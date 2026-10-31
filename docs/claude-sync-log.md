@@ -7,7 +7,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- (nothing open)
+- Partner's Claude · `lovable-exit` · Leaving Lovable step by step (plan in
+  `docs/lovable-exit-plan.md`). Step 1 (own keys for Telegram, Google, Stripe)
+  in this PR; steps 2–5 to follow. Touches the Telegram/Google/Stripe callers
+  in `src/lib/*.functions.ts`, `telegram/webhook.ts` (secret check only) and,
+  later, `vite.config.ts`, auth and email routes.
 
 ## Log
 

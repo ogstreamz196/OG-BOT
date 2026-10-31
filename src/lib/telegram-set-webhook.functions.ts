@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createHash } from "crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady, telegramWebhookSecrets } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
-const DEFAULT_WEBHOOK_URL =
-  "https://ogbot.co.uk/api/public/telegram/webhook";
+const DEFAULT_WEBHOOK_URL = "https://ogbot.co.uk/api/public/telegram/webhook";
 
 export type SetWebhookResult = {
   ok: boolean;
@@ -12,10 +11,6 @@ export type SetWebhookResult = {
   description: string;
   botUsername: string | null;
 };
-
-function deriveSecret(key: string): string {
-  return createHash("sha256").update(`telegram-webhook:${key}`).digest("base64url");
-}
 
 /**
  * Admin one-click: (re)point Telegram at our webhook endpoint with the
@@ -42,19 +37,15 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
     if (roleErr) throw new Error(roleErr.message);
     if (!isAdmin) throw new Error("Forbidden");
 
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const tgKey = process.env.TELEGRAM_API_KEY;
-    if (!lovableKey || !tgKey) {
+    if (!connectorReady("telegram")) {
       throw new Error("Telegram connector not configured");
     }
     const url = data.url ?? DEFAULT_WEBHOOK_URL;
-    const secret = deriveSecret(tgKey);
+    const [secret] = await telegramWebhookSecrets();
 
-    const setRes = await fetch(`${GATEWAY_URL}/setWebhook`, {
+    const setRes = await connectorFetch(`${GATEWAY_URL}/setWebhook`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": tgKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -83,11 +74,9 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
     // Identify the bot the token actually belongs to.
     let botUsername: string | null = null;
     try {
-      const meRes = await fetch(`${GATEWAY_URL}/getMe`, {
+      const meRes = await connectorFetch(`${GATEWAY_URL}/getMe`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),
@@ -124,11 +113,9 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
       { command: "broadcast", description: "DM every linked user" },
     ];
     const setCommands = async (scope: Record<string, unknown>, commands: unknown) => {
-      await fetch(`${GATEWAY_URL}/setMyCommands`, {
+      await connectorFetch(`${GATEWAY_URL}/setMyCommands`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ commands, scope }),

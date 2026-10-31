@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
@@ -36,8 +37,6 @@ export const getTelegramWebhookStatus = createServerFn({ method: "GET" })
     if (roleErr) throw new Error(roleErr.message);
     if (!isAdmin) throw new Error("Forbidden");
 
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const tgKey = process.env.TELEGRAM_API_KEY;
     const checkedAt = new Date().toISOString();
     const empty: TelegramWebhookStatus = {
       ok: false,
@@ -53,16 +52,14 @@ export const getTelegramWebhookStatus = createServerFn({ method: "GET" })
       checkedAt,
       error: null,
     };
-    if (!lovableKey || !tgKey) {
+    if (!connectorReady("telegram")) {
       return { ...empty, error: "Telegram connector not configured" };
     }
 
     try {
-      const res = await fetch(`${GATEWAY_URL}/getWebhookInfo`, {
+      const res = await connectorFetch(`${GATEWAY_URL}/getWebhookInfo`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),

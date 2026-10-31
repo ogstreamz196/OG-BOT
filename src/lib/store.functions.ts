@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 // ─── shared types ─────────────────────────────────────────────────────────
 export type StoreCategory = {
@@ -147,9 +148,7 @@ export const claimSportsGuideInvite = createServerFn({ method: "POST" })
     if (SPORTS_GUIDE_TELEGRAM_INVITES_DISABLED) {
       throw new Error("The Sports Guide lives in the app now — open it from your dashboard.");
     }
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const telegramKey = process.env.TELEGRAM_API_KEY;
-    if (!lovableKey || !telegramKey) throw new Error("Telegram is not configured");
+    if (!connectorReady("telegram")) throw new Error("Telegram is not configured");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [access, profile, setting] = await Promise.all([
       supabaseAdmin
@@ -177,11 +176,9 @@ export const claimSportsGuideInvite = createServerFn({ method: "POST" })
     }
     const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
     const headers = {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": telegramKey,
       "Content-Type": "application/json",
     };
-    const inviteResponse = await fetch(
+    const inviteResponse = await connectorFetch(
       "https://connector-gateway.lovable.dev/telegram/createChatInviteLink",
       {
         method: "POST",
@@ -203,7 +200,7 @@ export const claimSportsGuideInvite = createServerFn({ method: "POST" })
     if (!inviteResponse.ok || inviteBody?.ok !== true || !inviteLink) {
       throw new Error(inviteBody?.description ?? "Could not create the Telegram invite");
     }
-    const messageResponse = await fetch(
+    const messageResponse = await connectorFetch(
       "https://connector-gateway.lovable.dev/telegram/sendMessage",
       {
         method: "POST",

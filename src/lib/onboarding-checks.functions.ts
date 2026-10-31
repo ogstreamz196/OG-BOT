@@ -1,5 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  connectorFetch,
+  connectorReady,
+  usesOwnKey,
+  type Connector,
+} from "@/lib/connectors.server";
 
 async function assertAdmin(context: { supabase: unknown; userId: string }) {
   const supabase = context.supabase as {
@@ -36,9 +42,12 @@ function present(name: string): CheckResult | null {
 
 async function stripePing(env: "live" | "sandbox"): Promise<CheckResult> {
   const keyName = env === "sandbox" ? "STRIPE_SANDBOX_API_KEY" : "STRIPE_LIVE_API_KEY";
-  const miss = present(keyName);
-  if (miss) return miss;
-  if (!process.env.LOVABLE_API_KEY) return { ok: false, detail: "LOVABLE_API_KEY missing" };
+  // Own STRIPE_SECRET_KEY, or the gateway's sandbox/live connection keys.
+  if (!usesOwnKey("stripe")) {
+    const miss = present(keyName);
+    if (miss) return miss;
+    if (!process.env.LOVABLE_API_KEY) return { ok: false, detail: "LOVABLE_API_KEY missing" };
+  }
   try {
     const { createStripeClient, getStripeErrorMessage } = await import("./stripe.server");
     const stripe = createStripeClient(env);
@@ -55,18 +64,16 @@ async function stripePing(env: "live" | "sandbox"): Promise<CheckResult> {
 }
 
 async function gatewayGet(connector: string, path: string): Promise<CheckResult> {
-  const lovable = process.env.LOVABLE_API_KEY;
-  const connKey = process.env[`${connector.toUpperCase()}_API_KEY`];
-  if (!lovable) return { ok: false, detail: "LOVABLE_API_KEY missing" };
-  if (!connKey)
-    return { ok: false, detail: `${connector.toUpperCase()}_API_KEY missing — relink connector.` };
+  // Drive, Sheets and Stripe can use their own keys instead of the gateway
+  // (connectors.server.ts); anything else still needs the gateway.
+  const known = ["google_drive", "google_sheets", "telegram", "stripe"].includes(connector);
+  const keyName = `${connector.toUpperCase()}_API_KEY`;
+  if (known ? !connectorReady(connector as Connector) : !process.env.LOVABLE_API_KEY)
+    return { ok: false, detail: `${keyName} or its own key missing — relink connector.` };
+  if (!known && !process.env[keyName])
+    return { ok: false, detail: `${keyName} missing — relink connector.` };
   const { result, latencyMs } = await timed(() =>
-    fetch(`https://connector-gateway.lovable.dev/${connector}${path}`, {
-      headers: {
-        Authorization: `Bearer ${lovable}`,
-        "X-Connection-Api-Key": connKey,
-      },
-    }),
+    connectorFetch(`https://connector-gateway.lovable.dev/${connector}${path}`, {}, keyName),
   );
   const text = await result.text().catch(() => "");
   if (!result.ok) {
@@ -83,17 +90,13 @@ async function runOne(key: string): Promise<CheckResult> {
       return { ok: true, detail: "Key present — connected services only, not app AI." };
     }
     case "telegram": {
-      const miss = present("TELEGRAM_API_KEY");
-      if (miss) return miss;
+      if (!connectorReady("telegram"))
+        return { ok: false, detail: "Set OG_BOT_TOKEN, or TELEGRAM_API_KEY with the gateway." };
       // getMe via POST
-      const lovable = process.env.LOVABLE_API_KEY!;
-      const tgKey = process.env.TELEGRAM_API_KEY!;
       const { result, latencyMs } = await timed(() =>
-        fetch("https://connector-gateway.lovable.dev/telegram/getMe", {
+        connectorFetch("https://connector-gateway.lovable.dev/telegram/getMe", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${lovable}`,
-            "X-Connection-Api-Key": tgKey,
             "Content-Type": "application/json",
           },
           body: "{}",
@@ -112,9 +115,14 @@ async function runOne(key: string): Promise<CheckResult> {
     case "google_drive":
       return gatewayGet("google_drive", "/drive/v3/about?fields=user(emailAddress)");
     case "google_sheets": {
-      const miss = present("GOOGLE_SHEETS_API_KEY");
-      if (miss) return miss;
-      return { ok: true, detail: "Connector key present (no cheap ping endpoint)." };
+      if (!connectorReady("google_sheets"))
+        return { ok: false, detail: "Set GOOGLE_SHEETS_API_KEY, or the Google OAuth keys." };
+      return {
+        ok: true,
+        detail: usesOwnKey("google_sheets")
+          ? "Own Google key set (no cheap ping endpoint)."
+          : "Connector key present (no cheap ping endpoint).",
+      };
     }
     case "google_search_console":
       return gatewayGet("google_search_console", "/webmasters/v3/sites");
