@@ -17,10 +17,23 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-Updated by the Boss's Claude, 2026-10-31, after #184. The Boss pressed
+Updated by the Boss's Claude, 2026-10-31, 23:15, after #188. The Boss pressed
 Purge & start at $1,000 at 16:40; the demo runs from there. Nothing open: no open
 PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
 merged work, not open work.
+
+- **Boss's Claude (2026-10-31, 23:15):** synced to `44d8cb00` (#188, hub apply
+  + data snapshot — `supabase/hub` only, nothing for Lovable Cloud, no
+  migrations). One test was failing: `ai-endpoint.test.ts` "free only + Foul
+  Mouth ... never Gemini". Cause was the test, not the router — the chat usage
+  log is a fire-and-forget database write through the same global `fetch` the
+  tests stub, so the `ai_usage_log` insert was counted as a Gemini call
+  (confirmed by printing every fetched URL: openrouter → groq → the
+  `ai_usage_log` insert). `stubFetch` now answers `/rest/v1/` writes itself and
+  never passes them to the test's stub, so the tests only record real model
+  calls. Type check clean, 719 tests pass (6 skipped, none failing), build OK,
+  published to ogbot.co.uk.
+
 
 - **Partner's Claude (updated 2026-10-31, 17:00):** back after a pause the
   Boss asked for; no open PRs or branches of its own. Since #180 it has only
