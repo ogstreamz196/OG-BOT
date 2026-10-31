@@ -35,6 +35,81 @@ export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"]
  */
 export const PROFIT_LOCK = { at: 0.7, keep: 0.3 } as const;
 
+/**
+ * Moving the take profit while a trade runs (one take profit, before it's
+ * hit), always announced. Distances are in parts of the ORIGINAL take
+ * profit's distance from the entry.
+ * - Further out (extend): the last EXTEND_CANDLES closed minutes each closed
+ *   further its way than the one before, and the last is within NEAR of the
+ *   take profit: it moves EXTEND_BY further, never past MAX_REACH.
+ * - In (pull): it got within NEAR of the take profit, has made no new best
+ *   for STALL_MIN minutes and has given back PULLBACK of it: the take profit
+ *   comes in to KEEP_UNDER short of that best (so the next push banks it),
+ *   never nearer than MIN_REACH, and only once.
+ * At most MAX_MOVES moves a trade.
+ */
+export const TP_MOVE = {
+  MAX_MOVES: 2,
+  NEAR: 0.15,
+  EXTEND_CANDLES: 3,
+  EXTEND_BY: 0.5,
+  MAX_REACH: 2,
+  STALL_MIN: 10,
+  PULLBACK: 0.15,
+  KEEP_UNDER: 0.1,
+  MIN_REACH: 0.6,
+} as const;
+
+export type TpMove = { tp: number; kind: "extend" | "pull"; best: number };
+
+/** A take profit move for an open trade, or null. Pure. */
+export function tpMove(o: {
+  direction: "BUY" | "SELL";
+  entry: number;
+  /** The take profit now. */
+  tp: number;
+  /** The take profit it was sent with. */
+  tp0: number;
+  /** Closed 1-minute candles since the entry filled, oldest first. */
+  candles: Candle[];
+  /** Moves made so far. */
+  moves: { kind: "extend" | "pull" }[];
+}): TpMove | null {
+  const side = o.direction === "BUY" ? 1 : -1;
+  const D = Math.abs(o.tp0 - o.entry);
+  if (!(D > 0) || o.moves.length >= TP_MOVE.MAX_MOVES || o.candles.length < TP_MOVE.EXTEND_CANDLES)
+    return null;
+  const p = (px: number) => ((px - o.entry) * side) / D;
+  const at = (n: number) => o.entry + side * D * n;
+  const tpP = p(o.tp);
+  const cs = o.candles;
+  const lastP = p(cs[cs.length - 1].c);
+  // Further out: still pushing hard, right by the take profit.
+  const run = cs.slice(-TP_MOVE.EXTEND_CANDLES);
+  const pushing = run.every(
+    (c, i) => (c.c - c.o) * side > 0 && (i === 0 || p(c.c) > p(run[i - 1].c)),
+  );
+  if (pushing && lastP >= tpP - TP_MOVE.NEAR && lastP < tpP) {
+    const next = Math.min(TP_MOVE.MAX_REACH, tpP + TP_MOVE.EXTEND_BY);
+    if (next > tpP + 0.05) return { tp: at(next), kind: "extend", best: cs[cs.length - 1].c };
+  }
+  // In: came close, stalled, and pulled back.
+  if (o.moves.some((m) => m.kind === "pull")) return null;
+  let bestI = 0;
+  let bestP = -Infinity;
+  cs.forEach((c, i) => {
+    const v = p(side > 0 ? c.h : c.l);
+    if (v > bestP) ((bestP = v), (bestI = i));
+  });
+  const stalled = cs.length - 1 - bestI >= TP_MOVE.STALL_MIN;
+  if (bestP >= tpP - TP_MOVE.NEAR && stalled && lastP <= bestP - TP_MOVE.PULLBACK) {
+    const next = bestP - TP_MOVE.KEEP_UNDER;
+    if (next >= TP_MOVE.MIN_REACH && next < tpP - 0.02 && next > lastP + 0.05)
+      return { tp: at(next), kind: "pull", best: side > 0 ? cs[bestI].h : cs[bestI].l };
+  }
+  return null;
+}
+
 /** Where the profit lock triggers and where it puts the stop, or null for a bad take profit. */
 export function profitLock(
   direction: "BUY" | "SELL",

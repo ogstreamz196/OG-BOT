@@ -19,6 +19,14 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · The take profit moves while a
+  trade runs, always announced (Boss's ask): further out while price is still
+  pushing hard right by it, in when it stalls short and pulls back (`tpMove`,
+  `TP_MOVE` in `trade-signal-outcome.ts`; tracker posts it in the card's
+  journal; MT5 follows via `moveTakeProfit`). `feeds.tp0` keeps the original
+  (the profit lock stays on it), `feeds.tpMoves` records each move for later
+  learning. No migration. Open: the learning loop doesn't replay moves yet.
+
 - **Boss's Claude · 2026-10-31 · this PR** · Demo lots and a profit lock, on
   the Boss's say-so. Lots now go 0.05 to 0.3 (the Boss's limit) in 0.05
   steps, learned from wins and losses (`chooseLot`, `lotInputs` in

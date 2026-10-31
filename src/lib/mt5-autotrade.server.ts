@@ -168,6 +168,56 @@ export async function moveStopToEntry(
   return ok ? `stop moved to ${entry}` : `failed: ${res.data?.message ?? res.status}`;
 }
 
+/**
+ * The signal's take profit moved (tpMove in trade-signal-outcome.ts): the
+ * matching open MT5 position gets the same take profit, its stop kept.
+ */
+export async function moveTakeProfit(
+  admin: Admin,
+  signal: {
+    market: string;
+    label: string;
+    direction: "BUY" | "SELL";
+    entry: number;
+    stop: number;
+    tp1: number;
+    tp2: number;
+    tp3: number;
+    pip: number | null;
+    decimals: number;
+  },
+  tp: number,
+): Promise<string> {
+  if (!metaApiConfigured()) return "skipped: MetaApi not set up";
+  const { setupKey } = await import("./signal-results.server");
+  const { data } = await admin
+    .from(MT5_TABLE)
+    .select("id, ticket, take_profit, stop_loss")
+    .eq("setup_key", setupKey({ id: "", ...signal }))
+    .eq("status", "open")
+    .maybeSingle();
+  const t = data as Pick<Mt5Trade, "id" | "ticket" | "take_profit" | "stop_loss"> | null;
+  if (!t?.ticket) return "no open position";
+  const level = round(tp, signal.decimals);
+  if (Number(t.take_profit) === level) return "already there";
+  const res = await metaApi<{ stringCode?: string; message?: string }>("/trade", {
+    method: "POST",
+    body: {
+      actionType: "POSITION_MODIFY",
+      positionId: t.ticket,
+      stopLoss: Number(t.stop_loss),
+      takeProfit: level,
+    },
+  });
+  const ok = res.ok && DONE.has(res.data?.stringCode ?? "");
+  if (ok)
+    await admin
+      .from(MT5_TABLE)
+      .update({ take_profit: level, updated_at: new Date().toISOString() })
+      .eq("id", t.id);
+  return ok ? `take profit moved to ${level}` : `failed: ${res.data?.message ?? res.status}`;
+}
+
 /** The MetaApi trade request for a signal (pure, so it can be tested). */
 export function tradeRequest(
   plan: SignalPlan,
