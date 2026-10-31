@@ -19,6 +19,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · Open signals-chat cards posted in
+  the old long layout switch to the compact one on the tracker's next pass
+  (`compactCard` on `row.card`, saved back). No migration.
+
 - **Boss's Claude · 2026-10-31 · this PR** · Results post clutter free (Boss's
   ask): header, streak line, last 10 as ✅/🛑, "🏆 75% win rate · ✅ 3 · 🛑 1",
   each market in cash from the demo ("₿ Bitcoin −$17.30", `paperByMarket`)

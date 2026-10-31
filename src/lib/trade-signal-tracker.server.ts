@@ -776,11 +776,24 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const log = [...(row.feeds?.log ?? []), ...lines.map((l) => `${ukClock(now)} ${l}`)];
         if (lines.length) update.feeds = { ...row.feeds, log };
         const live = isActive(status) && Number.isFinite(lastPrice);
+        // Cards posted in the signals chat before the compact layout are
+        // switched to it on their next pass (kept that way from then on).
+        let reshaped = false;
+        if (row.card && row.chat_id && (await sc0.isSignalsChat(row.chat_id))) {
+          const { compactCard } = await import("./signal-broadcast.server");
+          const simple = compactCard(row.card);
+          if (simple !== row.card) {
+            row.card = simple;
+            update.card = simple;
+            reshaped = true;
+          }
+        }
         const editDue =
           row.card &&
           row.chat_id &&
           row.message_id &&
           (lines.length > 0 ||
+            reshaped ||
             (live &&
               lastPrice !== Number(row.last_price) &&
               now - (row.last_edit_at ? Date.parse(row.last_edit_at) : 0) >= LIVE_EDIT_MS));
