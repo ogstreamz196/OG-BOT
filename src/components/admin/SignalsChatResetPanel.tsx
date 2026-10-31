@@ -15,7 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getSignalsChatState, purgeSignalsChat } from "@/lib/signals-chat.functions";
+import {
+  getSignalsChatState,
+  purgeSignalsChat,
+  startSignalsDemo,
+} from "@/lib/signals-chat.functions";
 import { AdminSection } from "./AdminSection";
 
 const KEY = ["signals-chat-state"];
@@ -40,9 +44,11 @@ export function SignalsChatResetPanel() {
   const qc = useQueryClient();
   const load = useServerFn(getSignalsChatState);
   const purge = useServerFn(purgeSignalsChat);
+  const demo = useServerFn(startSignalsDemo);
   const { data, isLoading } = useQuery({ queryKey: KEY, queryFn: () => load() });
   const [balance, setBalance] = useState("1000");
   const [confirm, setConfirm] = useState(false);
+  const [confirmDemo, setConfirmDemo] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (data?.start) setBalance(String(data.start));
@@ -70,10 +76,29 @@ export function SignalsChatResetPanel() {
     }
   }
 
+  async function runDemo() {
+    setBusy(true);
+    try {
+      const out = await demo({ data: { balance: amount } });
+      if (!out.ok) throw new Error(out.why ?? "Couldn't start the demo");
+      await qc.invalidateQueries({ queryKey: KEY });
+      toast.success(
+        out.announced
+          ? `${usd(amount)} demo started. OG B0T announced it in the signals chat.`
+          : `${usd(amount)} demo started, but the announcement couldn't be posted.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't start the demo");
+    } finally {
+      setBusy(false);
+      setConfirmDemo(false);
+    }
+  }
+
   return (
     <AdminSection
       icon={<RotateCcw className="h-4 w-4 text-amber-400" />}
-      title="Signals chat: start fresh"
+      title="Signals chat: demo account"
       subtitle="Clears the signals chat, starts every counter from zero and the test account at the balance you set, then posts your Vantage invite and the test-mode note. All past trades are kept so the bot keeps learning from them."
     >
       {isLoading || !data ? (
@@ -131,6 +156,19 @@ export function SignalsChatResetPanel() {
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Purge & start"}
               </Button>
             </div>
+            {data.start == null && (
+              <Button
+                className="w-full"
+                disabled={busy || !valid || !data.ready}
+                onClick={() => setConfirmDemo(true)}
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  `Start the ${valid ? usd(amount) : ""} demo, keep the chat and counter`
+                )}
+              </Button>
+            )}
             <p className="text-xs text-muted-foreground">
               Telegram only lets bots delete messages from the last 48 hours; anything older stays
               until you remove it yourself.
@@ -154,6 +192,25 @@ export function SignalsChatResetPanel() {
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={busy} onClick={() => void run()}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Purge & start"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmDemo} onOpenChange={setConfirmDemo}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start the {valid ? usd(amount) : ""} demo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nothing is cleared: the chat and the win/loss counter stay as they are. From now on
+              every alert is traded on the demo account, OG B0T posts its &quot;money where my mouth
+              is&quot; announcement once, and the results at the bottom of the chat show the balance
+              live.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={() => void runDemo()}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Start the demo"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

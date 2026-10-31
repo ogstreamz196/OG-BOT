@@ -239,7 +239,11 @@ const MARKET_NAMES: Record<string, string> = { XAUUSD: "🥇 Gold", BTCUSD: "₿
  * The signals chat's results post: OG B0T announcing the OG Trade Bot's
  * record, with its current streak and recent form up top.
  */
-export function resultsAnnouncement(r: SignalRecord): string {
+export function resultsAnnouncement(
+  r: SignalRecord,
+  /** The demo account's line (paper-account demoLine), when it's running. */
+  demo?: string | null,
+): string {
   const streak = currentStreak(r);
   const n = streak?.count ?? 0;
   const hype = !streak
@@ -272,5 +276,6 @@ export function resultsAnnouncement(r: SignalRecord): string {
   if (rest.length) lines.push(rest.join(" · "));
   for (const m of r.markets)
     lines.push(`${MARKET_NAMES[m.market] ?? m.label} ${sign(m.pips)} ${m.unit}`);
+  if (demo) lines.push("", demo);
   return lines.join("\n");
 }

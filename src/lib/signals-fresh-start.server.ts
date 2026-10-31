@@ -123,3 +123,52 @@ export async function freshStart(
     score,
   };
 }
+
+/**
+ * Starts the demo account without a fresh start: the chat, the win/loss
+ * counter and every past trade stay as they are. Starts the test account at
+ * `start`, sets commission to 0 (Standard STP), has OG B0T post its "money
+ * where my mouth is" announcement once, then refreshes the results post,
+ * which shows the demo balance from then on. Refuses if a test account is
+ * already running, so it only ever happens once.
+ */
+export async function demoStart(
+  admin: Admin,
+  start: number,
+  now = Date.now(),
+): Promise<Record<string, unknown>> {
+  const pa = await import("./paper-account.server");
+  const running = await pa.paperState(admin);
+  if (running)
+    return {
+      ok: false,
+      why: `the demo is already running (started ${running.startedAt} with $${running.start})`,
+    };
+  const { signalsChatId } = await import("./signal-chat.server");
+  const chatId = await signalsChatId();
+  if (chatId === null) return { ok: false, why: "the trade bot can't find the signals chat" };
+
+  const at = new Date(now).toISOString();
+  await pa.startPaper(admin, start, now);
+  const { COMMISSION_KEY } = await import("./broker-quotes.server");
+  await admin
+    .from("site_content")
+    .upsert({ key: COMMISSION_KEY, value: "0", updated_at: at }, { onConflict: "key" });
+
+  // OG B0T says it (the trade bot only if OG B0T can't post there).
+  const { telegramApi } = await import("./telegram-api.server");
+  const { workerApi } = await import("./telegram-worker.server");
+  const message = {
+    chat_id: chatId,
+    text: pa.demoAnnouncement(start),
+    disable_web_page_preview: true,
+  };
+  let sent = await telegramApi<{ message_id?: number }>("sendMessage", message);
+  if (!sent?.ok) sent = await workerApi<{ message_id?: number }>("sendMessage", message);
+
+  const { refreshScore } = await import("./signal-chat.server");
+  const { forgetCached } = await import("./server-cache");
+  forgetCached("signal-record");
+  const score = await refreshScore(admin, chatId).catch(() => "failed");
+  return { ok: true, testAccount: { start, startedAt: at }, announced: !!sent?.ok, score };
+}

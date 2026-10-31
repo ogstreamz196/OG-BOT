@@ -79,3 +79,37 @@ export const purgeSignalsChat = createServerFn({ method: "POST" })
       testModeMessage?: boolean;
     };
   });
+
+/**
+ * Boss: start the demo account without clearing anything (the chat and the
+ * win/loss counter stay). OG B0T announces it once; the results post shows
+ * the balance live from then on. Refuses if it's already running.
+ */
+export const startSignalsDemo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown): { balance: number } => {
+    const balance = Number((d as { balance?: unknown } | null)?.balance);
+    if (!Number.isFinite(balance) || balance < 10 || balance > 1_000_000)
+      throw new Error("Pick a starting balance between $10 and $1,000,000");
+    return { balance: Math.round(balance * 100) / 100 };
+  })
+  .handler(async ({ context, data }) => {
+    await assertBoss(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { demoStart } = await import("./signals-fresh-start.server");
+    const out = await demoStart(supabaseAdmin, data.balance);
+    await (supabaseAdmin as any)
+      .from("boss_audit_log")
+      .insert({
+        actor_id: context.userId,
+        action: "signals_demo_start",
+        category: "signals",
+        target_key: "signals.paper",
+        metadata: { balance: data.balance, ok: out.ok },
+      })
+      .then(
+        () => undefined,
+        () => undefined,
+      );
+    return out as { ok: boolean; why?: string; announced?: boolean };
+  });

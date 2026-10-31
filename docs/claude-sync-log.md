@@ -16,6 +16,15 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-10-31 · #167** · Built on the Boss's Claude's test
+  account (#159/#160): a $1,000 demo that starts **without** a purge, so the
+  chat and the win/loss counter stay (`demoStart`, Boss button "Start the …
+  demo, keep the chat and counter", or signal-scan `{"demoStart": true}`). OG
+  B0T posts a one-off "money where my mouth is" announcement, and the results
+  post now ends with the live demo balance (`demoLine`). Refuses if a test
+  account is already running. No migration. Open: the Boss presses the button
+  once after publishing.
+
 - **Partner's Claude · 2026-10-31 · #166** · Added a "Boss's to-do" list at the
   top of `docs/lovable-exit-plan.md`: the GitHub secret `OG_BOT_HUB_DB_URL`
   (step 2 waits on it), exposing `og_bot` after the apply, and the restored,

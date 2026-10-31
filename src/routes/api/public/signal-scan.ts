@@ -42,6 +42,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           ping?: boolean;
           score?: boolean;
           freshStart?: boolean;
+          demoStart?: boolean;
           balance?: number;
         } | null;
         // {"freshStart": true, "balance": 1000}: clears the signals chat,
@@ -51,6 +52,13 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const start = Number(body.balance) > 0 ? Math.min(Number(body.balance), 1_000_000) : 1000;
           const { freshStart } = await import("@/lib/signals-fresh-start.server");
           return Response.json(await freshStart(supabaseAdmin, start));
+        }
+        // {"demoStart": true, "balance": 1000}: starts the demo account
+        // without clearing anything; OG B0T announces it once.
+        if (body?.demoStart) {
+          const start = Number(body.balance) > 0 ? Math.min(Number(body.balance), 1_000_000) : 1000;
+          const { demoStart } = await import("@/lib/signals-fresh-start.server");
+          return Response.json(await demoStart(supabaseAdmin, start));
         }
         // {"score": true}: posts the results now and says how it went.
         if (body?.score) {
