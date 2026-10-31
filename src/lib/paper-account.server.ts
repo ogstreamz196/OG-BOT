@@ -329,21 +329,12 @@ export function demoAnnouncement(
   /** After a fresh start: the counter restarts too. */
   fresh = false,
 ): string {
+  // Short (the Boss's choice: no life story).
   const amount = usd(start);
   return [
     "💸 PUTTING MY MONEY WHERE MY MOUTH IS",
-    "",
-    `Talk is cheap. So from right now, every alert my trade bot drops in here gets traded on a ${amount} demo Vantage Standard account. Same entries, same stops, same take profits you see on the cards.`,
-    "",
-    "0.05 to 0.3 lot a trade, sized on how sure I am and how my calls like it have been doing, and smaller after a loss. Spreads counted, no commission on Standard, no fiddling the numbers.",
-    "",
-    fresh
-      ? "Clean slate: the chat's cleared and the win/loss counter starts from zero along with the balance. Both update live in the results at the bottom of the chat."
-      : "The win/loss counter carries on as it is. The balance updates live in the results at the bottom of the chat.",
-    "",
-    `${amount} on the line. Let's see who's talking rubbish. 👀`,
-    "",
-    "🧪 Demo money, real prices. Educational, not financial advice.",
+    `Every alert in here now trades a ${amount} demo Vantage account. ${fresh ? "Counter from zero." : "Counter carries on."}`,
+    "🧪 Demo money, real prices. Not financial advice.",
   ].join("\n");
 }
 
