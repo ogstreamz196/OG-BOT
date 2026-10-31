@@ -41,7 +41,17 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         const body = (await request.json().catch(() => null)) as {
           ping?: boolean;
           score?: boolean;
+          freshStart?: boolean;
+          balance?: number;
         } | null;
+        // {"freshStart": true, "balance": 1000}: clears the signals chat,
+        // restarts the record from zero and the test account at that balance,
+        // and posts the Vantage invite and the test-mode note.
+        if (body?.freshStart) {
+          const start = Number(body.balance) > 0 ? Math.min(Number(body.balance), 1_000_000) : 1000;
+          const { freshStart } = await import("@/lib/signals-fresh-start.server");
+          return Response.json(await freshStart(supabaseAdmin, start));
+        }
         // {"score": true}: posts the results now and says how it went.
         if (body?.score) {
           const score =
@@ -110,6 +120,32 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           return deskRead(ask, { onlyWithSignal });
         };
         const { alertBar } = await import("@/lib/signal-alert-bar.server");
+        // The test account: every alert shows its balance and lot (0.1, or
+        // 0.3 on an extremely confident quick scalp).
+        type Built = Parameters<
+          NonNullable<import("@/lib/signal-broadcast.server").ScanDeps["paper"]>
+        >[0];
+        const paper = async (s: Built): Promise<Built> => {
+          const pa = await import("@/lib/paper-account.server");
+          const state = await pa.paperState(supabaseAdmin);
+          if (!state || !s.plan || !s.summary) return s;
+          const balance = await pa.paperBalance(supabaseAdmin, state);
+          const big = pa.bigOne({
+            confidencePct: s.plan.confidencePct,
+            timeframe: s.summary.timeframe,
+            desk: String(s.plan.feeds?.desk ?? ""),
+          });
+          const lots = pa.paperLots(s.plan.market, s.plan.entry, s.summary.stop, balance, big);
+          const { CARD_LOT } = await import("@/lib/trade-bias");
+          return {
+            ...s,
+            reply: [
+              pa.rescaleCardMoney(s.reply, CARD_LOT, lots),
+              ...pa.paperLines(balance, lots, big),
+            ].join("\n"),
+            plan: { ...s.plan, feeds: { ...(s.plan.feeds ?? {}), paper: { lots, balance } } },
+          };
+        };
         const confirm = deskConfirmer(supabaseAdmin, (ask) => budgeted(ask, false), {
           now: Date.now,
           askUntil: startedAt + 20_000,
@@ -137,6 +173,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   post: postToSignalsChannel,
                   follow,
                   confirm,
+                  paper,
                   shadow: (s, why) => recordShadow(supabaseAdmin, s.summary, why),
                   now: Date.now,
                 }),
@@ -146,6 +183,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               // The AIs are only asked when the chart engine has a setup.
               read: (ask) => budgeted(ask, true),
               news: economicCalendar,
+              paper,
               post: postToSignalsChannel,
               follow,
               now: Date.now,
