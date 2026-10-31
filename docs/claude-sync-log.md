@@ -38,7 +38,7 @@ merged work, not open work.
   moves (`feeds.tpMoves` is being recorded); count a profit-lock exit as a
   win in the counter (Boss hasn't decided); drop the time in front of each
   card update (offered, no answer yet).
-- **Boss's to-dos:** GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
+- **Boss's to-dos:** press Purge & start at $1,000 after publishing #179 (the partner's Claude's ask); GitHub secret `OG_BOT_HUB_DB_URL` (step 2 of leaving
   Lovable waits on it), expose `og_bot` after the apply, press the demo or
   Purge & start button once if no test account is running, Google keys,
   check the Stripe account before `STRIPE_SECRET_KEY`. OG-BOT and O.G VAULT
@@ -58,6 +58,13 @@ merged work, not open work.
   wiped. Not a bug in the app. The four signal test files now mock
   `chatPurgedAt` (null); proved by forcing a recent purge: 37/37 pass.
   **Tests must never read the live database: mock any `*.server` lookup.**
+
+- **Partner's Claude · 2026-10-31 · #179** · The Boss wants a full fresh start
+  now: "Purge & start" (freshStart) posts OG B0T's "money where my mouth
+  is" announcement (`demoAnnouncement(start, true)`: chat cleared, counter
+  from zero) instead of `testModeNote` (kept, unused). The Boss presses Purge
+  & start at $1,000 after publishing. Trade and learning data is never
+  deleted (#170). No migration.
 
 - **Boss's Claude · 2026-10-31 · #178** · Correction to #177: Claude sessions
   can't delete GitHub branches, so `CLAUDE.md` now says a branch is open work

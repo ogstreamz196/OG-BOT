@@ -324,7 +324,11 @@ export function demoLine(_start: number, balance: number): string {
 }
 
 /** OG B0T's one-off "money where my mouth is" post when the demo starts. */
-export function demoAnnouncement(start: number): string {
+export function demoAnnouncement(
+  start: number,
+  /** After a fresh start: the counter restarts too. */
+  fresh = false,
+): string {
   const amount = usd(start);
   return [
     "💸 PUTTING MY MONEY WHERE MY MOUTH IS",
@@ -333,7 +337,9 @@ export function demoAnnouncement(start: number): string {
     "",
     "0.05 to 0.3 lot a trade, sized on how sure I am and how my calls like it have been doing, and smaller after a loss. Spreads counted, no commission on Standard, no fiddling the numbers.",
     "",
-    "The win/loss counter carries on as it is. The balance updates live in the results at the bottom of the chat.",
+    fresh
+      ? "Clean slate: the chat's cleared and the win/loss counter starts from zero along with the balance. Both update live in the results at the bottom of the chat."
+      : "The win/loss counter carries on as it is. The balance updates live in the results at the bottom of the chat.",
     "",
     `${amount} on the line. Let's see who's talking rubbish. 👀`,
     "",

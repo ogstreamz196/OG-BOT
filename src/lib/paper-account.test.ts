@@ -188,5 +188,8 @@ describe("the $1,000 demo shown to everyone", () => {
     expect(text).toContain("$1,000 demo Vantage Standard account");
     expect(text).toContain("counter carries on as it is");
     expect(text).toContain("not financial advice");
+    const fresh = demoAnnouncement(1000, true);
+    expect(fresh).toContain("win/loss counter starts from zero");
+    expect(fresh).not.toContain("carries on as it is");
   });
 });
