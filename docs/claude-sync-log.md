@@ -50,6 +50,13 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-10-31 · #179** · The Boss wants a full fresh start
+  now: "Purge & start" (freshStart) posts OG B0T's "money where my mouth
+  is" announcement (`demoAnnouncement(start, true)`: chat cleared, counter
+  from zero) instead of `testModeNote` (kept, unused). The Boss presses Purge
+  & start at $1,000 after publishing. Trade and learning data is never
+  deleted (#170). No migration.
+
 - **Boss's Claude · 2026-10-31 · #178** · Correction to #177: Claude sessions
   can't delete GitHub branches, so `CLAUDE.md` now says a branch is open work
   only with an open PR or an **In progress** line. Docs only.
