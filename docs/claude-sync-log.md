@@ -7,15 +7,26 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `lovable-exit` · Leaving Lovable step by step (plan in
-  `docs/lovable-exit-plan.md`). Step 1 (own keys for Telegram, Google, Stripe)
-  in this PR; steps 2–5 to follow. Touches the Telegram/Google/Stripe callers
-  in `src/lib/*.functions.ts`, `telegram/webhook.ts` (secret check only) and,
-  later, `vite.config.ts`, auth and email routes.
+- Partner's Claude · (next branch) · Leaving Lovable, steps 2–5 (plan in
+  `docs/lovable-exit-plan.md`): waiting on the Boss's database-project
+  choice. Will touch `vite.config.ts`, a new `wrangler.jsonc`, sign-in and
+  `src/routes/lovable/email`.
 
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-10-31 · #164** · Leaving Lovable, step 1
+  (`docs/lovable-exit-plan.md`): `src/lib/connectors.server.ts` sends
+  Telegram, Google Drive/Sheets and Stripe calls straight to the real API
+  when that service's own key is set (`OG_BOT_TOKEN`; `GOOGLE_OAUTH_CLIENT_ID`
+  + `_SECRET` + `_REFRESH_TOKEN`; `STRIPE_SECRET_KEY`), else through the
+  gateway as before. Every gateway caller now uses it. The Telegram webhook
+  accepts the old secret and one derived from `OG_BOT_TOKEN` (or
+  `TELEGRAM_WEBHOOK_SECRET`). API keys health page shows "own key" or
+  "gateway". No migration. Open: the Google keys aren't set yet, so Google
+  still uses the gateway; check whether Lovable's Stripe connector is the
+  Boss's own Stripe account before setting `STRIPE_SECRET_KEY`.
 
 - **Boss's Claude · 2026-10-31 · #163** · Desktop header had no room at
   1280–1440 (logos squashed, title cut): removed the header "Search songs"
