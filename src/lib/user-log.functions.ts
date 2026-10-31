@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const SPREADSHEET_ID = "1viHaEm53iWMCDEn9hEKI43YIu4amQ4djrgyn5iTa3Ls";
 const DRIVE_FOLDER_ID = "1d5obQLuq7gLf2w-0f0Nk83KICyyGlxTo"; // OG B0T / Track Generations
@@ -7,24 +8,14 @@ const SHEETS_BASE = "https://connector-gateway.lovable.dev/google_sheets/v4";
 const DRIVE_BASE = "https://connector-gateway.lovable.dev/google_drive/drive/v3";
 const DRIVE_UPLOAD = "https://connector-gateway.lovable.dev/google_drive/upload/drive/v3";
 
-function gatewayHeaders(connectorKey: string) {
-  const lovable = process.env.LOVABLE_API_KEY;
-  const conn = process.env[connectorKey];
-  if (!lovable || !conn) throw new Error(`Missing ${connectorKey} or LOVABLE_API_KEY`);
-  return {
-    Authorization: `Bearer ${lovable}`,
-    "X-Connection-Api-Key": conn,
-  } as Record<string, string>;
+function assertConnector(connectorKey: string) {
+  const c = connectorKey === "GOOGLE_DRIVE_API_KEY" ? "google_drive" : "google_sheets";
+  if (!connectorReady(c)) throw new Error(`Missing ${connectorKey} or LOVABLE_API_KEY`);
 }
 
 async function gw(url: string, init: RequestInit, connectorKey: string) {
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init.headers as Record<string, string> | undefined),
-      ...gatewayHeaders(connectorKey),
-    },
-  });
+  assertConnector(connectorKey);
+  const res = await connectorFetch(url, init, connectorKey);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`gateway ${res.status}: ${text.slice(0, 300)}`);

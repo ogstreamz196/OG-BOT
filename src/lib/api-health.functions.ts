@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Connector } from "@/lib/connectors.server";
 
 /**
  * Automated backend health check.
@@ -267,9 +268,14 @@ function checkMintSecret(): Partial_ {
   return { status: "ok", detail: "Signing secret present and long enough." };
 }
 
-function checkLovable(): Partial_ {
-  return process.env["LOVABLE_API_KEY"]
-    ? { status: "ok", detail: "Connected-service gateway key present; not used for AI." }
+async function checkLovable(): Promise<Partial_> {
+  if (process.env["LOVABLE_API_KEY"])
+    return { status: "ok", detail: "Connected-service gateway key present; not used for AI." };
+  // Not needed once Telegram, Drive, Sheets and Stripe all have their own keys.
+  const { usesOwnKey } = await import("@/lib/connectors.server");
+  const all = (["telegram", "google_drive", "google_sheets", "stripe"] as const).every(usesOwnKey);
+  return all
+    ? { status: "ok", detail: "Not needed: every connected service uses its own key." }
     : missing("LOVABLE_API_KEY", "Reconnect the affected payment or service connection.");
 }
 
@@ -317,20 +323,23 @@ async function checkStripe(): Promise<Partial_> {
 }
 
 async function checkGateway(env: string, base: string, path: string, label: string): Promise<Partial_> {
-  const key = process.env[env];
-  const lk = process.env["LOVABLE_API_KEY"];
-  if (!key) return missing(env, `Reconnect ${label} in Connectors.`);
-  if (!lk) return missing("LOVABLE_API_KEY");
+  // Own key (connectors.server.ts) first; otherwise Lovable's gateway.
+  const { connectorFetch, usesOwnKey } = await import("@/lib/connectors.server");
+  const c = base as Connector;
+  const own = usesOwnKey(c);
+  if (!own) {
+    if (!process.env[env]) return missing(env, `Reconnect ${label} in Connectors, or set its own key.`);
+    if (!process.env["LOVABLE_API_KEY"]) return missing("LOVABLE_API_KEY");
+  }
+  const via = own ? "own key" : "gateway";
   try {
     const { result, latencyMs } = await timed(() =>
-      fetch(`https://connector-gateway.lovable.dev/${base}${path}`, {
-        headers: { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": key },
-      }),
+      connectorFetch(`https://connector-gateway.lovable.dev/${base}${path}`, {}, env),
     );
     if (result.status === 401 || result.status === 403)
-      return { status: "invalid", detail: `${label} connection rejected (HTTP ${result.status}).`, fix: `Reconnect ${label}.`, latencyMs };
-    if (result.status >= 500) return { status: "unreachable", detail: `${label} HTTP ${result.status}.`, latencyMs };
-    return { status: "ok", detail: `${label} connected (HTTP ${result.status}).`, latencyMs };
+      return { status: "invalid", detail: `${label} rejected (HTTP ${result.status}, ${via}).`, fix: own ? `Check ${label}'s own key.` : `Reconnect ${label}.`, latencyMs };
+    if (result.status >= 500) return { status: "unreachable", detail: `${label} HTTP ${result.status} (${via}).`, latencyMs };
+    return { status: "ok", detail: `${label} connected (HTTP ${result.status}, ${via}).`, latencyMs };
   } catch (e) {
     return { status: "unreachable", detail: `Could not reach ${label}: ${e instanceof Error ? e.message : "network error"}` };
   }
@@ -395,7 +404,7 @@ const SPECS: Spec[] = [
   { key: "stripe", label: "Stripe (card checkout)", secret: "STRIPE_SECRET_KEY", help: "dashboard.stripe.com/apikeys", group: "Payments", required: true, run: checkStripe },
   { key: "ledgerly", label: "Ledgerly bookkeeping", group: "Payments", required: false, run: checkLedgerly },
   { key: "og_bot_token", label: "OG B0T token (@BotFather)", secret: "OG_BOT_TOKEN", help: "t.me/BotFather", group: "Telegram", required: true, run: checkOgBotToken },
-  { key: "telegram", label: "Telegram connection", secret: "TELEGRAM_API_KEY", group: "Telegram", required: true,
+  { key: "telegram", label: "Telegram connection", secret: "TELEGRAM_API_KEY", group: "Telegram", required: false,
     run: () => checkGateway("TELEGRAM_API_KEY", "telegram", "/getMe", "Telegram") },
   { key: "drive", label: "Google Drive (purchase review & backups)", secret: "GOOGLE_DRIVE_API_KEY", group: "Google", required: false,
     run: () => checkGateway("GOOGLE_DRIVE_API_KEY", "google_drive", "/drive/v3/about?fields=user", "Google Drive") },

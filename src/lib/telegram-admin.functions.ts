@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
@@ -19,14 +20,10 @@ async function assertAdmin(context: { supabase: unknown; userId: string }) {
 }
 
 async function sendViaGateway(chatId: number, text: string) {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-  if (!lovableKey || !tgKey) throw new Error("Telegram connector not configured");
-  const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
+  if (!connectorReady("telegram")) throw new Error("Telegram connector not configured");
+  const res = await connectorFetch(`${GATEWAY_URL}/sendMessage`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": tgKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
@@ -307,18 +304,14 @@ export const getMyTelegramStatus = createServerFn({ method: "GET" })
 
     if (linked) {
       // Live ping: call getChat through the gateway to confirm the connection.
-      const lovableKey = process.env.LOVABLE_API_KEY;
-      const tgKey = process.env.TELEGRAM_API_KEY;
-      if (!lovableKey || !tgKey) {
+      if (!connectorReady("telegram")) {
         state = "failed";
         verifyError = "Telegram connector not configured";
       } else {
         try {
-          const res = await fetch(`${GATEWAY_URL}/getChat`, {
+          const res = await connectorFetch(`${GATEWAY_URL}/getChat`, {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${lovableKey}`,
-              "X-Connection-Api-Key": tgKey,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ chat_id: chatId }),

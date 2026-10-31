@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_TG = "https://connector-gateway.lovable.dev/telegram";
 
@@ -9,9 +10,7 @@ async function sendTelegramDirect(
   text: string,
   targetUserId?: string,
 ): Promise<{ ok: boolean; error?: string; stale?: boolean; attempts?: number }> {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-  if (!lovableKey || !tgKey) return { ok: false, error: "missing_keys" };
+  if (!connectorReady("telegram")) return { ok: false, error: "missing_keys" };
 
   // Exponential backoff: retry transient failures (network errors, 5xx, 429, 408)
   // up to MAX_ATTEMPTS times. Permanent errors (chat not found, blocked, other
@@ -24,11 +23,9 @@ async function sendTelegramDirect(
     let status = 0;
     let desc = "";
     try {
-      const res = await fetch(`${GATEWAY_TG}/sendMessage`, {
+      const res = await connectorFetch(`${GATEWAY_TG}/sendMessage`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),

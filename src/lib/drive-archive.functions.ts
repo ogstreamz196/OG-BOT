@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 /**
  * Google Drive archive for finished tracks.
@@ -15,21 +16,9 @@ const ROOT_FOLDER_ID = "1d5obQLuq7gLf2w-0f0Nk83KICyyGlxTo"; // OG B0T / Track Ge
 const DRIVE_BASE = "https://connector-gateway.lovable.dev/google_drive/drive/v3";
 const DRIVE_UPLOAD = "https://connector-gateway.lovable.dev/google_drive/upload/drive/v3";
 
-function gatewayHeaders(): Record<string, string> {
-  const lovable = process.env.LOVABLE_API_KEY;
-  const conn = process.env.GOOGLE_DRIVE_API_KEY;
-  if (!lovable || !conn) throw new Error("Google Drive connector not configured");
-  return {
-    Authorization: `Bearer ${lovable}`,
-    "X-Connection-Api-Key": conn,
-  };
-}
-
 async function drive(url: string, init: RequestInit = {}) {
-  const res = await fetch(url, {
-    ...init,
-    headers: { ...(init.headers as Record<string, string> | undefined), ...gatewayHeaders() },
-  });
+  if (!connectorReady("google_drive")) throw new Error("Google Drive connector not configured");
+  const res = await connectorFetch(url, init);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`drive ${res.status}: ${text.slice(0, 300)}`);

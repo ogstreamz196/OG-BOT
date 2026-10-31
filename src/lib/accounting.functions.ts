@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 export type CardTxRow = {
   id: string;
@@ -112,20 +113,19 @@ export const saveAccountantCsvToDrive = createServerFn({ method: "POST" })
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
     ]);
     if (!b.data && !a.data) return { error: "Forbidden" };
-    const lovable = process.env["LOVABLE_API_KEY"];
-    const conn = process.env["GOOGLE_DRIVE_API_KEY"];
-    if (!lovable || !conn) return { error: "Google Drive isn't connected" };
-    const h = { Authorization: `Bearer ${lovable}`, "X-Connection-Api-Key": conn };
+    if (!connectorReady("google_drive")) return { error: "Google Drive isn't connected" };
+    // Gateway or Google auth is added by connectorFetch.
+    const h: Record<string, string> = {};
     try {
       const folderName = data.folder.replace(/\//g, "-");
       const q = encodeURIComponent(
         `name='${folderName}' and '${PURCHASE_REVIEW_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
       );
-      const found = await fetch(`${DRIVE}/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`, { headers: h });
+      const found = await connectorFetch(`${DRIVE}/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`, { headers: h });
       if (!found.ok) throw new Error(`find ${found.status}: ${await found.text()}`);
       let folderId = ((await found.json()) as { files?: { id: string }[] }).files?.[0]?.id;
       if (!folderId) {
-        const c = await fetch(`${DRIVE}/drive/v3/files?fields=id`, {
+        const c = await connectorFetch(`${DRIVE}/drive/v3/files?fields=id`, {
           method: "POST",
           headers: { ...h, "Content-Type": "application/json" },
           body: JSON.stringify({ name: folderName, parents: [PURCHASE_REVIEW_FOLDER], mimeType: "application/vnd.google-apps.folder" }),
@@ -138,7 +138,7 @@ export const saveAccountantCsvToDrive = createServerFn({ method: "POST" })
         `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
         JSON.stringify({ name: data.fileName, parents: [folderId], mimeType: "application/vnd.google-apps.spreadsheet" }) +
         `\r\n--${boundary}\r\nContent-Type: text/csv; charset=UTF-8\r\n\r\n${data.csv}\r\n--${boundary}--`;
-      const up = await fetch(`${DRIVE}/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`, {
+      const up = await connectorFetch(`${DRIVE}/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`, {
         method: "POST",
         headers: { ...h, "Content-Type": `multipart/related; boundary=${boundary}` },
         body,
