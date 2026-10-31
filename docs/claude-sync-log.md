@@ -57,7 +57,7 @@ merged work, not open work.
 - **Trade management:** lots 0.05 to 0.3 learned from wins and losses
   (`chooseLot`), the 70/30 profit lock (`PROFIT_LOCK`), take profit moves
   (`tpMove`). Rules in AGENTS.md.
-- **Wick and reversal scalps (PR_NUM):** waiting on the learning loop to
+- **Wick and reversal scalps (#187):** waiting on the learning loop to
   prove them; the Boss's report and the lesson show each setup's record.
 - **Open ideas, not started:** teach the learning loop to replay take profit
   moves (`feeds.tpMoves` is being recorded); count a profit-lock exit as a
@@ -74,7 +74,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-10-31 · PR_NUM** · More entries, not random ones
+- **Boss's Claude · 2026-10-31 · #187** · More entries, not random ones
   (Boss's ask: "super fast scalps, wicks and reversals"): two new extra
   setups in `trade-setups.ts`, wick rejection and exhaustion reversal, quick
   targets (1 to 2 risks). Like the others they only go live per market after
