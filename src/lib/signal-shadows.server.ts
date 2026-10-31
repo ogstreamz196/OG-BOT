@@ -237,11 +237,8 @@ export async function followShadows(admin: Admin, now = Date.now()): Promise<str
         if (Object.keys(update).length) await admin.from(TABLE).update(update).eq("key", row.key);
       }
     }
-    // Old finished shadows go after 120 days.
-    await admin
-      .from(TABLE)
-      .delete()
-      .lt("created_at", new Date(now - 120 * 86_400_000).toISOString());
+    // Finished shadows are never deleted (the Boss's rule): the learners read
+    // only the window they need.
     return `${rows.length} running, ${closed} finished`;
   } catch (e) {
     console.warn("[signals] shadows failed", e instanceof Error ? e.message : "error");

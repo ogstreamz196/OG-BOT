@@ -8,16 +8,20 @@ import type { Instrument } from "./trade-signal";
 import type { SignalFeeds, SignalPlan } from "./trade-signal-context.server";
 import { backtestKey, parseSavedBacktest, type SavedBacktest } from "./trade-signal-backtest";
 import { shiftCandles, spotOffset } from "./trade-signal-extras";
+import { usdPerLotMove } from "./trade-bias";
 import {
   ACTIVE_STATUSES,
   advanceTimed,
   brokerLevels,
   limitsFrom,
   isActive,
+  profitLock,
   targetsReached,
   trackRecordText,
+  tpMove,
   type OutcomeEvent,
   type SignalStatus,
+  type TpMove,
 } from "./trade-signal-outcome";
 import { cached } from "./server-cache";
 
@@ -179,11 +183,118 @@ function formatter(row: Row) {
   return { fmt, move };
 }
 
+/**
+ * The signals chat talks in money: a move as cash on `lots` (the demo's lot,
+ * else CARD_LOT), "+$2.53". Pips/points when the market's lot size is unknown.
+ */
+function cashMove(row: Row, lots: number) {
+  const { move } = formatter(row);
+  const per = usdPerLotMove(row.market, Number(row.entry));
+  return (from: number, to: number) => {
+    if (!per) return move(from, to);
+    const v = (row.direction === "BUY" ? to - from : from - to) * per * lots;
+    return money(v);
+  };
+}
+
+const money = (v: number) =>
+  `${v >= 0 ? "+" : "−"}$${Math.abs(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The signals chat's short update lines, in cash (the Boss's choice).
+ * `pnl` (the demo's result, spread counted) is used on the line that closes
+ * the trade, so it matches the balance.
+ */
+export function chatLine(
+  row: Row,
+  e: OutcomeEvent | { kind: "cancelled"; bias: string },
+  lots: number,
+  pnl?: number,
+): string {
+  const { fmt } = formatter(row);
+  const cash = cashMove(row, lots);
+  const lock = lockOf(row);
+  const closed = (from: number, to: number) => (pnl != null ? money(pnl) : cash(from, to));
+  switch (e.kind) {
+    case "filled":
+      return `✅ In at ${fmt(row.entry)}`;
+    case "tp1":
+      return singleTarget(row)
+        ? `🎯 Take profit hit · ${closed(row.entry, row.tp1)}`
+        : `🎯 First take profit hit · ${cash(row.entry, row.tp1)} · stop to ${fmt(lock?.stop ?? row.entry)}`;
+    case "tp2":
+      return `🎯 Second take profit hit · ${cash(row.entry, row.tp2)}`;
+    case "tp3":
+      return `🏁 Final take profit hit · ${closed(row.entry, row.tp3)}`;
+    case "stopped":
+      return `🛑 Stopped out · ${closed(row.entry, row.stop)}`;
+    case "breakeven":
+      return lock
+        ? `🔒 Out at the locked stop · ${closed(row.entry, lock.stop)}`
+        : `⚖️ Out at breakeven · ${closed(row.entry, row.entry)}`;
+    case "protected":
+      return lock
+        ? `🔒 70% there · stop moved to ${fmt(lock.stop)} (${cash(row.entry, lock.stop)} locked)`
+        : `🔒 Stop moved to my entry`;
+    case "unfilled":
+      return `⏳ Entry not reached · cancelled`;
+    case "expired":
+      return row.last_price != null
+        ? `⏱ Closed on time at ${fmt(row.last_price)} · ${closed(row.entry, row.last_price)}`
+        : `⏱ Closed on time`;
+    case "cancelled":
+      return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancelled" : "closed"}`;
+  }
+}
+
+/** The signals chat's live price line, in cash: "📍 77372.40 (+$2.53) · 14:09". */
+export function chatLiveLine(row: Row, price: number, now: number, lots: number): string {
+  const { fmt } = formatter(row);
+  const when = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(now));
+  return row.status === "pending"
+    ? `📍 ${fmt(price)} · waiting for entry · ${when}`
+    : `📍 ${fmt(price)} (${cashMove(row, lots)(row.entry, price)}) · ${when}`;
+}
+
+/** The signals chat's short take profit move line. */
+export function chatTpMoveLine(row: Row, move: TpMove, from: number): string {
+  const { fmt } = formatter(row);
+  return move.kind === "extend"
+    ? `🚀 Take profit moved to ${fmt(move.tp)} (was ${fmt(from)}) · letting it run`
+    : `✋ Take profit moved in to ${fmt(move.tp)} (was ${fmt(from)}) · stalled at ${fmt(move.best)}`;
+}
+
 /** A signal with one take profit (all three levels on it). */
 export const singleTarget = (row: Pick<Row, "tp1" | "tp3">) => Number(row.tp1) === Number(row.tp3);
 
+/** The signal's profit lock levels, when it has the lock. */
+export function lockOf(
+  row: Pick<Row, "direction" | "entry" | "tp1"> & {
+    feeds: { lock?: boolean; tp0?: number } | null;
+  },
+): { trigger: number; stop: number } | null {
+  // Always from the take profit it was sent with, so moving it doesn't move the lock.
+  const tp = Number(row.feeds?.tp0 ?? row.tp1);
+  return row.feeds?.lock ? profitLock(row.direction, Number(row.entry), tp) : null;
+}
+
+/** What members are told when the take profit moves. */
+export function tpMoveLine(row: Row, move: TpMove, from: number): string {
+  const { fmt } = formatter(row);
+  const way = move.tp > from === (row.direction === "BUY") ? "further" : "in";
+  const dir = move.tp > from ? "up" : "down";
+  return move.kind === "extend"
+    ? `🚀 It's still flying, so I'm moving my take profit ${dir} to ${fmt(move.tp)} (was ${fmt(from)}) and letting it run`
+    : `✋ It stalled at ${fmt(move.best)} and pulled back, so I'm bringing my take profit ${way} to ${fmt(move.tp)} (was ${fmt(from)}) to bank it on the next push`;
+}
+
 export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string }): string {
   const { fmt, move } = formatter(row);
+  const lock = lockOf(row);
   switch (e.kind) {
     case "filled":
       return `✅ I'm in at ${fmt(row.entry)}. My stop loss is at ${fmt(row.stop)}`;
@@ -191,7 +302,9 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
       // One take profit (all three levels the same): one hit and it's done.
       if (singleTarget(row))
         return `🎯 Take profit hit (${move(row.entry, row.tp1)}). Job done, I've banked it`;
-      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
+      return lock
+        ? `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's at ${fmt(lock.stop)}, so the rest is locked in profit`
+        : `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
     case "tp2":
       return `🎯 Little Brave hit (${move(row.entry, row.tp2)}). Another bag secured, you jammy bastard. I'm letting the rest run to ${fmt(row.tp3)}`;
     case "tp3":
@@ -199,10 +312,14 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
     case "stopped":
       return `🛑 Stopped out (${move(row.entry, row.stop)}). I've taken the fucking loss and I'm not chasing it`;
     case "breakeven":
+      if (lock)
+        return `🔒 It pulled back to my locked stop at ${fmt(lock.stop)}, so I'm out with ${move(row.entry, lock.stop)} banked. Better than a loss`;
       return row.best_target >= 1
         ? `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`
         : `⚖️ It came back to my entry, so I'm out at breakeven. No harm done`;
     case "protected":
+      if (lock)
+        return `🔒 It's 70% of the way to my take profit, so my stop's now at ${fmt(lock.stop)}, locking in ${move(row.entry, lock.stop)}. Can't lose from here`;
       return `🔒 It's moving my way, so my stop loss is now at my entry, ${fmt(row.entry)}. Can't lose from here`;
     case "unfilled":
       return `⏳ Price never came to my entry, so I've cancelled it`;
@@ -547,17 +664,24 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           status: row.status,
           expiresAt: Date.parse(row.expires_at),
           ...(row.entered_at ? { enteredAt: Date.parse(row.entered_at) } : {}),
-          // The learned breakeven: stop to entry once this far in profit.
-          ...(Number(row.feeds.beAt) > 0
+          // The profit lock: 70% of the way to TP1, the stop to 30% of the way.
+          ...(lockOf(row)
             ? {
-                beTrigger:
-                  Number(row.entry) +
-                  (row.direction === "BUY" ? 1 : -1) *
-                    Math.abs(Number(row.entry) - Number(row.stop)) *
-                    Number(row.feeds.beAt),
+                beTrigger: lockOf(row)!.trigger,
+                beStop: lockOf(row)!.stop,
                 isProtected: !!row.feeds.protected,
               }
-            : {}),
+            : // Older signals: the learned breakeven, stop to entry once this far in profit.
+              Number(row.feeds.beAt) > 0
+              ? {
+                  beTrigger:
+                    Number(row.entry) +
+                    (row.direction === "BUY" ? 1 : -1) *
+                      Math.abs(Number(row.entry) - Number(row.stop)) *
+                      Number(row.feeds.beAt),
+                  isProtected: !!row.feeds.protected,
+                }
+              : {}),
         };
         // The learned time limits: fill in time, and close a trade that's gone nowhere.
         const limits = limitsFrom(row.feeds, created);
@@ -591,15 +715,15 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           }
         }
         let status = result.status;
-        // The breakeven fired: remembered with the signal, and the Boss's MT5
-        // trade gets its stop moved to the entry too (also after a runner's
-        // first take profit, where the stop moves to the entry anyway).
+        // The lock (or an older breakeven) fired: remembered with the signal,
+        // and the Boss's MT5 trade gets its stop moved there too (also after a
+        // runner's first take profit, where the stop moves there anyway).
         const guarded = result.events.some((e) => e.kind === "protected");
         if (guarded) row.feeds = { ...row.feeds, protected: true };
         const firstBank = !singleTarget(row) && result.events.some((e) => e.kind === "tp1");
         if ((guarded || firstBank) && row.sender_worker === "trade") {
           const { moveStopToEntry } = await import("./mt5-autotrade.server");
-          await moveStopToEntry(admin, row).catch(() => undefined);
+          await moveStopToEntry(admin, row, lockOf(row)?.stop).catch(() => undefined);
         }
         // Running out of time isn't news: the status changes, nothing is posted.
         // A learned time stop is: members are told to close it.
@@ -609,18 +733,23 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           entered != null &&
           entered + limits.holdMs < tracked.expiresAt &&
           now >= entered + limits.holdMs;
-        const lines = result.events
+        const shown = result.events
           .filter((e) => e.kind !== "expired" || timeStopped)
           // One take profit: its hit is one line, not three; a runner's two
           // last levels are one too.
           .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
-          .filter((e) => !(e.kind === "tp2" && Number(row.tp2) === Number(row.tp3)))
-          .map((e) =>
-            eventLine(
-              { ...row, last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price },
-              e,
-            ),
-          );
+          .filter((e) => !(e.kind === "tp2" && Number(row.tp2) === Number(row.tp3)));
+        // The signals chat gets short lines in cash, on the demo's lot.
+        const inChat = !!row.chat_id && (await sc0.isSignalsChat(row.chat_id));
+        const { CARD_LOT } = await import("./trade-bias");
+        const chatLots = Number(row.feeds?.paper?.lots) || CARD_LOT;
+        const atLast = {
+          ...row,
+          last_price: Number.isFinite(lastPrice) ? lastPrice : row.last_price,
+        };
+        const lines = shown.map((e) =>
+          inChat ? chatLine(atLast, e, chatLots) : eventLine(atLast, e),
+        );
 
         // Before TP1, a flip in the higher-timeframe trend calls the setup off.
         // Not for a market-bias call: it can lean against that trend on purpose.
@@ -639,8 +768,53 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           }
           const bias = await job;
           if (bias && opposite(row.direction, bias)) {
-            lines.push(eventLine({ ...row, status }, { kind: "cancelled", bias }));
+            const ev = { kind: "cancelled" as const, bias };
+            lines.push(
+              inChat
+                ? chatLine({ ...row, status }, ev, chatLots)
+                : eventLine({ ...row, status }, ev),
+            );
             status = "cancelled";
+          }
+        }
+
+        // Moving the take profit (one take profit, in the trade, none hit):
+        // further while it's still pushing hard, in when it stalls short.
+        // Always announced, kept with the signal (feeds.tp0 the original,
+        // feeds.tpMoves each move) and mirrored on the Boss's MT5 trade.
+        const enteredMs = row.entered_at
+          ? Date.parse(row.entered_at)
+          : result.events.find((e) => e.kind === "filled")?.at;
+        if (status === "open" && singleTarget(row) && enteredMs != null) {
+          const moves = (row.feeds.tpMoves ?? []) as NonNullable<SignalFeeds["tpMoves"]>;
+          const from = Number(row.tp1);
+          const mv = tpMove({
+            direction: row.direction,
+            entry: Number(row.entry),
+            tp: from,
+            tp0: Number(row.feeds.tp0 ?? row.tp1),
+            candles: closed.filter((c) => c.t >= Math.floor(enteredMs / MINUTE) * MINUTE),
+            moves,
+          });
+          if (mv) {
+            const dp = Math.max(0, Math.min(8, Number(row.decimals) || 2));
+            const tp = Number(mv.tp.toFixed(dp));
+            lines.push(
+              inChat
+                ? chatTpMoveLine(row, { ...mv, tp }, from)
+                : tpMoveLine(row, { ...mv, tp }, from),
+            );
+            update.tp1 = update.tp2 = update.tp3 = tp;
+            row.feeds = {
+              ...row.feeds,
+              tp0: Number(row.feeds.tp0 ?? from),
+              tpMoves: [...moves, { kind: mv.kind, from, to: tp, at: new Date(now).toISOString() }],
+            };
+            update.feeds = { ...row.feeds };
+            if (row.sender_worker === "trade") {
+              const { moveTakeProfit } = await import("./mt5-autotrade.server");
+              await moveTakeProfit(admin, row, tp).catch(() => undefined);
+            }
           }
         }
 
@@ -678,6 +852,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               status,
               bestTarget: best,
               lastPrice: Number.isFinite(lastPrice) ? lastPrice : null,
+              lockStop: lockOf(row)?.stop ?? null,
             },
             paper.lots,
             half > 0 ? half * 2 : (SPREAD_COST[row.market] ?? 0),
@@ -689,12 +864,16 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             ...row.feeds,
             paper: { ...paper, pnl, ...(balance != null ? { balance } : {}) },
           };
-          if (entered && balance != null) {
+          // The signals chat: the closing line carries the demo's result
+          // (spread counted), so the card matches the balance.
+          const closing = shown.length && !isActive(status) ? shown[shown.length - 1] : null;
+          const at = closing ? lines.indexOf(chatLine(atLast, closing, chatLots)) : -1;
+          if (inChat && entered && at >= 0) {
+            lines[at] = chatLine(atLast, closing!, chatLots, pnl);
+          } else if (entered && balance != null) {
             const money = (n: number) =>
               `$${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            lines.push(
-              `💰 Test account: ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one · balance now ${money(balance)}`,
-            );
+            lines.push(`💰 ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one`);
           } else update.feeds = { ...row.feeds };
         }
 
@@ -703,11 +882,24 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const log = [...(row.feeds?.log ?? []), ...lines.map((l) => `${ukClock(now)} ${l}`)];
         if (lines.length) update.feeds = { ...row.feeds, log };
         const live = isActive(status) && Number.isFinite(lastPrice);
+        // Cards posted in the signals chat before the compact layout are
+        // switched to it on their next pass (kept that way from then on).
+        let reshaped = false;
+        if (row.card && row.chat_id && (await sc0.isSignalsChat(row.chat_id))) {
+          const { compactCard } = await import("./signal-broadcast.server");
+          const simple = compactCard(row.card);
+          if (simple !== row.card) {
+            row.card = simple;
+            update.card = simple;
+            reshaped = true;
+          }
+        }
         const editDue =
           row.card &&
           row.chat_id &&
           row.message_id &&
           (lines.length > 0 ||
+            reshaped ||
             (live &&
               lastPrice !== Number(row.last_price) &&
               now - (row.last_edit_at ? Date.parse(row.last_edit_at) : 0) >= LIVE_EDIT_MS));
@@ -719,7 +911,11 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             text: journalCard(
               row.card!,
               log,
-              live ? liveLine({ ...row, status }, lastPrice, now) : null,
+              live
+                ? inChat
+                  ? chatLiveLine({ ...row, status }, lastPrice, now, chatLots)
+                  : liveLine({ ...row, status }, lastPrice, now)
+                : null,
               !!(row.entered_at || update.entered_at),
             ),
             disable_web_page_preview: true,

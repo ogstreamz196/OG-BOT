@@ -24,8 +24,12 @@ import { AdminSection } from "./AdminSection";
 
 const KEY = ["signals-chat-state"];
 
+/** Money with cents only when there are cents: $1,000, $1,042.30. */
 const usd = (n: number) =>
-  `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `$${n
+    .toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .replace(/\.00$/, "")}`;
+
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",

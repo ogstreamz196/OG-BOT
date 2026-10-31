@@ -35,10 +35,15 @@ sync. Follow this every time.
    `NODE_OPTIONS=--max-old-space-size=6144 npx vite build`.
 3. Update `AGENTS.md` for any behaviour you changed.
 4. Add an entry to `docs/claude-sync-log.md` (newest at the top of
-   **Log**), and take your line out of **In progress**.
+   **Log**, with the real PR number, not "this PR"), take your line out of
+   **In progress**, and refresh **Where things stand** so the other Claude
+   can pick up from there.
 5. PR into `lovable-sync`, merge, then give the person you're working for a
    Lovable prompt (pull lovable-sync, apply any new migrations unchanged,
    publish, and what to check).
+6. Old branches stay on GitHub (Claude sessions can't delete them). A branch
+   only counts as open work if it has an open pull request or a line under
+   **In progress**; anything already in `lovable-sync` is done.
 
 ## House rules
 
@@ -53,6 +58,12 @@ sync. Follow this every time.
 - No AI model names or IDs in commits, PRs or code.
 - Group roasts never use paid AI. The AI desk's automatic runs have a daily
   budget and never use OpenRouter (the roasts' allowance).
-- Stored trade data is never deleted: the learning loop learns from all of
-  it (the signals chat purge only notes a time).
+- Stored trade and learning data is never deleted, by anyone, ever: not by
+  a purge, a clean-up, a retention job or a migration. That covers
+  `trade_signals`, `signal_learn_samples`, `signal_shadows`, the learning
+  settings and every other table the signals learn from. When the Boss says
+  "purge" it means the Telegram chat and the counters only (the purge notes
+  a time and everything before it stops counting); the backend data stays
+  for the AI to keep learning. Reads limit themselves to the window they
+  need instead of anything being deleted.
 - The Boss trades on Vantage, Standard STP (no commission, spread only).

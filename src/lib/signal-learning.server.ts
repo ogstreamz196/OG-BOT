@@ -16,6 +16,7 @@ import type { LearnSample } from "./trade-signal-backtest";
 import {
   advanceTimed,
   brokerLevels,
+  profitLock,
   targetsReached,
   type SignalStatus,
   type TimeLimits,
@@ -159,7 +160,8 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
     entryStyle: [0, 1, 2, 3].includes(Math.round(Number(t.entryStyle)))
       ? Math.round(Number(t.entryStyle))
       : 0,
-    beAt: switchable(Number(t.beAt), BOUNDS.beAt, 0.25),
+    // Retired: every trade has the Boss's profit lock instead.
+    beAt: 0,
     runner: switchable(Number(t.runner), BOUNDS.runner, 0.25),
     // Whole 5 minutes, so one candle's noise can't move them.
     holdFor: Math.round(clamp(t.holdFor!, BOUNDS.holdFor) / 5) * 5,
@@ -184,6 +186,12 @@ export function exitTargets(entry: number, tp: number, runner: number): [number,
   if (!runner) return [tp, tp, tp];
   const run = entry + (tp - entry) * runner;
   return [tp, run, run];
+}
+
+/** The profit lock's trigger and stop for a trade, as TrackedSignal fields. */
+function lockLevels(direction: "BUY" | "SELL", entry: number, tp: number) {
+  const lock = profitLock(direction, entry, tp);
+  return lock ? { beTrigger: lock.trigger, beStop: lock.stop } : {};
 }
 
 /**
@@ -241,7 +249,9 @@ export function applyTuning(s: LearnSample, tune: Tuning) {
     type,
     stop,
     targets: exitTargets(entry, tp, tune.runner),
-    ...(tune.beAt ? { beTrigger: entry + side * Math.abs(entry - stop) * tune.beAt } : {}),
+    // Every trade has the Boss's profit lock (live signals do too), so the
+    // loop learns under the same exit. It replaces the learned breakeven.
+    ...lockLevels(s.direction, entry, tp),
   };
 }
 
@@ -261,7 +271,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     // Too quiet, or a time of day it sits out (unknown readings never filter).
     if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
     if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
-    const { entry, type, stop, targets, beTrigger } = applyTuning(s, tune);
+    const { entry, type, stop, targets, beTrigger, beStop } = applyTuning(s, tune);
     // With the setting's time limits: the entry's to fill in time, and a trade
     // that's gone nowhere is closed on time.
     const market = type === "market";
@@ -279,7 +289,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
           status: market ? "open" : "pending",
           expiresAt: s.expiresAt,
           ...(market ? { enteredAt: s.t } : {}),
-          ...(beTrigger != null ? { beTrigger } : {}),
+          ...(beTrigger != null ? { beTrigger, beStop } : {}),
         },
         half,
       ),
@@ -294,8 +304,14 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     const side = s.direction === "BUY" ? 1 : -1;
     const inR = (px: number) => ((px - entry) * side) / s.raw.risk;
     let r = 0;
+    // The moved stop: the profit lock (else the entry), hit on the bid/ask.
+    const locked = beStop != null ? inR(beStop) : 0;
+    const guarded = best >= 1 || res.events.some((e) => e.kind === "protected");
     if (res.status === "stopped") r = inR(stop);
-    else {
+    else if (res.status === "breakeven") {
+      for (let k = 0; k < best; k++) r += inR(targets[k]) / 3;
+      r += ((3 - best) / 3) * locked;
+    } else {
       for (let k = 0; k < best; k++) r += inR(targets[k]) / 3;
       if (res.status === "expired" || res.status === "cancelled") {
         // Out at the last price before it was closed (on time, or at the end).
@@ -305,7 +321,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
         // Closed at the bid (a buy) or the ask (a sell), not the mid.
         const lastMid = s.path.filter((c) => c.t < until).at(-1)?.c;
         const last = lastMid != null ? lastMid - side * half : undefined;
-        const floor = best >= 1 ? 0 : inR(stop);
+        const floor = guarded ? locked : inR(stop);
         r += ((3 - best) / 3) * Math.max(floor, last != null ? inR(last) : 0);
       }
     }
@@ -363,7 +379,7 @@ export function candidates(current: Tuning, rand: () => number, count = 48): Tun
         holdFor: nudge(current.holdFor, 15),
         fillWithin: nudge(current.fillWithin, 15),
         // Exits: nudged when on, and now and then switched on or off.
-        beAt: rand() < 0.25 ? (current.beAt ? 0 : 0.5 + rand()) : nudge(current.beAt, 0.25),
+        beAt: 0,
         runner:
           rand() < 0.25 ? (current.runner ? 0 : 1.5 + rand() * 1.5) : nudge(current.runner, 0.4),
         // Now and then another way in.

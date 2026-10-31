@@ -15,16 +15,19 @@ type Admin = any;
 /** How far back (in message ids) the sweep reaches. */
 const SWEEP = 2000;
 
+/** Money with cents only when there are cents: $1,000, $1,042.30. */
 const usd = (n: number) =>
-  `$${n.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  `$${n
+    .toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .replace(/\.00$/, "")}`;
 
 export const VANTAGE_INTRO =
   "🚀 This is the broker I trade every one of these signals on: Vantage. Open your account through the button below and you're taking the same trades I take. Standard account, same spreads as mine.";
 
 export function testModeNote(start: number): string {
   return (
-    `🧪 TEST MODE starts now. I'm putting ${usd(start)} on a fresh Vantage Standard account and trading every alert in here with it: 0.1 lot a trade, and 0.3 when I'm properly sure of a quick scalp. ` +
-    "Spreads counted, no commission on Standard, no fiddling the numbers. Every card shows the balance as it stands. Let's see how we do."
+    `🧪 TEST MODE starts now. I'm putting ${usd(start)} on a fresh Vantage Standard account and trading every alert in here with it: 0.05 to 0.3 lot a trade, bigger when I'm properly sure and my calls like it have been paying, smaller after a loss. ` +
+    "Spreads counted, no commission on Standard, no fiddling the numbers. The results at the bottom of the chat show the balance as it stands. Let's see how we do."
   );
 }
 

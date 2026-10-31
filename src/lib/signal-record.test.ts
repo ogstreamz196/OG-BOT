@@ -89,29 +89,18 @@ describe("OG Trade Bot results (announced by OG B0T)", () => {
     expect(r.form).toEqual(["lost", "won", "won", "won"]);
     expect(currentStreak(r)).toEqual({ result: "won", count: 3 });
     expect(resultsAnnouncement(r)).toBe(
-      "📣 OG TRADE BOT RESULTS · since 1 Oct 2026\n" +
-        "🔥 3 wins on the bounce. My boy's cooking!\n" +
-        "🛑✅✅✅  last 4\n" +
-        "\n" +
-        "🏆 75% win rate · ✅ 3 won · 🛑 1 lost\n" +
-        "⏳ 1 running · 🚫 1 cancelled\n" +
-        "🥇 Gold +140.0 pips",
+      "📣 OG TRADE BOT RESULTS\n🔥 3 wins on the bounce. My boy's cooking!\n🛑✅✅✅\n🏆 75% win rate · ✅ 3 · 🛑 1",
     );
   });
 
   it("owns a losing run too, and reads cleanly before anything settles", () => {
     const r = tallyRecord([sig("tp1", { best_target: 1 }), sig("stopped"), sig("stopped")], null);
     expect(currentStreak(r)).toEqual({ result: "lost", count: 2 });
-    expect(resultsAnnouncement(r).split("\n")[1]).toBe(
-      "🥶 2 losses on the bounce. He'll bounce back, he always does.",
-    );
-    expect(resultsAnnouncement(r, "📈 $1,000.00 DEMO: $1,010.00 (+$10.00 · +1.0%)")).toMatch(
-      /\n\n📈 \$1,000\.00 DEMO: \$1,010\.00 \(\+\$10\.00 · \+1\.0%\)$/,
+    expect(resultsAnnouncement(r, "💰 Balance: $982.70", { BTCUSD: -17.3, XAUUSD: 0 })).toBe(
+      "📣 OG TRADE BOT RESULTS\n🥶 2 losses on the bounce. He'll bounce back, he always does.\n✅🛑🛑\n🏆 33% win rate · ✅ 1 · 🛑 2\n₿ Bitcoin −$17.30\n🥇 Gold +$0\n💰 Balance: $982.70",
     );
     const none = resultsAnnouncement(tallyRecord([], null));
-    expect(none).toBe(
-      "📣 OG TRADE BOT RESULTS\n🏁 Nothing settled yet. Watch this space.\n\n🏆 ✅ 0 won · 🛑 0 lost",
-    );
+    expect(none).toBe("📣 OG TRADE BOT RESULTS\n🏁 Nothing settled yet");
     expect(none).not.toMatch(/70%|TODAY/);
   });
 });
