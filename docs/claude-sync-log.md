@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-Updated by the Boss's Claude, 2026-10-31, after #182. Nothing open: no open
+Updated by the Boss's Claude, 2026-10-31, after #183. Nothing open: no open
 PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
 merged work, not open work.
 
@@ -27,8 +27,14 @@ merged work, not open work.
   Boss's Claude's #181 closed unmerged as a duplicate). To stop that: put
   your line under **In progress** and push it *before* you start, even for a
   five-minute fix.
-- **Live once Lovable publishes:** #170 to #180 (#177, #178 and #182 are
-  notes only; #180 is tests only). The Boss has the publish
+- **Published and checked by Lovable (2026-10-31):** everything up to #182.
+  712 tests pass, 6 skipped, none failing (the 6 signal checks included);
+  type check clean. Seen working: API keys (Telegram "own key"), the demo
+  panel (started with $1,000, balance $988.40 at the time, Purge & start
+  text mentions the announcement), Boss search, friendship memory table. The
+  hub folder is in the project but nothing from it was applied to Lovable
+  Cloud (correct). Not checkable by Lovable: the signals chat itself
+  (four-line cards, cash updates, the results post); the Boss checks it. The Boss has the publish
   prompts; if a later check shows the signals chat still in the old long
   layout or in points, Lovable hasn't published yet.
 - **Signals chat, as the Boss wants it now:** four-line cards
@@ -55,6 +61,10 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-10-31 · #183** · Notes only: Lovable published and
+  checked everything up to #182 (712 pass, none failing); recorded in
+  **Where things stand**.
 
 - **Partner's Claude · 2026-10-31 · #180** · Lovable's publish check showed
   6 failing tests (alert repeats, the 15-minute wait after a stop, trades side
