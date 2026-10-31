@@ -105,8 +105,9 @@ describe("OG Trade Bot results (announced by OG B0T)", () => {
     expect(resultsAnnouncement(r).split("\n")[1]).toBe(
       "🥶 2 losses on the bounce. He'll bounce back, he always does.",
     );
-    expect(resultsAnnouncement(r, "📈 $1,000.00 DEMO: $1,010.00 (+$10.00 · +1.0%)")).toMatch(
-      /\n\n📈 \$1,000\.00 DEMO: \$1,010\.00 \(\+\$10\.00 · \+1\.0%\)$/,
+    expect(resultsAnnouncement(r, "📈 $1,000 DEMO: $1,010 (+$10 · +1.0%)")).toMatch(
+      /\n\n📈 \$1,000 DEMO: \$1,010 \(\+\$10 · \+1\.0%\)$/,
+
     );
     const none = resultsAnnouncement(tallyRecord([], null));
     expect(none).toBe(
