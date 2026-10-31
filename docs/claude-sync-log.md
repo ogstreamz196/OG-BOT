@@ -72,7 +72,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-10-31 · PR_NUM** · The Boss saw 1 win, 3 losses and a
+- **Boss's Claude · 2026-10-31 · #186** · The Boss saw 1 win, 3 losses and a
   balance of $1,002.15 in the results post. Cause: the counter counted every
   70%+ signal since the reset from any chat (members' own requests, trades
   from before the purge), while the balance and markets counted only the
