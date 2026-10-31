@@ -2245,3 +2245,13 @@ main:has(.boss-ui) [data-slot="card"] {
 :is(.og-panel, main:has(.boss-ui) [data-slot="card"]):nth-child(6n of .og-panel, [data-slot="card"]) {
   --panel-tint: oklch(0.82 0.15 85);
 }
+
+/* Phones: the sticky header and the fixed bottom menu sit over the page, so a
+   field being typed into (or jumped to) is scrolled to clear both, never
+   behind them (e.g. the worker bot's token field in Boss → Telegram). */
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: calc(env(safe-area-inset-top) + 64px);
+    scroll-padding-bottom: calc(env(safe-area-inset-bottom) + 88px);
+  }
+}

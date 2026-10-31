@@ -50,7 +50,8 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
         alt="OG Streamz"
         className={`${compact ? "h-6" : "h-7"} w-auto rounded-md object-contain`}
       />
-      <span className="whitespace-nowrap text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-tight">
+      {/* The words only where there's room; the two logos say it everywhere. */}
+      <span className="hidden whitespace-nowrap text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-tight 2xl:inline">
         Powered by
       </span>
       <img
@@ -134,7 +135,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Menu
               </SidebarTrigger>
 
-              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              {/* Clipped to its column, so it can never run under the badges on the right. */}
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden sm:gap-3">
                 {!pathname.startsWith("/messenger") && (
                   <div className="hidden min-[480px]:block">
                     <BrandLockup compact />
