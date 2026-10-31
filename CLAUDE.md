@@ -53,6 +53,12 @@ sync. Follow this every time.
 - No AI model names or IDs in commits, PRs or code.
 - Group roasts never use paid AI. The AI desk's automatic runs have a daily
   budget and never use OpenRouter (the roasts' allowance).
-- Stored trade data is never deleted: the learning loop learns from all of
-  it (the signals chat purge only notes a time).
+- Stored trade and learning data is never deleted, by anyone, ever: not by
+  a purge, a clean-up, a retention job or a migration. That covers
+  `trade_signals`, `signal_learn_samples`, `signal_shadows`, the learning
+  settings and every other table the signals learn from. When the Boss says
+  "purge" it means the Telegram chat and the counters only (the purge notes
+  a time and everything before it stops counting); the backend data stays
+  for the AI to keep learning. Reads limit themselves to the window they
+  need instead of anything being deleted.
 - The Boss trades on Vantage, Standard STP (no commission, spread only).
