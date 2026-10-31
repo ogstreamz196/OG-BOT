@@ -113,7 +113,6 @@ describe("maybeDeskScout", () => {
     });
     expect(posted).toHaveLength(1);
     expect(posted[0]).toBe(deskCard(signal("XAUUSD", "BUY", 55).reply));
-    expect(posted[0]).toBe(signal("XAUUSD", "BUY", 55).reply);
     expect(posted[0]).not.toMatch(/\bAIs?\b|DESK/);
     expect(followed).toEqual([1]);
     expect(out).toContain("XAU: posted BUY");

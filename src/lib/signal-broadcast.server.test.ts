@@ -71,7 +71,7 @@ describe("auto-posted scalp signals", () => {
     const result = await scanAndBroadcast(db, d);
     expect(result).toEqual({ checked: 2, posted: ["XAUUSD BUY", "BTCUSD SELL"] });
     expect(d.sent).toHaveLength(2);
-    expect(d.sent[0]).toMatch(/^🔥 Every timeframe agrees\nXAUUSD BUY card/);
+    expect(d.sent[0]).toMatch(/^XAUUSD BUY card/);
     expect(d.sent[1]).toMatch(/^BTCUSD SELL card/);
     expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
     expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
@@ -225,6 +225,26 @@ describe("auto-posted scalp signals", () => {
   });
 
   test("channel card wording", () => {
-    expect(channelCard("x")).toBe("🔥 Every timeframe agrees\nx");
+    expect(channelCard("x")).toBe("x");
+    const card = [
+      "🔴 I'm gonna sell ₿ BTC/USD now at 77397.70",
+      "🛑 My stop loss will be 77496.66 · −$9.90",
+      "🎯 I'll take profit at 77331.73 · +$6.60",
+      "🔒 At 77351.52 (70% of the way) my stop moves to 77377.91, locking in profit",
+      "",
+      "⏱ 15M · 💪 70%",
+      "🧩 Bear flag",
+      "⚠️ News in 20 minutes",
+      "💰 Test account balance: $1,000 · this trade 0.1 lot",
+      "📏 Why 0.1: 70% sure",
+    ].join("\n");
+    expect(channelCard(card)).toBe(
+      [
+        "🔴 I'm gonna sell ₿ BTC/USD now at 77397.70",
+        "🛑 My stop loss will be 77496.66 · −$9.90",
+        "🎯 I'll take profit at 77331.73 · +$6.60",
+        "⏱ 15M · 💪 70%",
+      ].join("\n"),
+    );
   });
 });

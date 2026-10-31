@@ -19,6 +19,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-10-31 · this PR** · Signals-chat cards trimmed to
+  what the Boss wants: the trade, the stop, the take profit (with the demo
+  lot's money) and timeframe and confidence (`compactCard` in
+  `signal-broadcast.server.ts`). No balance, lot or why lines, no profit-lock
+  line, no "Every timeframe agrees" heading: the results post covers the
+  balance. Cards for members' own requests are unchanged. No migration.
+
 - **Boss's Claude · 2026-10-31 · this PR** · The take profit moves while a
   trade runs, always announced (Boss's ask): further out while price is still
   pushing hard right by it, in when it stalls short and pulls back (`tpMove`,

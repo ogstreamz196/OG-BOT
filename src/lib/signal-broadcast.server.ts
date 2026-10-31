@@ -87,9 +87,25 @@ export type ScanDeps = PostDeps & {
   shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
 };
 
-/** The card as posted; the card itself carries the confidence %. */
-export function channelCard(reply: string, confidencePct = TOP_CONFIDENCE): string {
-  return confidencePct >= TOP_CONFIDENCE ? `🔥 Every timeframe agrees\n${reply}` : reply;
+/** The lines a signals-chat card keeps: the trade, the stop, the take profit, timeframe and confidence. */
+const CARD_KEEPS = ["🟢", "🔴", "🛑", "🎯", "⏱"];
+
+/**
+ * The signals chat's card, as the Boss wants it: just the trade, the stop,
+ * the take profit (with the money on the demo's lot) and the timeframe and
+ * confidence. Everything else (the demo balance and lot, the profit-lock
+ * plan, set-ups, warnings, news) is left off: the results post at the bottom
+ * of the chat covers the balance, and updates still go into the card as the
+ * trade runs. A reply that isn't a trade card is left as it is.
+ */
+export function compactCard(reply: string): string {
+  const kept = reply.split("\n").filter((l) => CARD_KEEPS.some((k) => l.startsWith(k)));
+  return kept.length ? kept.join("\n") : reply;
+}
+
+/** The card as posted in the signals chat (compactCard); the card carries the confidence %. */
+export function channelCard(reply: string, _confidencePct = TOP_CONFIDENCE): string {
+  return compactCard(reply);
 }
 
 export async function scanAndBroadcast(
@@ -444,7 +460,7 @@ export function deskScoutDue(lastAt: string | null, now: number): boolean {
 
 /** The scout's heading (members never hear about the desk). */
 export function deskCard(reply: string): string {
-  return reply;
+  return compactCard(reply);
 }
 
 type DeskRead = {
