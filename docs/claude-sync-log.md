@@ -7,10 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · fix-demo-balance · Results post: counter, markets and
-  balance all from the demo's own trades. Touches `paper-account.server.ts`,
-  `signal-chat.server.ts` (`refreshScore`), tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, data copy. Will touch `vite.config.ts`, a new `wrangler.jsonc`,
@@ -75,6 +71,14 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-10-31 · PR_NUM** · The Boss saw 1 win, 3 losses and a
+  balance of $1,002.15 in the results post. Cause: the counter counted every
+  70%+ signal since the reset from any chat (members' own requests, trades
+  from before the purge), while the balance and markets counted only the
+  demo's trades. Now, while the demo runs, the whole post comes from the
+  demo's own trades (`demoTally`): a win made money, a loss lost it, so it
+  always adds up. No migration.
 
 - **Partner's Claude · 2026-10-31 · #185** · Notes only: partner's state in
   **Where things stand** (live check after the 16:40 Purge & start), and the
