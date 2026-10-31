@@ -89,13 +89,14 @@ describe("profit and loss (Standard STP)", () => {
 describe("card lines", () => {
   it("the balance and lot on every card, and a word when it goes harder", () => {
     expect(paperLines(1000, 0.1, false)).toEqual([
-      "💰 Test account balance: $1,000.00 · this trade 0.1 lot",
+      "💰 Test account balance: $1,000 · this trade 0.1 lot",
     ]);
     expect(paperLines(1043.5, 0.3, true)).toEqual([
       "🔥 I'm going harder on this one: 0.3 lot instead of 0.1",
       "💰 Test account balance: $1,043.50 · this trade 0.3 lot",
     ]);
   });
+
   it("the card's dollar figures follow the lot", () => {
     const card =
       "🛑 My stop loss will be 2645.00 · −$250.00\n🎯 I'll take profit at 2653.00 · +$150.00";
@@ -116,10 +117,18 @@ describe("card lines", () => {
 describe("the $1,000 demo shown to everyone", () => {
   it("shows the balance and the change since the start", async () => {
     const { demoLine } = await import("./paper-account.server");
-    expect(demoLine(1000, 1042.3)).toBe("📈 $1,000.00 DEMO: $1,042.30 (+$42.30 · +4.2%)");
-    expect(demoLine(1000, 970)).toBe("📉 $1,000.00 DEMO: $970.00 (−$30.00 · −3.0%)");
-    expect(demoLine(1000, 1000)).toBe("💰 $1,000.00 DEMO: $1,000.00 (+$0.00 · +0.0%)");
+    expect(demoLine(1000, 1042.3)).toBe("📈 $1,000 DEMO: $1,042.30 (+$42.30 · +4.2%)");
+    expect(demoLine(1000, 970)).toBe("📉 $1,000 DEMO: $970 (−$30 · −3.0%)");
+    expect(demoLine(1000, 1000)).toBe("💰 $1,000 DEMO: $1,000 (+$0 · +0.0%)");
   });
+
+  it("never shows .00 on a whole balance, but keeps real cents", async () => {
+    const { demoLine } = await import("./paper-account.server");
+    const line = demoLine(1000, 1000);
+    expect(line).not.toContain(".00");
+    expect(demoLine(1000, 999.5)).toContain("$999.50");
+  });
+
 
   it("announces it once, as demo money and not advice", async () => {
     const { demoAnnouncement } = await import("./paper-account.server");

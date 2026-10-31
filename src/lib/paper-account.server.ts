@@ -113,8 +113,16 @@ export function paperLots(
   return Math.max(0, Math.min(want, most));
 }
 
+/** Money with cents only when there are cents: $1,000, $1,042.30. */
 const usd = (n: number) =>
+  `$${n
+    .toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .replace(/\.00$/, "")}`;
+
+/** Card money figures always carry cents: −$50.00, +$30.00. */
+const usd2 = (n: number) =>
   `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 
 /**
  * The demo's line in the results post at the bottom of the signals chat,
@@ -133,7 +141,7 @@ export function demoLine(start: number, balance: number): string {
 
 /** OG B0T's one-off "money where my mouth is" post when the demo starts. */
 export function demoAnnouncement(start: number): string {
-  const amount = usd(start).replace(/\.00$/, "");
+  const amount = usd(start);
   return [
     "💸 PUTTING MY MONEY WHERE MY MOUTH IS",
     "",
@@ -167,7 +175,7 @@ export function rescaleCardMoney(card: string, fromLot: number, toLot: number): 
   if (!(fromLot > 0) || fromLot === toLot) return card;
   return card.replace(/([−+])\$([\d,]+\.\d{2})/g, (_, sign: string, amount: string) => {
     const n = (Number(amount.replace(/,/g, "")) * toLot) / fromLot;
-    return `${sign}${usd(n)}`;
+    return `${sign}${usd2(n)}`;
   });
 }
 
