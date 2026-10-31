@@ -486,6 +486,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
 
   const byMarket = new Map<string, Row[]>();
   for (const r of rows) byMarket.set(r.market, [...(byMarket.get(r.market) ?? []), r]);
+  const sc0 = await import("./signal-chat.server");
+  const purgedAt = await sc0.chatPurgedAt();
 
   let eventCount = 0;
   for (const group of byMarket.values()) {
@@ -510,6 +512,15 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
 
     await Promise.all(
       group.map(async (row) => {
+        // A trade from before the Boss purged the signals chat is still
+        // followed (its result counts for learning) but its card is gone, so
+        // it says nothing there.
+        if (
+          purgedAt != null &&
+          Date.parse(row.created_at) < purgedAt &&
+          (await sc0.isSignalsChat(row.chat_id))
+        )
+          row.chat_id = null;
         // Spot-adjusted signals (gold) follow the real spot price: the gap to
         // the proxy is re-measured each pass (liveOffset), the original kept
         // when the quote's missing or jumps.

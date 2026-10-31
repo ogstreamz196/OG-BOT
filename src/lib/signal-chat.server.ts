@@ -164,3 +164,31 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     return `failed: ${(e as Error).message}`;
   }
 }
+
+/* ── Fresh starts ─────────────────────────────────────────────────────── */
+
+/** When the Boss last purged the signals chat (ISO), in site_content. */
+export const PURGED_KEY = "signals.chat.purgedAt";
+
+/**
+ * The last purge of the signals chat (ms), or null. Nothing is deleted at a
+ * purge: what came before it is kept for learning, it just stops speaking
+ * in the chat or counting there. Cached a minute.
+ */
+export async function chatPurgedAt(): Promise<number | null> {
+  try {
+    const { cached } = await import("./server-cache");
+    return await cached("signals-chat-purged", 60_000, async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data } = await (supabaseAdmin as Admin)
+        .from("site_content")
+        .select("value")
+        .eq("key", PURGED_KEY)
+        .maybeSingle();
+      const t = Date.parse((data as { value?: string } | null)?.value ?? "");
+      return Number.isFinite(t) ? t : null;
+    });
+  } catch {
+    return null;
+  }
+}

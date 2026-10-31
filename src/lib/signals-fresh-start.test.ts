@@ -15,6 +15,7 @@ vi.mock("./telegram-worker.server", () => ({
 vi.mock("./signal-chat.server", () => ({
   signalsChatId: async () => -1001234,
   refreshScore: async () => "posted",
+  PURGED_KEY: "signals.chat.purgedAt",
 }));
 vi.mock("./signal-record.server", () => ({
   resetSignalRecord: async () => "2026-10-31T12:00:00.000Z",
@@ -69,6 +70,10 @@ describe("freshStart", () => {
     expect(posts[2]).toMatch(/TEST MODE.*\$1,000/);
     // The test account and Standard STP's zero commission are saved.
     const saved = admin.writes.filter((w) => w.op === "upsert").map((w) => (w.row as any).key);
-    expect(saved).toEqual(expect.arrayContaining(["signals.paper", "mt5.commissionPerLot"]));
+    expect(saved).toEqual(
+      expect.arrayContaining(["signals.paper", "mt5.commissionPerLot", "signals.chat.purgedAt"]),
+    );
+    // Nothing stored is deleted or changed: only settings are written.
+    expect(admin.writes.filter((w) => w.op !== "upsert")).toEqual([]);
   });
 });

@@ -24,6 +24,7 @@ function fakeDb() {
       limit: () => q,
       eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
       gt: (c: string, v: unknown) => (filters.push((r) => String(r[c]) > String(v)), q),
+      gte: (c: string, v: unknown) => (filters.push((r) => String(r[c]) >= String(v)), q),
       maybeSingle: () => Promise.resolve({ data: found()[0] ?? null, error: null }),
       upsert: (row: Row) => {
         const i = rows.findIndex((r) => r.key === row.key);

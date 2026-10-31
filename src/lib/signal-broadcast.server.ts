@@ -234,11 +234,15 @@ async function postOnce(
   const plan = signal.plan;
   if (!plan) return false;
   const nowIso = new Date(deps.now()).toISOString();
+  // Alerts from before the Boss's last purge of the chat don't count any more.
+  const { chatPurgedAt } = await import("./signal-chat.server");
+  const purgedAt = await chatPurgedAt().catch(() => null);
   const { data: live, error } = await admin
     .from(POSTS)
     .select("direction, message_id, created_at, entry")
     .eq("market", plan.market)
     .gt("expires_at", nowIso)
+    .gte("created_at", new Date(purgedAt ?? 0).toISOString())
     .order("created_at", { ascending: false })
     .limit(20);
   // Without the table there's no way to tell repeats apart: post nothing.
