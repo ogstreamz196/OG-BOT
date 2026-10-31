@@ -15,8 +15,12 @@ type Admin = any;
 /** How far back (in message ids) the sweep reaches. */
 const SWEEP = 2000;
 
+/** Money with cents only when there are cents: $1,000, $1,042.30. */
 const usd = (n: number) =>
-  `$${n.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  `$${n
+    .toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .replace(/\.00$/, "")}`;
+
 
 export const VANTAGE_INTRO =
   "🚀 This is the broker I trade every one of these signals on: Vantage. Open your account through the button below and you're taking the same trades I take. Standard account, same spreads as mine.";
