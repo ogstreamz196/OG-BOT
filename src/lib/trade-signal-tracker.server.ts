@@ -14,6 +14,7 @@ import {
   brokerLevels,
   limitsFrom,
   isActive,
+  profitLock,
   targetsReached,
   trackRecordText,
   type OutcomeEvent,
@@ -182,8 +183,16 @@ function formatter(row: Row) {
 /** A signal with one take profit (all three levels on it). */
 export const singleTarget = (row: Pick<Row, "tp1" | "tp3">) => Number(row.tp1) === Number(row.tp3);
 
+/** The signal's profit lock levels, when it has the lock. */
+export function lockOf(
+  row: Pick<Row, "direction" | "entry" | "tp1"> & { feeds: { lock?: boolean } | null },
+): { trigger: number; stop: number } | null {
+  return row.feeds?.lock ? profitLock(row.direction, Number(row.entry), Number(row.tp1)) : null;
+}
+
 export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias: string }): string {
   const { fmt, move } = formatter(row);
+  const lock = lockOf(row);
   switch (e.kind) {
     case "filled":
       return `✅ I'm in at ${fmt(row.entry)}. My stop loss is at ${fmt(row.stop)}`;
@@ -191,7 +200,9 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
       // One take profit (all three levels the same): one hit and it's done.
       if (singleTarget(row))
         return `🎯 Take profit hit (${move(row.entry, row.tp1)}). Job done, I've banked it`;
-      return `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
+      return lock
+        ? `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's at ${fmt(lock.stop)}, so the rest is locked in profit`
+        : `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
     case "tp2":
       return `🎯 Little Brave hit (${move(row.entry, row.tp2)}). Another bag secured, you jammy bastard. I'm letting the rest run to ${fmt(row.tp3)}`;
     case "tp3":
@@ -199,10 +210,14 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
     case "stopped":
       return `🛑 Stopped out (${move(row.entry, row.stop)}). I've taken the fucking loss and I'm not chasing it`;
     case "breakeven":
+      if (lock)
+        return `🔒 It pulled back to my locked stop at ${fmt(lock.stop)}, so I'm out with ${move(row.entry, lock.stop)} banked. Better than a loss`;
       return row.best_target >= 1
         ? `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`
         : `⚖️ It came back to my entry, so I'm out at breakeven. No harm done`;
     case "protected":
+      if (lock)
+        return `🔒 It's 70% of the way to my take profit, so my stop's now at ${fmt(lock.stop)}, locking in ${move(row.entry, lock.stop)}. Can't lose from here`;
       return `🔒 It's moving my way, so my stop loss is now at my entry, ${fmt(row.entry)}. Can't lose from here`;
     case "unfilled":
       return `⏳ Price never came to my entry, so I've cancelled it`;
@@ -547,17 +562,24 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           status: row.status,
           expiresAt: Date.parse(row.expires_at),
           ...(row.entered_at ? { enteredAt: Date.parse(row.entered_at) } : {}),
-          // The learned breakeven: stop to entry once this far in profit.
-          ...(Number(row.feeds.beAt) > 0
+          // The profit lock: 70% of the way to TP1, the stop to 30% of the way.
+          ...(lockOf(row)
             ? {
-                beTrigger:
-                  Number(row.entry) +
-                  (row.direction === "BUY" ? 1 : -1) *
-                    Math.abs(Number(row.entry) - Number(row.stop)) *
-                    Number(row.feeds.beAt),
+                beTrigger: lockOf(row)!.trigger,
+                beStop: lockOf(row)!.stop,
                 isProtected: !!row.feeds.protected,
               }
-            : {}),
+            : // Older signals: the learned breakeven, stop to entry once this far in profit.
+              Number(row.feeds.beAt) > 0
+              ? {
+                  beTrigger:
+                    Number(row.entry) +
+                    (row.direction === "BUY" ? 1 : -1) *
+                      Math.abs(Number(row.entry) - Number(row.stop)) *
+                      Number(row.feeds.beAt),
+                  isProtected: !!row.feeds.protected,
+                }
+              : {}),
         };
         // The learned time limits: fill in time, and close a trade that's gone nowhere.
         const limits = limitsFrom(row.feeds, created);
@@ -591,15 +613,15 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           }
         }
         let status = result.status;
-        // The breakeven fired: remembered with the signal, and the Boss's MT5
-        // trade gets its stop moved to the entry too (also after a runner's
-        // first take profit, where the stop moves to the entry anyway).
+        // The lock (or an older breakeven) fired: remembered with the signal,
+        // and the Boss's MT5 trade gets its stop moved there too (also after a
+        // runner's first take profit, where the stop moves there anyway).
         const guarded = result.events.some((e) => e.kind === "protected");
         if (guarded) row.feeds = { ...row.feeds, protected: true };
         const firstBank = !singleTarget(row) && result.events.some((e) => e.kind === "tp1");
         if ((guarded || firstBank) && row.sender_worker === "trade") {
           const { moveStopToEntry } = await import("./mt5-autotrade.server");
-          await moveStopToEntry(admin, row).catch(() => undefined);
+          await moveStopToEntry(admin, row, lockOf(row)?.stop).catch(() => undefined);
         }
         // Running out of time isn't news: the status changes, nothing is posted.
         // A learned time stop is: members are told to close it.
@@ -678,6 +700,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               status,
               bestTarget: best,
               lastPrice: Number.isFinite(lastPrice) ? lastPrice : null,
+              lockStop: lockOf(row)?.stop ?? null,
             },
             paper.lots,
             half > 0 ? half * 2 : (SPREAD_COST[row.market] ?? 0),

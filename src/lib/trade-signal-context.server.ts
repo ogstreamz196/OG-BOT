@@ -570,10 +570,12 @@ function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: nu
 
 export type SignalFeeds = {
   /** The test account's lot on this alert, and once it's over what it made (paper-account.server.ts). */
-  paper?: { lots: number; pnl?: number; balance?: number };
-  /** Learned breakeven: move the stop to entry once this many risks in profit. */
+  paper?: { lots: number; pnl?: number; balance?: number; why?: string };
+  /** Older signals: the learned breakeven, stop to entry once this many risks in profit. */
   beAt?: number;
-  /** The stop has moved to the entry (the breakeven fired). */
+  /** The profit lock (PROFIT_LOCK): 70% of the way to TP1, the stop moves to 30% of the way. */
+  lock?: boolean;
+  /** The stop has moved (the profit lock, or an older breakeven, fired). */
   protected?: boolean;
   /** The learned-off filter that let this signal through (signal-filter-learning.server.ts). */
   relaxed?: string;
@@ -1135,26 +1137,28 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // Confidence is indicator agreement (51–90%), not a win rate.
   // One take profit: by default the Quick Scalp (pulled in from TP1); the desk
   // may pick another inside the safe band around it (tpRange).
-  // Learned exits (5-minute scalps): a breakeven and/or a runner.
+  // Learned exits (5-minute scalps): a runner. Every trade has the Boss's
+  // profit lock (PROFIT_LOCK): 70% of the way to the take profit, the stop
+  // moves to 30% of the way. It replaces the older learned breakeven.
   const exits = entryLabel === "5M" ? (tuning ?? DEFAULT_TUNING) : DEFAULT_TUNING;
   const { exitTargets } = await import("./signal-learning.server");
+  const { profitLock } = await import("./trade-signal-outcome");
   const targetsFor = (tp: number) => {
     const t = exitTargets(plan.entry, tp, exits.runner);
     return [t[0], shown(t[1]), shown(t[2])] as [number, number, number];
   };
-  const bePrice = exits.beAt
-    ? shown(
-        plan.entry +
-          (plan.direction === "BUY" ? 1 : -1) * Math.abs(plan.entry - plan.stop) * exits.beAt,
-      )
-    : null;
   const exitLines = (tp: number) => {
     const run = targetsFor(tp)[2];
+    const lock = profitLock(plan.direction, plan.entry, tp);
     return [
       ...(run !== tp
         ? [`🏃 I'll bank a third at ${fmt(tp)} and let the rest run to ${fmt(run)}`]
         : []),
-      ...(bePrice != null ? [`🔒 Stop to my entry once it reaches ${fmt(bePrice)}`] : []),
+      ...(lock
+        ? [
+            `🔒 At ${fmt(shown(lock.trigger))} (70% of the way) my stop moves to ${fmt(shown(lock.stop))}, locking in profit`,
+          ]
+        : []),
     ];
   };
   const cardFor = (tp: number) =>
@@ -1192,8 +1196,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(Object.keys(checks).length ? { checks } : {}),
       // The learned time limits (5-minute scalps): the tracker applies them.
       ...timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING),
-      // The learned breakeven, in risks (the tracker works out the price).
-      ...(exits.beAt ? { beAt: exits.beAt } : {}),
+      // The profit lock (the tracker works out its levels from the entry and TP1).
+      lock: true,
     },
     style,
     timeframe: entryLabel,

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  PAPER_BIG_LOT,
-  PAPER_LOT,
   bigOne,
+  chooseLot,
+  confidenceBand,
+  demoForm,
   paperLines,
-  paperLots,
   paperPnl,
+  resultInRisks,
   parsePaper,
   rescaleCardMoney,
 } from "./paper-account.server";
@@ -29,20 +30,69 @@ const gold = {
   lastPrice: null,
 };
 
-describe("lots", () => {
-  it("0.1 a trade, 0.3 on an extremely confident quick scalp the AIs backed", () => {
+describe("lots: 0.05 to 0.3 in 0.05 steps, learned from wins and losses", () => {
+  // A $2 stop on gold is $200 a lot, so $1,000 at 5% covers up to 0.25 lot.
+  const base = {
+    market: "XAUUSD",
+    entry: 2650,
+    stop: 2648,
+    balance: 1000,
+    confidencePct: 72,
+    big: false,
+  };
+  it("starts from how sure it is", () => {
     expect(bigOne({ confidencePct: 88, timeframe: "5M", desk: "backed" })).toBe(true);
-    expect(bigOne({ confidencePct: 88, timeframe: "5M", desk: "unanimous" })).toBe(true);
-    expect(bigOne({ confidencePct: 84, timeframe: "5M", desk: "backed" })).toBe(false);
     expect(bigOne({ confidencePct: 90, timeframe: "15M", desk: "backed" })).toBe(false);
-    expect(bigOne({ confidencePct: 90, timeframe: "5M", desk: "no_ai" })).toBe(false);
-    expect(paperLots("XAUUSD", 2650, 2645, 1000, false)).toBe(PAPER_LOT);
-    expect(paperLots("XAUUSD", 2650, 2645, 1000, true)).toBe(PAPER_BIG_LOT);
+    expect(chooseLot(base).lots).toBe(0.1);
+    expect(chooseLot({ ...base, confidencePct: 78 }).lots).toBe(0.15);
+    expect(chooseLot({ ...base, confidencePct: 86 }).lots).toBe(0.2);
+    expect(chooseLot({ ...base, confidencePct: 88, big: true }).lots).toBe(0.25);
   });
-  it("never more than the balance could lose at the stop; nothing once it's blown", () => {
-    // $5 stop on gold is $500 a lot: $100 left covers 0.2 lot.
-    expect(paperLots("XAUUSD", 2650, 2645, 100, true)).toBe(0.2);
-    expect(paperLots("XAUUSD", 2650, 2645, 0, false)).toBe(0);
+  it("goes bigger where calls like it have been paying, up to 0.3 and never past it", () => {
+    const btc = { ...base, market: "BTCUSD", entry: 70000, stop: 69900 };
+    expect(chooseLot({ ...btc, confidencePct: 78, edge: 0.6, edgeTrades: 12 }).lots).toBe(0.2);
+    const top = chooseLot({ ...btc, confidencePct: 88, big: true, edge: 1.2, edgeTrades: 20 });
+    expect(top.lots).toBe(0.3);
+    expect(top.why).toContain("20 calls like it averaged +1.2R");
+    expect(paperLines(1000, top.lots)[0]).toContain("0.3 lot, my limit");
+  });
+  it("ignores a record with too few calls in it", () => {
+    expect(chooseLot({ ...base, edge: 2, edgeTrades: 5 }).lots).toBe(0.1);
+  });
+  it("goes smaller where calls like it have been losing, and after losses", () => {
+    expect(chooseLot({ ...base, edge: -0.1, edgeTrades: 10 }).lots).toBe(0.05);
+    expect(chooseLot({ ...base, confidencePct: 86, edge: -0.5, edgeTrades: 10 }).lots).toBe(0.1);
+    const streak = chooseLot({ ...base, confidencePct: 86, lossStreak: 3 });
+    expect(streak.lots).toBe(0.1);
+    expect(streak.why).toContain("3 losses in a row");
+    expect(chooseLot({ ...base, confidencePct: 86, drawdownPct: 12 }).lots).toBe(0.15);
+    // Never below the smallest lot.
+    expect(chooseLot({ ...base, edge: -1, edgeTrades: 10, lossStreak: 5 }).lots).toBe(0.05);
+  });
+  it("keeps the stop's loss within 5% of the balance, the smallest lot aside", () => {
+    // $5 stop: $500 a lot, so $1,000 at 5% is 0.1 lot even at 88%.
+    const wide = chooseLot({ ...base, stop: 2645, confidencePct: 88, big: true });
+    expect(wide.lots).toBe(0.1);
+    expect(wide.why).toContain("5% at most");
+    expect(chooseLot({ ...base, stop: 2645, balance: 300 }).lots).toBe(0.05);
+    expect(chooseLot({ ...base, stop: 2600, balance: 100 }).lots).toBe(0);
+    expect(chooseLot({ ...base, balance: 0 }).lots).toBe(0);
+  });
+  it("reads results in risks, the profit lock as a small win", () => {
+    const row = { direction: "BUY" as const, entry: 100, stop: 98, tp1: 104, best_target: 0 };
+    expect(resultInRisks({ ...row, status: "tp3", best_target: 3 })).toBe(2);
+    expect(resultInRisks({ ...row, status: "stopped" })).toBe(-1);
+    expect(resultInRisks({ ...row, status: "breakeven", feeds: { lock: true } })).toBeCloseTo(0.6);
+    expect(resultInRisks({ ...row, status: "breakeven" })).toBe(0);
+    expect(resultInRisks({ ...row, status: "unfilled" })).toBeNull();
+    expect(confidenceBand(77)).toEqual([75, 80]);
+  });
+  it("the demo's form: losses in a row and the drop from its best", () => {
+    expect(demoForm(1000, [50, -20, -30])).toEqual({
+      lossStreak: 2,
+      drawdownPct: (50 / 1050) * 100,
+    });
+    expect(demoForm(1000, [-10, 40])).toEqual({ lossStreak: 0, drawdownPct: 0 });
   });
 });
 
@@ -61,7 +111,16 @@ describe("profit and loss (Standard STP)", () => {
       8.5,
     );
   });
-  it("never filled, or breakeven: nothing", () => {
+  it("the profit lock banks 30% of the way to the take profit", () => {
+    // Lock stop 2650.90 on a 2653 take profit: +$9 on 0.1 lot.
+    expect(
+      paperPnl({ ...gold, status: "breakeven", bestTarget: 0, lockStop: 2650.9 }, 0.1, 0.3),
+    ).toBe(9);
+    const runner = { ...gold, tp2: 2656, tp3: 2656, lockStop: 2650.9 };
+    // A third at 2653 (+$30) and the rest at the lock (+$18) on 0.3 lot.
+    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(48);
+  });
+  it("never filled, or an older breakeven: nothing", () => {
     expect(paperPnl({ ...gold, status: "unfilled", bestTarget: 0, entered: false }, 0.1, 0.3)).toBe(
       0,
     );
@@ -87,12 +146,13 @@ describe("profit and loss (Standard STP)", () => {
 });
 
 describe("card lines", () => {
-  it("the balance and lot on every card, and a word when it goes harder", () => {
-    expect(paperLines(1000, 0.1, false)).toEqual([
+  it("the balance, lot and why on every card, and a word at the limit", () => {
+    expect(paperLines(1000, 0.1, "72% sure")).toEqual([
       "💰 Test account balance: $1,000 · this trade 0.1 lot",
+      "📏 Why 0.1: 72% sure",
     ]);
-    expect(paperLines(1043.5, 0.3, true)).toEqual([
-      "🔥 I'm going harder on this one: 0.3 lot instead of 0.1",
+    expect(paperLines(1043.5, 0.3)).toEqual([
+      "🔥 I'm going hard on this one: 0.3 lot, my limit",
       "💰 Test account balance: $1,043.50 · this trade 0.3 lot",
     ]);
   });
@@ -128,7 +188,6 @@ describe("the $1,000 demo shown to everyone", () => {
     expect(line).not.toContain(".00");
     expect(demoLine(1000, 999.5)).toContain("$999.50");
   });
-
 
   it("announces it once, as demo money and not advice", async () => {
     const { demoAnnouncement } = await import("./paper-account.server");

@@ -113,9 +113,10 @@ export function brokerSymbol(market: string): string {
 const round = (n: number, dp: number) => Number(n.toFixed(Math.max(0, Math.min(8, dp))));
 
 /**
- * The signal's stop moved to its entry (the learned breakeven fired, or a
+ * The signal's stop moved (the profit lock or an older breakeven fired, or a
  * runner banked its first third): the matching open MT5 position gets its
- * stop loss moved to the entry too, its take profit kept. Says what happened.
+ * stop loss moved to `level` (the profit lock's stop; the entry when not
+ * given), its take profit kept. Says what happened.
  */
 export async function moveStopToEntry(
   admin: Admin,
@@ -131,6 +132,7 @@ export async function moveStopToEntry(
     pip: number | null;
     decimals: number;
   },
+  level?: number,
 ): Promise<string> {
   if (!metaApiConfigured()) return "skipped: MetaApi not set up";
   const { setupKey } = await import("./signal-results.server");
@@ -143,8 +145,11 @@ export async function moveStopToEntry(
     .maybeSingle();
   const t = data as Pick<Mt5Trade, "id" | "ticket" | "take_profit" | "stop_loss" | "entry"> | null;
   if (!t?.ticket) return "no open position";
-  const entry = round(Number(signal.entry), signal.decimals);
-  if (Number(t.stop_loss) === entry) return "already at entry";
+  const entry = round(
+    Number.isFinite(level) ? Number(level) : Number(signal.entry),
+    signal.decimals,
+  );
+  if (Number(t.stop_loss) === entry) return "already there";
   const res = await metaApi<{ stringCode?: string; message?: string }>("/trade", {
     method: "POST",
     body: {
@@ -160,7 +165,7 @@ export async function moveStopToEntry(
       .from(MT5_TABLE)
       .update({ stop_loss: entry, updated_at: new Date().toISOString() })
       .eq("id", t.id);
-  return ok ? "stop moved to entry" : `failed: ${res.data?.message ?? res.status}`;
+  return ok ? `stop moved to ${entry}` : `failed: ${res.data?.message ?? res.status}`;
 }
 
 /** The MetaApi trade request for a signal (pure, so it can be tested). */

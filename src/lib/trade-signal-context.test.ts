@@ -117,7 +117,7 @@ describe("buildTradeSignalContext", () => {
     // OG Trade Bot taking the trade, plainly: in at, stop loss, one take profit.
     expect(signal.reply).toMatch(
       new RegExp(
-        `^(🟢 I'm gonna buy|🔴 I'm gonna sell) ₿ BTC/USD (now at|at|if it breaks (above|below)) ${entry.replace(".", "\\.")}( on a pullback)?\\n🛑 My stop loss will be ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n🎯 I'll take profit at [\\d.]+ · \\+\\$[\\d,.]+\\n\\n⏱ 1H · 💪 (5[1-9]|[6-8]\\d|90)%`,
+        `^(🟢 I'm gonna buy|🔴 I'm gonna sell) ₿ BTC/USD (now at|at|if it breaks (above|below)) ${entry.replace(".", "\\.")}( on a pullback)?\\n🛑 My stop loss will be ${stop.replace(".", "\\.")} · −\\$[\\d,.]+\\n🎯 I'll take profit at [\\d.]+ · \\+\\$[\\d,.]+\\n🔒 At [\\d.]+ \\(70% of the way\\) my stop moves to [\\d.]+, locking in profit\\n\\n⏱ 1H · 💪 (5[1-9]|[6-8]\\d|90)%`,
       ),
     );
     // The stop loss with what 0.5 lot loses there (bitcoin: $1 a lot per $1).
