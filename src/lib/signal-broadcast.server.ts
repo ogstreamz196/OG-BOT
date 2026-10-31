@@ -71,6 +71,8 @@ type PostDeps = {
    * when the desk is against it (or it's too late in this run to ask).
    */
   confirm?: (signal: Built) => Promise<Built | null>;
+  /** The test account's lot and balance on the card (paper-account.server.ts), when it's running. */
+  paper?: (signal: Built) => Promise<Built>;
   follow?: (signal: Built, messageId: number, card: string) => Promise<void>;
   now: () => number;
 };
@@ -263,6 +265,7 @@ async function postOnce(
     if (!backed?.plan || backed.plan.direction !== plan.direction) return false;
     signal = backed;
   }
+  if (deps.paper) signal = await deps.paper(signal).catch(() => signal);
   const text = card(signal);
   const messageId = await deps.post(text);
   if (messageId === null) return false;

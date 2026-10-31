@@ -646,6 +646,47 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         if (filled) update.entered_at = new Date(filled.at).toISOString();
         if (!isActive(status)) update.closed_at = new Date(now).toISOString();
 
+        // The test account: a finished trade's result goes on the balance,
+        // worked out on Vantage's spread (Standard STP: no commission).
+        const paper = row.feeds?.paper;
+        if (paper && paper.lots > 0 && paper.pnl == null && !isActive(status)) {
+          const pa = await import("./paper-account.server");
+          const { SPREAD_COST } = await import("./signal-learning.server");
+          const entered = !!(row.entered_at || update.entered_at);
+          const pnl = pa.paperPnl(
+            {
+              market: row.market,
+              direction: row.direction,
+              entry: Number(row.entry),
+              stop: Number(row.stop),
+              tp1: Number(row.tp1),
+              tp2: Number(row.tp2),
+              tp3: Number(row.tp3),
+              marketEntry: (row as { entry_type?: string }).entry_type === "market",
+              entered,
+              status,
+              bestTarget: best,
+              lastPrice: Number.isFinite(lastPrice) ? lastPrice : null,
+            },
+            paper.lots,
+            half > 0 ? half * 2 : (SPREAD_COST[row.market] ?? 0),
+          );
+          const state = await pa.paperState(admin);
+          const before = state ? await pa.paperBalance(admin, state) : null;
+          const balance = before != null ? Math.round((before + pnl) * 100) / 100 : undefined;
+          row.feeds = {
+            ...row.feeds,
+            paper: { ...paper, pnl, ...(balance != null ? { balance } : {}) },
+          };
+          if (entered && balance != null) {
+            const money = (n: number) =>
+              `$${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            lines.push(
+              `💰 Test account: ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one · balance now ${money(balance)}`,
+            );
+          } else update.feeds = { ...row.feeds };
+        }
+
         // One message per trade: each update goes into the card's journal,
         // and the live line stays fresh while the trade runs.
         const log = [...(row.feeds?.log ?? []), ...lines.map((l) => `${ukClock(now)} ${l}`)];
