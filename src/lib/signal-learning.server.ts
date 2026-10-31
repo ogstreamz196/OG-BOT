@@ -6,9 +6,10 @@
 // how much room the stop gets, how far each target is pulled in, and the
 // lowest confidence worth trading (Tuning in trade-signal.ts).
 //
-// A new setting is only kept when it beats the current one on the first 70%
-// of the period AND isn't worse on the last 30% it never saw (so it isn't
-// just fitting noise), and then it only moves halfway there, inside fixed
+// A new setting is only kept when it beats the current one over the older
+// three quarters of the period, in most of those stretches on their own,
+// AND isn't worse in the latest quarter it never saw (walk-forward, so it
+// isn't just fitting noise), and then it only moves halfway there, inside fixed
 // safe bounds. Every run writes a plain lesson, which live signals and the
 // AI desk read. Everything lives in site_content "signals.learning".
 import type { LearnSample } from "./trade-signal-backtest";
@@ -343,7 +344,7 @@ export function seeded(seed: number) {
 }
 
 /** Settings to try: the current one nudged every way, plus the hand-set rules. */
-export function candidates(current: Tuning, rand: () => number, count = 32): Tuning[] {
+export function candidates(current: Tuning, rand: () => number, count = 48): Tuning[] {
   const nudge = (v: number, size: number) => v + (rand() * 2 - 1) * size;
   const out: Tuning[] = [safeTuning(DEFAULT_TUNING)];
   for (let i = 0; i < count; i++)
@@ -397,10 +398,33 @@ const describe = (t: Tuning) =>
     ? `, banking a third at the take profit and running the rest to ${t.runner}× its distance`
     : "");
 
+/** The period is cut into this many stretches of time, oldest first. */
+export const FOLDS = 4;
+
+/** Samples cut into FOLDS stretches of time, oldest first (pure). */
+export function folds(sorted: LearnSample[], k = FOLDS): LearnSample[][] {
+  const size = Math.ceil(sorted.length / k);
+  return Array.from({ length: k }, (_, i) => sorted.slice(i * size, (i + 1) * size));
+}
+
+/**
+ * Walk-forward: a new setting has to do at least as well as the current one
+ * in most of the older stretches it was picked on (all but one), not just in
+ * total, and in the latest stretch, which it was never picked on. Pure.
+ */
+export function holdsUp(parts: LearnSample[][], next: Tuning, now: Tuning): boolean {
+  const better = (part: LearnSample[]) => evaluate(part, next).sumR >= evaluate(part, now).sumR;
+  const older = parts.slice(0, -1);
+  const steady = older.filter(better).length >= Math.max(1, older.length - 1);
+  return steady && better(parts[parts.length - 1]);
+}
+
 /**
  * One study of past setups: keeps the current setting unless another one
- * beats it on the first 70% of the period and holds up on the last 30%,
- * and then only moves halfway there. Pure, so it can be tested.
+ * beats it on the older three quarters of the period by a margin, also does
+ * at least as well in most of those stretches on their own, and holds up in
+ * the latest quarter it was never picked on (holdsUp); then it only moves
+ * halfway there. Pure, so it can be tested.
  */
 export function learnFromSamples(
   samples: LearnSample[],
@@ -410,9 +434,8 @@ export function learnFromSamples(
   days: number = LEARN_DAYS,
 ): { next: Tuning; kept: boolean; before: Evaluation; after: Evaluation; lesson: string } {
   const sorted = [...samples].sort((a, b) => a.t - b.t);
-  const cut = Math.floor(sorted.length * 0.7);
-  const train = sorted.slice(0, cut);
-  const test = sorted.slice(cut);
+  const parts = folds(sorted);
+  const train = parts.slice(0, -1).flat();
   const now = safeTuning(current);
   const before = evaluate(sorted, now);
   const curTrain = score(evaluate(train, now));
@@ -428,7 +451,7 @@ export function learnFromSamples(
   const margin = Number.isFinite(curTrain) ? Math.max(0.5, Math.abs(curTrain) * 0.05) : 0;
   let next = now;
   if (best !== now && bestScore > curTrain + margin) {
-    const heldUp = evaluate(test, best).sumR >= evaluate(test, now).sumR;
+    const heldUp = holdsUp(parts, best, now);
     // Halfway there, so one week can't swing the strategy.
     const blended = safeTuning({
       stopRoom: (now.stopRoom + best.stopRoom) / 2,
@@ -448,7 +471,8 @@ export function learnFromSamples(
       tpPad: !now.tpPad !== !best.tpPad ? best.tpPad : (now.tpPad + best.tpPad) / 2,
     });
     // Halfway when that's enough; the full step only when halfway isn't.
-    if (heldUp && score(evaluate(sorted, blended)) > score(before)) next = blended;
+    if (heldUp && score(evaluate(sorted, blended)) > score(before) && holdsUp(parts, blended, now))
+      next = blended;
     else if (heldUp && score(evaluate(sorted, best)) > score(before)) next = best;
   }
   // The hours that keep losing under that setting are sat out.
