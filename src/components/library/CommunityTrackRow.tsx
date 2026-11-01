@@ -196,7 +196,10 @@ function CommunityTrackRowImpl({
   }
 
   const canShare = isReady && !!song.unlocked;
-  const driveLink = (song as unknown as { drive_audio_link?: string | null }).drive_audio_link;
+  // The Drive file is the full song, so it's only offered once it's unlocked.
+  const driveLink = song.unlocked
+    ? (song as unknown as { drive_audio_link?: string | null }).drive_audio_link
+    : null;
   const styles = styleChips(song.style);
 
   const actions = (

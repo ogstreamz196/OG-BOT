@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { AlertTriangle, DoorOpen, Music2 } from "lucide-react";
+import { AlertTriangle, DoorOpen, HardDrive, Music2 } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -7,6 +7,7 @@ import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { MusicDesk } from "@/components/admin/MusicDesk";
 import { GenerationFailures } from "@/components/admin/GenerationFailures";
 import { PortalManager } from "@/components/admin/PortalManager";
+import { DriveSongsPanel } from "@/components/admin/DriveSongsPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/music")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
@@ -35,6 +36,13 @@ const TABS: readonly BossTab[] = [
     Icon: DoorOpen,
     hint: "Language and genre portals: open, close or put into maintenance.",
     Panel: PortalManager,
+  },
+  {
+    value: "drive",
+    label: "Drive",
+    Icon: HardDrive,
+    hint: "Full songs live on your Google Drive and play from there. Move the rest across here.",
+    Panel: DriveSongsPanel,
   },
 ];
 

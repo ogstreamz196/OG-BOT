@@ -81,6 +81,7 @@ import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authe
 import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
 import { Route as ApiPublicSignalScanRouteImport } from './routes/api/public/signal-scan'
+import { Route as ApiPublicSongAudioRouteImport } from './routes/api/public/song-audio'
 import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
 import { Route as ApiPublicTradeSignalWatchRouteImport } from './routes/api/public/trade-signal-watch'
@@ -478,6 +479,11 @@ const ApiPublicSignalScanRoute = ApiPublicSignalScanRouteImport.update({
   path: '/api/public/signal-scan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSongAudioRoute = ApiPublicSongAudioRouteImport.update({
+  id: '/api/public/song-audio',
+  path: '/api/public/song-audio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSportsGuideRemindersRoute =
   ApiPublicSportsGuideRemindersRouteImport.update({
     id: '/api/public/sports-guide-reminders',
@@ -630,6 +636,7 @@ export interface FileRoutesByFullPath {
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
+  '/api/public/song-audio': typeof ApiPublicSongAudioRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
@@ -717,6 +724,7 @@ export interface FileRoutesByTo {
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
+  '/api/public/song-audio': typeof ApiPublicSongAudioRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
@@ -806,6 +814,7 @@ export interface FileRoutesById {
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
+  '/api/public/song-audio': typeof ApiPublicSongAudioRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
@@ -895,6 +904,7 @@ export interface FileRouteTypes {
     | '/library/$songId'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
+    | '/api/public/song-audio'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
@@ -982,6 +992,7 @@ export interface FileRouteTypes {
     | '/library/$songId'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
+    | '/api/public/song-audio'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
@@ -1070,6 +1081,7 @@ export interface FileRouteTypes {
     | '/_authenticated/library/$songId'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
+    | '/api/public/song-audio'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
@@ -1126,6 +1138,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
   ApiPublicSignalScanRoute: typeof ApiPublicSignalScanRoute
+  ApiPublicSongAudioRoute: typeof ApiPublicSongAudioRoute
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
   ApiPublicTradeSignalWatchRoute: typeof ApiPublicTradeSignalWatchRoute
@@ -1641,6 +1654,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSignalScanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/song-audio': {
+      id: '/api/public/song-audio'
+      path: '/api/public/song-audio'
+      fullPath: '/api/public/song-audio'
+      preLoaderRoute: typeof ApiPublicSongAudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sports-guide-reminders': {
       id: '/api/public/sports-guide-reminders'
       path: '/api/public/sports-guide-reminders'
@@ -1881,6 +1901,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
   ApiPublicSignalScanRoute: ApiPublicSignalScanRoute,
+  ApiPublicSongAudioRoute: ApiPublicSongAudioRoute,
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
   ApiPublicTradeSignalWatchRoute: ApiPublicTradeSignalWatchRoute,

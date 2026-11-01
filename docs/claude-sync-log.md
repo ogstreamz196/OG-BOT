@@ -7,14 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `songs-on-drive` · **Started 2026-11-01:** full songs
-  stored on and played from the Boss's Google Drive (Boss's ask: "main, not
-  backup"). Touches `src/lib/drive-archive.functions.ts`, a new
-  `song-audio` route and link helper, `public-track.functions.ts`,
-  `telegram-track.server.ts`, `telegram/webhook.ts` (sendTrackAudio only),
-  `supabase/functions/song-url`, `suno-retry.ts`, `CommunityTrackRow.tsx`, a
-  Boss Music panel.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
@@ -104,6 +96,18 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-11-01 · #190** · Songs live on the Boss's Google
+  Drive (Boss: "main, not backup"). Full plays and downloads (song-url, the
+  public track page and playlist, Telegram) come from Drive through a signed,
+  expiring `/api/public/song-audio` link with a fallback to the stored copy
+  (`song-audio-link.ts` and its Deno copy, `song-audio.server.ts`). New songs
+  go to Drive in the 5-minute song job, and Boss → Music → Drive moves the
+  rest (191 of 219 weren't there yet). The library's Drive link now shows
+  only once a song is unlocked: it used to show for locked songs, which gave
+  the full song away. Previews, lyric videos and the stored full copies are
+  unchanged and nothing is deleted. Needs the song-url function redeployed.
+  No migration.
 
 - **Partner's Claude · 2026-10-31 · #188** · Leaving Lovable step 2 done
   without a GitHub secret: `og_bot` applied in the hub through the database
