@@ -409,6 +409,25 @@ export function journalCard(
     .slice(0, 4096);
 }
 
+/** A card or update line without its money (the copy bot does the money). */
+export function withoutMoney(line: string): string {
+  return line
+    .replace(/ · [−+-]\$[\d,]+(?:\.\d+)?/g, "")
+    .replace(/ \([−+-]\$[\d,]+(?:\.\d+)? locked\)/g, "")
+    .replace(/ \([−+-]\$[\d,]+(?:\.\d+)?\)/g, "");
+}
+
+/**
+ * What the signals chat shows of a card and its updates: prices only. Only
+ * the message changes; the stored card and log keep everything.
+ */
+export function chatJournal(card: string, log: string[]): { card: string; log: string[] } {
+  return {
+    card: card.split("\n").map(withoutMoney).join("\n"),
+    log: log.filter((l) => !/^(\d\d:\d\d )?💰/.test(l)).map(withoutMoney),
+  };
+}
+
 /** Posts an update under the signal's card; the message id, or null. */
 async function sendFollowUp(row: Row, text: string): Promise<number | null> {
   if (!row.chat_id) return null;
@@ -900,12 +919,13 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               now - (row.last_edit_at ? Date.parse(row.last_edit_at) : 0) >= LIVE_EDIT_MS));
         let merged = false;
         if (editDue) {
+          const shown = inChat ? chatJournal(row.card!, log) : { card: row.card!, log };
           const edited = await senderCall(row, "editMessageText", {
             chat_id: row.chat_id,
             message_id: row.message_id,
             text: journalCard(
-              row.card!,
-              log,
+              shown.card,
+              shown.log,
               live
                 ? inChat
                   ? chatLiveLine({ ...row, status }, lastPrice, now, chatLots)

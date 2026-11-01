@@ -222,6 +222,80 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
   }
 }
 
+/* ── The Copy Trader B0T taking over the tally ─────────────────────────── */
+
+/** Which bot has the tally now (site_content), so the switch happens once. */
+export const SCORE_BY_KEY = "signals.score.by";
+
+/**
+ * Run each minute by the tracker. The first time the Copy Trader B0T is set
+ * up and on duty in the signals chat, it takes over at once instead of
+ * waiting for the next trade: the trade bot's closed cards since the last
+ * purge are redrawn without money, and the copy bot posts the tally. Then it's noted
+ * (SCORE_BY_KEY) and does nothing again unless a different copy bot is set up.
+ */
+export async function ensureCopyTally(admin: Admin): Promise<string> {
+  try {
+    const chatId = await signalsChatId();
+    if (chatId === null) return "no signals chat";
+    const copier = await copyBot(admin, chatId);
+    if (!copier) return "no copy bot";
+    const { data: mark } = await admin
+      .from("site_content")
+      .select("value")
+      .eq("key", SCORE_BY_KEY)
+      .maybeSingle();
+    const want = `copy:${copier.id}`;
+    if ((mark as { value?: string } | null)?.value === want) return "copy bot has it";
+
+    // The trade bot's closed cards since the last purge, redrawn without
+    // money (open ones are redrawn by the tracker). Stored rows aren't changed.
+    const since = await chatPurgedAt();
+    const { data: rows } = await admin
+      .from("trade_signals")
+      .select("message_id, card, feeds, entered_at, status")
+      .eq("sender_worker", "trade")
+      .eq("chat_id", chatId)
+      .gte("created_at", new Date(since ?? 0).toISOString())
+      .not("message_id", "is", null)
+      .limit(200);
+    const { chatJournal, journalCard } = await import("./trade-signal-tracker.server");
+    const { isActive } = await import("./trade-signal-outcome");
+    let tidied = 0;
+    for (const r of (rows ?? []) as {
+      message_id: number;
+      card: string | null;
+      feeds: { log?: string[] } | null;
+      entered_at: string | null;
+      status: string;
+    }[]) {
+      if (!r.card || isActive(r.status as never)) continue;
+      const log = r.feeds?.log ?? [];
+      const was = journalCard(r.card, log, null, !!r.entered_at);
+      const shown = chatJournal(r.card, log);
+      const text = journalCard(shown.card, shown.log, null, !!r.entered_at);
+      if (text === was) continue;
+      await workerApi("editMessageText", {
+        chat_id: chatId,
+        message_id: r.message_id,
+        text,
+        disable_web_page_preview: true,
+      });
+      tidied++;
+    }
+
+    const score = await refreshScore(admin, chatId);
+    if (score !== "posted") return `tidied ${tidied}, tally not posted yet (${score})`;
+    const at = new Date().toISOString();
+    await admin
+      .from("site_content")
+      .upsert({ key: SCORE_BY_KEY, value: want, updated_at: at }, { onConflict: "key" });
+    return `copy bot took over (tidied ${tidied})`;
+  } catch (e) {
+    return `failed: ${(e as Error).message}`;
+  }
+}
+
 /* ── Fresh starts ─────────────────────────────────────────────────────── */
 
 /** When the Boss last purged the signals chat (ISO), in site_content. */
