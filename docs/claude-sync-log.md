@@ -112,7 +112,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-01 · PR_NUM** · Boss: "count any signal asked by
+- **Boss's Claude · 2026-11-01 · #193** · Boss: "count any signal asked by
   the user as part of the counter, every signal it gives". The record has no
   confidence cut-off any more (`RECORD_MIN_CONFIDENCE` 0: members' requests
   and auto-posts, still never market-bias calls, still from the last reset).
