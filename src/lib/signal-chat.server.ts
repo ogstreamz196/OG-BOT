@@ -160,8 +160,9 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
       () => null,
     );
     if (!record) return "skipped: the signal record can't be read";
-    // While the demo runs, the whole post comes from its own trades (the
-    // counter, each market in cash and the balance), so it always adds up.
+    // The counter (streak, last ten, win rate) is every signal OG B0T gives,
+    // members' requests too (the Boss's choice); each market in cash and the
+    // balance are the demo's own copied trades, so they always add up.
     const pa = await import("./paper-account.server");
     const state = await pa.paperState(admin).catch(() => null);
     const tally = state ? await pa.demoResults(admin, state).catch(() => null) : null;
@@ -174,7 +175,7 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
       chat_id: chatId,
       text: tally
         ? resultsAnnouncement(
-            { ...record, wins: tally.wins, losses: tally.losses, form: tally.form },
+            record,
             pa.demoLine(state!.start, tally.balance),
             tally.byMarket,
             copier ? { copying } : null,

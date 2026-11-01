@@ -97,10 +97,17 @@ describe("OG Trade Bot results (announced by OG B0T)", () => {
     const r = tallyRecord([sig("tp1", { best_target: 1 }), sig("stopped"), sig("stopped")], null);
     expect(currentStreak(r)).toEqual({ result: "lost", count: 2 });
     expect(resultsAnnouncement(r, "💰 Balance: $982.70", { BTCUSD: -17.3, XAUUSD: 0 })).toBe(
-      "📣 OG TRADE BOT RESULTS\n🥶 2 losses on the bounce. He'll bounce back, he always does.\n✅🛑🛑\n🏆 33% win rate · ✅ 1 · 🛑 2\n₿ Bitcoin −$17.30\n🥇 Gold +$0\n💰 Balance: $982.70",
+      "📣 OG TRADE BOT RESULTS\n🥶 2 losses on the bounce. He'll bounce back, he always does.\n✅🛑🛑\n🏆 33% win rate · ✅ 1 · 🛑 2 · every signal\n₿ Bitcoin −$17.30\n🥇 Gold +$0\n💰 Balance: $982.70",
     );
     const none = resultsAnnouncement(tallyRecord([], null));
     expect(none).toBe("📣 OG TRADE BOT RESULTS\n🏁 Nothing settled yet");
     expect(none).not.toMatch(/70%|TODAY/);
+  });
+});
+
+describe("every signal counts", () => {
+  it("has no confidence cut-off: members' requests and low-confidence signals count too", async () => {
+    const { RECORD_MIN_CONFIDENCE } = await import("./signal-record.server");
+    expect(RECORD_MIN_CONFIDENCE).toBe(0);
   });
 });

@@ -112,6 +112,16 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-01 · #193** · Boss: "count any signal asked by
+  the user as part of the counter, every signal it gives". The record has no
+  confidence cut-off any more (`RECORD_MIN_CONFIDENCE` 0: members' requests
+  and auto-posts, still never market-bias calls, still from the last reset).
+  In the Copy Trader B0T's tally the streak, last ten and win rate are that
+  record again (it was the demo's trades, #186), with "· every signal" on the
+  win-rate line; each market in cash and the balance stay the copied trades.
+  Built on the partner's #191/#192 (copy bot heading and copying lines
+  untouched). No migration.
+
 - **Partner's Claude · 2026-11-01 · #191** · Boss's split, approved from a
   mock-up: the OG Trade Bot only makes signals, with cards and updates in
   prices only (no lots or $). The Copy Trader B0T (@ogcopybot, connected

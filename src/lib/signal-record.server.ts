@@ -1,5 +1,6 @@
-// The 70%+ record: every gold and bitcoin signal sent at 70% confidence or
-// more (requests and auto-posts alike, never market-bias calls), and how
+// The signal record: every gold and bitcoin signal OG B0T gives, whatever its
+// confidence (members' requests and auto-posts alike, never market-bias
+// calls; the Boss's choice, it used to be 70%+ only), and how
 // they did, counted from the last time the Boss reset it. It never resets on
 // its own: only the Boss's Reset button moves the start date
 // (site_content "signals.record.resetAt").
@@ -14,7 +15,8 @@ import { resultFor, setupKey } from "./signal-results.server";
 
 type Admin = any;
 
-export const RECORD_MIN_CONFIDENCE = 70;
+/** Every signal counts (the Boss's choice); it used to be 70. */
+export const RECORD_MIN_CONFIDENCE = 0;
 export const RECORD_RESET_KEY = "signals.record.resetAt";
 const PAGE = 1000;
 const MAX_ROWS = 50_000;
@@ -141,7 +143,7 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
   return record;
 }
 
-/** The 70%+ record since the Boss's last reset, or null when it can't be read. */
+/** The record of every signal since the Boss's last reset, or null when it can't be read. */
 export async function signalRecord(admin: Admin): Promise<SignalRecord | null> {
   try {
     const since = await recordSince(admin);
@@ -286,8 +288,12 @@ export function resultsAnnouncement(
     ...(copy?.copying ?? []),
     hype,
     ...(lastTen.length ? [lastTen.map((f) => (f === "won" ? "✅" : "🛑")).join("")] : []),
+    // With the money lines below (the copied trades), the counter says it's
+    // every signal OG B0T gives, so the two never look like they disagree.
     ...(decided
-      ? [`🏆 ${Math.round((r.wins / decided) * 100)}% win rate · ✅ ${r.wins} · 🛑 ${r.losses}`]
+      ? [
+          `🏆 ${Math.round((r.wins / decided) * 100)}% win rate · ✅ ${r.wins} · 🛑 ${r.losses}${demo ? " · every signal" : ""}`,
+        ]
       : []),
     ...Object.entries(byMarket ?? {})
       .filter(([, v]) => Number.isFinite(v))
