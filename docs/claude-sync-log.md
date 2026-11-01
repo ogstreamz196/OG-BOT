@@ -125,7 +125,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-01 · PR_NUM** · Classic chart patterns, gold and
+- **Boss's Claude · 2026-11-01 · #195** · Classic chart patterns, gold and
   bitcoin only, no AI: `double_top_bottom`, `flag_continuation`,
   `fvg_retest` (only with the bigger timeframe's trend) in `trade-setups.ts`
   (`PATTERN_IDS`), stops past the invalidation level, targets 1/1.5/2 risks,
