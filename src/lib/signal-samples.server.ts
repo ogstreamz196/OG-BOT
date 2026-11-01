@@ -21,7 +21,7 @@ type Admin = any;
 
 const TABLE = "signal_learn_samples";
 /** Bump when buildPlan / collectSamples change what a sample holds. */
-export const SAMPLE_VERSION = 4;
+export const SAMPLE_VERSION = 5;
 /** How far back the loop learns from, once the history is built. */
 export const LEARN_DAYS = 90;
 /** What's replayed when nothing's kept yet (or there's no table). */

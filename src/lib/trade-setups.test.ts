@@ -199,3 +199,120 @@ describe("fast scalps: wicks and reversals", () => {
     expect(provenConfidence(62, undefined)).toBe(62);
   });
 });
+
+describe("classic chart patterns", () => {
+  /** Flat candles, two lows at `a` and `b` (indexes 30 and 50), and a last candle. */
+  const doubleBottom = (a: number, b: number, last: Candle) => {
+    const cs = flat(79);
+    cs[30] = bar(30, 98, 98.5, a, 97.5);
+    cs[50] = bar(50, 98, 98.5, b, 97.5);
+    cs.push(last);
+    return cs;
+  };
+
+  it("double bottom: two lows within 0.2 ATR, 20 candles apart, first close over the neckline", () => {
+    const cs = doubleBottom(97, 97.1, bar(79, 100, 101.2, 99.9, 101));
+    const hit = findSetups(cs).find((h) => h.id === "double_top_bottom");
+    expect(hit).toMatchObject({ direction: "BUY", entry: 101 });
+    // Stop past the second bottom (clamped to 2.5 ATR), targets 1, 1.5, 2 risks.
+    expect(101 - hit!.risk).toBeLessThan(101);
+    expect(hit!.targets[0]).toBeCloseTo(101 + hit!.risk);
+    expect(hit!.targets[1]).toBeCloseTo(101 + hit!.risk * 1.5);
+    expect(hit!.targets[2]).toBeCloseTo(101 + hit!.risk * 2);
+  });
+
+  it("double bottom: not with lows too far apart in price, or without the neckline break", () => {
+    const uneven = doubleBottom(97, 98, bar(79, 100, 101.2, 99.9, 101));
+    expect(findSetups(uneven).find((h) => h.id === "double_top_bottom")).toBeUndefined();
+    const noBreak = doubleBottom(97, 97.1, bar(79, 100, 100.4, 99.9, 100.3));
+    expect(findSetups(noBreak).find((h) => h.id === "double_top_bottom")).toBeUndefined();
+  });
+
+  it("double top: the same upside down, as a sell", () => {
+    const cs = flat(79);
+    cs[30] = bar(30, 102, 103, 101.5, 102.5);
+    cs[50] = bar(50, 102, 102.9, 101.5, 102.5);
+    cs.push(bar(79, 100, 100.1, 98.8, 99));
+    expect(findSetups(cs).find((h) => h.id === "double_top_bottom")).toMatchObject({
+      direction: "SELL",
+      entry: 99,
+    });
+  });
+
+  /** A 4-candle pole up from 100, a flag with its low at `low`, and a last candle. */
+  const bullFlag = (low: number, last: Candle) => {
+    const cs = flat(71);
+    cs.push(bar(71, 100, 101, 99.9, 101));
+    cs.push(bar(72, 101, 102, 100.9, 102));
+    cs.push(bar(73, 102, 103, 101.9, 103));
+    cs.push(bar(74, 103, 103.6, 102.9, 103.5));
+    for (let k = 75; k < 81; k++) cs.push(bar(k, 103.3, 103.5, low, 103));
+    cs.push(last);
+    return cs;
+  };
+
+  it("bull flag: a 1.5 ATR pole, a tight shallow flag, and a close above it", () => {
+    const hit = findSetups(bullFlag(102.6, bar(81, 103, 104, 102.9, 103.9))).find(
+      (h) => h.id === "flag_continuation",
+    );
+    expect(hit).toMatchObject({ direction: "BUY", entry: 103.9 });
+    // Stop just under the flag's base (102.6).
+    expect(103.9 - hit!.risk).toBeLessThan(102.6);
+    expect(103.9 - hit!.risk).toBeGreaterThan(102.3);
+    expect(hit!.targets[2]).toBeCloseTo(103.9 + hit!.risk * 2);
+  });
+
+  it("bull flag: not when the flag gives back too much, or before the breakout", () => {
+    const deep = bullFlag(100.5, bar(81, 103, 104, 102.9, 103.9));
+    expect(findSetups(deep).find((h) => h.id === "flag_continuation")).toBeUndefined();
+    const inside = bullFlag(102.6, bar(81, 103, 103.4, 102.9, 103.3));
+    expect(findSetups(inside).find((h) => h.id === "flag_continuation")).toBeUndefined();
+  });
+
+  /** A bullish gap (100.5 to 101.2) at candles 72–74, held, then a last candle. */
+  const bullGap = (last: Candle) => {
+    const cs = flat(72);
+    cs.push(bar(72, 100, 100.5, 99.5, 100.3));
+    cs.push(bar(73, 100.4, 102, 100.3, 101.9));
+    cs.push(bar(74, 101.9, 102.5, 101.2, 102.3));
+    for (let k = 75; k < 80; k++) cs.push(bar(k, 102.3, 102.8, 101.6, 102.4));
+    cs.push(last);
+    return cs;
+  };
+  const tap = bar(80, 101.8, 102.6, 101, 102.4);
+
+  it("fair value gap: taps into the gap and closes back out with the bigger trend", () => {
+    const hit = findSetups(bullGap(tap), "bullish").find((h) => h.id === "fvg_retest");
+    expect(hit).toMatchObject({ direction: "BUY", entry: 102.4 });
+    // Stop under the gap (toward its origin), targets 1, 1.5, 2 risks.
+    expect(102.4 - hit!.risk).toBeLessThan(101.2);
+    expect(hit!.targets[1]).toBeCloseTo(102.4 + hit!.risk * 1.5);
+    // Trend alignment puts it in the 70–80% band.
+    expect(hit!.confidencePct).toBe(72);
+  });
+
+  it("fair value gap: never against or without the bigger trend, nor without a tap", () => {
+    expect(findSetups(bullGap(tap)).find((h) => h.id === "fvg_retest")).toBeUndefined();
+    expect(findSetups(bullGap(tap), "bearish").find((h) => h.id === "fvg_retest")).toBeUndefined();
+    const noTap = bar(80, 102.3, 102.9, 101.7, 102.6);
+    expect(
+      findSetups(bullGap(noTap), "bullish").find((h) => h.id === "fvg_retest"),
+    ).toBeUndefined();
+  });
+
+  it("chart patterns need 55% to go live; scanned charts map back to their frame", async () => {
+    const { setupMinWinRate } = await import("./signal-learning.server");
+    expect(setupMinWinRate("double_top_bottom")).toBe(0.55);
+    expect(setupMinWinRate("flag_continuation")).toBe(0.55);
+    expect(setupMinWinRate("fvg_retest")).toBe(0.55);
+    expect(setupMinWinRate("sweep_reclaim")).toBe(0.5);
+    const { frameOf } = await import("./signal-broadcast.server");
+    expect(["1M", "5M", "15M", "1H", undefined].map(frameOf)).toEqual([
+      "1m",
+      "5m",
+      "15m",
+      "1h",
+      "5m",
+    ]);
+  });
+});

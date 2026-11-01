@@ -21,7 +21,7 @@ import {
   type SignalStatus,
   type TimeLimits,
 } from "./trade-signal-outcome";
-import { SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
+import { PATTERN_IDS, SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
 import {
   DEFAULT_TUNING,
   NO_TIME_LIMIT,
@@ -782,6 +782,14 @@ export type SetupStats = Evaluation & { live: boolean };
 export const SETUP_MIN_TRADES = 12;
 
 /**
+ * The win rate a setup needs to go live: half for the older setups, 55% for
+ * the classic chart patterns (the Boss's bar for them).
+ */
+export function setupMinWinRate(id: SetupId): number {
+  return PATTERN_IDS.includes(id) ? 0.55 : 0.5;
+}
+
+/**
  * Each extra setup (trade-setups.ts) followed exactly like a signal under the
  * market's setting (market entry, the stop room, the one take profit). A
  * setup goes live with at least SETUP_MIN_TRADES trades, winning at least
@@ -813,7 +821,8 @@ export function evaluateSetups(
     const e = evaluate(asSamples, { ...tune, minConfidence: 0 });
     out[id] = {
       ...e,
-      live: e.n >= SETUP_MIN_TRADES && e.winRate >= 0.5 && e.avgR > 0,
+      // Making money on average after the spread (evaluate takes it off).
+      live: e.n >= SETUP_MIN_TRADES && e.winRate >= setupMinWinRate(id) && e.avgR > 0,
     };
   }
   return out;

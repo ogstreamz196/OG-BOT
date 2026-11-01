@@ -25,7 +25,10 @@ export type SetupId =
   | "sweep_reclaim"
   | "range_fade"
   | "wick_rejection"
-  | "exhaustion_reversal";
+  | "exhaustion_reversal"
+  | "double_top_bottom"
+  | "flag_continuation"
+  | "fvg_retest";
 
 export const SETUP_IDS: SetupId[] = [
   "breakout_retest",
@@ -33,7 +36,13 @@ export const SETUP_IDS: SetupId[] = [
   "range_fade",
   "wick_rejection",
   "exhaustion_reversal",
+  "double_top_bottom",
+  "flag_continuation",
+  "fvg_retest",
 ];
+
+/** Classic chart patterns: they need a higher win rate before going live (SETUP_MIN_WIN_RATE). */
+export const PATTERN_IDS: SetupId[] = ["double_top_bottom", "flag_continuation", "fvg_retest"];
 
 /** What members see on the card. */
 export const SETUP_NAMES: Record<SetupId, string> = {
@@ -42,6 +51,9 @@ export const SETUP_NAMES: Record<SetupId, string> = {
   range_fade: "Range fade",
   wick_rejection: "Wick rejection",
   exhaustion_reversal: "Exhaustion reversal",
+  double_top_bottom: "Double top / bottom",
+  flag_continuation: "Flag continuation",
+  fvg_retest: "Fair value gap retest",
 };
 
 export type SetupHit = {
@@ -239,6 +251,158 @@ function exhaustionReversal(
   return null;
 }
 
+/** Bars on each side a swing point has to beat to count. */
+const WING = 2;
+
+/** Indexes (in `cs`) of swing lows (side 1) or swing highs (side −1). */
+function swings(cs: Candle[], side: 1 | -1): number[] {
+  const out: number[] = [];
+  for (let i = WING; i < cs.length - WING; i++) {
+    const v = side === 1 ? cs[i].l : cs[i].h;
+    let ok = true;
+    for (let k = i - WING; k <= i + WING && ok; k++)
+      if (k !== i) ok = side === 1 ? cs[k].l >= v : cs[k].h <= v;
+    if (ok) out.push(i);
+  }
+  return out;
+}
+
+/**
+ * Double bottom (top) with a neckline break: two swing lows (highs) in the 60
+ * candles before the last, at least 10 candles apart and within 0.2 ATR of
+ * each other, both the window's bottom (top) within that; the neckline (the
+ * highest high between them, lowest low for a top) is at least 0.5 ATR away,
+ * and the last candle is the first to close beyond it. The stop goes past
+ * the second bottom (top), targets 1, 1.5 and 2 risks.
+ */
+function doubleTopBottom(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const last = cs[cs.length - 1];
+  const prev = cs[cs.length - 2];
+  const win = cs.slice(-61, -1);
+  for (const side of [1, -1] as const) {
+    const lv = (c: Candle) => (side === 1 ? c.l : c.h);
+    const extreme = side === 1 ? Math.min(...win.map(lv)) : Math.max(...win.map(lv));
+    const pts = swings(win, side).filter((i) => Math.abs(lv(win[i]) - extreme) <= a * 0.2);
+    // The latest pair that fits.
+    for (let j = pts.length - 1; j > 0; j--) {
+      const second = pts[j];
+      const first = pts
+        .slice(0, j)
+        .reverse()
+        .find((i) => second - i >= 10);
+      if (first == null) continue;
+      if (Math.abs(lv(win[first]) - lv(win[second])) > a * 0.2) continue;
+      const between = win.slice(first + 1, second);
+      if (!between.length) continue;
+      const neck =
+        side === 1 ? Math.max(...between.map((c) => c.h)) : Math.min(...between.map((c) => c.l));
+      if ((neck - extreme) * side < a * 0.5) continue;
+      // The first close through the neckline, and nothing since the second
+      // bottom has already closed through it.
+      if ((last.c - neck) * side <= 0 || (prev.c - neck) * side > 0) continue;
+      if (win.slice(second).some((c) => (c.c - neck) * side > 0)) continue;
+      const risk = clampRisk(Math.abs(last.c - (lv(win[second]) - side * a * 0.1)), a, 0.5, 2.5);
+      return {
+        id: "double_top_bottom",
+        direction: side === 1 ? "BUY" : "SELL",
+        entry: last.c,
+        risk,
+        targets: inR(last.c, side, risk, [1, 1.5, 2]),
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Bull (bear) flag: a pole of 3 to 5 candles moving at least 1.5 ATR, then a
+ * tight flag of 5 to 12 candles (no taller than 60% of the pole, giving back
+ * at most half of it, never past the pole's high/low), and the last candle
+ * closing beyond the flag in the pole's direction. The stop goes past the
+ * flag's base, targets 1, 1.5 and 2 risks.
+ */
+function flagContinuation(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const last = cs[cs.length - 1];
+  for (let f = 5; f <= 12; f++) {
+    const flag = cs.slice(-1 - f, -1);
+    const top = Math.max(...flag.map((c) => c.h));
+    const bottom = Math.min(...flag.map((c) => c.l));
+    for (let p = 3; p <= 5; p++) {
+      const pole = cs.slice(-1 - f - p, -1 - f);
+      if (pole.length < p) continue;
+      const move = pole[pole.length - 1].c - pole[0].o;
+      if (Math.abs(move) < a * 1.5) continue;
+      const side: 1 | -1 = move > 0 ? 1 : -1;
+      const size = Math.abs(move);
+      const poleEnd =
+        side === 1 ? Math.max(...pole.map((c) => c.h)) : Math.min(...pole.map((c) => c.l));
+      if (top - bottom > size * 0.6) continue;
+      // Shallow: gives back at most half the pole, never makes a new extreme.
+      const giveBack = side === 1 ? poleEnd - bottom : top - poleEnd;
+      if (giveBack > size * 0.5) continue;
+      if ((side === 1 ? top - poleEnd : poleEnd - bottom) > a * 0.1) continue;
+      // The breakout: the last close beyond the flag, the pole's way.
+      const edge = side === 1 ? top : bottom;
+      if ((last.c - edge) * side <= 0 || (last.c - last.o) * side <= 0) continue;
+      const base = side === 1 ? bottom : top;
+      const risk = clampRisk(Math.abs(last.c - (base - side * a * 0.1)), a, 0.4, 2);
+      return {
+        id: "flag_continuation",
+        direction: side === 1 ? "BUY" : "SELL",
+        entry: last.c,
+        risk,
+        targets: inR(last.c, side, risk, [1, 1.5, 2]),
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Fair value gap retest, only with the bigger timeframe's trend: a 3-candle
+ * imbalance in the 20 candles before the last (bullish: candle 1's high under
+ * candle 3's low by 0.2 ATR or more; bearish the other way round) that no
+ * close has filled since, and the last candle dipping into the gap and closing
+ * back out of it the trend's way. The stop goes past the gap's origin
+ * (candle 1's low, high for a bearish gap), targets 1, 1.5 and 2 risks.
+ */
+function fvgRetest(
+  cs: Candle[],
+  a: number,
+  higher?: FrameRead["bias"],
+): Omit<SetupHit, "confidencePct" | "atr"> | null {
+  const side: 1 | -1 | 0 = higher === "bullish" ? 1 : higher === "bearish" ? -1 : 0;
+  if (!side) return null;
+  const last = cs[cs.length - 1];
+  const n = cs.length;
+  // Newest gap first; candle 3 at least two candles before the last.
+  for (let k = n - 4; k >= Math.max(0, n - 22); k--) {
+    const c1 = cs[k];
+    const c3 = cs[k + 2];
+    const lo = side === 1 ? c1.h : c3.h; // gap's far edge (where it'd be filled)
+    const hi = side === 1 ? c3.l : c1.l; // gap's near edge (where price comes back in)
+    const gap = side === 1 ? c3.l - c1.h : c1.l - c3.h;
+    if (gap < a * 0.2) continue;
+    // No close has filled it since.
+    const after = cs.slice(k + 3, -1);
+    if (after.some((c) => (side === 1 ? c.c < lo : c.c > lo))) continue;
+    // The last candle taps into it and closes back out, the trend's way.
+    const tapped =
+      side === 1 ? last.l <= hi && last.l >= lo - a * 0.1 : last.h >= hi && last.h <= lo + a * 0.1;
+    if (!tapped || (last.c - hi) * side <= 0 || (last.c - last.o) * side <= 0) continue;
+    const origin = side === 1 ? c1.l : c1.h;
+    const risk = clampRisk(Math.abs(last.c - (origin - side * a * 0.1)), a, 0.4, 2);
+    return {
+      id: "fvg_retest",
+      direction: side === 1 ? "BUY" : "SELL",
+      entry: last.c,
+      risk,
+      targets: inR(last.c, side, risk, [1, 1.5, 2]),
+    };
+  }
+  return null;
+}
+
 const clampRisk = (r: number, a: number, lo: number, hi: number) =>
   Math.min(Math.max(r, a * lo), a * hi);
 
@@ -259,6 +423,9 @@ export function findSetups(candles: Candle[], higher?: FrameRead["bias"]): Setup
     rangeFade(candles, a),
     wickRejection(candles, a),
     exhaustionReversal(candles, a),
+    doubleTopBottom(candles, a),
+    flagContinuation(candles, a),
+    fvgRetest(candles, a, higher),
   ];
   return hits
     .filter((h): h is NonNullable<typeof h> => !!h && h.risk > 0)
