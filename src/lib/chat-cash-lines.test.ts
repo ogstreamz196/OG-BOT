@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {} }));
 
-// The signals chat's update lines: short, and in cash on the demo's lot.
-// A bitcoin sell at 77397.70, 0.1 lot: $0.10 a dollar.
+// The signals chat's update lines: short and prices only (the Boss's split:
+// the OG Trade Bot makes signals, the Copy Trader B0T does the money).
 const row = {
   id: "1",
   user_id: "u",
@@ -34,23 +34,23 @@ const row = {
   created_at: "2026-10-31T12:00:00Z",
 } as never;
 
-describe("signals chat lines in cash", () => {
+describe("signals chat lines, prices only", () => {
   it("the live price line", async () => {
     const { chatLiveLine } = await import("./trade-signal-tracker.server");
     const at = Date.parse("2026-10-31T14:09:00Z");
-    expect(chatLiveLine(row, 77372.4, at, 0.1)).toBe("📍 77372.40 (+$2.53) · 14:09");
+    expect(chatLiveLine(row, 77372.4, at, 0.1)).toBe("📍 77372.40 · 14:09");
   });
-  it("short updates, the closing one with the demo's result", async () => {
+  it("short updates, with no money in them", async () => {
     const { chatLine } = await import("./trade-signal-tracker.server");
     expect(chatLine(row, { kind: "filled", at: 0, price: 77397.7 }, 0.1)).toBe("✅ In at 77397.70");
     expect(chatLine(row, { kind: "stopped", at: 0, price: 0 }, 0.1)).toBe(
-      "🛑 Stopped out · −$9.90",
+      "🛑 Stopped out at 77496.66",
     );
     expect(chatLine(row, { kind: "tp1", at: 0, price: 0 }, 0.1, 6.48)).toBe(
-      "🎯 Take profit hit · +$6.48",
+      "🎯 Take profit hit at 77331.73",
     );
     expect(chatLine(row, { kind: "protected", at: 0, price: 0 }, 0.1)).toMatch(
-      /^🔒 70% there · stop moved to 77377\.91 \(\+\$1\.98 locked\)$/,
+      /^🔒 70% there · stop moved to 77377\.91$/,
     );
     expect(chatLine(row, { kind: "cancelled", bias: "bullish" }, 0.1)).toBe(
       "⚠️ 4H trend turned bullish · closed",

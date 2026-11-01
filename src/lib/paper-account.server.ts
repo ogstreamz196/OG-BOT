@@ -449,3 +449,49 @@ export function paperPnl(t: ClosedTrade, lots: number, spread: number): number {
   if (t.marketEntry) points -= half;
   return Math.round(points * per * lots * 100) / 100;
 }
+
+/* ── The Copy Trader B0T's "copying now" lines ─────────────────────────── */
+
+const COPY_NAMES: Record<string, string> = { XAUUSD: "🥇 Gold", BTCUSD: "₿ BTC" };
+
+export type CopyingRow = {
+  market: string;
+  direction: "BUY" | "SELL";
+  entry: number;
+  status: string;
+  last_price: number | null;
+  feeds: { paper?: PaperFeeds } | null;
+};
+
+/**
+ * One line per trade the Copy Trader B0T has on right now (the demo's lot),
+ * for its live tally: waiting for the entry, or in with the money so far at
+ * the last price the tracker saw.
+ */
+export function copyingLine(row: CopyingRow): string | null {
+  const lots = Number(row.feeds?.paper?.lots);
+  if (!(lots > 0)) return null;
+  const head = `📋 ${COPY_NAMES[row.market] ?? row.market} ${row.direction} ${lots} lot`;
+  if (row.status === "pending") return `${head} · waiting for entry`;
+  const per = usdPerLotMove(row.market, Number(row.entry));
+  const last = Number(row.last_price);
+  if (!per || !Number.isFinite(last)) return `${head} · in`;
+  const side = row.direction === "BUY" ? 1 : -1;
+  const v = Math.round((last - Number(row.entry)) * side * per * lots * 100) / 100;
+  return `${head} · ${v >= 0 ? "+" : "−"}${usd(Math.abs(v))} so far`;
+}
+
+/** The trades the Copy Trader B0T has on right now, as copyingLine lines. */
+export async function copyingNow(admin: Admin, state: PaperState): Promise<string[]> {
+  const { ACTIVE_STATUSES } = await import("./trade-signal-outcome");
+  const { data, error } = await admin
+    .from("trade_signals")
+    .select("market, direction, entry, status, last_price, feeds")
+    .eq("sender_worker", "trade")
+    .gte("created_at", state.startedAt)
+    .in("status", ACTIVE_STATUSES)
+    .order("created_at", { ascending: true })
+    .limit(10);
+  if (error) return [];
+  return ((data ?? []) as CopyingRow[]).map(copyingLine).filter((l): l is string => !!l);
+}

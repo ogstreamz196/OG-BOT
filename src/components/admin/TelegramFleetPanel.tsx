@@ -126,7 +126,9 @@ export function TelegramFleetPanel() {
             <SelectContent>
               <SelectItem value="trade">Trade signals</SelectItem>
               <SelectItem value="assistant">Custom assistant</SelectItem>
-              <SelectItem value="copy">Copy trading (announces your MT5 trades)</SelectItem>
+              <SelectItem value="copy">
+                Copy trading (copies the signals, keeps the tally)
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

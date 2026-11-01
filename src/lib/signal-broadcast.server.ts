@@ -99,7 +99,12 @@ const CARD_KEEPS = ["🟢", "🔴", "🛑", "🎯", "⏱"];
  * trade runs. A reply that isn't a trade card is left as it is.
  */
 export function compactCard(reply: string): string {
-  const kept = reply.split("\n").filter((l) => CARD_KEEPS.some((k) => l.startsWith(k)));
+  const kept = reply
+    .split("\n")
+    .filter((l) => CARD_KEEPS.some((k) => l.startsWith(k)))
+    // No money on the trade bot's card (the Boss's split): the Copy Trader
+    // B0T's tally covers lots and dollars.
+    .map((l) => l.replace(/ · [−+-]\$[\d,]+(?:\.\d+)?/g, ""));
   return kept.length ? kept.join("\n") : reply;
 }
 

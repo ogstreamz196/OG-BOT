@@ -97,6 +97,17 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-11-01 · #191** · Boss's split, approved from a
+  mock-up: the OG Trade Bot only makes signals, with cards and updates in
+  prices only (no lots or $). The Copy Trader B0T (@ogcopybot, connected
+  tonight, fleet role "copy", on duty in OG SIGNAL TEST MODE) copies them and
+  posts the one live tally at the bottom: "📋 COPY TRADER B0T", what it's
+  copying now with $ so far, streak, last ten, win rate, each market in cash,
+  balance (`copyingNow`, `copyBot` in `refreshScore`). The demo account's
+  rules are unchanged. Updated `chat-cash-lines.test.ts` and the card-wording
+  test to the new wording. No migration. Next (Boss): link real accounts
+  through the copy bot.
+
 - **Partner's Claude · 2026-11-01 · #190** · Boss's rule: don't gang people
   up unless they're online at the same time. A guest saying "hi" got lumped
   in with zeeshan and others from earlier because the Battle Zone read the

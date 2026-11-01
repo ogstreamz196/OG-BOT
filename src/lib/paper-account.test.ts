@@ -224,3 +224,48 @@ describe("the results post adds up", () => {
     expect(Math.round((1000 + sum) * 100) / 100).toBe(t.balance);
   });
 });
+
+describe("the Copy Trader B0T's live tally", () => {
+  it("lists each trade it's copying, waiting or with the money so far", async () => {
+    const { copyingLine } = await import("./paper-account.server");
+    const base = {
+      market: "BTCUSD",
+      direction: "SELL" as const,
+      entry: 77397.7,
+      feeds: { paper: { lots: 0.1 } },
+    };
+    expect(copyingLine({ ...base, status: "pending", last_price: null })).toBe(
+      "📋 ₿ BTC SELL 0.1 lot · waiting for entry",
+    );
+    expect(copyingLine({ ...base, status: "open", last_price: 77372.4 })).toBe(
+      "📋 ₿ BTC SELL 0.1 lot · +$2.53 so far",
+    );
+    expect(copyingLine({ ...base, status: "open", last_price: null, feeds: null })).toBeNull();
+  });
+
+  it("posts the tally under its own name, with what it's copying on top", async () => {
+    const { resultsAnnouncement } = await import("./signal-record.server");
+    const text = resultsAnnouncement(
+      {
+        since: null,
+        signals: 3,
+        wins: 2,
+        losses: 1,
+        running: 1,
+        cancelled: 0,
+        markets: [],
+        form: ["lost", "won", "won"],
+      },
+      "💰 Balance: $1,009.30",
+      { BTCUSD: 9.3 },
+      { copying: ["📋 ₿ BTC SELL 0.1 lot · +$2.53 so far"] },
+    );
+    expect(text.split("\n").slice(0, 3)).toEqual([
+      "📋 COPY TRADER B0T",
+      "📋 ₿ BTC SELL 0.1 lot · +$2.53 so far",
+      "🔥 2 wins in a row",
+    ]);
+    expect(text).toMatch(/💰 Balance: \$1,009\.30$/);
+    expect(text).not.toMatch(/OG TRADE BOT|My boy/);
+  });
+});
