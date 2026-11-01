@@ -125,6 +125,17 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-01 · #197** · (1) Signals given in the website
+  and app chat were never recorded, so never followed or counted; now they
+  are (`og-chat.server.ts` → `recordSignal`, chat id null). (2) Random
+  signals, the request style: every 30–90 minutes a strategy picked at
+  random (chart engine, AI desk inside its budget, any setup or pattern), a
+  random market and chart; posted at 60%+ through `postOnce`, card tagged
+  "🎲 <strategy>", `feeds.strategy` kept. The picker (`pickStrategy`) leans
+  towards the winners and keeps trying the rest; a strategy losing money over
+  12+ trades is picked far less. New: `signal-random.server.ts`,
+  `maybeRandomSignal`, the hidden "setup:<id>" ask. No migration.
+
 - **Boss's Claude · 2026-11-01 · #196** · Boss: "only post patterns on the
   chart they were proven on". #195 used the 5-minute proof on every chart.
   Now the 1m, 15m and 1h charts each prove the setups on their own history

@@ -20,6 +20,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
         const {
           scanAndBroadcast,
           maybeDeskScout,
+          maybeRandomSignal,
           deskConfirmer,
           postToSignalsChannel,
           signalsChannelReady,
@@ -186,7 +187,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           // soon as it appears rather than at the next minute. Alongside it,
           // every 10 minutes, the AI desk scouts both markets (posts only when
           // every AI agrees).
-          const [passes, desk] = await Promise.all([
+          const [passes, desk, random] = await Promise.all([
             repeatWithin(
               () =>
                 scanAndBroadcast(supabaseAdmin, {
@@ -215,12 +216,24 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               follow,
               now: Date.now,
             }),
+            // Every 30 to 90 minutes, a strategy picked at random (the chart
+            // engine, the AI desk inside its budget, or a setup or pattern),
+            // the request style; the picker leans towards what's winning.
+            maybeRandomSignal(supabaseAdmin, {
+              build: buildTradeSignal,
+              read: (ask) => budgeted(ask, true),
+              paper,
+              post: postToSignalsChannel,
+              follow,
+              now: Date.now,
+            }),
           ]);
           const result = {
             checked: passes.reduce((n, p) => n + p.checked, 0),
             posted: passes.flatMap((p) => p.posted),
             passes: passes.length,
             desk,
+            random,
             aiRunsToday: await deskRunsToday(supabaseAdmin),
             alertBars: {
               XAUUSD: await alertBar(supabaseAdmin, "XAUUSD"),
