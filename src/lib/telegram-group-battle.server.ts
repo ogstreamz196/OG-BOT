@@ -121,17 +121,20 @@ async function forgetOld(admin: Admin) {
   }
 }
 
+/** How long someone counts as still in the group battle after their last line. */
+export const ROOM_WINDOW_MS = 10 * 60_000;
+
 /**
  * Crew memory, from the group's own recent lines: each person's last few
- * lines, and a pile-on note when more than one of them is at it.
+ * lines, and a pile-on note when more than one of them is at it. Only people
+ * who've spoken in the last ROOM_WINDOW_MS count as in the room, so nobody
+ * gets lumped in with whoever was battling an hour ago.
  */
-export function crewNote(lines: Line[], speaker: string | null): string {
+export function crewNote(lines: Line[], speaker: string | null, now = Date.now()): string {
   const userLines = lines.filter((l) => l.role === "user" && l.name);
+  const here = userLines.filter((l) => now - Date.parse(l.created_at) <= ROOM_WINDOW_MS);
   const names = [
-    ...new Set([
-      ...userLines.slice(-12).map((l) => l.name as string),
-      ...(speaker ? [speaker] : []),
-    ]),
+    ...new Set([...here.slice(-12).map((l) => l.name as string), ...(speaker ? [speaker] : [])]),
   ].slice(-5);
   if (!names.length) return "";
   const by = names.map((n) => {
@@ -366,7 +369,17 @@ export async function groupBattleTurn(
     .filter((l) => lastReplyAt || now - Date.parse(l.created_at) < 5 * 60_000)
     .slice(-6);
   const pending = backlog.length ? backlog : [{ content: opts.text } as Line];
-  const history = lines.filter((l) => !backlog.includes(l));
+  // The conversation OG B0T sees: the speaker's own lines (and its replies to
+  // them) from the battle's memory, but other people's only while they're
+  // still in the room, so it doesn't drag absent people into this one.
+  const now2 = Date.now();
+  const history = lines.filter(
+    (l) =>
+      !backlog.includes(l) &&
+      (!l.created_at ||
+        (userId != null && l.telegram_user_id === userId) ||
+        now2 - Date.parse(l.created_at) <= ROOM_WINDOW_MS),
+  );
   // Replying to an OG B0T message that isn't in the memory (a signal card,
   // an older line): that message is the context.
   if (opts.quoted && !history.some((l) => l.role === "bot" && l.content === opts.quoted)) {

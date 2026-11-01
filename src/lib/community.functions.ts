@@ -236,9 +236,11 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
           .select("display_name, email")
           .eq("id", context.userId)
           .maybeSingle(),
+        // Only who's in the room now: older lines are other people's battles.
         supabaseAdmin
           .from("community_messages")
           .select("role, content, display_name, user_id")
+          .gte("created_at", roomSince())
           .order("created_at", { ascending: false })
           .limit(11),
         useFoul ? lex.learnedSlangBlock(supabaseAdmin as never) : Promise.resolve(""),
@@ -912,6 +914,14 @@ export const getGuestBattleExtras = createServerFn({ method: "GET" }).handler(as
 });
 
 /**
+ * How long someone counts as still in the Battle Zone after their last line.
+ * OG B0T only sees, names and gangs up on people who spoke within this, so a
+ * newcomer isn't lumped in with whoever was battling an hour ago.
+ */
+export const ROOM_WINDOW_MS = 10 * 60_000;
+export const roomSince = (now = Date.now()) => new Date(now - ROOM_WINDOW_MS).toISOString();
+
+/**
  * Crew memory: when several players gang up, OG Bot gets each one's recent
  * lines so it can hit back personally at everyone in the pile-on.
  */
@@ -954,9 +964,11 @@ async function replyAsBot(
   admin: any,
   opts: { userId: string | null; displayName: string; content: string; useFoul: boolean },
 ): Promise<string | null> {
+  // Only who's in the room now (roomSince): the guest's own line is included.
   const { data: recent } = await admin
     .from("community_messages")
     .select("role, content, display_name")
+    .gte("created_at", roomSince())
     .order("created_at", { ascending: false })
     .limit(20);
   const history = (

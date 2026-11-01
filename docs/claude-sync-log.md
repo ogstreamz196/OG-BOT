@@ -97,6 +97,15 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Partner's Claude · 2026-11-01 · #190** · Boss's rule: don't gang people
+  up unless they're online at the same time. A guest saying "hi" got lumped
+  in with zeeshan and others from earlier because the Battle Zone read the
+  room's last 20 lines whatever their age. Now the Battle Zone (members and
+  guests) only reads the last 10 minutes (`roomSince`), and Telegram group
+  battles only name and gang up on people active in the last 10 minutes
+  (`crewNote`; other people's older lines are left out of the conversation).
+  Test: `battle-room-window.test.ts`. No migration.
+
 - **Partner's Claude · 2026-11-01 · #189** · Songs live on the Boss's Google
   Drive (Boss: "main, not backup"). Full plays and downloads (song-url, the
   public track page and playlist, Telegram) come from Drive through a signed,
