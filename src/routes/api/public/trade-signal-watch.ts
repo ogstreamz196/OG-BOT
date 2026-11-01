@@ -24,6 +24,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // The Copy Trader B0T takes over the tally as soon as it's set up.
           const { ensureCopyTally } = await import("@/lib/signal-chat.server");
           const copyTally = await ensureCopyTally(supabaseAdmin);
+          // Step-by-step notes a Claude queued for a member's Telegram.
+          const { sendTelegramNotes } = await import("@/lib/telegram-notes.server");
+          const notes = await sendTelegramNotes(supabaseAdmin);
           // The Boss's MT5 trades: fills and closes (the copy bot announces them).
           const { followAutoTrades } = await import("@/lib/mt5-autotrade.server");
           const mt5 = await followAutoTrades(supabaseAdmin);
@@ -49,6 +52,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             events,
             active: passes.at(-1)?.active ?? 0,
             copyTally,
+            notes,
             mt5,
             promo,
             learning,

@@ -19,6 +19,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Partner's Claude (2026-11-01, 14:45):** #202 merged (no migrations).
+  The Cloudflare prep steps are queued in `telegram.notes` and go out
+  within a minute of Lovable publishing. Next for the takeover: wait for
+  "Cloudflare prep done", then build the Worker on beta.ogbot.co.uk.
+
 - **Partner's Claude (2026-11-01, 14:10):** #201 merged (no migrations).
   With `SAMPLE_VERSION` 6 the learning history rebuilds from the last 14
   days, then grows a week per study. Until the chart patterns re-prove
@@ -122,6 +127,13 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-01 · partner's Claude · #202 · Telegram notes.** OG B0T sends
+  step-by-step messages queued in site_content `telegram.notes`
+  (`[{to: email, text}]`) each minute, at most 8 per run, claimed first and
+  never sent twice. The first batch queued is the 9 Cloudflare/GitHub prep
+  steps (exit plan A, plus exposing `og_bot`) for faiyaz196@gmail.com.
+  No migrations.
 
 - **2026-11-01 · partner's Claude · #201 · Chart pattern fixes on top of
   #195/#196.** Bearish fair value gap retests could never fire (the gap's
