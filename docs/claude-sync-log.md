@@ -7,6 +7,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · random-strategies · Random signals in the request style:
+  a strategy picked at random (engine, AI desk, each setup/pattern), scored
+  by its results and leaned towards the best. Checks requests count in the
+  counter. Touches a new `signal-random.server.ts`, `signal-scan.ts`,
+  `trade-signal-context.server.ts`, tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
