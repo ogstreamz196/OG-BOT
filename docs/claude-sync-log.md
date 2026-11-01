@@ -7,6 +7,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `battle-online-only` · **Started 2026-11-01:** Battle
+  Zone and Telegram group roasts only gang up on people who are in the room
+  now (last 10 minutes), not old names. Touches `community.functions.ts`,
+  `telegram-group-battle.server.ts` (`crewNote`).
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
