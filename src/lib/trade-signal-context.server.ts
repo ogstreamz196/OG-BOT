@@ -792,7 +792,10 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       : style === "swing"
         ? "4H"
         : "1H";
-  const key = `${inst.code}:${style}:${entryIv}`;
+  // A strategy tried on purpose (random signals, signal-random.server.ts):
+  // "setup:<id>" reads only that setup, proven or not. Members never send it.
+  const forced = /\bsetup:([a-z_]+)\b/.exec(userText)?.[1];
+  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}`;
   const hit = cache.get(key);
   // Not past the close of a new entry candle, so a fresh setup is never hidden.
   if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
@@ -956,7 +959,24 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   if (sitOut && plan.verdict === "trade") plan = { ...plan, verdict: "wait", waitReason: sitOut };
   // No engine setup right now (and the market's open): on the 5-minute chart,
   // an extra setup the learning loop has proven for this market takes its place.
-  if (
+  if (forced) {
+    // Only the one setup asked for, if it's showing on this chart right now.
+    const { findSetups, setupPlan, SETUP_NAMES } = await import("./trade-setups");
+    const { chartTrend } = await import("./signal-frame-setups.server");
+    const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
+    const trend = entryIv === "5m" ? hi.bias : chartTrend(closed);
+    const open =
+      SETUP_FRAMES.includes(entryIv) &&
+      !spotUnconfirmed &&
+      !/\bclosed\b/i.test(plan.waitReason ?? "");
+    const hit = open ? findSetups(closed, trend).find((h) => h.id === forced) : undefined;
+    const fromSetup = hit ? setupPlan(plan, hit, live, tuning ?? DEFAULT_TUNING) : null;
+    plan = fromSetup ?? {
+      ...plan,
+      verdict: "wait",
+      waitReason: `No ${SETUP_NAMES[forced as keyof typeof SETUP_NAMES] ?? "such setup"} showing`,
+    };
+  } else if (
     plan.verdict === "wait" &&
     SETUP_FRAMES.includes(entryIv) &&
     !spotUnconfirmed &&

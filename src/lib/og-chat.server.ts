@@ -38,7 +38,25 @@ export async function runOgChat(
   const tradePromise: Promise<{ block: string; expiresAt: string | null }> = nativeApp
     ? Promise.resolve({ block: "", expiresAt: null })
     : import("@/lib/trade-signal-context.server")
-        .then((m) => m.buildTradeSignal(lastUserText))
+        .then(async (m) => {
+          const res = await m.buildTradeSignal(lastUserText);
+          // A signal given here is followed and counted like any other (the
+          // Boss's rule: every signal OG B0T gives goes in the counter). No
+          // Telegram chat, so nothing is posted; never blocks the reply.
+          if (res.plan)
+            void import("@/lib/trade-signal-tracker.server")
+              .then((t) =>
+                t.recordSignal({
+                  userId: context.userId,
+                  chatId: null,
+                  messageId: null,
+                  card: res.reply,
+                  plan: res.plan!,
+                }),
+              )
+              .catch(() => undefined);
+          return res;
+        })
         .catch((e) => {
           console.warn("trade signal context failed", e);
           return { block: "", expiresAt: null };

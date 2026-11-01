@@ -585,3 +585,77 @@ export function normaliseChannelId(raw: string | undefined): string | undefined 
   if (/^\d+$/.test(v)) return `-100${v}`;
   return v;
 }
+
+/* ── Random signals: a strategy picked at random, the request style ───── */
+
+export type RandomDeps = PostDeps & {
+  /** The member-request signal (buildTradeSignal), for the chart engine and each setup. */
+  build: (ask: string) => Promise<Built>;
+  /** The AI desk's read of the chart (deskRead, budgeted), for the "desk" strategy. */
+  read: (ask: string) => Promise<DeskRead>;
+  rand?: () => number;
+};
+
+/**
+ * When a random signal is due (every 30 to 90 minutes, at random), picks a
+ * strategy (pickStrategy: leaning towards what's been winning, still trying
+ * the rest), a market and a chart, and posts that strategy's signal if it has
+ * one right now at RANDOM_MIN_CONFIDENCE or more; otherwise it tries again
+ * next minute with a fresh pick. Posted like any alert (postOnce: no
+ * repeats, the demo account, followed and counted), its card tagged with the
+ * strategy, feeds.strategy kept so the picker learns. Says what happened.
+ */
+export async function maybeRandomSignal(admin: Admin, deps: RandomDeps): Promise<string> {
+  try {
+    const rnd = await import("./signal-random.server");
+    const rand = deps.rand ?? Math.random;
+    const now = deps.now();
+    const { data } = await admin
+      .from("site_content")
+      .select("value")
+      .eq("key", rnd.RANDOM_NEXT_KEY)
+      .maybeSingle();
+    const due = Date.parse((data as { value?: string } | null)?.value ?? "");
+    if (Number.isFinite(due) && now < due) return "not due";
+    const strategy = rnd.pickStrategy(await rnd.strategyStats(admin, now), rand);
+    const pair = BROADCAST_MARKETS[Math.floor(rand() * BROADCAST_MARKETS.length)];
+    const frames: SignalTimeframe[] = ["1m", "5m", "15m", "1h"];
+    const frame = frames[Math.floor(rand() * frames.length)];
+    const ask = rnd.strategyAsk(signalRequest(pair, frame), strategy);
+    let signal: Built;
+    if (strategy === "desk") {
+      const read = await deps.read(ask);
+      const { deskBacks } = await import("./signal-desk.server");
+      const plan = read.signal.plan;
+      if (!read.desk || !plan || !deskBacks(read.desk, plan.direction))
+        return `${strategy} ${pair} ${frame}: nothing now`;
+      signal = withDesk(read.signal, "backed");
+    } else {
+      signal = await deps.build(ask);
+      // The chart engine on its own: not a setup standing in for it.
+      if (strategy === "engine" && signal.plan?.feeds?.setup)
+        return `engine ${pair} ${frame}: nothing now`;
+    }
+    const plan = signal.plan;
+    if (!plan || plan.confidencePct < rnd.RANDOM_MIN_CONFIDENCE)
+      return `${strategy} ${pair} ${frame}: nothing now`;
+    signal = { ...signal, plan: { ...plan, feeds: { ...(plan.feeds ?? {}), strategy } } };
+    const posted = await postOnce(admin, deps, signal, (s) =>
+      rnd.tagStrategy(compactCard(s.reply), strategy),
+    );
+    if (!posted) return `${strategy} ${pair} ${frame}: not posted`;
+    // Posted: the next one somewhere in the next 30 to 90 minutes.
+    const [lo, hi] = rnd.RANDOM_EVERY_MIN;
+    const next = new Date(now + (lo + rand() * (hi - lo)) * 60_000).toISOString();
+    await admin
+      .from("site_content")
+      .upsert(
+        { key: rnd.RANDOM_NEXT_KEY, value: next, updated_at: new Date(now).toISOString() },
+        { onConflict: "key" },
+      );
+    return `posted ${strategy} ${pair} ${frame}`;
+  } catch (e) {
+    console.warn("[signals] random signal failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}

@@ -76,7 +76,8 @@ async function db() {
 export async function recordSignal(opts: {
   userId: string;
   senderWorker?: string | null;
-  chatId: number;
+  /** null for a signal given outside Telegram (the website or app chat). */
+  chatId: number | null;
   messageId: number | null;
   card: string;
   plan: SignalPlan;

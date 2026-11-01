@@ -7,12 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · random-strategies · Random signals in the request style:
-  a strategy picked at random (engine, AI desk, each setup/pattern), scored
-  by its results and leaned towards the best. Checks requests count in the
-  counter. Touches a new `signal-random.server.ts`, `signal-scan.ts`,
-  `trade-signal-context.server.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
@@ -130,6 +124,17 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-01 · PR_NUM** · (1) Signals given in the website
+  and app chat were never recorded, so never followed or counted; now they
+  are (`og-chat.server.ts` → `recordSignal`, chat id null). (2) Random
+  signals, the request style: every 30–90 minutes a strategy picked at
+  random (chart engine, AI desk inside its budget, any setup or pattern), a
+  random market and chart; posted at 60%+ through `postOnce`, card tagged
+  "🎲 <strategy>", `feeds.strategy` kept. The picker (`pickStrategy`) leans
+  towards the winners and keeps trying the rest; a strategy losing money over
+  12+ trades is picked far less. New: `signal-random.server.ts`,
+  `maybeRandomSignal`, the hidden "setup:<id>" ask. No migration.
 
 - **Boss's Claude · 2026-11-01 · #196** · Boss: "only post patterns on the
   chart they were proven on". #195 used the 5-minute proof on every chart.
