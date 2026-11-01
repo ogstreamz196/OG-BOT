@@ -7,6 +7,15 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `copy-bot-tally` · **Started 2026-11-01:** Boss's
+  split: the OG Trade Bot only makes signals (no $ or lots in its cards or
+  updates); the Copy Trader B0T (@ogcopybot, fleet role "copy", now
+  connected) copies them and posts the one live tally at the bottom (copying
+  now, win/loss, balance). Touches `signal-chat.server.ts` (refreshScore),
+  `signal-record.server.ts` (resultsAnnouncement), the signals-chat lines in
+  `trade-signal-tracker.server.ts`, `signal-broadcast.server.ts`
+  (compactCard).
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
