@@ -125,7 +125,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-01 · PR_NUM** · Boss: "only post patterns on the
+- **Boss's Claude · 2026-11-01 · #196** · Boss: "only post patterns on the
   chart they were proven on". #195 used the 5-minute proof on every chart.
   Now the 1m, 15m and 1h charts each prove the setups on their own history
   (`signal-frame-setups.server.ts`: one chart per study in turn, trend from
