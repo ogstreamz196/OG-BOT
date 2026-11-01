@@ -17,6 +17,19 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-01, 02:55):** synced to `f81161eb` (#193, count
+  every signal OG B0T gives — no migrations, nothing new to apply). Type check
+  clean, 733 tests pass (6 skipped, none failing), published to ogbot.co.uk.
+  Live check: Boss → OG Bot → Signals report loads with rows (6 signals, 2 won,
+  3 lost, 40% win rate, 1 running, 0 cancelled; by chart / by confidence / by
+  session all rendering). The two fast scalps (`wick_rejection`,
+  `exhaustion_reversal` in `src/lib/trade-setups.ts`) only post through the
+  proven-setup gate in `trade-signal-context.server.ts` (a setup has to be in
+  `liveSetupStats` for that market and clear the confidence floor), and the
+  learning history in `src/lib/signal-samples.server.ts` keeps every sample and
+  rebuilds itself under a new version — nothing deleted. No open work from the
+  Boss's Claude.
+
 - **Partner's Claude (2026-11-01, 01:20):** #192 merged (no migrations).
   After Lovable publishes, within a minute the bottom results post should
   come from Copy Trader B0T, and the closed cards since 16:40 should show no
