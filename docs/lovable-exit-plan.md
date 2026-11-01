@@ -18,8 +18,113 @@ on one of these, and tick it off here once done.
       secret only matters for the workflow's `verify` and `rollback`.
 - [ ] **After the apply:** in the OGSTREAMZ dashboard, go to Settings → API →
       Exposed schemas and add `og_bot`.
-- [ ] **Decide about the restored OG-BOT database project.** It's empty and
-      unused, since OG B0T is staying in the hub. It could be paused again.
+- [x] ~~Decide about the restored OG-BOT database project~~: paused on
+      2026-10-31 (the Boss's call). OGSTREAMZ is the only active project.
+
+### For steps 3 to 5 (the Boss's list, written 2026-11-01)
+
+The Boss wants off Lovable mainly so database changes stop going through
+paid Lovable migration prompts. The partner's Claude does the takeover (the
+Boss's call). Keys and passwords never go in chat: each goes straight into
+the dashboard named.
+
+**A. Cloudflare (hosting)**
+
+- [ ] **Workers Paid ($5 a month)**: Cloudflare → Workers & Pages → Plans.
+      The free plan's CPU limit per request is far too small for the scanner
+      and the learning loop (Lovable pays this today).
+- [ ] **ogbot.co.uk on Cloudflare**: listed under Websites; if not, add the
+      site and change the nameservers at the registrar.
+- [ ] **API token**: My Profile → API Tokens → "Edit Cloudflare Workers"
+      template, plus Zone → DNS → Edit for ogbot.co.uk.
+- [ ] **GitHub secrets** (OG-BOT repo → Settings → Secrets and variables →
+      Actions): `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, so every
+      merge publishes itself.
+- [ ] **Worker secrets** (Cloudflare → Workers & Pages → the Worker →
+      Settings → Variables and Secrets), copied from Lovable's secrets page
+      once the Worker exists. From the code: `SUPABASE_URL`,
+      `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `OG_BOT_TOKEN`,
+      `SIGNALS_BOT_TOKEN`, `SIGNALS_CHANNEL_ID`, `TELEGRAM_CREDENTIAL_KEY`,
+      `TELEGRAM_WEBHOOK_SECRET`, `OG_BOT_REMOTE_MINT_SECRET`, `GEMINI_API_KEY`,
+      `GROQ_API_KEY`, `GROQ_BACKUP_API_KEY`, `OPENROUTER_API_KEY`,
+      `OPENROUTER_BACKUP_API_KEY`, `PERPLEXITY_API_KEY`, `METAAPI_TOKEN`,
+      `METAAPI_ACCOUNT_ID`, `METAAPI_REGION`, `SUNO_API_KEY`,
+      `STRIPE_SECRET_KEY`, the three `GOOGLE_OAUTH_*`, and the build values
+      `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+      `VITE_SUPABASE_PROJECT_ID`, `VITE_STRIPE_PUBLISHABLE_KEY`. Check the
+      list again against `process.env` / `import.meta.env` before asking.
+
+**B. The hub database**
+
+- [ ] **Expose `og_bot`** (the item above).
+- [ ] **Hub secret key**: OGSTREAMZ → Settings → API → secret (service role)
+      key, into the Worker secrets.
+- [ ] **A quiet half hour for switch day** (final data copy behind a short
+      maintenance notice).
+
+**C. Sign-in and login emails** (Lovable today: `cloud-auth-js`,
+`src/routes/lovable/email`)
+
+- [ ] **Google sign-in**: Google Cloud Console → the "OG Vault" OAuth client →
+      add `https://ogbot.co.uk` to authorised origins and check the hub's
+      callback is in the redirects (the vault likely added it). Supabase →
+      Authentication → URL Configuration: add `https://ogbot.co.uk` and
+      `https://beta.ogbot.co.uk`.
+- [ ] **Apple sign-in: keep or drop?** Needs an Apple Developer account
+      (£79 a year). Dropped, those members use email or Google.
+- [ ] **Login emails**: a free Resend account with ogbot.co.uk as a sending
+      domain (a Claude can add its DNS records with the token), then its SMTP
+      details into Supabase → Authentication → Emails → SMTP.
+
+**D. Payments**
+
+- [ ] **Stripe**: today it's Lovable's managed payments (`stripe.server.ts`
+      routes through the connector gateway, `VITE_PAYMENTS_CLIENT_TOKEN`).
+      Check it's the Boss's own Stripe account, then a restricted secret key,
+      a webhook to the new address, and the publishable key, into the Worker.
+
+**E. Google Drive** (songs play from the Boss's Drive since #189, through
+the connector gateway)
+
+- [ ] **One Google sign-in for Drive**: the Boss signs in with the account
+      that owns the songs and presses Allow once (a Claude gives the link);
+      the three `GOOGLE_OAUTH_*` values go into the Worker. Without it songs
+      stop playing off Lovable.
+
+**F. Song and lyric functions** (`supabase/functions`: suno-\*, song-url,
+generate-lyrics, lyric-video, og-interview, reveal-variation,
+unlock-full-song, admin-reprocess)
+
+- [ ] **Their secrets in the hub**: Supabase → OGSTREAMZ → Edge Functions →
+      Secrets: the Gemini keys, `SUNO_API_KEY`, `OG_BOT_TOKEN`,
+      `TELEGRAM_API_KEY` if still used, `OG_BOT_SITE_URL`.
+
+**G. After switch day**
+
+- [ ] **Keep Lovable a week as a safety net**, then downgrade it.
+
+**Note on cost:** the hub is on Supabase's free plan. OG B0T's minute jobs
+should fit; if the hub hits its limits, Supabase Pro is $25 a month.
+
+### What the other projects show (checked by the Boss's Claude, 2026-11-01)
+
+- **og-booking-portal** is the model: Cloudflare Pages connected to GitHub
+  (push to `main` deploys, PRs get previews), `wrangler.toml` holds the
+  plain variables and the dashboard holds the secrets, CI type-checks,
+  tests, builds and applies every migration to a throwaway Postgres. Its
+  data is in the hub's `og_booking` schema; new migrations go in
+  `supabase/migrations/` and are applied to the hub one file at a time
+  (Claude through the Supabase connection, or the SQL editor), never
+  `supabase db push` (the hub carries other apps' history).
+- **OG-VAULT-REACT** is halfway: data in the hub's `public` schema, but still
+  hosted by Lovable (vault.ogstreamz.co.uk is a Cloudflare Worker proxy in
+  front of the Lovable app). It's TanStack Start like OG B0T.
+- **So OG B0T needs Cloudflare Workers, not Pages** (server functions, minute
+  jobs); the Lovable preset already builds for Cloudflare with Nitro.
+- **Lovable pieces still in use** (beyond step 1's connector gateway):
+  Lovable payments for Stripe, `cloud-auth-js` sign-in, the Lovable email
+  hook, `src/integrations/lovable`, `lovable-error-reporting.ts`, and
+  `LOVABLE_API_KEY` in the edge functions.
 
 ## Step 1 · Own keys for connected services (done in PR #164)
 

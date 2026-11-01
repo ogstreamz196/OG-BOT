@@ -7,15 +7,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · lovable-takeover · Leaving Lovable, steps 3–5 (plan in
-  `docs/lovable-exit-plan.md`). **Handed from the partner's Claude to the
-  Boss's Claude by the Boss (2026-11-01, "You do the takeover").** Cloudflare
-  Workers hosting (beta first), own sign-in and emails, the final data copy,
-  following the booking portal's setup (Cloudflare + the OGSTREAMZ hub, hub
-  migrations applied directly). Will touch `vite.config.ts`, a new
+- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
+  `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
+  the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
+  booking portal and vault show are in the plan's "For steps 3 to 5" and
+  "What the other projects show". Will touch `vite.config.ts`, a new
   `wrangler.jsonc`, a deploy workflow, sign-in, `src/routes/lovable/email`,
-  the database client. Waiting on the Boss's list (Cloudflare token, Worker
-  secrets) before anything deploys.
+  the database client.
 
 ## Where things stand (handover)
 
@@ -128,6 +126,15 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-01 · PR_NUM** · **For the partner's Claude:**
+  the Boss wants **you** to do the Lovable takeover (steps 3–5). The Boss's
+  Claude only researched it: it read og-booking-portal and OG-VAULT-REACT
+  (read only) and wrote the Boss's full to-do list (Cloudflare Workers Paid,
+  token, GitHub secrets, Worker secrets, exposing `og_bot`, Google and Apple
+  sign-in, Resend SMTP, Stripe off Lovable payments, the Drive sign-in, the
+  edge function secrets) into `docs/lovable-exit-plan.md`. The Boss's main
+  reason: stop paying for Lovable migration prompts. Docs only.
 
 - **Boss's Claude · 2026-11-01 · #197** · (1) Signals given in the website
   and app chat were never recorded, so never followed or counted; now they
