@@ -192,3 +192,33 @@ describe("isSignalsChat", () => {
     expect(await isSignalsChat(-1009999)).toBe(true);
   });
 });
+
+describe("cards without money (the copy bot does the money)", () => {
+  test("dollar amounts come off card and update lines", async () => {
+    const { withoutMoney } = await import("./trade-signal-tracker.server");
+    expect(withoutMoney("🎯 Take profit hit · +$2.24")).toBe("🎯 Take profit hit");
+    expect(withoutMoney("🛑 My stop loss will be 77527.88 · −$4.95")).toBe(
+      "🛑 My stop loss will be 77527.88",
+    );
+    expect(withoutMoney("🎯 I'll take profit at 77331.73 · +$3.30")).toBe(
+      "🎯 I'll take profit at 77331.73",
+    );
+    expect(withoutMoney("🔒 Stop moved to 77400 (+$1,250.50 locked)")).toBe(
+      "🔒 Stop moved to 77400",
+    );
+    expect(withoutMoney("🔴 I'm gonna sell BTC/USD at 77397.70")).toBe(
+      "🔴 I'm gonna sell BTC/USD at 77397.70",
+    );
+  });
+
+  test("the chat's card hides money but the stored card keeps it", async () => {
+    const { chatJournal } = await import("./trade-signal-tracker.server");
+    const card = "🔴 I'm gonna sell BTC/USD at 77397.70\n🛑 My stop loss will be 77527.88 · −$4.95";
+    const log = ["16:50 🎯 Take profit hit · +$2.24", "16:50 💰 +$2.24 on this one"];
+    expect(chatJournal(card, log)).toEqual({
+      card: "🔴 I'm gonna sell BTC/USD at 77397.70\n🛑 My stop loss will be 77527.88",
+      log: ["16:50 🎯 Take profit hit"],
+    });
+    expect(card).toContain("−$4.95");
+  });
+});
