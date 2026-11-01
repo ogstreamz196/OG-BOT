@@ -127,6 +127,18 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-01 · #200** · Boss: "add check for all
+  migrations, checklist for verification" (the move off Lovable waits until
+  current work is done). `scripts/hub/migrations-checklist.mjs` builds
+  `docs/migrations-checklist.md` (every migration, what it leaves behind,
+  switch-day checks) and `supabase/hub/verify_migrations.sql` (read only,
+  returns what's missing). **Checked on the hub today: all 530 objects from
+  the 215 migrations and the drift are in `og_bot`, nothing missing.** No
+  migration was added after the hub copy (#188). Still to recreate with the
+  files: 3 storage access rules; and 6 cron jobs move to the new host. A test
+  fails if a migration isn't in the checklist; CLAUDE.md says re-run the
+  script. Partner's Claude: use this on switch day. No migration.
+
 - **Boss's Claude · 2026-11-01 · #199** · **For the partner's Claude:**
   the Boss wants **you** to do the Lovable takeover (steps 3–5). The Boss's
   Claude only researched it: it read og-booking-portal and OG-VAULT-REACT

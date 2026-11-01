@@ -33,7 +33,9 @@ sync. Follow this every time.
 2. Checks: `npx tsc --noEmit -p .`, `npx vitest run` (only
    `src/lib/routes.smoke.test.ts` fails in the sandbox), and
    `NODE_OPTIONS=--max-old-space-size=6144 npx vite build`.
-3. Update `AGENTS.md` for any behaviour you changed.
+3. Update `AGENTS.md` for any behaviour you changed. Added a migration?
+   Re-run `node scripts/hub/migrations-checklist.mjs` (a test fails until
+   you do), so `docs/migrations-checklist.md` stays complete.
 4. Add an entry to `docs/claude-sync-log.md` (newest at the top of
    **Log**, with the real PR number, not "this PR"), take your line out of
    **In progress**, and refresh **Where things stand** so the other Claude

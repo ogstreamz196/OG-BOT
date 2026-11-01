@@ -226,6 +226,12 @@ The build already uses Lovable's Vite preset, which targets Cloudflare.
 
 ## Step 5 · Data copy and the switch
 
+**Verification:** `docs/migrations-checklist.md` lists every migration and
+the switch-day checks; `supabase/hub/verify_migrations.sql` (read only)
+returns whatever the hub is missing. Last result: 2026-11-01, all 530
+objects from the 215 migrations and the recorded drift are in `og_bot`
+(no rows). Run it again, on the hub and on Lovable Cloud, on switch day.
+
 1. Freeze writes briefly, with a maintenance notice.
 2. Copy data in one go, table by table, from Lovable Cloud into the new
    project. Copy storage files too.
