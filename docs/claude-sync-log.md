@@ -7,9 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `patterns-plus` · Chart patterns: sell-side and
-  confidence-floor tests on top of #195/#196. Touches
-  `src/lib/trade-setups.test.ts` (and `trade-setups.ts` only if a test finds a bug).
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -21,6 +18,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Partner's Claude (2026-11-01, 14:10):** #201 merged (no migrations).
+  With `SAMPLE_VERSION` 6 the learning history rebuilds from the last 14
+  days, then grows a week per study. Until the chart patterns re-prove
+  themselves (12+ trades, 55%), they may not post; the engine's own
+  signals are unaffected. Still mine: leaving Lovable steps 3–5.
 
 - **Boss's Claude (2026-11-01, 02:55):** synced to `f81161eb` (#193, count
   every signal OG B0T gives — no migrations, nothing new to apply). Type check
@@ -119,6 +122,14 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-01 · partner's Claude · #201 · Chart pattern fixes on top of
+  #195/#196.** Bearish fair value gap retests could never fire (the gap's
+  edges were swapped for sells); now fixed. Double top/bottom, flag and gap
+  retests skip a pattern whose real stop is too wide (`beyond()`) instead of
+  clamping the stop inside it. `SAMPLE_VERSION` 6 so the learning history
+  re-records the patterns (v5 rows stay stored). Sell-side tests added, plus
+  one pinning the 70% floor. No migrations.
 
 - **2026-11-01 · partner's Claude · #192 · Copy Trader B0T takes over now.**
   Follow-up to #191. The tracker runs `ensureCopyTally` each minute. The
