@@ -228,9 +228,12 @@ export function chatLine(
     case "stopped":
       return `🛑 Stopped out at ${fmt(row.stop)}`;
     case "breakeven":
+      if (trailOf(row) != null) return `🏃 Trailing stop hit at ${fmt(e.price)}`;
       return lock ? `🔒 Out at the locked stop ${fmt(lock.stop)}` : `⚖️ Out at breakeven`;
     case "protected":
       return lock ? `🔒 70% there · stop moved to ${fmt(lock.stop)}` : `🔒 Stop moved to my entry`;
+    case "trailed":
+      return `🏃 Trailing my stop · now ${fmt(e.price)}`;
     case "unfilled":
       return `⏳ Entry not reached · cancelled`;
     case "expired":
@@ -265,6 +268,11 @@ export function chatTpMoveLine(row: Row, move: TpMove, from: number): string {
 
 /** A signal with one take profit (all three levels on it). */
 export const singleTarget = (row: Pick<Row, "tp1" | "tp3">) => Number(row.tp1) === Number(row.tp3);
+
+/** The trailing stop's level now, when the signal trails (TRAIL); undefined before it starts. */
+export function trailOf(row: { feeds: { trail?: { risk: number; stop?: number } } | null }) {
+  return row.feeds?.trail ? (row.feeds.trail.stop ?? null) : undefined;
+}
 
 /** The signal's profit lock levels, when it has the lock. */
 export function lockOf(
@@ -307,11 +315,15 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
     case "stopped":
       return `🛑 Stopped out (${move(row.entry, row.stop)}). I've taken the fucking loss and I'm not chasing it`;
     case "breakeven":
+      if (trailOf(row) != null)
+        return `🏃 Trailing stop hit at ${fmt(e.price)}, so I'm out with ${move(row.entry, e.price)}`;
       if (lock)
         return `🔒 It pulled back to my locked stop at ${fmt(lock.stop)}, so I'm out with ${move(row.entry, lock.stop)} banked. Better than a loss`;
       return row.best_target >= 1
         ? `⚖️ It came back to my entry after the Quick Scalp, so I'm out at breakeven. No harm done`
         : `⚖️ It came back to my entry, so I'm out at breakeven. No harm done`;
+    case "trailed":
+      return `🏃 It's running, so my stop's trailing behind it: now ${fmt(e.price)} (${move(row.entry, e.price)} locked in)`;
     case "protected":
       if (lock)
         return `🔒 It's 70% of the way to my take profit, so my stop's now at ${fmt(lock.stop)}, locking in ${move(row.entry, lock.stop)}. Can't lose from here`;
@@ -678,6 +690,15 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           status: row.status,
           expiresAt: Date.parse(row.expires_at),
           ...(row.entered_at ? { enteredAt: Date.parse(row.entered_at) } : {}),
+          // An open take profit with a trailing stop (TRAIL).
+          ...(row.feeds?.trail?.risk
+            ? {
+                trail: {
+                  risk: Number(row.feeds.trail.risk),
+                  ...(row.feeds.trail.stop != null ? { stop: Number(row.feeds.trail.stop) } : {}),
+                },
+              }
+            : {}),
           // The profit lock: 70% of the way to TP1, the stop to 30% of the way.
           ...(lockOf(row)
             ? {
@@ -734,6 +755,28 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         // runner's first take profit, where the stop moves there anyway).
         const guarded = result.events.some((e) => e.kind === "protected");
         if (guarded) row.feeds = { ...row.feeds, protected: true };
+        // The trailing stop moved: kept with the signal, and the Boss's MT5
+        // trade's stop follows it. Members hear about it once per extra risk
+        // locked in (the first time at the entry), not every minute.
+        const trailedTo = [...result.events].reverse().find((e) => e.kind === "trailed")?.price;
+        const trailSaid = Number(row.feeds?.trail?.said ?? -1);
+        let trailStep = trailSaid;
+        if (trailedTo != null && row.feeds?.trail) {
+          const r = Number(row.feeds.trail.risk);
+          const side = row.direction === "BUY" ? 1 : -1;
+          trailStep = Math.max(
+            trailSaid,
+            Math.floor(((trailedTo - Number(row.entry)) * side) / r + 1e-9),
+          );
+          row.feeds = {
+            ...row.feeds,
+            trail: { ...row.feeds.trail, stop: trailedTo, said: trailStep },
+          };
+          if (row.sender_worker === "trade") {
+            const { moveStopToEntry } = await import("./mt5-autotrade.server");
+            await moveStopToEntry(admin, row, trailedTo).catch(() => undefined);
+          }
+        }
         const firstBank = !singleTarget(row) && result.events.some((e) => e.kind === "tp1");
         if ((guarded || firstBank) && row.sender_worker === "trade") {
           const { moveStopToEntry } = await import("./mt5-autotrade.server");
@@ -747,8 +790,12 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           entered != null &&
           entered + limits.holdMs < tracked.expiresAt &&
           now >= entered + limits.holdMs;
+        const lastTrailed = [...result.events].reverse().find((e) => e.kind === "trailed");
         const shown = result.events
           .filter((e) => e.kind !== "expired" || timeStopped)
+          // The trailing stop: only its latest move, and only when it locked in
+          // another whole risk (or first reached the entry).
+          .filter((e) => e.kind !== "trailed" || (e === lastTrailed && trailStep > trailSaid))
           // One take profit: its hit is one line, not three; a runner's two
           // last levels are one too.
           .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
@@ -768,6 +815,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         // Before TP1, a flip in the higher-timeframe trend calls the setup off.
         // Not for a market-bias call: it can lean against that trend on purpose.
         const update: Record<string, unknown> = { last_checked_at: new Date(now).toISOString() };
+        // A trailing stop that moved is saved even when nothing's announced.
+        if (trailedTo != null) update.feeds = { ...row.feeds };
         const trendDue =
           !row.feeds?.bias &&
           (status === "pending" || status === "open") &&
@@ -799,7 +848,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const enteredMs = row.entered_at
           ? Date.parse(row.entered_at)
           : result.events.find((e) => e.kind === "filled")?.at;
-        if (status === "open" && singleTarget(row) && enteredMs != null) {
+        if (status === "open" && singleTarget(row) && enteredMs != null && !row.feeds?.trail) {
           const moves = (row.feeds.tpMoves ?? []) as NonNullable<SignalFeeds["tpMoves"]>;
           const from = Number(row.tp1);
           const mv = tpMove({
@@ -866,7 +915,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               status,
               bestTarget: best,
               lastPrice: Number.isFinite(lastPrice) ? lastPrice : null,
-              lockStop: lockOf(row)?.stop ?? null,
+              lockStop: lockOf(row)?.stop ?? trailOf(row) ?? null,
             },
             paper.lots,
             half > 0 ? half * 2 : (SPREAD_COST[row.market] ?? 0),

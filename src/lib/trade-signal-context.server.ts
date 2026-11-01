@@ -577,6 +577,11 @@ export type SignalFeeds = {
   lock?: boolean;
   /** The take profit it was sent with, once it's been moved (tpMove). */
   tp0?: number;
+  /**
+   * An open take profit with a trailing stop (TRAIL): the first risk, and
+   * where the trailing stop is now once it has started.
+   */
+  trail?: { risk: number; stop?: number; said?: number };
   /** Each take profit move, oldest first. */
   tpMoves?: { kind: "extend" | "pull"; from: number; to: number; at: string }[];
   /** The stop has moved (the profit lock, or an older breakeven, fired). */
@@ -1173,10 +1178,35 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         : []),
     ];
   };
+  // Some trades (the surest, going with the bigger timeframe) get an open
+  // take profit and a trailing stop instead (TRAIL): only a far cap, the
+  // stop to the entry once it's a full risk up, then a risk behind the best.
+  const { TRAIL, trailsThis } = await import("./trade-signal-outcome");
+  const trailRisk = Math.abs(plan.entry - plan.stop);
+  const trails =
+    plan.verdict === "trade" &&
+    trailRisk > 0 &&
+    trailsThis(plan.confidencePct, plan.direction, hi.bias);
+  const trailCap = shown(plan.entry + (plan.direction === "BUY" ? 1 : -1) * trailRisk * TRAIL.CAP);
   const cardFor = (tp: number) =>
     [
-      ...tradeLines(fmt, inst, plan.entry, plan.entryType, plan.direction, plan.stop, tp),
-      ...exitLines(tp),
+      ...(trails
+        ? [
+            ...tradeLines(
+              fmt,
+              inst,
+              plan.entry,
+              plan.entryType,
+              plan.direction,
+              plan.stop,
+              trailCap,
+            ).slice(0, 2),
+            `🎯 Open take profit · trailing my stop once it's ${fmt(shown(plan.entry + (plan.direction === "BUY" ? 1 : -1) * trailRisk))} (max ${fmt(trailCap)})`,
+          ]
+        : [
+            ...tradeLines(fmt, inst, plan.entry, plan.entryType, plan.direction, plan.stop, tp),
+            ...exitLines(tp),
+          ]),
       "",
       `⏱ ${entryLabel} · 💪 ${plan.confidencePct}%`,
       ...(plan.setup ? [`🧩 ${plan.setup}`] : []),
@@ -1209,7 +1239,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       // The learned time limits (5-minute scalps): the tracker applies them.
       ...timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING),
       // The profit lock (the tracker works out its levels from the entry and TP1).
-      lock: true,
+      // The profit lock, or (trailing trades) the trailing stop.
+      ...(trails ? { trail: { risk: trailRisk } } : { lock: true }),
     },
     style,
     timeframe: entryLabel,
@@ -1219,7 +1250,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     stop: plan.stop,
     // One take profit: all three levels on it, so one hit closes the trade;
     // with a learned runner, a third there and the rest further on.
-    targets: targetsFor(plan.targets[0]),
+    targets: trails ? [trailCap, trailCap, trailCap] : targetsFor(plan.targets[0]),
     confidencePct: plan.confidencePct,
     quality: plan.quality,
     decimals: dp,
@@ -1290,6 +1321,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
           retarget: (picked: number) => {
             // The exact number on the card, as with every level.
             const tp = Number(picked.toFixed(dp));
+            // A trailing trade has no fixed take profit to move.
+            if (trails) return { reply: tradeCard, plan: plan2 };
             return {
               reply: cardFor(tp),
               plan: { ...plan2, targets: targetsFor(tp) },

@@ -125,6 +125,16 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-01 · #194** · Trailing stops in the mix (Boss's
+  ask): trades at 80%+ going with the bigger timeframe get an open take
+  profit (a far cap at 3 risks) and a trailing stop instead of the 70/30
+  lock: at 1 risk up the stop goes to the entry, then trails a risk behind
+  the best price (`TRAIL`, `trailsThis`, `TrackedSignal.trail`,
+  `feeds.trail`). MT5 stop follows; members hear once per extra risk locked
+  in; a trailing exit in profit counts as a win. Card wording fits the
+  partner's prices-only chat cards. No migration. Open: the learning loop
+  doesn't replay trailing yet.
+
 - **Boss's Claude · 2026-11-01 · #193** · Boss: "count any signal asked by
   the user as part of the counter, every signal it gives". The record has no
   confidence cut-off any more (`RECORD_MIN_CONFIDENCE` 0: members' requests

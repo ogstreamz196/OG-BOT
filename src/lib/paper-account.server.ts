@@ -239,7 +239,7 @@ export function resultInRisks(row: {
   tp1: number;
   status: string;
   best_target: number;
-  feeds?: { lock?: boolean } | null;
+  feeds?: { lock?: boolean; trail?: { stop?: number } } | null;
 }): number | null {
   const side = row.direction === "BUY" ? 1 : -1;
   const risk = Math.abs(Number(row.entry) - Number(row.stop));
@@ -247,6 +247,8 @@ export function resultInRisks(row: {
   const inR = (px: number) => ((px - Number(row.entry)) * side) / risk;
   if (Number(row.best_target) >= 1) return inR(Number(row.tp1));
   if (row.status === "stopped") return -1;
+  if (row.status === "breakeven" && row.feeds?.trail?.stop != null)
+    return inR(Number(row.feeds.trail.stop));
   if (row.status === "breakeven")
     return row.feeds?.lock
       ? inR(Number(row.entry) + (Number(row.tp1) - Number(row.entry)) * PROFIT_LOCK.keep)
