@@ -125,7 +125,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-01 · PR_NUM** · Trailing stops in the mix (Boss's
+- **Boss's Claude · 2026-11-01 · #194** · Trailing stops in the mix (Boss's
   ask): trades at 80%+ going with the bigger timeframe get an open take
   profit (a far cap at 3 risks) and a trailing stop instead of the 70/30
   lock: at 1 risk up the stop goes to the entry, then trails a risk behind
