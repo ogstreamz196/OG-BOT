@@ -7,15 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `copy-bot-tally` · **Started 2026-11-01:** Boss's
-  split: the OG Trade Bot only makes signals (no $ or lots in its cards or
-  updates); the Copy Trader B0T (@ogcopybot, fleet role "copy", now
-  connected) copies them and posts the one live tally at the bottom (copying
-  now, win/loss, balance). Touches `signal-chat.server.ts` (refreshScore),
-  `signal-record.server.ts` (resultsAnnouncement), the signals-chat lines in
-  `trade-signal-tracker.server.ts`, `signal-broadcast.server.ts`
-  (compactCard).
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
@@ -105,6 +96,17 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-11-01 · #191** · Boss's split, approved from a
+  mock-up: the OG Trade Bot only makes signals, with cards and updates in
+  prices only (no lots or $). The Copy Trader B0T (@ogcopybot, connected
+  tonight, fleet role "copy", on duty in OG SIGNAL TEST MODE) copies them and
+  posts the one live tally at the bottom: "📋 COPY TRADER B0T", what it's
+  copying now with $ so far, streak, last ten, win rate, each market in cash,
+  balance (`copyingNow`, `copyBot` in `refreshScore`). The demo account's
+  rules are unchanged. Updated `chat-cash-lines.test.ts` and the card-wording
+  test to the new wording. No migration. Next (Boss): link real accounts
+  through the copy bot.
 
 - **Partner's Claude · 2026-11-01 · #190** · Boss's rule: don't gang people
   up unless they're online at the same time. A guest saying "hi" got lumped

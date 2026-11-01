@@ -114,6 +114,40 @@ export async function clearOlderPair(admin: Admin, chatId: number, market: strin
  * the old post. OG B0T announces them; the trade bot only posts them when OG
  * B0T can't post there. Says what happened ("posted", or why not).
  */
+/**
+ * The Copy Trader B0T (worker fleet role "copy"), when one is switched on
+ * and on duty in this chat (the worker golden rule), with a way to post as it.
+ */
+async function copyBot(admin: Admin, chatId: number) {
+  try {
+    const key = process.env["TELEGRAM_CREDENTIAL_KEY"];
+    if (!key) return null;
+    const { data } = await admin
+      .from("telegram_worker_bots")
+      .select("id")
+      .eq("role", "copy")
+      .eq("enabled", true)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    const id = (data as { id?: string } | null)?.id;
+    if (!id) return null;
+    const f = await import("./telegram-fleet.server");
+    if (chatId < 0 && !(await f.fleetAllowed(id, chatId))) return null;
+    return {
+      id,
+      send: <T = unknown>(method: string, body: Record<string, unknown>) =>
+        f.fleetApi<T>(id, method, body, key) as Promise<{
+          ok: boolean;
+          result?: T;
+          description?: string;
+        }>,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function refreshScore(admin: Admin, chatId: number): Promise<string> {
   try {
     // Without the table the old post couldn't be removed: post none.
@@ -131,6 +165,11 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     const pa = await import("./paper-account.server");
     const state = await pa.paperState(admin).catch(() => null);
     const tally = state ? await pa.demoResults(admin, state).catch(() => null) : null;
+    // The Copy Trader B0T keeps the tally when it's set up (the Boss's split):
+    // it posts the post, with the trades it's copying right now on top.
+    const copier = await copyBot(admin, chatId);
+    const copying =
+      copier && state ? await pa.copyingNow(admin, state).catch(() => [] as string[]) : [];
     const message = {
       chat_id: chatId,
       text: tally
@@ -138,13 +177,15 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
             { ...record, wins: tally.wins, losses: tally.losses, form: tally.form },
             pa.demoLine(state!.start, tally.balance),
             tally.byMarket,
+            copier ? { copying } : null,
           )
-        : resultsAnnouncement(record),
+        : resultsAnnouncement(record, null, null, copier ? { copying } : null),
       disable_notification: true,
       disable_web_page_preview: true,
     };
     let sent: { ok: boolean; result?: { message_id?: number }; description?: string } | null =
-      await telegramApi<{ message_id?: number }>("sendMessage", message);
+      copier ? await copier.send<{ message_id?: number }>("sendMessage", message) : null;
+    if (!sent?.ok) sent = await telegramApi<{ message_id?: number }>("sendMessage", message);
     if (!sent?.ok) sent = await workerApi<{ message_id?: number }>("sendMessage", message);
     const id = sent?.ok ? sent.result?.message_id : undefined;
     if (!id) {
@@ -164,9 +205,14 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     const newest = Math.max(id, ...ids);
     const old = ids.filter((m) => m !== newest).slice(-100);
     if (old.length) {
-      // Older posts may be OG B0T's or the trade bot's: each removes its own.
+      // Older posts may be the copy bot's, OG B0T's or the trade bot's: each
+      // removes its own.
       const gone = { chat_id: chatId, message_ids: old };
-      await Promise.all([telegramApi("deleteMessages", gone), workerApi("deleteMessages", gone)]);
+      await Promise.all([
+        telegramApi("deleteMessages", gone),
+        workerApi("deleteMessages", gone),
+        copier?.send("deleteMessages", gone),
+      ]);
       await admin.from(TABLE).delete().eq("chat_id", chatId).in("message_id", old);
     }
     return "posted";

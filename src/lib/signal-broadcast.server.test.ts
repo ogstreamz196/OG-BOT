@@ -250,8 +250,8 @@ describe("auto-posted scalp signals", () => {
     expect(channelCard(card)).toBe(
       [
         "🔴 I'm gonna sell ₿ BTC/USD now at 77397.70",
-        "🛑 My stop loss will be 77496.66 · −$9.90",
-        "🎯 I'll take profit at 77331.73 · +$6.60",
+        "🛑 My stop loss will be 77496.66",
+        "🎯 I'll take profit at 77331.73",
         "⏱ 15M · 💪 70%",
       ].join("\n"),
     );

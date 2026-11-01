@@ -201,54 +201,49 @@ const money = (v: number) =>
   `${v >= 0 ? "+" : "−"}$${Math.abs(v).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
- * The signals chat's short update lines, in cash (the Boss's choice).
- * `pnl` (the demo's result, spread counted) is used on the line that closes
- * the trade, so it matches the balance.
+ * The signals chat's short update lines. Prices only (the Boss's split): the
+ * OG Trade Bot makes the signals and the Copy Trader B0T does the money
+ * (lots, results and the balance, in its tally). `lots` and `pnl` are kept
+ * for callers but no longer shown.
  */
 export function chatLine(
   row: Row,
   e: OutcomeEvent | { kind: "cancelled"; bias: string },
-  lots: number,
-  pnl?: number,
+  _lots?: number,
+  _pnl?: number,
 ): string {
   const { fmt } = formatter(row);
-  const cash = cashMove(row, lots);
   const lock = lockOf(row);
-  const closed = (from: number, to: number) => (pnl != null ? money(pnl) : cash(from, to));
   switch (e.kind) {
     case "filled":
       return `✅ In at ${fmt(row.entry)}`;
     case "tp1":
       return singleTarget(row)
-        ? `🎯 Take profit hit · ${closed(row.entry, row.tp1)}`
-        : `🎯 First take profit hit · ${cash(row.entry, row.tp1)} · stop to ${fmt(lock?.stop ?? row.entry)}`;
+        ? `🎯 Take profit hit at ${fmt(row.tp1)}`
+        : `🎯 First take profit hit · stop to ${fmt(lock?.stop ?? row.entry)}`;
     case "tp2":
-      return `🎯 Second take profit hit · ${cash(row.entry, row.tp2)}`;
+      return `🎯 Second take profit hit at ${fmt(row.tp2)}`;
     case "tp3":
-      return `🏁 Final take profit hit · ${closed(row.entry, row.tp3)}`;
+      return `🏁 Final take profit hit at ${fmt(row.tp3)}`;
     case "stopped":
-      return `🛑 Stopped out · ${closed(row.entry, row.stop)}`;
+      return `🛑 Stopped out at ${fmt(row.stop)}`;
     case "breakeven":
-      return lock
-        ? `🔒 Out at the locked stop · ${closed(row.entry, lock.stop)}`
-        : `⚖️ Out at breakeven · ${closed(row.entry, row.entry)}`;
+      return lock ? `🔒 Out at the locked stop ${fmt(lock.stop)}` : `⚖️ Out at breakeven`;
     case "protected":
-      return lock
-        ? `🔒 70% there · stop moved to ${fmt(lock.stop)} (${cash(row.entry, lock.stop)} locked)`
-        : `🔒 Stop moved to my entry`;
+      return lock ? `🔒 70% there · stop moved to ${fmt(lock.stop)}` : `🔒 Stop moved to my entry`;
     case "unfilled":
       return `⏳ Entry not reached · cancelled`;
     case "expired":
       return row.last_price != null
-        ? `⏱ Closed on time at ${fmt(row.last_price)} · ${closed(row.entry, row.last_price)}`
+        ? `⏱ Closed on time at ${fmt(row.last_price)}`
         : `⏱ Closed on time`;
     case "cancelled":
       return `⚠️ ${HIGHER[row.timeframe] ?? "Higher"} trend turned ${e.bias} · ${row.status === "pending" ? "cancelled" : "closed"}`;
   }
 }
 
-/** The signals chat's live price line, in cash: "📍 77372.40 (+$2.53) · 14:09". */
-export function chatLiveLine(row: Row, price: number, now: number, lots: number): string {
+/** The signals chat's live price line: "📍 77372.40 · 14:09" (prices only). */
+export function chatLiveLine(row: Row, price: number, now: number, _lots?: number): string {
   const { fmt } = formatter(row);
   const when = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
@@ -257,7 +252,7 @@ export function chatLiveLine(row: Row, price: number, now: number, lots: number)
   }).format(new Date(now));
   return row.status === "pending"
     ? `📍 ${fmt(price)} · waiting for entry · ${when}`
-    : `📍 ${fmt(price)} (${cashMove(row, lots)(row.entry, price)}) · ${when}`;
+    : `📍 ${fmt(price)} · ${when}`;
 }
 
 /** The signals chat's short take profit move line. */
@@ -870,7 +865,7 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           const at = closing ? lines.indexOf(chatLine(atLast, closing, chatLots)) : -1;
           if (inChat && entered && at >= 0) {
             lines[at] = chatLine(atLast, closing!, chatLots, pnl);
-          } else if (entered && balance != null) {
+          } else if (!inChat && entered && balance != null) {
             const money = (n: number) =>
               `$${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             lines.push(`💰 ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one`);

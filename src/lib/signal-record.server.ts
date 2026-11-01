@@ -250,24 +250,40 @@ export function resultsAnnouncement(
   demo?: string | null,
   /** Each market's demo profit or loss in dollars (paperByMarket), when it's running. */
   byMarket?: Record<string, number> | null,
+  /**
+   * Posted by the Copy Trader B0T (the Boss's split): its own heading, the
+   * trades it's copying right now (copyingLine), and a plain streak line.
+   */
+  copy?: { copying: string[] } | null,
 ): string {
   // Clutter free (the Boss's choice): the streak, the form, the score, each
   // market in cash and the balance.
   const streak = currentStreak(r);
   const n = streak?.count ?? 0;
-  const hype = !streak
-    ? "🏁 Nothing settled yet"
-    : streak.result === "won"
-      ? n > 1
-        ? `🔥 ${n} wins on the bounce. My boy's cooking!`
-        : "✅ Won his last one. Back on it."
-      : n > 1
-        ? `🥶 ${n} losses on the bounce. He'll bounce back, he always does.`
-        : "🛑 Took a loss on the last one. Shake it off, son.";
+  const hype = copy
+    ? !streak
+      ? "🏁 Nothing settled yet"
+      : streak.result === "won"
+        ? n > 1
+          ? `🔥 ${n} wins in a row`
+          : "✅ Won the last one"
+        : n > 1
+          ? `🥶 ${n} losses in a row`
+          : "🛑 Lost the last one"
+    : !streak
+      ? "🏁 Nothing settled yet"
+      : streak.result === "won"
+        ? n > 1
+          ? `🔥 ${n} wins on the bounce. My boy's cooking!`
+          : "✅ Won his last one. Back on it."
+        : n > 1
+          ? `🥶 ${n} losses on the bounce. He'll bounce back, he always does.`
+          : "🛑 Took a loss on the last one. Shake it off, son.";
   const lastTen = r.form.slice(-10);
   const decided = r.wins + r.losses;
   return [
-    "📣 OG TRADE BOT RESULTS",
+    copy ? "📋 COPY TRADER B0T" : "📣 OG TRADE BOT RESULTS",
+    ...(copy?.copying ?? []),
     hype,
     ...(lastTen.length ? [lastTen.map((f) => (f === "won" ? "✅" : "🛑")).join("")] : []),
     ...(decided
