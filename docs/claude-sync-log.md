@@ -7,6 +7,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · count-every-signal · The counter counts every signal OG
+  B0T gives (members' requests too, no 70% cut-off); money and balance stay
+  the copied trades. Touches `signal-record.server.ts`, `signal-chat.server.ts`
+  (`refreshScore`), tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
