@@ -106,6 +106,12 @@ export type MarketLearning = {
   /** How each extra chart setup did, and whether it's earned live use. */
   setups?: Partial<Record<SetupId, SetupStats>>;
   /**
+   * The same setups proven on the 1-minute, 15-minute and hourly charts
+   * (signal-frame-setups.server.ts), one chart per study in turn; a setup
+   * only posts on a chart it's live for.
+   */
+  frameSetups?: Partial<Record<"1m" | "15m" | "1h", Partial<Record<SetupId, SetupStats>>>>;
+  /**
    * A setting of its own for each trading session with enough trades to learn
    * from (see learnSessions); the others use the market's.
    */
@@ -610,11 +616,22 @@ export function provenConfidence(chart: number, stats: Pick<SetupStats, "winRate
   return Math.min(85, Math.max(55, chart, Math.round(stats.winRate * 100)));
 }
 
-/** The live extra setups' study results for a market. */
+/**
+ * The extra setups live for a market on one chart: the 5-minute study's, or
+ * the per-chart proof for the 1-minute, 15-minute and hourly charts. Only
+ * those may post on that chart (the Boss's rule). Nothing for other charts.
+ */
 export async function liveSetupStats(
   market: string,
+  frame: string = "5m",
 ): Promise<Partial<Record<SetupId, SetupStats>>> {
-  const stats = (await learningState()).markets[market]?.setups ?? {};
+  const m = (await learningState()).markets[market];
+  const stats =
+    frame === "5m"
+      ? (m?.setups ?? {})
+      : frame === "1m" || frame === "15m" || frame === "1h"
+        ? (m?.frameSetups?.[frame] ?? {})
+        : {};
   return Object.fromEntries(SETUP_IDS.filter((id) => stats[id]?.live).map((id) => [id, stats[id]]));
 }
 
@@ -694,6 +711,19 @@ export async function maybeLearn(
       days || LEARN_DAYS,
       floor,
     );
+    // One other chart a study, in turn (1m, 15m, 1h), proves the setups on
+    // its own history; a chart that can't be read keeps its last proof.
+    const frameSetups = { ...(had?.frameSetups ?? {}) };
+    try {
+      const fs = await import("./signal-frame-setups.server");
+      const order = ["1m", "15m", "1h"] as const;
+      const frame = order[(had?.runs ?? 0) % order.length];
+      const typical = (t: number) => bq.typicalSpread(model, market.code, t) ?? fallback;
+      const studied = await fs.studyFrames(market, out.next, typical, now, fetcher, [frame]);
+      if (studied[frame]) frameSetups[frame] = studied[frame];
+    } catch {
+      /* keep the last proof */
+    }
     state.markets[market.code] = {
       tuning: out.next,
       runs: (had?.runs ?? 0) + 1,
@@ -704,6 +734,7 @@ export async function maybeLearn(
         .replace(/\s+/g, " ")
         .trim(),
       setups,
+      frameSetups,
       sessions,
       history: [
         ...(had?.history ?? []),

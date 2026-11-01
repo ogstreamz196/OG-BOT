@@ -7,11 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · patterns-per-chart · Extra setups and chart patterns only
-  post on a chart they were proven on: a per-chart study for 1m, 15m and 1h
-  (5m keeps the main study). Touches `signal-learning.server.ts`, a new
-  `signal-frame-setups.server.ts`, `trade-signal-context.server.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
@@ -129,6 +124,15 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-01 · PR_NUM** · Boss: "only post patterns on the
+  chart they were proven on". #195 used the 5-minute proof on every chart.
+  Now the 1m, 15m and 1h charts each prove the setups on their own history
+  (`signal-frame-setups.server.ts`: one chart per study in turn, trend from
+  the chart's own 20/50 EMA, the same evaluate rules and spread), stored as
+  `MarketLearning.frameSetups`; `liveSetupStats(market, frame)` gives only
+  that chart's proven setups, and live uses the same trend the proof used.
+  No AI, no deletes, gold and bitcoin only. No migration.
 
 - **Boss's Claude · 2026-11-01 · #195** · Classic chart patterns, gold and
   bitcoin only, no AI: `double_top_bottom`, `flag_continuation`,
