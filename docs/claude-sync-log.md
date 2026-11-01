@@ -7,11 +7,15 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
-  `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
-  emails, the final data copy. Not started. Will touch `vite.config.ts`, a
-  new `wrangler.jsonc`, sign-in, `src/routes/lovable/email` and the
-  database client's schema.
+- Boss's Claude · lovable-takeover · Leaving Lovable, steps 3–5 (plan in
+  `docs/lovable-exit-plan.md`). **Handed from the partner's Claude to the
+  Boss's Claude by the Boss (2026-11-01, "You do the takeover").** Cloudflare
+  Workers hosting (beta first), own sign-in and emails, the final data copy,
+  following the booking portal's setup (Cloudflare + the OGSTREAMZ hub, hub
+  migrations applied directly). Will touch `vite.config.ts`, a new
+  `wrangler.jsonc`, a deploy workflow, sign-in, `src/routes/lovable/email`,
+  the database client. Waiting on the Boss's list (Cloudflare token, Worker
+  secrets) before anything deploys.
 
 ## Where things stand (handover)
 
