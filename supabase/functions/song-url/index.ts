@@ -8,6 +8,7 @@
 // or storage object missing) is unambiguous in the function logs.
 import { handlePreflight, jsonResponse } from "../_shared/cors.ts";
 import { adminClient, requireUser } from "../_shared/clients.ts";
+import { songAudioUrl } from "../_shared/song-audio-link.ts";
 
 type Outcome =
   | "ok"
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
   const admin = adminClient();
   const { data: song, error: songErr } = await admin
     .from("songs")
-    .select("user_id, audio_path, sample_path, status, unlocked, revealed")
+    .select("user_id, audio_path, drive_audio_id, sample_path, status, unlocked, revealed")
     .eq("id", song_id)
     .maybeSingle();
 
@@ -166,6 +167,20 @@ Deno.serve(async (req) => {
   const rawName = typeof body?.filename === "string" ? body.filename : "";
   const safeName = rawName.replace(/[^\w.\- ]+/g, "").slice(0, 120) || "track.mp3";
   const filename = safeName.toLowerCase().endsWith(".mp3") ? safeName : `${safeName}.mp3`;
+  // Full songs kept on the Boss's Google Drive stream from there, through the
+  // site's /api/public/song-audio (a signed ticket; see song-audio-link.ts).
+  const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (mode === "full" && song.drive_audio_id && secret) {
+    const url = await songAudioUrl(
+      secret,
+      Deno.env.get("OG_BOT_SITE_URL") ?? "https://ogbot.co.uk",
+      song_id,
+      ttl,
+      forceAttachment ? filename : undefined,
+    );
+    log("ok", { user_id: user.id, song_id, mode, owner: isOwner, from: "drive" });
+    return jsonResponse({ url, mode, unlocked: !!song.unlocked });
+  }
   let { data, error } = await admin.storage
     .from("song-files")
     .createSignedUrl(path, ttl, forceAttachment ? { download: filename } : undefined);

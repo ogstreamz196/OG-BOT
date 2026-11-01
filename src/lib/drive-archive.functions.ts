@@ -99,6 +99,121 @@ export type DriveArchiveResult = {
   alreadyArchived?: boolean;
 };
 
+const SONG_COLS =
+  "id,user_id,title,status,audio_path,lyrics,is_variation,style,drive_audio_id,drive_audio_link,drive_lyrics_link";
+
+type SongRow = {
+  id: string;
+  user_id: string;
+  title: string | null;
+  status: string;
+  audio_path: string | null;
+  lyrics: string | null;
+  style: string | null;
+  drive_audio_id: string | null;
+  drive_audio_link: string | null;
+  drive_lyrics_link: string | null;
+};
+
+/**
+ * Puts a finished song on the Boss's Drive (the MP3 and a lyrics sheet, in
+ * the member's folder) and records it on the song. From then on full plays
+ * and downloads come from Drive (song-audio.server.ts). Server-side: callers
+ * check who's asking.
+ */
+export async function archiveSong(songId: string, force = false): Promise<DriveArchiveResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: song, error } = await supabaseAdmin
+    .from("songs")
+    .select(SONG_COLS)
+    .eq("id", songId)
+    .maybeSingle();
+  if (error || !song) return { ok: false, reason: "song_not_found" };
+  return putOnDrive(supabaseAdmin, song as SongRow, force);
+}
+
+async function putOnDrive(
+  supabaseAdmin: Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"],
+  song: SongRow,
+  force: boolean,
+): Promise<DriveArchiveResult> {
+  if (song.status !== "complete" && song.status !== "completed") {
+    return { ok: false, reason: "not_final" };
+  }
+  if (!song.audio_path) return { ok: false, reason: "no_audio" };
+  if (song.drive_audio_id && !force) {
+    return {
+      ok: true,
+      alreadyArchived: true,
+      audioLink: song.drive_audio_link,
+      lyricsLink: song.drive_lyrics_link,
+    };
+  }
+
+  // Per-user folder keeps the archive tidy and easy to hand over.
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("display_name,email")
+    .eq("id", song.user_id)
+    .maybeSingle();
+  const folderLabel = safeName(
+    `${profile?.display_name || profile?.email || "user"} (${song.user_id.slice(0, 6)})`,
+  );
+  const userFolderId = await ensureFolder(folderLabel, ROOT_FOLDER_ID);
+
+  let downloadUrl = song.audio_path;
+  if (!/^https?:\/\//.test(song.audio_path)) {
+    const { data: signed } = await supabaseAdmin.storage
+      .from("song-files")
+      .createSignedUrl(song.audio_path, 60 * 10);
+    if (!signed?.signedUrl) return { ok: false, reason: "sign_failed" };
+    downloadUrl = signed.signedUrl;
+  }
+  const audioRes = await fetch(downloadUrl);
+  if (!audioRes.ok) return { ok: false, reason: `download_${audioRes.status}` };
+  const audioBytes = new Uint8Array(await audioRes.arrayBuffer());
+
+  const base = `${safeName(song.title ?? "track")} - ${song.id}`;
+  const audio = await uploadFile({
+    name: `${base}.mp3`,
+    parentId: userFolderId,
+    mimeType: "audio/mpeg",
+    bytes: audioBytes,
+  });
+
+  let lyrics: { id: string; link: string | null } | null = null;
+  if (song.lyrics && song.lyrics.trim().length) {
+    const sheet = [
+      song.title ?? "Untitled",
+      song.style ? `Style: ${song.style}` : null,
+      `Track ID: ${song.id}`,
+      "",
+      song.lyrics,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    lyrics = await uploadFile({
+      name: `${base}.txt`,
+      parentId: userFolderId,
+      mimeType: "text/plain",
+      bytes: new TextEncoder().encode(sheet),
+    });
+  }
+
+  await supabaseAdmin
+    .from("songs")
+    .update({
+      drive_audio_id: audio.id,
+      drive_audio_link: audio.link,
+      drive_lyrics_id: lyrics?.id ?? null,
+      drive_lyrics_link: lyrics?.link ?? null,
+      drive_archived_at: new Date().toISOString(),
+    })
+    .eq("id", song.id);
+
+  return { ok: true, audioLink: audio.link, lyricsLink: lyrics?.link ?? null };
+}
+
 export const archiveSongToDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { songId: string; force?: boolean }) => ({
@@ -109,9 +224,7 @@ export const archiveSongToDrive = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: song, error } = await supabaseAdmin
       .from("songs")
-      .select(
-        "id,user_id,title,status,audio_path,lyrics,is_variation,style,drive_audio_id,drive_audio_link,drive_lyrics_link",
-      )
+      .select(SONG_COLS)
       .eq("id", data.songId)
       .maybeSingle();
     if (error || !song) return { ok: false, reason: "song_not_found" };
@@ -127,124 +240,96 @@ export const archiveSongToDrive = createServerFn({ method: "POST" })
       });
       if (!isDev && !isAdmin) return { ok: false, reason: "forbidden" };
     }
-
-    if (song.status !== "complete" && song.status !== "completed") {
-      return { ok: false, reason: "not_final" };
-    }
-    if (!song.audio_path) return { ok: false, reason: "no_audio" };
-    if (song.drive_audio_id && !data.force) {
-      return {
-        ok: true,
-        alreadyArchived: true,
-        audioLink: song.drive_audio_link,
-        lyricsLink: song.drive_lyrics_link,
-      };
-    }
-
-    // Per-user folder keeps the archive tidy and easy to hand over.
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("display_name,email")
-      .eq("id", song.user_id)
-      .maybeSingle();
-    const folderLabel = safeName(
-      `${profile?.display_name || profile?.email || "user"} (${song.user_id.slice(0, 6)})`,
-    );
-    const userFolderId = await ensureFolder(folderLabel, ROOT_FOLDER_ID);
-
-    let downloadUrl = song.audio_path;
-    if (!/^https?:\/\//.test(song.audio_path)) {
-      const { data: signed } = await supabaseAdmin.storage
-        .from("song-files")
-        .createSignedUrl(song.audio_path, 60 * 10);
-      if (!signed?.signedUrl) return { ok: false, reason: "sign_failed" };
-      downloadUrl = signed.signedUrl;
-    }
-    const audioRes = await fetch(downloadUrl);
-    if (!audioRes.ok) return { ok: false, reason: `download_${audioRes.status}` };
-    const audioBytes = new Uint8Array(await audioRes.arrayBuffer());
-
-    const base = `${safeName(song.title ?? "track")} - ${song.id}`;
-    const audio = await uploadFile({
-      name: `${base}.mp3`,
-      parentId: userFolderId,
-      mimeType: "audio/mpeg",
-      bytes: audioBytes,
-    });
-
-    let lyrics: { id: string; link: string | null } | null = null;
-    if (song.lyrics && song.lyrics.trim().length) {
-      const sheet = [
-        song.title ?? "Untitled",
-        song.style ? `Style: ${song.style}` : null,
-        `Track ID: ${song.id}`,
-        "",
-        song.lyrics,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      lyrics = await uploadFile({
-        name: `${base}.txt`,
-        parentId: userFolderId,
-        mimeType: "text/plain",
-        bytes: new TextEncoder().encode(sheet),
-      });
-    }
-
-    await supabaseAdmin
-      .from("songs")
-      .update({
-        drive_audio_id: audio.id,
-        drive_audio_link: audio.link,
-        drive_lyrics_id: lyrics?.id ?? null,
-        drive_lyrics_link: lyrics?.link ?? null,
-        drive_archived_at: new Date().toISOString(),
-      })
-      .eq("id", song.id);
-
-    return { ok: true, audioLink: audio.link, lyricsLink: lyrics?.link ?? null };
+    return putOnDrive(supabaseAdmin, song as SongRow, data.force);
   });
 
-/** Backfill: archive every completed track that has no Drive copy yet. */
+/**
+ * Puts up to `limit` finished songs that aren't on Drive yet onto it, newest
+ * first. Used by the 5-minute song job (new songs) and the Boss's "move all
+ * songs to Drive" button.
+ */
+export async function archiveMissing(limit: number) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: rows, error } = await supabaseAdmin
+    .from("songs")
+    .select("id")
+    .in("status", ["complete", "completed"])
+    .is("drive_audio_id", null)
+    .not("audio_path", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  let archived = 0;
+  const failures: string[] = [];
+  for (const row of rows ?? []) {
+    try {
+      const res = await archiveSong(row.id);
+      if (res.ok) archived += 1;
+      else failures.push(`${row.id}: ${res.reason}`);
+    } catch (e) {
+      failures.push(`${row.id}: ${(e as Error).message}`);
+    }
+  }
+  return { considered: rows?.length ?? 0, archived, failures };
+}
+
+async function isStaff(context: { supabase: any; userId: string }) {
+  const [dev, admin] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "dev" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+  ]);
+  return !!dev.data || !!admin.data;
+}
+
+/**
+ * Backfill: puts finished songs that aren't on Drive yet onto it, `limit` at
+ * a time. The Boss (admin or dev) moves everyone's; anyone else only their own.
+ */
 export const backfillDriveArchive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { limit?: number }) => ({
-    limit: Math.max(1, Math.min(50, Number(input?.limit ?? 10))),
+    limit: Math.max(1, Math.min(25, Number(input?.limit ?? 10))),
   }))
   .handler(async ({ data, context }) => {
-    const { data: isDev } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "dev",
-    });
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    if (await isStaff(context)) return { ok: true, ...(await archiveMissing(data.limit)) };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    let query = supabaseAdmin
+    const { data: rows, error } = await supabaseAdmin
       .from("songs")
       .select("id")
+      .eq("user_id", context.userId)
       .in("status", ["complete", "completed"])
       .is("drive_audio_id", null)
       .not("audio_path", "is", null)
       .order("created_at", { ascending: false })
       .limit(data.limit);
-    if (!isDev && !isAdmin) query = query.eq("user_id", context.userId);
-
-    const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
-
     let archived = 0;
     const failures: string[] = [];
     for (const row of rows ?? []) {
-      try {
-        const res = await archiveSongToDrive({ data: { songId: row.id } });
-        if (res.ok) archived += 1;
-        else failures.push(`${row.id}: ${res.reason}`);
-      } catch (e) {
-        failures.push(`${row.id}: ${(e as Error).message}`);
-      }
+      const res = await archiveSong(row.id).catch((e: Error) => ({ ok: false, reason: e.message }));
+      if (res.ok) archived += 1;
+      else failures.push(`${row.id}: ${res.reason}`);
     }
     return { ok: true, considered: rows?.length ?? 0, archived, failures };
+  });
+
+/** Boss: how many finished songs are on Drive, and how many still aren't. */
+export const getDriveSongStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!(await isStaff(context))) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const base = () =>
+      supabaseAdmin
+        .from("songs")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["complete", "completed"])
+        .not("audio_path", "is", null);
+    const [all, onDrive] = await Promise.all([base(), base().not("drive_audio_id", "is", null)]);
+    const { connectorReady } = await import("@/lib/connectors.server");
+    return {
+      total: all.count ?? 0,
+      onDrive: onDrive.count ?? 0,
+      driveConnected: connectorReady("google_drive"),
+    };
   });

@@ -30,7 +30,7 @@ export async function sendTrackToTelegram(
     admin.from("profiles").select("telegram_chat_id").eq("id", userId).maybeSingle(),
     admin
       .from("songs")
-      .select("id, user_id, title, audio_path, status")
+      .select("id, user_id, title, audio_path, drive_audio_id, status")
       .eq("id", songId)
       .maybeSingle(),
     admin
@@ -54,11 +54,11 @@ export async function sendTrackToTelegram(
   if (recent.size > 500)
     for (const [k, at] of recent) if (Date.now() - at > GAP_MS) recent.delete(k);
 
-  // Telegram fetches the file itself from this short-lived link.
-  const { data: signed } = await admin.storage
-    .from("song-files")
-    .createSignedUrl(song.audio_path, 600);
-  if (!signed?.signedUrl) {
+  // Telegram fetches the file itself from this short-lived link (from the
+  // Boss's Drive when the song is kept there).
+  const { fullSongUrl } = await import("@/lib/song-audio.server");
+  const audioUrl = await fullSongUrl(admin, song, 600);
+  if (!audioUrl) {
     recent.delete(key);
     return "failed";
   }
@@ -66,7 +66,7 @@ export async function sendTrackToTelegram(
   const title = song.title || "OG B0T track";
   const sent = await telegramApi("sendAudio", {
     chat_id: chatId,
-    audio: signed.signedUrl,
+    audio: audioUrl,
     title,
     performer: "OG B0T",
     caption: `🎧 <b>${esc(title)}</b>\nFresh from the OG B0T studio. Bang it out loud, you legend.`,

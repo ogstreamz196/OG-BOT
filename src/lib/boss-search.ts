@@ -64,6 +64,13 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "errors provider failed generation",
   },
   {
+    title: "Songs on Google Drive",
+    where: area("Music", "Drive"),
+    to: "/admin/music",
+    tab: "drive",
+    keywords: "drive storage move songs google backup mp3",
+  },
+  {
     title: "Language & genre portals",
     where: area("Music", "Portals"),
     to: "/admin/music",

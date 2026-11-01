@@ -23,17 +23,16 @@ PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
 merged work, not open work.
 
 - **Boss's Claude (2026-10-31, 23:15):** synced to `44d8cb00` (#188, hub apply
-  + data snapshot — `supabase/hub` only, nothing for Lovable Cloud, no
-  migrations). One test was failing: `ai-endpoint.test.ts` "free only + Foul
-  Mouth ... never Gemini". Cause was the test, not the router — the chat usage
-  log is a fire-and-forget database write through the same global `fetch` the
-  tests stub, so the `ai_usage_log` insert was counted as a Gemini call
-  (confirmed by printing every fetched URL: openrouter → groq → the
-  `ai_usage_log` insert). `stubFetch` now answers `/rest/v1/` writes itself and
-  never passes them to the test's stub, so the tests only record real model
-  calls. Type check clean, 719 tests pass (6 skipped, none failing), build OK,
-  published to ogbot.co.uk.
-
+  - data snapshot — `supabase/hub` only, nothing for Lovable Cloud, no
+    migrations). One test was failing: `ai-endpoint.test.ts` "free only + Foul
+    Mouth ... never Gemini". Cause was the test, not the router — the chat usage
+    log is a fire-and-forget database write through the same global `fetch` the
+    tests stub, so the `ai_usage_log` insert was counted as a Gemini call
+    (confirmed by printing every fetched URL: openrouter → groq → the
+    `ai_usage_log` insert). `stubFetch` now answers `/rest/v1/` writes itself and
+    never passes them to the test's stub, so the tests only record real model
+    calls. Type check clean, 719 tests pass (6 skipped, none failing), build OK,
+    published to ogbot.co.uk.
 
 - **Partner's Claude (updated 2026-10-31, 17:00):** back after a pause the
   Boss asked for; no open PRs or branches of its own. Since #180 it has only
@@ -97,6 +96,18 @@ merged work, not open work.
 ## Log
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Partner's Claude · 2026-11-01 · #189** · Songs live on the Boss's Google
+  Drive (Boss: "main, not backup"). Full plays and downloads (song-url, the
+  public track page and playlist, Telegram) come from Drive through a signed,
+  expiring `/api/public/song-audio` link with a fallback to the stored copy
+  (`song-audio-link.ts` and its Deno copy, `song-audio.server.ts`). New songs
+  go to Drive in the 5-minute song job, and Boss → Music → Drive moves the
+  rest (191 of 219 weren't there yet). The library's Drive link now shows
+  only once a song is unlocked: it used to show for locked songs, which gave
+  the full song away. Previews, lyric videos and the stored full copies are
+  unchanged and nothing is deleted. Needs the song-url function redeployed.
+  No migration.
 
 - **Partner's Claude · 2026-10-31 · #188** · Leaving Lovable step 2 done
   without a GitHub secret: `og_bot` applied in the hub through the database

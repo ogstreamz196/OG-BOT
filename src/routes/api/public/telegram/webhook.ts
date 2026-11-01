@@ -77,7 +77,7 @@ async function sendTrackAudio(chat_id: number, songId: string) {
   const [{ data: song }, { roles }, { data: unlock }] = await Promise.all([
     admin
       .from("songs")
-      .select("id, title, style, audio_path, sample_path, status")
+      .select("id, title, style, audio_path, drive_audio_id, sample_path, status")
       .eq("id", songId)
       .eq("user_id", me.id)
       .maybeSingle(),
@@ -99,7 +99,11 @@ async function sendTrackAudio(chat_id: number, songId: string) {
     await reply(chat_id, "That track's file isn't ready yet. Try again in a minute.");
     return;
   }
-  const { data: signed } = await admin.storage.from("song-files").createSignedUrl(path, 600);
+  // The full song from the Boss's Drive when it's kept there; previews stay stored.
+  const { fullSongUrl } = await import("@/lib/song-audio.server");
+  const signed = full
+    ? { signedUrl: await fullSongUrl(admin, song, 600) }
+    : (await admin.storage.from("song-files").createSignedUrl(path, 600)).data;
   const { telegramSignInLinker } = await import("@/lib/telegram-signin.server");
   const unlockUrl = await telegramSignInLinker(admin, me.id)(`/library/${song.id}`);
   const title = song.title || "OG B0T track";
