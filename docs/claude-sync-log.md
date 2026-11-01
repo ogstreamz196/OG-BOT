@@ -97,7 +97,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Partner's Claude · 2026-11-01 · #190** · Songs live on the Boss's Google
+- **Partner's Claude · 2026-11-01 · #189** · Songs live on the Boss's Google
   Drive (Boss: "main, not backup"). Full plays and downloads (song-url, the
   public track page and playlist, Telegram) come from Drive through a signed,
   expiring `/api/public/song-audio` link with a fallback to the stored copy
