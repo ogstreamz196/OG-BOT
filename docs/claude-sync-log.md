@@ -125,6 +125,19 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-01 · #195** · Classic chart patterns, gold and
+  bitcoin only, no AI: `double_top_bottom`, `flag_continuation`,
+  `fvg_retest` (only with the bigger timeframe's trend) in `trade-setups.ts`
+  (`PATTERN_IDS`), stops past the invalidation level, targets 1/1.5/2 risks,
+  62% confidence +10 with the trend. Proven before live like the other
+  setups, but at 55% wins (`setupMinWinRate`), 12+ trades and positive after
+  spread; `SAMPLE_VERSION` 5 (history rebuilds from 14 days, old samples
+  kept). Scanner frames now 1m, 5m, 15m and 1h; proven setups read on all
+  four (`SETUP_FRAMES`), the desk re-check uses the alert's own chart
+  (`frameOf`). Not lowered: the 70% alert floor, the 90% TOP tier, the 1m
+  80% floor. Note: setups are proven on 5-minute history and applied to the
+  other charts. No migration.
+
 - **Boss's Claude · 2026-11-01 · #194** · Trailing stops in the mix (Boss's
   ask): trades at 80%+ going with the bigger timeframe get an open take
   profit (a far cap at 3 risks) and a trailing stop instead of the 70/30

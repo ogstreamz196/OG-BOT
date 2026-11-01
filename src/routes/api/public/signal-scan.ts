@@ -191,8 +191,10 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               () =>
                 scanAndBroadcast(supabaseAdmin, {
                   build: buildTradeSignal,
-                  // 15-minute scalps too: more setups, each still checked the same way.
-                  frames: ["5m", "15m"],
+                  // Gold and bitcoin on the 1-minute, 5-minute, 15-minute and hourly
+                  // charts: more setups (chart patterns too), each still checked the
+                  // same way against the same confidence bar.
+                  frames: ["1m", "5m", "15m", "1h"],
                   // The alert bar comes down only where trades under it have been winning.
                   alertBar: (market) => alertBar(supabaseAdmin, market),
                   post: postToSignalsChannel,

@@ -958,7 +958,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // an extra setup the learning loop has proven for this market takes its place.
   if (
     plan.verdict === "wait" &&
-    fast === "5m" &&
+    SETUP_FRAMES.includes(entryIv) &&
     !spotUnconfirmed &&
     !sitOut &&
     !/\bclosed\b/i.test(plan.waitReason ?? "")
@@ -967,7 +967,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     const proven = await liveSetupStats(inst.code).catch(() => ({}) as Record<string, never>);
     if (Object.keys(proven).length) {
       const { findSetups, setupPlan } = await import("./trade-setups");
-      const closed = entryCandles.filter((c) => c.t + 300_000 <= Date.now());
+      const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
       const floor = tuning?.minConfidence ?? 0;
       // A proven setup is as sure as it has been accurate (its own win rate),
       // so only the accurate ones clear the alert bar. Fast scalps (wick
@@ -1448,6 +1448,20 @@ export async function deskRead(
 
 /** The lowest confidence a 1-minute signal is traded at. */
 export const ONE_MINUTE_MIN_CONFIDENCE = 80;
+
+/**
+ * The charts the proven extra setups and chart patterns are read on (the
+ * scanner scans all four); the market's confidence floor (80% on the
+ * 1-minute) still applies to them.
+ */
+export const SETUP_FRAMES: Interval[] = ["1m", "5m", "15m", "1h"];
+const FRAME_MS: Record<Interval, number> = {
+  "1m": 60_000,
+  "5m": 300_000,
+  "15m": 900_000,
+  "1h": 3_600_000,
+  "1d": 86_400_000,
+};
 
 /** A market-bias call lasts this long (it's meant to trigger within minutes). */
 const BIAS_VALID_MS = 60 * 60_000;

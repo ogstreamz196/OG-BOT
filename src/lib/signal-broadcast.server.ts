@@ -108,6 +108,12 @@ export function compactCard(reply: string): string {
   return kept.length ? kept.join("\n") : reply;
 }
 
+/** The scanner's chart for a card's timeframe label ("1M", "5M", "15M", "1H"); 5m otherwise. */
+export function frameOf(label: string | undefined): SignalTimeframe {
+  const f = (label ?? "").toLowerCase() as SignalTimeframe;
+  return (["1m", "5m", "15m", "1h"] as SignalTimeframe[]).includes(f) ? f : "5m";
+}
+
 /** The card as posted in the signals chat (compactCard); the card carries the confidence %. */
 export function channelCard(reply: string, _confidencePct = TOP_CONFIDENCE): string {
   return compactCard(reply);
@@ -361,8 +367,8 @@ export function deskConfirmer(
       /* no veto kept */
     }
     const pair: SignalPair = plan.market.startsWith("XAU") ? "XAU" : "BTC";
-    // The same chart the alert came from (5- or 15-minute).
-    const frame: SignalTimeframe = signal.summary?.timeframe === "15M" ? "15m" : "5m";
+    // The same chart the alert came from (1-, 5-, 15-minute or hourly).
+    const frame = frameOf(signal.summary?.timeframe);
     const out = await read(signalRequest(pair, frame)).catch(() => null);
     if (!out?.desk) return withDesk(signal, "no_ai");
     const { deskBacks } = await import("./signal-desk.server");
