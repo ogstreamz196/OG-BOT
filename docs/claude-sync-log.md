@@ -127,7 +127,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-01 · PR_NUM** · Boss: "add check for all
+- **Boss's Claude · 2026-11-01 · #200** · Boss: "add check for all
   migrations, checklist for verification" (the move off Lovable waits until
   current work is done). `scripts/hub/migrations-checklist.mjs` builds
   `docs/migrations-checklist.md` (every migration, what it leaves behind,
