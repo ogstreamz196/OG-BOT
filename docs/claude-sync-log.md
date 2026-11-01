@@ -7,6 +7,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · chart-patterns · Classic chart patterns (double top/bottom,
+  flag, fair value gap) as proven-before-live extra setups, and scanning
+  1m/5m/15m/1h. Touches `trade-setups.ts`, `signal-learning.server.ts`,
+  `signal-samples.server.ts`, `trade-signal-context.server.ts`,
+  `signal-scan.ts`, `signal-broadcast.server.ts`, tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
