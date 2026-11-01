@@ -110,6 +110,24 @@ export function tpMove(o: {
   return null;
 }
 
+/**
+ * Open take profit with a trailing stop (some trades, the Boss's ask): no
+ * fixed take profit to aim at, only a far cap (CAP risks) so the broker side
+ * still has one. Once price is a full risk in profit the stop moves to the
+ * entry, then follows GAP risks behind the best price, never back.
+ */
+export const TRAIL = { CAP: 3, GAP: 1 } as const;
+
+/** Which trades trail: the surest ones (MIN_CONFIDENCE+) going with the bigger timeframe. */
+export const TRAIL_MIN_CONFIDENCE = 80;
+
+export function trailsThis(confidencePct: number, direction: "BUY" | "SELL", higher?: string) {
+  return (
+    confidencePct >= TRAIL_MIN_CONFIDENCE &&
+    higher === (direction === "BUY" ? "bullish" : "bearish")
+  );
+}
+
 /** Where the profit lock triggers and where it puts the stop, or null for a bad take profit. */
 export function profitLock(
   direction: "BUY" | "SELL",
@@ -167,6 +185,11 @@ export type TrackedSignal = {
   isProtected?: boolean;
   /** Where the moved stop sits: the entry (default), or the profit lock; broker-side when shifted. */
   beStop?: number;
+  /**
+   * A trailing stop (TRAIL): `risk` is the trade's first risk, `stop` where
+   * the trailing stop is now (none until it's a full risk in profit).
+   */
+  trail?: { risk: number; stop?: number };
 };
 
 export type OutcomeEvent = {
@@ -179,7 +202,8 @@ export type OutcomeEvent = {
     | "breakeven"
     | "expired"
     | "unfilled"
-    | "protected";
+    | "protected"
+    | "trailed";
   /** Candle time the event happened in (ms), or `now` for time-ups. */
   at: number;
   /** The level it happened at. */
@@ -208,8 +232,9 @@ export function advanceSignal(
   const long = signal.direction === "BUY";
   const events: OutcomeEvent[] = [];
   let status = signal.status;
-  let guarded = !!signal.isProtected;
-  const beStop = signal.beStop ?? signal.entry;
+  let guarded = !!signal.isProtected || signal.trail?.stop != null;
+  // Where a moved stop sits: the trailing stop, the profit lock, or the entry.
+  let beStop = signal.trail?.stop ?? signal.beStop ?? signal.entry;
   const below = (c: Candle, level: number) => c.l <= level;
   const above = (c: Candle, level: number) => c.h >= level;
   const touchesStop = (c: Candle, level: number) => (long ? below(c, level) : above(c, level));
@@ -254,6 +279,20 @@ export function advanceSignal(
     ) {
       guarded = true;
       events.push({ kind: "protected", at: c.t, price: signal.beTrigger });
+    }
+    // A trailing stop: a full risk in profit, the stop to the entry, then
+    // GAP risks behind the best price (from the next candle on, never back).
+    const r = signal.trail?.risk ?? 0;
+    if (r > 0 && status === "open") {
+      const best = long ? c.h : c.l;
+      if ((best - signal.entry) * (long ? 1 : -1) >= r) {
+        const next = best - (long ? 1 : -1) * r * TRAIL.GAP;
+        if (!guarded || (next - beStop) * (long ? 1 : -1) > 0) {
+          guarded = true;
+          beStop = next;
+          events.push({ kind: "trailed", at: c.t, price: next });
+        }
+      }
     }
   }
 

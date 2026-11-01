@@ -7,11 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · trailing-stops · Some trades get an open take profit with a
-  trailing stop. Touches `trade-signal-outcome.ts`, the tracker,
-  `trade-signal-context.server.ts`, `signal-record.server.ts`,
-  `paper-account.server.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`): Cloudflare beta hosting, own sign-in and
   emails, the final data copy. Not started. Will touch `vite.config.ts`, a
@@ -129,6 +124,16 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-01 · PR_NUM** · Trailing stops in the mix (Boss's
+  ask): trades at 80%+ going with the bigger timeframe get an open take
+  profit (a far cap at 3 risks) and a trailing stop instead of the 70/30
+  lock: at 1 risk up the stop goes to the entry, then trails a risk behind
+  the best price (`TRAIL`, `trailsThis`, `TrackedSignal.trail`,
+  `feeds.trail`). MT5 stop follows; members hear once per extra risk locked
+  in; a trailing exit in profit counts as a win. Card wording fits the
+  partner's prices-only chat cards. No migration. Open: the learning loop
+  doesn't replay trailing yet.
 
 - **Boss's Claude · 2026-11-01 · #193** · Boss: "count any signal asked by
   the user as part of the counter, every signal it gives". The record has no

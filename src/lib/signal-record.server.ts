@@ -75,7 +75,7 @@ type SignalRow = {
   status: string;
   best_target: number;
   entered_at: string | null;
-  feeds: { bias?: boolean } | null;
+  feeds: { bias?: boolean; trail?: { risk: number; stop?: number } } | null;
 };
 
 const ACTIVE = new Set(["pending", "open", "tp1", "tp2"]);
@@ -87,7 +87,15 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
   // The same setup sent to several chats is one signal: merge what each copy saw.
   const setups = new Map<
     string,
-    { row: SignalRow; best: number; stopped: boolean; active: boolean; filled: boolean }
+    {
+      row: SignalRow;
+      best: number;
+      stopped: boolean;
+      active: boolean;
+      filled: boolean;
+      /** A trailing stop that closed it in profit: how far past the entry (price units). */
+      trailed: number;
+    }
   >();
   for (const s of signals) {
     if (s.feeds?.bias) continue;
@@ -98,11 +106,17 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
       stopped: false,
       active: false,
       filled: false,
+      trailed: 0,
     };
     seen.best = Math.max(seen.best, Number(s.best_target) || 0);
     seen.stopped ||= s.status === "stopped";
     seen.active ||= ACTIVE.has(s.status);
     seen.filled ||= !!s.entered_at || ENTERED.has(s.status);
+    const trailStop = Number(s.feeds?.trail?.stop);
+    if (s.status === "breakeven" && Number.isFinite(trailStop)) {
+      const gained = (trailStop - Number(s.entry)) * (s.direction === "BUY" ? 1 : -1);
+      seen.trailed = Math.max(seen.trailed, gained);
+    }
     setups.set(key, seen);
   }
   const record: SignalRecord = {
@@ -116,8 +130,19 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
     form: [],
   };
   const byMarket = new Map<string, { market: string; label: string; unit: string; pips: number }>();
-  for (const { row, best, stopped, active, filled } of setups.values()) {
-    const result = resultFor({ ...row, id: "" }, best, stopped && best === 0);
+  for (const { row, best, stopped, active, filled, trailed } of setups.values()) {
+    const size = Number(row.pip) > 0 ? Number(row.pip) : 1;
+    // A trailing stop that closed it in profit is a win, its pips locked in.
+    const result =
+      resultFor({ ...row, id: "" }, best, stopped && best === 0) ??
+      (trailed > 0
+        ? {
+            outcome: "win" as const,
+            best_target: 0,
+            pips: Math.round((trailed / size) * 10) / 10,
+            unit: Number(row.pip) > 0 ? "pips" : "points",
+          }
+        : null);
     if (result) {
       if (result.outcome === "win") record.wins++;
       else record.losses++;
