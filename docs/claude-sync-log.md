@@ -125,6 +125,15 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-01 · #196** · Boss: "only post patterns on the
+  chart they were proven on". #195 used the 5-minute proof on every chart.
+  Now the 1m, 15m and 1h charts each prove the setups on their own history
+  (`signal-frame-setups.server.ts`: one chart per study in turn, trend from
+  the chart's own 20/50 EMA, the same evaluate rules and spread), stored as
+  `MarketLearning.frameSetups`; `liveSetupStats(market, frame)` gives only
+  that chart's proven setups, and live uses the same trend the proof used.
+  No AI, no deletes, gold and bitcoin only. No migration.
+
 - **Boss's Claude · 2026-11-01 · #195** · Classic chart patterns, gold and
   bitcoin only, no AI: `double_top_bottom`, `flag_continuation`,
   `fvg_retest` (only with the bigger timeframe's trend) in `trade-setups.ts`

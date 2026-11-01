@@ -964,7 +964,10 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     !/\bclosed\b/i.test(plan.waitReason ?? "")
   ) {
     const { liveSetupStats, provenConfidence } = await import("./signal-learning.server");
-    const proven = await liveSetupStats(inst.code).catch(() => ({}) as Record<string, never>);
+    // Only setups proven on this very chart (the Boss's rule).
+    const proven = await liveSetupStats(inst.code, entryIv).catch(
+      () => ({}) as Record<string, never>,
+    );
     if (Object.keys(proven).length) {
       const { findSetups, setupPlan } = await import("./trade-setups");
       const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
@@ -972,7 +975,11 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       // A proven setup is as sure as it has been accurate (its own win rate),
       // so only the accurate ones clear the alert bar. Fast scalps (wick
       // rejections, exhaustion reversals) come in here too.
-      const hit = findSetups(closed, hi.bias)
+      // The trend the proof used: the bigger timeframe on the 5-minute chart,
+      // the chart's own moving averages on the others (chartTrend).
+      const { chartTrend } = await import("./signal-frame-setups.server");
+      const trend = entryIv === "5m" ? hi.bias : chartTrend(closed);
+      const hit = findSetups(closed, trend)
         .filter((h) => h.id in proven)
         .map((h) => ({
           ...h,
