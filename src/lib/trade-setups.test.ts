@@ -204,38 +204,44 @@ describe("classic chart patterns", () => {
   /** Flat candles, two lows at `a` and `b` (indexes 30 and 50), and a last candle. */
   const doubleBottom = (a: number, b: number, last: Candle) => {
     const cs = flat(79);
-    cs[30] = bar(30, 98, 98.5, a, 97.5);
-    cs[50] = bar(50, 98, 98.5, b, 97.5);
+    cs[30] = bar(30, 99.3, 99.6, a, 99.2);
+    cs[50] = bar(50, 99.3, 99.6, b, 99.2);
     cs.push(last);
     return cs;
   };
 
   it("double bottom: two lows within 0.2 ATR, 20 candles apart, first close over the neckline", () => {
-    const cs = doubleBottom(97, 97.1, bar(79, 100, 101.2, 99.9, 101));
+    const cs = doubleBottom(98.7, 98.8, bar(79, 100, 101, 99.9, 100.8));
     const hit = findSetups(cs).find((h) => h.id === "double_top_bottom");
-    expect(hit).toMatchObject({ direction: "BUY", entry: 101 });
-    // Stop past the second bottom (clamped to 2.5 ATR), targets 1, 1.5, 2 risks.
-    expect(101 - hit!.risk).toBeLessThan(101);
-    expect(hit!.targets[0]).toBeCloseTo(101 + hit!.risk);
-    expect(hit!.targets[1]).toBeCloseTo(101 + hit!.risk * 1.5);
-    expect(hit!.targets[2]).toBeCloseTo(101 + hit!.risk * 2);
+    expect(hit).toMatchObject({ direction: "BUY", entry: 100.8 });
+    // Stop past the second bottom (98.8), targets 1, 1.5, 2 risks.
+    expect(100.8 - hit!.risk).toBeLessThan(98.8);
+    expect(hit!.targets[0]).toBeCloseTo(100.8 + hit!.risk);
+    expect(hit!.targets[1]).toBeCloseTo(100.8 + hit!.risk * 1.5);
+    expect(hit!.targets[2]).toBeCloseTo(100.8 + hit!.risk * 2);
   });
 
   it("double bottom: not with lows too far apart in price, or without the neckline break", () => {
-    const uneven = doubleBottom(97, 98, bar(79, 100, 101.2, 99.9, 101));
+    const uneven = doubleBottom(98.7, 99.1, bar(79, 100, 101, 99.9, 100.8));
     expect(findSetups(uneven).find((h) => h.id === "double_top_bottom")).toBeUndefined();
-    const noBreak = doubleBottom(97, 97.1, bar(79, 100, 100.4, 99.9, 100.3));
+    const noBreak = doubleBottom(98.7, 98.8, bar(79, 100, 100.4, 99.9, 100.3));
     expect(findSetups(noBreak).find((h) => h.id === "double_top_bottom")).toBeUndefined();
+  });
+
+  it("a double bottom whose real stop needs over 2.5 ATR is skipped, never given a tighter stop", () => {
+    // Lows at 97 and a close at 101: the stop past the second bottom is ~4 ATR away.
+    const wide = doubleBottom(97, 97.1, bar(79, 100, 101.2, 99.9, 101));
+    expect(findSetups(wide).find((h) => h.id === "double_top_bottom")).toBeUndefined();
   });
 
   it("double top: the same upside down, as a sell", () => {
     const cs = flat(79);
-    cs[30] = bar(30, 102, 103, 101.5, 102.5);
-    cs[50] = bar(50, 102, 102.9, 101.5, 102.5);
-    cs.push(bar(79, 100, 100.1, 98.8, 99));
+    cs[30] = bar(30, 100.7, 101.3, 100.6, 100.8);
+    cs[50] = bar(50, 100.7, 101.2, 100.6, 100.8);
+    cs.push(bar(79, 100, 100.1, 99, 99.2));
     expect(findSetups(cs).find((h) => h.id === "double_top_bottom")).toMatchObject({
       direction: "SELL",
-      entry: 99,
+      entry: 99.2,
     });
   });
 
@@ -272,21 +278,21 @@ describe("classic chart patterns", () => {
   /** A bullish gap (100.5 to 101.2) at candles 72–74, held, then a last candle. */
   const bullGap = (last: Candle) => {
     const cs = flat(72);
-    cs.push(bar(72, 100, 100.5, 99.5, 100.3));
+    cs.push(bar(72, 100, 100.5, 99.9, 100.3));
     cs.push(bar(73, 100.4, 102, 100.3, 101.9));
     cs.push(bar(74, 101.9, 102.5, 101.2, 102.3));
     for (let k = 75; k < 80; k++) cs.push(bar(k, 102.3, 102.8, 101.6, 102.4));
     cs.push(last);
     return cs;
   };
-  const tap = bar(80, 101.8, 102.6, 101, 102.4);
+  const tap = bar(80, 101.3, 101.6, 101, 101.5);
 
   it("fair value gap: taps into the gap and closes back out with the bigger trend", () => {
     const hit = findSetups(bullGap(tap), "bullish").find((h) => h.id === "fvg_retest");
-    expect(hit).toMatchObject({ direction: "BUY", entry: 102.4 });
-    // Stop under the gap (toward its origin), targets 1, 1.5, 2 risks.
-    expect(102.4 - hit!.risk).toBeLessThan(101.2);
-    expect(hit!.targets[1]).toBeCloseTo(102.4 + hit!.risk * 1.5);
+    expect(hit).toMatchObject({ direction: "BUY", entry: 101.5 });
+    // Stop under the gap's origin (candle 1's low, 99.9), targets 1, 1.5, 2 risks.
+    expect(101.5 - hit!.risk).toBeLessThan(99.9);
+    expect(hit!.targets[1]).toBeCloseTo(101.5 + hit!.risk * 1.5);
     // Trend alignment puts it in the 70–80% band.
     expect(hit!.confidencePct).toBe(72);
   });
@@ -298,6 +304,77 @@ describe("classic chart patterns", () => {
     expect(
       findSetups(bullGap(noTap), "bullish").find((h) => h.id === "fvg_retest"),
     ).toBeUndefined();
+  });
+
+  /** The same chart upside down around 100: every buy fixture becomes its sell. */
+  const mirror = (cs: Candle[]) =>
+    cs.map((c) => ({ t: c.t, o: 200 - c.o, h: 200 - c.l, l: 200 - c.h, c: 200 - c.c }));
+  const find = (cs: Candle[], id: string, b?: "bullish" | "bearish") =>
+    findSetups(cs, b).find((h) => h.id === id);
+
+  it("double top: stop past the second top, targets 1, 1.5 and 2 risks below", () => {
+    const hit = find(
+      mirror(doubleBottom(98.7, 98.8, bar(79, 100, 101, 99.9, 100.8))),
+      "double_top_bottom",
+    );
+    expect(hit).toMatchObject({ direction: "SELL", entry: 99.2 });
+    // Second top at 101.2: the stop sits above it.
+    expect(99.2 + hit!.risk).toBeGreaterThan(101.2);
+    expect(hit!.targets[0]).toBeCloseTo(99.2 - hit!.risk);
+    expect(hit!.targets[1]).toBeCloseTo(99.2 - hit!.risk * 1.5);
+    expect(hit!.targets[2]).toBeCloseTo(99.2 - hit!.risk * 2);
+    // And not without the neckline break, or with tops too far apart.
+    const noBreak = mirror(doubleBottom(98.7, 98.8, bar(79, 100, 100.4, 99.9, 100.3)));
+    expect(find(noBreak, "double_top_bottom")).toBeUndefined();
+    const uneven = mirror(doubleBottom(98.7, 99.1, bar(79, 100, 101, 99.9, 100.8)));
+    expect(find(uneven, "double_top_bottom")).toBeUndefined();
+  });
+
+  it("bear flag: a pole down, a tight flag, a close under it; stop over the flag's top", () => {
+    const hit = find(mirror(bullFlag(102.6, bar(81, 103, 104, 102.9, 103.9))), "flag_continuation");
+    expect(hit).toMatchObject({ direction: "SELL", entry: 96.1 });
+    // Flag's top is 97.4: the stop just above it.
+    expect(96.1 + hit!.risk).toBeGreaterThan(97.4);
+    expect(96.1 + hit!.risk).toBeLessThan(97.7);
+    expect(hit!.targets[0]).toBeCloseTo(96.1 - hit!.risk);
+    expect(hit!.targets[1]).toBeCloseTo(96.1 - hit!.risk * 1.5);
+    expect(hit!.targets[2]).toBeCloseTo(96.1 - hit!.risk * 2);
+    const deep = mirror(bullFlag(100.5, bar(81, 103, 104, 102.9, 103.9)));
+    expect(find(deep, "flag_continuation")).toBeUndefined();
+    const inside = mirror(bullFlag(102.6, bar(81, 103, 103.4, 102.9, 103.3)));
+    expect(find(inside, "flag_continuation")).toBeUndefined();
+  });
+
+  it("bearish fair value gap: only with a bearish bigger trend; stop over the gap's origin", () => {
+    const cs = mirror(bullGap(tap));
+    const hit = find(cs, "fvg_retest", "bearish");
+    expect(hit).toMatchObject({ direction: "SELL", entry: 98.5 });
+    // Candle 1's high is 100.1: the stop sits above it.
+    expect(98.5 + hit!.risk).toBeGreaterThan(100.1);
+    expect(hit!.targets[2]).toBeCloseTo(98.5 - hit!.risk * 2);
+    expect(hit!.confidencePct).toBe(72);
+    expect(find(cs, "fvg_retest", "bullish")).toBeUndefined();
+    expect(find(cs, "fvg_retest")).toBeUndefined();
+  });
+
+  it("no chart pattern reaches the 70% posting floor without the bigger trend", async () => {
+    const { BROADCAST_MIN_CONFIDENCE } = await import("./signal-broadcast.server");
+    expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
+    const cases: [Candle[], string][] = [
+      [doubleBottom(98.7, 98.8, bar(79, 100, 101, 99.9, 100.8)), "double_top_bottom"],
+      [bullFlag(102.6, bar(81, 103, 104, 102.9, 103.9)), "flag_continuation"],
+    ];
+    for (const [cs, id] of cases) {
+      for (const chart of [cs, mirror(cs)]) {
+        const up = find(chart, id)!.direction === "BUY";
+        expect(find(chart, id)!.confidencePct).toBeLessThan(BROADCAST_MIN_CONFIDENCE);
+        const against = find(chart, id, up ? "bearish" : "bullish")!;
+        expect(against.confidencePct).toBeLessThan(BROADCAST_MIN_CONFIDENCE);
+        const withIt = find(chart, id, up ? "bullish" : "bearish")!;
+        expect(withIt.confidencePct).toBeGreaterThanOrEqual(BROADCAST_MIN_CONFIDENCE);
+        expect(withIt.confidencePct).toBeLessThanOrEqual(80);
+      }
+    }
   });
 
   it("chart patterns need 55% to go live; scanned charts map back to their frame", async () => {

@@ -273,7 +273,8 @@ function swings(cs: Candle[], side: 1 | -1): number[] {
  * each other, both the window's bottom (top) within that; the neckline (the
  * highest high between them, lowest low for a top) is at least 0.5 ATR away,
  * and the last candle is the first to close beyond it. The stop goes past
- * the second bottom (top), targets 1, 1.5 and 2 risks.
+ * the second bottom (top), targets 1, 1.5 and 2 risks; a pattern needing a
+ * stop wider than 2.5 ATR is skipped.
  */
 function doubleTopBottom(cs: Candle[], a: number): Omit<SetupHit, "confidencePct" | "atr"> | null {
   const last = cs[cs.length - 1];
@@ -301,7 +302,8 @@ function doubleTopBottom(cs: Candle[], a: number): Omit<SetupHit, "confidencePct
       // bottom has already closed through it.
       if ((last.c - neck) * side <= 0 || (prev.c - neck) * side > 0) continue;
       if (win.slice(second).some((c) => (c.c - neck) * side > 0)) continue;
-      const risk = clampRisk(Math.abs(last.c - (lv(win[second]) - side * a * 0.1)), a, 0.5, 2.5);
+      const risk = beyond(Math.abs(last.c - (lv(win[second]) - side * a * 0.1)), a, 0.5, 2.5);
+      if (risk === null) continue;
       return {
         id: "double_top_bottom",
         direction: side === 1 ? "BUY" : "SELL",
@@ -345,7 +347,8 @@ function flagContinuation(cs: Candle[], a: number): Omit<SetupHit, "confidencePc
       const edge = side === 1 ? top : bottom;
       if ((last.c - edge) * side <= 0 || (last.c - last.o) * side <= 0) continue;
       const base = side === 1 ? bottom : top;
-      const risk = clampRisk(Math.abs(last.c - (base - side * a * 0.1)), a, 0.4, 2);
+      const risk = beyond(Math.abs(last.c - (base - side * a * 0.1)), a, 0.4, 2);
+      if (risk === null) continue;
       return {
         id: "flag_continuation",
         direction: side === 1 ? "BUY" : "SELL",
@@ -379,8 +382,11 @@ function fvgRetest(
   for (let k = n - 4; k >= Math.max(0, n - 22); k--) {
     const c1 = cs[k];
     const c3 = cs[k + 2];
-    const lo = side === 1 ? c1.h : c3.h; // gap's far edge (where it'd be filled)
-    const hi = side === 1 ? c3.l : c1.l; // gap's near edge (where price comes back in)
+    // Bullish: the gap runs from candle 1's high up to candle 3's low; bearish
+    // from candle 3's high up to candle 1's low. Price comes back in at
+    // candle 3's side and would fill it at candle 1's side.
+    const lo = side === 1 ? c1.h : c1.l; // gap's far edge (where it'd be filled)
+    const hi = side === 1 ? c3.l : c3.h; // gap's near edge (where price comes back in)
     const gap = side === 1 ? c3.l - c1.h : c1.l - c3.h;
     if (gap < a * 0.2) continue;
     // No close has filled it since.
@@ -391,7 +397,8 @@ function fvgRetest(
       side === 1 ? last.l <= hi && last.l >= lo - a * 0.1 : last.h >= hi && last.h <= lo + a * 0.1;
     if (!tapped || (last.c - hi) * side <= 0 || (last.c - last.o) * side <= 0) continue;
     const origin = side === 1 ? c1.l : c1.h;
-    const risk = clampRisk(Math.abs(last.c - (origin - side * a * 0.1)), a, 0.4, 2);
+    const risk = beyond(Math.abs(last.c - (origin - side * a * 0.1)), a, 0.4, 2);
+    if (risk === null) continue;
     return {
       id: "fvg_retest",
       direction: side === 1 ? "BUY" : "SELL",
@@ -405,6 +412,15 @@ function fvgRetest(
 
 const clampRisk = (r: number, a: number, lo: number, hi: number) =>
   Math.min(Math.max(r, a * lo), a * hi);
+
+/**
+ * A chart pattern's stop always sits past where the pattern is proven wrong:
+ * widened to at least `lo` ATR, but never pulled inside it. If it would need
+ * more than `hi` ATR, the pattern is skipped (null) rather than given a stop
+ * the pattern doesn't support.
+ */
+const beyond = (r: number, a: number, lo: number, hi: number) =>
+  r > a * hi ? null : Math.max(r, a * lo);
 
 const inR = (entry: number, side: 1 | -1, risk: number, rs: number[]) =>
   rs.map((r) => entry + side * risk * r) as [number, number, number];
