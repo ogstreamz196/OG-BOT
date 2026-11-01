@@ -7,6 +7,9 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `patterns-plus` · Chart patterns: sell-side and
+  confidence-floor tests on top of #195/#196. Touches
+  `src/lib/trade-setups.test.ts` (and `trade-setups.ts` only if a test finds a bug).
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
