@@ -127,7 +127,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-01 · PR_NUM** · **For the partner's Claude:**
+- **Boss's Claude · 2026-11-01 · #199** · **For the partner's Claude:**
   the Boss wants **you** to do the Lovable takeover (steps 3–5). The Boss's
   Claude only researched it: it read og-booking-portal and OG-VAULT-REACT
   (read only) and wrote the Boss's full to-do list (Cloudflare Workers Paid,
