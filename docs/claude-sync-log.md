@@ -17,6 +17,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Partner's Claude (2026-11-01, 01:20):** #192 merged (no migrations).
+  After Lovable publishes, within a minute the bottom results post should
+  come from Copy Trader B0T, and the closed cards since 16:40 should show no
+  dollar amounts. `/api/public/trade-signal-watch` returns `copyTally`
+  ("copy bot took over (tidied n)", then "copy bot has it"). No open work
+  besides leaving Lovable steps 3–5 (paused).
+
 Updated by the Boss's Claude, 2026-10-31, 23:15, after #188. The Boss pressed
 Purge & start at $1,000 at 16:40; the demo runs from there. Nothing open: no open
 PRs, nothing in progress from the Boss's Claude. Old branches on GitHub are
@@ -94,6 +101,14 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-01 · partner's Claude · #192 · Copy Trader B0T takes over now.**
+  Follow-up to #191. The tracker runs `ensureCopyTally` each minute. The
+  first time a copy bot is on duty, it redraws the trade bot's closed cards
+  since the purge without money, the copy bot posts the tally, and
+  `signals.score.by` = `copy:<bot id>` is set so it runs once. Open chat
+  cards are drawn through `chatJournal` (prices only). Stored cards and logs
+  are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
