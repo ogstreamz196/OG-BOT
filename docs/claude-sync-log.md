@@ -7,6 +7,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `fewer-losses` · Losing streak: shadows count each
+  move once, relaxed filters switch back on after 4 losing live trades.
+  Touches `signal-filter-learning.server.ts`, `signal-alert-bar.server.ts`,
+  `signal-shadows.server.ts`.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
