@@ -7,9 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `btc-only` · Gold retired: Bitcoin is the only signal
-  market (bot, site, app); more BTC room. Touches the signal engine, scanner,
-  learning, MT5, Telegram buttons, signals board and Boss panels.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -21,6 +18,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Partner's Claude (2026-11-02, gold retired):** #205 merged (no
+  migrations). Signals are Bitcoin only. **Don't add gold back** anywhere
+  (scanner, learning, buttons, pages) unless the Boss says so; read
+  `src/lib/signal-markets.ts` for markets. Still open: the 1:1 take profit
+  question, and the takeover waiting on "Cloudflare prep done".
 
 - **Partner's Claude (2026-11-02, later):** #204 merged (no migrations).
   Gold's no_room filter goes back on at the next filter study. Open
@@ -141,6 +144,14 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-02 · partner's Claude · #205 · Gold retired, Bitcoin only.**
+  `src/lib/signal-markets.ts` (SIGNAL_MARKETS / RETIRED_MARKETS) is the one
+  list every scanner, learner, MT5, report, page and panel reads. Gold asks
+  get one line, with no chart, AI or tracking. Telegram buttons are BTC only.
+  BTC can run 6 alerts at once (was 3). Gold data stays stored. No
+  migrations. Gold tests were rewritten (restore them from history if gold
+  ever comes back).
 
 - **2026-11-02 · partner's Claude · #204 · Fewer losing trades.** Since
   31 Oct midday the trade bot went 16 won, 27 lost. Trades let through by
