@@ -144,6 +144,44 @@ export type ShadowRow = {
   expires_at: string;
 };
 
+/** How long one market move lasts for counting shadows (see oneShadowPerMove). */
+export const SHADOW_MOVE_MS = 30 * 60_000;
+
+/**
+ * Shadows are kept every five minutes while a setup keeps showing, so one
+ * market move can leave a dozen of them that all win or all lose together.
+ * For learning, each move counts once: the first shadow per market, reason,
+ * direction and chart in each half hour. Reads only; nothing is deleted. Pure.
+ */
+export function oneShadowPerMove<
+  T extends {
+    market?: string;
+    reason?: string;
+    direction?: string;
+    timeframe?: string | null;
+    created_at?: string;
+  },
+>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const sorted = [...rows].sort(
+    (a, b) => Date.parse(a.created_at ?? "") - Date.parse(b.created_at ?? ""),
+  );
+  return sorted.filter((r) => {
+    const at = Date.parse(r.created_at ?? "");
+    if (!Number.isFinite(at)) return true;
+    const key = [
+      r.market,
+      r.reason,
+      r.direction,
+      r.timeframe ?? "",
+      Math.floor(at / SHADOW_MOVE_MS),
+    ].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** A shadow's result once it's over, in pips (points without a pip size). Pure. */
 export function shadowResult(
   row: Pick<ShadowRow, "direction" | "entry" | "stop" | "tp" | "pip">,

@@ -10,12 +10,17 @@
 // - a relaxed filter is TIGHTENED again (switched back on) when the live
 //   trades it let through (feeds.relaxed) lose: under TIGHTEN_WIN_RATE, or
 //   money lost after the spread, over TIGHTEN_MIN_DECIDED+ decided trades.
+//   Quick to switch back on (4 live trades), slow to switch off (15 moves).
+//
+// Shadows count once per market move (oneShadowPerMove): a setup that keeps
+// showing leaves a shadow every five minutes, and a dozen shadows of one
+// move must not look like a dozen winners.
 //
 // The confidence floor and the alert bar have their own learning and aren't
 // here. Kept in site_content "signals.filters"; live signals read it through
 // relaxedFilters (cached 10 minutes). No AI is involved.
 import { SPREAD_COST } from "./signal-learning.server";
-import { SHADOW_REASONS, type ShadowReason } from "./signal-shadows.server";
+import { oneShadowPerMove, SHADOW_REASONS, type ShadowReason } from "./signal-shadows.server";
 
 type Admin = any;
 
@@ -24,7 +29,7 @@ const RUN_KEY = "signals.filters.lastRun";
 export const FILTER_STUDY_MS = 2 * 3600_000;
 export const RELAX_MIN_DECIDED = 15;
 export const RELAX_WIN_RATE = 0.55;
-export const TIGHTEN_MIN_DECIDED = 10;
+export const TIGHTEN_MIN_DECIDED = 4;
 export const TIGHTEN_WIN_RATE = 0.45;
 const DAYS = 30;
 const MARKETS = ["XAUUSD", "BTCUSD"];
@@ -151,7 +156,7 @@ export async function maybeStudyFilters(admin: Admin, now = Date.now()): Promise
     const [shadows, live] = await Promise.all([
       admin
         .from("signal_shadows")
-        .select("market, reason, outcome, pips, pip")
+        .select("market, reason, outcome, pips, pip, direction, timeframe, created_at")
         .gte("created_at", since)
         .not("outcome", "is", null)
         .limit(20_000),
@@ -165,15 +170,20 @@ export async function maybeStudyFilters(admin: Admin, now = Date.now()): Promise
     const state = parseFilters(await setting(admin, FILTERS_KEY));
     const changes: string[] = [];
     for (const market of MARKETS) {
-      const sh = (
-        (shadows.data ?? []) as {
-          market: string;
-          reason: string;
-          outcome: string;
-          pips: number | null;
-          pip: number | null;
-        }[]
-      ).filter((r) => r.market === market);
+      const sh = oneShadowPerMove(
+        (
+          (shadows.data ?? []) as {
+            market: string;
+            reason: string;
+            outcome: string;
+            pips: number | null;
+            pip: number | null;
+            direction: string;
+            timeframe: string | null;
+            created_at: string;
+          }[]
+        ).filter((r) => r.market === market && r.outcome !== "unfilled"),
+      );
       const lv = (
         (live.data ?? []) as {
           market: string;

@@ -35,7 +35,12 @@ describe("nextFilterState", () => {
   it("switched off, it's judged on what it lets through, and back on if that loses", () => {
     const off = nextFilterState(undefined, trades(12, 6), [], 3.5, NOW);
     // Too few live trades yet: stays off.
-    expect(nextFilterState(off, [], trades(2, 5), 3.5, NOW).relaxed).toBe(true);
+    expect(nextFilterState(off, [], trades(1, 2), 3.5, NOW).relaxed).toBe(true);
+    // Four live trades that lose are enough to switch it back on (quick to
+    // tighten, slow to relax): gold's no-room filter went 0 for 4.
+    expect(TIGHTEN_MIN_DECIDED).toBe(4);
+    expect(nextFilterState(off, [], trades(0, 4), 3.5, NOW).relaxed).toBe(false);
+    expect(nextFilterState(off, [], trades(2, 5), 3.5, NOW).relaxed).toBe(false);
     // Still winning: stays off.
     expect(nextFilterState(off, [], trades(7, 4), 3.5, NOW).relaxed).toBe(true);
     // Losing: back on.
@@ -76,5 +81,36 @@ describe("the desk's no, learned off", () => {
     const out = await confirm(signal);
     expect(asked).toBe(0);
     expect(out?.plan?.feeds).toEqual({ desk: "relaxed", relaxed: "desk_no" });
+  });
+});
+
+describe("shadows count once per market move", () => {
+  it("a setup shadowed every five minutes through one move counts once", async () => {
+    const { oneShadowPerMove } = await import("./signal-shadows.server");
+    const at = (min: number) => new Date(NOW + min * 60_000).toISOString();
+    const row = (min: number, extra: Record<string, string> = {}) => ({
+      market: "XAUUSD",
+      reason: "no_room",
+      direction: "BUY",
+      timeframe: "5M",
+      created_at: at(min),
+      ...extra,
+    });
+    // Twelve shadows of one move (an hour, every five minutes): two half hours.
+    const oneMove = Array.from({ length: 12 }, (_, i) => row(i * 5));
+    expect(oneShadowPerMove(oneMove)).toHaveLength(2);
+    // Another direction, chart or reason in the same half hour is its own.
+    expect(
+      oneShadowPerMove([
+        row(0),
+        row(5),
+        row(5, { direction: "SELL" }),
+        row(5, { timeframe: "15M" }),
+        row(5, { reason: "choppy" }),
+        row(5, { market: "BTCUSD" }),
+      ]),
+    ).toHaveLength(5);
+    // The earliest of each move is the one kept, whatever order they come in.
+    expect(oneShadowPerMove([row(10), row(0)])[0].created_at).toBe(at(0));
   });
 });
