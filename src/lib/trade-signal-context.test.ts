@@ -268,7 +268,7 @@ describe("buildTradeSignalContext", () => {
         return new Response("nope", { status: 404 });
       });
     stubFetch(feed(true));
-    const out = await buildTradeSignalContext("xauusd signal");
+    const out = await buildTradeSignalContext("nas100 signal");
     expect(out).toContain("MARKET HEADLINES (Yahoo Finance");
     expect(out).toContain("1. Gold climbs as dollar slips, Reuters (2026-01-01 00:00 UTC)");
     expect(out).toContain("2. Fed speakers in focus, Bloomberg");
@@ -290,194 +290,30 @@ describe("buildTradeSignalContext", () => {
   });
 });
 
-describe("accuracy wiring", () => {
-  const goldFeed = (spot: unknown) =>
-    vi.fn(async (url: string) => {
-      if (url.includes("swissquote")) return ok(spot);
-      const interval = new URL(url).searchParams.get("interval");
-      if (!url.includes("binance") || !url.includes("klines"))
-        return new Response("no", { status: 404 });
-      const ms = interval === "1d" ? 24 * HOUR : HOUR;
-      return ok(binanceRows(bars(1000, 2000, 0.2, ms)));
-    });
-
-  it("moves gold onto the spot price brokers quote", async () => {
-    vi.resetModules();
-    const { buildTradeSignal: build } = await import("./trade-signal-context.server");
-    stubFetch(goldFeed([]));
-    const plain = await build("gold signal");
-    vi.resetModules();
-    const { buildTradeSignal: build2 } = await import("./trade-signal-context.server");
-    // Last hourly close is ~2199.8; spot is 12 higher.
-    const last = bars(1000, 2000, 0.2, HOUR).at(-1)!.c;
-    const q = { spreadProfilePrices: [{ bid: last + 11.9, ask: last + 12.1 }] };
-    stubFetch(goldFeed([q, q, q]));
-    const spot = await build2("gold signal");
-    // Without a confirmed spot price, gold gives no levels (and no bias call).
-    expect(plain.plan).toBeUndefined();
-    expect(plain.bias).toBeUndefined();
-    expect(plain.summary!.waitReason).toMatch(/Can't confirm the real XAU\/USD \(Gold\) price/);
-    expect(spot.plan!.entry - plain.summary!.entry).toBeCloseTo(12, 0);
-    expect(spot.plan!.feeds.spot).toBe("XAU/USD");
-    expect(spot.plan!.feeds.offset).toBeCloseTo(12, 0);
-    expect(spot.block).toMatch(/chart moved \+12\.\d+ onto the Swissquote spot price/);
+describe("gold is retired (the Boss's call)", () => {
+  it("a gold ask gets one line, no chart, no levels and nothing tracked", async () => {
+    const fetchSpy = vi.fn(async () => new Response("unused", { status: 500 }));
+    stubFetch(fetchSpy);
+    const { RETIRED_REPLY, RETIRED_BLOCK } = await import("./signal-markets");
+    for (const ask of ["gold signal", "xauusd scalp", "XAU/USD 5m"]) {
+      const signal = await buildTradeSignal(ask);
+      expect(signal.reply).toBe(RETIRED_REPLY);
+      expect(signal.block).toBe(RETIRED_BLOCK);
+      expect(signal.plan).toBeUndefined();
+      expect(signal.expiresAt).toBeNull();
+    }
+    // No price feed was even asked.
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("trials the US dollar check on gold: a buy into a surging dollar is marked down", async () => {
-    const last = bars(1000, 2000, 0.2, HOUR).at(-1)!.c;
-    const q = { spreadProfilePrices: [{ bid: last - 0.1, ask: last + 0.1 }] };
-    // 80 closed hours, flat until the last 5, which move from `from` to `to`.
-    const yahoo = (from: number, to: number) => {
-      const now = Date.now();
-      const ts = Array.from({ length: 80 }, (_, i) => Math.floor((now - (81 - i) * HOUR) / 1000));
-      const closes = ts.map((_, i) => (i < 75 ? from : from + ((to - from) * (i - 74)) / 5));
-      return ok({
-        chart: {
-          result: [
-            {
-              timestamp: ts,
-              indicators: {
-                quote: [
-                  {
-                    open: closes,
-                    high: closes,
-                    low: closes,
-                    close: closes,
-                    volume: closes.map(() => 0),
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      });
-    };
-    const feed = (eurFrom: number, eurTo: number, yieldTo = 4.2) =>
-      vi.fn(async (url: string) => {
-        if (url.includes("swissquote")) return ok([q, q, q]);
-        if (url.includes("EURUSD")) return yahoo(eurFrom, eurTo);
-        if (url.includes("TNX")) return yahoo(4.2, yieldTo);
-        const interval = new URL(url).searchParams.get("interval");
-        if (!url.includes("binance") || !url.includes("klines"))
-          return new Response("no", { status: 404 });
-        const ms = interval === "1d" ? 24 * HOUR : HOUR;
-        return ok(binanceRows(bars(1000, 2000, 0.2, ms)));
-      });
-    vi.resetModules();
-    stubFetch(feed(1.1, 1.1));
-    const steady = await (
-      await import("./trade-signal-context.server")
-    ).buildTradeSignal("gold signal");
-    vi.resetModules();
-    stubFetch(feed(1.1, 1.095, 4.3));
-    const surging = await (
-      await import("./trade-signal-context.server")
-    ).buildTradeSignal("gold signal");
-    const a = steady.summary!;
-    const b = surging.summary!;
-    expect(a.direction).toBe("BUY");
-    expect(b.confidencePct).toBeLessThan(a.confidencePct);
-    expect(b.cautions[0]).toMatch(/US dollar's against it/);
-    if (surging.plan) expect(surging.plan.feeds.checks).toEqual({ dollar: "against" });
-    expect(surging.block).toContain("PAIR CHECKS (live trial):");
-  });
-
-  it("prices gold from the gold perpetual, each feed moved by its own gap to spot", async () => {
-    vi.resetModules();
-    const { buildTradeSignal: build } = await import("./trade-signal-context.server");
-    // The perpetual answers every timeframe but the daily, which comes from
-    // the PAX Gold token trading 15 higher; spot sits 2 above the perpetual.
-    const fut = bars(1000, 2000, 0.2, HOUR);
-    const last = fut.at(-1)!.c;
-    const q = { spreadProfilePrices: [{ bid: last + 1.9, ask: last + 2.1 }] };
-    stubFetch(
-      vi.fn(async (url: string) => {
-        if (url.includes("swissquote")) return ok([q, q, q]);
-        const interval = new URL(url).searchParams.get("interval");
-        if (!url.includes("klines")) return new Response("no", { status: 404 });
-        if (url.includes("fapi"))
-          return interval === "1d" ? new Response("no", { status: 500 }) : ok(binanceRows(fut));
-        if (!url.includes("binance")) return new Response("no", { status: 404 });
-        // The token's daily ends 15 above the perpetual's latest price.
-        return ok(binanceRows(bars(365, last + 15 - 0.2 * 364, 0.2, 24 * HOUR)));
-      }),
-    );
-    const signal = await build("gold signal");
-    expect(signal.plan!.feeds.futures).toBe("XAUUSDT");
-    expect(signal.plan!.feeds.spot).toBe("XAU/USD");
-    // The signal's own gap is the perpetual's (about 2), not the token's.
-    expect(signal.plan!.feeds.offset).toBeCloseTo(2, 0);
-    expect(signal.block).toContain("source: Binance futures");
-    // Today's range (the token's daily) lands on spot too, not 15 above it.
-    const range = signal.block!.match(/today's range ([\d.]+) – ([\d.]+)/);
-    expect(range).not.toBeNull();
-    expect(Number(range![2])).toBeLessThan(last + 2 + 1);
-  });
-
-  it("never marks gold down for the gold token's thin volume, but the gold perpetual's counts", async () => {
-    // The last three candles trade a tenth of the usual volume.
-    const thin = (b: ReturnType<typeof bars>) =>
-      binanceRows(b).map((r, i, all) => {
-        const row = [...r];
-        row[5] = i >= all.length - 3 ? "1" : "10";
-        return row;
-      });
-    const feed = (start: number, futures = true) =>
-      vi.fn(async (url: string) => {
-        if (url.includes("swissquote")) return ok([]);
-        if (!futures && url.includes("fapi")) return new Response("no", { status: 451 });
-        const interval = new URL(url).searchParams.get("interval");
-        if (!url.includes("binance") || !url.includes("klines"))
-          return new Response("no", { status: 404 });
-        const ms = interval === "1d" ? 24 * HOUR : HOUR;
-        return ok(thin(bars(1000, start, start / 10000, ms)));
-      });
-    const light = /Volume is light/;
-    vi.resetModules();
-    stubFetch(feed(70000));
-    const btc = await (
-      await import("./trade-signal-context.server")
-    ).buildTradeSignal("btc signal");
-    expect(btc.summary!.cautions.some((c) => light.test(c))).toBe(true);
-    // The gold perpetual is down: the PAX Gold token's volume never counts.
-    vi.resetModules();
-    stubFetch(feed(2000, false));
-    const gold = await (
-      await import("./trade-signal-context.server")
-    ).buildTradeSignal("gold signal");
-    expect(gold.summary).toBeDefined();
-    expect(gold.summary!.cautions.some((c) => light.test(c))).toBe(false);
-    // From the gold perpetual, it's the real market's volume, so it counts.
-    vi.resetModules();
-    stubFetch(feed(2000));
-    const perp = await (
-      await import("./trade-signal-context.server")
-    ).buildTradeSignal("gold signal");
-    expect(perp.summary!.cautions.some((c) => light.test(c))).toBe(true);
-  });
-
-  it("says no trade while gold is shut for the weekend, and tracks nothing", async () => {
-    setNow("2026-10-24T12:00:00Z");
-    vi.resetModules();
-    const { buildTradeSignal: build } = await import("./trade-signal-context.server");
-    stubFetch(goldFeed([]));
-    const signal = await build("gold signal");
-    // Short and rude: the heading and one line. The market's shut, so it says
-    // that rather than one of the random "no setup" lines.
-    expect(signal.reply).toBe(`⏸ No signal · XAU/USD (Gold) · 1H\n${MARKET_SHUT_LINE}`);
-    expect(
-      NO_SIGNAL_LINES.every(
-        (l) => l.length < 90 && /fuck|bastard|bugger|dog|degenerate|rinsed|grass/i.test(l),
-      ),
-    ).toBe(true);
-    expect(signal.reply).not.toMatch(/Entry:|SL:/);
-    expect(signal.plan).toBeUndefined();
-    expect(signal.block).toContain("Verdict: WAIT");
+  it("an ask naming no market goes to bitcoin", async () => {
+    const { bestMarketAsk } = await import("./trade-signal-context.server");
+    expect(await bestMarketAsk("give me a signal")).toBe("BTCUSD signal give me a signal");
   });
 });
 
 describe("Telegram delivery", () => {
-  for (const pair of ["BTCUSD", "XAUUSD"]) {
+  for (const pair of ["BTCUSD"]) {
     for (const frame of ["1h", "15m", "5m", "1m"]) {
       it(`calculates ${pair} from actual ${frame} entry candles`, async () => {
         // Isolate source/candle/card caches so every selection must fetch its feed.

@@ -10,6 +10,7 @@ vi.mock("./signal-chat.server", async (orig) => ({
 }));
 import {
   BROADCAST_MIN_CONFIDENCE,
+  MAX_RUNNING_PER_MARKET,
   channelCard,
   scanAndBroadcast,
   type ScanDeps,
@@ -75,32 +76,47 @@ function deps(
 
 describe("auto-posted scalp signals", () => {
   test("trades from 70% confidence are posted, TOP only at 90%", async () => {
-    const { db } = fakeDb();
-    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: card("BTCUSD", "SELL", 70) });
-    const result = await scanAndBroadcast(db, d);
-    expect(result).toEqual({ checked: 2, posted: ["XAUUSD BUY", "BTCUSD SELL"] });
-    expect(d.sent).toHaveLength(2);
-    expect(d.sent[0]).toMatch(/^XAUUSD BUY card/);
-    expect(d.sent[1]).toMatch(/^BTCUSD SELL card/);
-    expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
+    for (const [direction, pct] of [
+      ["BUY", 90],
+      ["SELL", 70],
+    ] as const) {
+      const { db } = fakeDb();
+      const d = deps({ BTC: card("BTCUSD", direction, pct) });
+      const result = await scanAndBroadcast(db, d);
+      expect(result).toEqual({ checked: 1, posted: [`BTCUSD ${direction}`] });
+      expect(d.sent).toHaveLength(1);
+      expect(d.sent[0]).toMatch(new RegExp(`^BTCUSD ${direction} card`));
+      expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
+    }
     expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
+  });
+
+  test("bitcoin only: gold is retired and never scanned", async () => {
+    const { db } = fakeDb();
+    const asks: string[] = [];
+    const d = deps({ BTC: card("BTCUSD", "BUY", 90) });
+    const build = d.build;
+    d.build = async (ask) => (asks.push(ask), build(ask));
+    await scanAndBroadcast(db, d);
+    expect(asks.length).toBeGreaterThan(0);
+    expect(asks.every((a) => a.startsWith("BTCUSD"))).toBe(true);
   });
 
   test("under 70% isn't posted", async () => {
     const { db } = fakeDb();
-    const d = deps({ XAU: card("XAUUSD", "BUY", 69), BTC: card("BTCUSD", "SELL", 51) });
-    expect(await scanAndBroadcast(db, d)).toEqual({ checked: 2, posted: [] });
+    const d = deps({ BTC: card("BTCUSD", "SELL", 69) });
+    expect(await scanAndBroadcast(db, d)).toEqual({ checked: 1, posted: [] });
   });
 
   test("a 'wait' (no trade) is never posted", async () => {
     const { db } = fakeDb();
-    const d = deps({ XAU: { reply: "wait card" }, BTC: { reply: "wait card" } });
+    const d = deps({ BTC: { reply: "wait card" } });
     expect((await scanAndBroadcast(db, d)).posted).toEqual([]);
   });
 
   test("successfully posted signals register the exact delivered message for follow-ups", async () => {
     const { db } = fakeDb();
-    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: { reply: "" } });
+    const d = deps({ BTC: card("BTCUSD", "BUY", 90) });
     const followed: number[] = [];
     d.follow = async (_signal, id) => {
       followed.push(id);
@@ -111,28 +127,28 @@ describe("auto-posted scalp signals", () => {
 
   test("no repeats while a post is valid, unless it flips; posts again once it expires", async () => {
     const { db } = fakeDb();
-    const gold = { XAU: card("XAUUSD", "BUY", 90, 60), BTC: { reply: "" } };
-    expect((await scanAndBroadcast(db, deps(gold))).posted).toEqual(["XAUUSD BUY"]);
+    const btc = { BTC: card("BTCUSD", "BUY", 90, 60) };
+    expect((await scanAndBroadcast(db, deps(btc))).posted).toEqual(["BTCUSD BUY"]);
     // A minute later, same call: not again.
-    expect((await scanAndBroadcast(db, deps(gold, T0 + 60_000))).posted).toEqual([]);
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 60_000))).posted).toEqual([]);
     // It flips to a SELL: that's news, so it goes out.
-    const flipped = { XAU: card("XAUUSD", "SELL", 90, 60), BTC: { reply: "" } };
+    const flipped = { BTC: card("BTCUSD", "SELL", 90, 60) };
     expect((await scanAndBroadcast(db, deps(flipped, T0 + 120_000))).posted).toEqual([
-      "XAUUSD SELL",
+      "BTCUSD SELL",
     ]);
     // After the post's valid-until, a fresh one can go out.
     expect((await scanAndBroadcast(db, deps(flipped, T0 + 61 * 60_000))).posted).toEqual([
-      "XAUUSD SELL",
+      "BTCUSD SELL",
     ]);
   });
 
   test("the same side goes out again once the last alert's trade is over", async () => {
     const { db, tables } = fakeDb();
-    const gold = { XAU: card("XAUUSD", "BUY", 90, 60), BTC: { reply: "" } };
-    expect((await scanAndBroadcast(db, deps(gold))).posted).toEqual(["XAUUSD BUY"]);
+    const btc = { BTC: card("BTCUSD", "BUY", 90, 60) };
+    expect((await scanAndBroadcast(db, deps(btc))).posted).toEqual(["BTCUSD BUY"]);
     // The alert's trade, as the tracker keeps it (message 1 in the channel).
     const trade: Row = {
-      market: "XAUUSD",
+      market: "BTCUSD",
       sender_worker: "trade",
       message_id: 1,
       status: "open",
@@ -142,20 +158,20 @@ describe("auto-posted scalp signals", () => {
     };
     tables.trade_signals.push(trade);
     // Still running: no repeat.
-    expect((await scanAndBroadcast(db, deps(gold, T0 + 5 * 60_000))).posted).toEqual([]);
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 5 * 60_000))).posted).toEqual([]);
     // Take profit hit ten minutes in: the next buy can go straight out.
     Object.assign(trade, { status: "tp3", closed_at: new Date(T0 + 10 * 60_000).toISOString() });
-    expect((await scanAndBroadcast(db, deps(gold, T0 + 11 * 60_000))).posted).toEqual([
-      "XAUUSD BUY",
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 11 * 60_000))).posted).toEqual([
+      "BTCUSD BUY",
     ]);
   });
 
   test("after a stop loss, the same side waits 15 minutes", async () => {
     const { db, tables } = fakeDb();
-    const gold = { XAU: card("XAUUSD", "BUY", 90, 60), BTC: { reply: "" } };
-    await scanAndBroadcast(db, deps(gold));
+    const btc = { BTC: card("BTCUSD", "BUY", 90, 60) };
+    await scanAndBroadcast(db, deps(btc));
     tables.trade_signals.push({
-      market: "XAUUSD",
+      market: "BTCUSD",
       sender_worker: "trade",
       message_id: 1,
       status: "stopped",
@@ -163,32 +179,31 @@ describe("auto-posted scalp signals", () => {
       // Recorded as the alert went out (the fake stamps posts with the real clock).
       created_at: new Date().toISOString(),
     });
-    expect((await scanAndBroadcast(db, deps(gold, T0 + 10 * 60_000))).posted).toEqual([]);
-    expect((await scanAndBroadcast(db, deps(gold, T0 + 21 * 60_000))).posted).toEqual([
-      "XAUUSD BUY",
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 10 * 60_000))).posted).toEqual([]);
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 21 * 60_000))).posted).toEqual([
+      "BTCUSD BUY",
     ]);
   });
 
   test("several trades run at once: a new setup goes out beside a running one", async () => {
     const { db, tables } = fakeDb();
     const at = (entry: number, direction: "BUY" | "SELL" = "BUY") => ({
-      XAU: {
-        ...card("XAUUSD", direction, 90, 120),
-        plan: { ...card("XAUUSD", direction, 90, 120).plan, entry },
+      BTC: {
+        ...card("BTCUSD", direction, 90, 120),
+        plan: { ...card("BTCUSD", direction, 90, 120).plan, entry },
         summary: { stop: direction === "BUY" ? entry - 5 : entry + 5 },
       },
-      BTC: { reply: "" },
     });
     const running = (message_id: number) =>
       tables.trade_signals.push({
-        market: "XAUUSD",
+        market: "BTCUSD",
         sender_worker: "trade",
         message_id,
         status: "open",
         closed_at: null,
         created_at: new Date().toISOString(),
       });
-    expect((await scanAndBroadcast(db, deps(at(100) as never))).posted).toEqual(["XAUUSD BUY"]);
+    expect((await scanAndBroadcast(db, deps(at(100) as never))).posted).toEqual(["BTCUSD BUY"]);
     running(1);
     // Five minutes on, a different buy: too soon after the running one.
     expect((await scanAndBroadcast(db, deps(at(110) as never, T0 + 5 * 60_000))).posted).toEqual(
@@ -200,34 +215,49 @@ describe("auto-posted scalp signals", () => {
     );
     // A new setup well away from the first: it runs alongside it.
     expect((await scanAndBroadcast(db, deps(at(110) as never, T0 + 12 * 60_000))).posted).toEqual([
-      "XAUUSD BUY",
+      "BTCUSD BUY",
     ]);
     running(2);
-    // A sell can run beside them too, and that's three: the most at once.
+    // A sell can run beside them too.
     expect(
       (await scanAndBroadcast(db, deps(at(120, "SELL") as never, T0 + 13 * 60_000))).posted,
-    ).toEqual(["XAUUSD SELL"]);
+    ).toEqual(["BTCUSD SELL"]);
     running(3);
-    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 30 * 60_000))).posted).toEqual(
+    // Bitcoin has gold's room now: up to MAX_RUNNING_PER_MARKET (6) at once.
+    expect(MAX_RUNNING_PER_MARKET).toBe(6);
+    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 30 * 60_000))).posted).toEqual([
+      "BTCUSD BUY",
+    ]);
+    running(4);
+    expect((await scanAndBroadcast(db, deps(at(150) as never, T0 + 45 * 60_000))).posted).toEqual([
+      "BTCUSD BUY",
+    ]);
+    running(5);
+    expect((await scanAndBroadcast(db, deps(at(170) as never, T0 + 56 * 60_000))).posted).toEqual([
+      "BTCUSD BUY",
+    ]);
+    running(6);
+    // Six running: the most at once.
+    expect((await scanAndBroadcast(db, deps(at(190) as never, T0 + 67 * 60_000))).posted).toEqual(
       [],
     );
     // One of them hits its take profit: room for another.
     tables.trade_signals[0].status = "tp3";
-    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 31 * 60_000))).posted).toEqual([
-      "XAUUSD BUY",
+    expect((await scanAndBroadcast(db, deps(at(190) as never, T0 + 68 * 60_000))).posted).toEqual([
+      "BTCUSD BUY",
     ]);
   });
 
   test("without the table, nothing is posted (it can't tell repeats apart)", async () => {
     const { db } = fakeDb({ broken: true });
-    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: card("BTCUSD", "BUY", 90) });
+    const d = deps({ BTC: card("BTCUSD", "BUY", 90) });
     expect((await scanAndBroadcast(db, d)).posted).toEqual([]);
     expect(d.sent).toHaveLength(0);
   });
 
   test("a failed post isn't recorded, so the next scan tries again", async () => {
     const { db, rows } = fakeDb();
-    const d = deps({ XAU: card("XAUUSD", "BUY", 90), BTC: { reply: "" } });
+    const d = deps({ BTC: card("BTCUSD", "BUY", 90) });
     d.post = async () => null;
     expect((await scanAndBroadcast(db, d)).posted).toEqual([]);
     expect(rows).toHaveLength(0);

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AccountInfo } from "./mt5-autotrade.server";
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 async function assertBoss(context: { supabase: unknown; userId: string }) {
   const supabase = context.supabase as {
@@ -52,7 +53,7 @@ export const getMt5Status = createServerFn({ method: "GET" })
     const model = bq.parseSpreads((spreads.data as { value?: string } | null)?.value);
     const now = Date.now();
     const spread = Object.fromEntries(
-      ["XAUUSD", "BTCUSD"].map((mk) => [
+      ([...SIGNAL_MARKETS] as string[]).map((mk) => [
         mk,
         {
           latest: bq.latestSpread(model, mk, now),

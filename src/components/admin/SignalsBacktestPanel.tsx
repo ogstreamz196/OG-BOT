@@ -18,10 +18,9 @@ import {
 } from "@/lib/trade-signal-backtest";
 import type { CandleSets } from "@/lib/trade-signal";
 
-// The markets the Telegram picker offers, tested on Binance's free history
-// (gold through the PAX Gold token that live gold signals are charted from).
+// The markets the bot gives signals on, tested on Binance's free history.
+// Bitcoin only: gold is retired (signal-markets.ts).
 const MARKETS = {
-  XAUUSD: { label: "Gold", symbol: "PAXGUSDT", ask: "gold" },
   BTCUSD: { label: "Bitcoin", symbol: "BTCUSDT", ask: "btc" },
 } as const;
 type Market = keyof typeof MARKETS;
@@ -45,7 +44,7 @@ type Result = {
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "–");
 
 export function SignalsBacktestPanel() {
-  const [market, setMarket] = useState<Market>("XAUUSD");
+  const [market, setMarket] = useState<Market>("BTCUSD");
   const [frame, setFrame] = useState<BacktestFrame>("15M");
   const [days, setDays] = useState(90);
   const [progress, setProgress] = useState<string | null>(null);

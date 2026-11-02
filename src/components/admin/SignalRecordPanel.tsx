@@ -58,7 +58,7 @@ export function SignalRecordPanel() {
     <AdminSection
       icon={<Trophy className="h-4 w-4 text-amber-400" />}
       title="Signal record & win rate"
-      subtitle="Every gold and bitcoin signal sent at 70% confidence or more (members only see the win rate), and how they did. It never resets by itself, only with this button."
+      subtitle="Every bitcoin signal sent (gold's older ones stay in the history) at 70% confidence or more (members only see the win rate), and how they did. It never resets by itself, only with this button."
       action={
         <Button
           size="sm"

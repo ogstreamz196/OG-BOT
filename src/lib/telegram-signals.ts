@@ -51,17 +51,12 @@ export const SIGNAL_BUTTONS: Record<
 
 /** Rows for the signals bottom bar (1 min is Boss-only). */
 export function signalButtonRows(boss: boolean, mode: "scalp" | "holding" = "scalp"): string[][] {
+  // Bitcoin only: gold is retired (signal-markets.ts). Old gold buttons still
+  // on members' screens get the "Bitcoin only now" reply.
   if (mode === "holding") {
-    return [
-      ["🥇 Gold · Holding", "₿ BTC · Holding"],
-      [SCALP_BUTTON, BACK_BUTTON],
-    ];
+    return [["₿ BTC · Holding"], [SCALP_BUTTON, BACK_BUTTON]];
   }
-  return [
-    ["🥇 Gold", "₿ BTC"],
-    ...(boss ? [["🥇 Gold · 1 min", "₿ BTC · 1 min"]] : []),
-    [HOLDING_BUTTON, BACK_BUTTON],
-  ];
+  return [["₿ BTC"], ...(boss ? [["₿ BTC · 1 min"]] : []), [HOLDING_BUTTON, BACK_BUTTON]];
 }
 
 /**

@@ -764,15 +764,22 @@ export async function buildTradeSignalContext(userText: string): Promise<string>
 }
 
 /**
- * An ask that names no market: whichever of gold and bitcoin has the stronger
- * setup right now, as an ask naming it (gold when neither has one). Both
- * builds are cached, so building the winner again costs nothing.
+ * An ask that names no market: whichever signal market has the strongest
+ * setup right now, as an ask naming it (the first when none has one). Gold is
+ * retired, so today that's always Bitcoin (signal-markets.ts). Builds are
+ * cached, so building the winner again costs nothing.
  */
 export async function bestMarketAsk(userText: string): Promise<string> {
-  const asks = ["XAUUSD", "BTCUSD"].map((code) => `${code} signal ${userText}`);
+  const { SIGNAL_MARKETS } = await import("./signal-markets");
+  const asks = SIGNAL_MARKETS.map((code) => `${code} signal ${userText}`);
+  if (asks.length === 1) return asks[0];
   const built = await Promise.all(asks.map((ask) => buildTradeSignal(ask).catch(() => null)));
   const strength = (s: TradeSignalResult | null) => s?.plan?.confidencePct ?? -1;
-  return strength(built[1]) > strength(built[0]) ? asks[1] : asks[0];
+  let best = 0;
+  built.forEach((s, i) => {
+    if (strength(s) > strength(built[best])) best = i;
+  });
+  return asks[best];
 }
 
 /**
@@ -782,6 +789,10 @@ export async function bestMarketAsk(userText: string): Promise<string> {
 export async function buildTradeSignal(userText: string): Promise<TradeSignalResult> {
   const inst = detectTradeIntent(userText);
   if (!inst) return { block: "", expiresAt: null, reply: "" };
+  // Gold is retired (signal-markets.ts): no chart, no AI desk, just the note.
+  const { isRetiredMarket, RETIRED_BLOCK, RETIRED_REPLY } = await import("./signal-markets");
+  if (isRetiredMarket(inst.code))
+    return { block: RETIRED_BLOCK, expiresAt: null, reply: RETIRED_REPLY };
   const style: Style = detectStyle(userText);
   const fast = fastFrame(userText);
   const entryIv: Interval = fast ?? (style === "scalp" ? "15m" : "1h");

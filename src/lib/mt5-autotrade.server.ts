@@ -13,6 +13,7 @@
 // with MT5_SYMBOL_XAUUSD / MT5_SYMBOL_BTCUSD (Vantage default: same names).
 // Never throws into the signal flow, and never logs the token.
 import type { SignalPlan } from "./trade-signal-context.server";
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 type Admin = any;
 
@@ -21,7 +22,7 @@ export const AUTOTRADE_KEY = "mt5.autotrade";
 export const COPY_LINK_KEY = "mt5.copyLink";
 export const AUTOTRADE_LOT = 0.01;
 export const AUTOTRADE_MIN_CONFIDENCE = 70;
-const MARKETS = ["XAUUSD", "BTCUSD"];
+const MARKETS: string[] = [...SIGNAL_MARKETS];
 
 export type Mt5Trade = {
   id: string;

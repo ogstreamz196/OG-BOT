@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 async function assertBoss(context: { supabase: unknown; userId: string }) {
   const supabase = context.supabase as {
@@ -39,7 +40,7 @@ export const getSignalReport = createServerFn({ method: "GET" })
     ]);
     // Which filters each market has learned to switch off, and on what record.
     const filters = Object.fromEntries(
-      ["XAUUSD", "BTCUSD"].map((market) => [
+      ([...SIGNAL_MARKETS] as string[]).map((market) => [
         market,
         LEARNED_FILTERS.map((f) => {
           const x = filterState.markets[market]?.[f];

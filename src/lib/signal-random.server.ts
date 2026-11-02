@@ -1,6 +1,6 @@
 // Random signals (the Boss's ask): every so often OG B0T gives a signal on
 // its own, the way it answers a member's request, using a strategy picked at
-// random, to find out which works best. Gold and bitcoin only.
+// random, to find out which works best. Bitcoin only (gold is retired).
 //
 // The strategies: the chart engine on its own, the AI desk (every AI reading
 // the chart together, the request style; inside the desk's daily budget), and
@@ -64,7 +64,7 @@ export function pickStrategy(
   return best;
 }
 
-/** The ask that builds a strategy's signal ("XAUUSD signal 5m setup:flag_continuation"). */
+/** The ask that builds a strategy's signal ("BTCUSD signal 5m setup:flag_continuation"). */
 export function strategyAsk(base: string, s: Strategy): string {
   return s === "engine" || s === "desk" ? base : `${base} setup:${s}`;
 }

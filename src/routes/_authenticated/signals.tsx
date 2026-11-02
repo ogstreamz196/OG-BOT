@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/signals")({
       { title: "OG Signals | OG B0T" },
       {
         name: "description",
-        content: "Live trade signals for gold, crypto, forex and indices, updated in real time.",
+        content: "Live Bitcoin trade signals, updated in real time.",
       },
       { property: "og:title", content: "OG Signals | OG B0T" },
       { property: "og:type", content: "website" },

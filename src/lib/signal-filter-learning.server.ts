@@ -21,6 +21,7 @@
 // relaxedFilters (cached 10 minutes). No AI is involved.
 import { SPREAD_COST } from "./signal-learning.server";
 import { oneShadowPerMove, SHADOW_REASONS, type ShadowReason } from "./signal-shadows.server";
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 type Admin = any;
 
@@ -32,7 +33,7 @@ export const RELAX_WIN_RATE = 0.55;
 export const TIGHTEN_MIN_DECIDED = 4;
 export const TIGHTEN_WIN_RATE = 0.45;
 const DAYS = 30;
-const MARKETS = ["XAUUSD", "BTCUSD"];
+const MARKETS: string[] = [...SIGNAL_MARKETS];
 
 /** The filters that can learn to switch off (the floor and the alert bar learn elsewhere). */
 export const LEARNED_FILTERS = [

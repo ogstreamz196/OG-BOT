@@ -100,7 +100,7 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
       { command: "sports", description: "Open the Sports Guide" },
       { command: "buy", description: "Top up OG coins" },
       { command: "me", description: "Your profile" },
-      { command: "signals", description: "Live gold and bitcoin signals" },
+      { command: "signals", description: "Live bitcoin signals" },
       { command: "clear", description: "Wipe this chat and start fresh" },
     ];
     const adminCommands = [

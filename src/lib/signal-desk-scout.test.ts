@@ -1,3 +1,4 @@
+import type { SignalTimeframe } from "./telegram-signals";
 import { describe, expect, test, vi } from "vitest";
 
 // The scan reads the Boss's last chat purge from the live database. These
@@ -113,19 +114,20 @@ describe("maybeDeskScout", () => {
     const followed: number[] = [];
     const out = await maybeDeskScout(db, {
       read: async (ask) =>
-        /gold|xau/i.test(ask)
-          ? { signal: signal("XAUUSD", "BUY", 55), desk: desk("BUY", ["BUY", "BUY", "BUY", "BUY"]) }
-          : { signal: signal("BTCUSD", "SELL", 60), desk: desk("SELL", ["SELL", "WAIT", "SELL"]) },
+        /btc|bitcoin/i.test(ask)
+          ? { signal: signal("BTCUSD", "BUY", 55), desk: desk("BUY", ["BUY", "BUY", "BUY", "BUY"]) }
+          : { signal: signal("XAUUSD", "SELL", 60), desk: desk("SELL", ["SELL", "WAIT", "SELL"]) },
       post: async (text) => (posted.push(text), posted.length),
       follow: async (_s, id) => void followed.push(id),
       now: () => T0,
     });
     expect(posted).toHaveLength(1);
-    expect(posted[0]).toBe(deskCard(signal("XAUUSD", "BUY", 55).reply));
+    expect(posted[0]).toBe(deskCard(signal("BTCUSD", "BUY", 55).reply));
     expect(posted[0]).not.toMatch(/\bAIs?\b|DESK/);
     expect(followed).toEqual([1]);
-    expect(out).toContain("XAU: posted BUY");
-    expect(out).toContain("BTC: desk split");
+    expect(out).toContain("BTC: posted BUY");
+    // Gold is retired: never scouted.
+    expect(out).not.toContain("XAU");
     expect(tables.signal_broadcasts).toHaveLength(1);
     // The slot is claimed: a minute later it doesn't scout again.
     const again = await maybeDeskScout(db, {
@@ -156,7 +158,7 @@ describe("maybeDeskScout", () => {
   test("a market already posted the same way isn't repeated", async () => {
     const { db, tables } = fakeDb();
     tables.signal_broadcasts.push({
-      market: "XAUUSD",
+      market: "BTCUSD",
       direction: "BUY",
       expires_at: new Date(T0 + 600_000).toISOString(),
       created_at: new Date(T0 - 60_000).toISOString(),
@@ -164,15 +166,15 @@ describe("maybeDeskScout", () => {
     const posted: string[] = [];
     const out = await maybeDeskScout(db, {
       read: async (ask) => ({
-        signal: signal(/gold|xau/i.test(ask) ? "XAUUSD" : "BTCUSD", "BUY", 80),
+        signal: signal(/btc|bitcoin/i.test(ask) ? "BTCUSD" : "XAUUSD", "BUY", 80),
         desk: desk("BUY", ["BUY", "BUY", "BUY", "BUY"]),
       }),
       post: async (text) => (posted.push(text), posted.length),
       now: () => T0,
     });
-    expect(out).toContain("XAU: already posted");
-    expect(out).toContain("BTC: posted BUY");
-    expect(posted).toHaveLength(1);
+    expect(out).toContain("BTC: already posted");
+    expect(out).not.toContain("XAU");
+    expect(posted).toHaveLength(0);
   });
 });
 
@@ -267,7 +269,7 @@ describe("the desk checks the chart engine's 70%+ alerts", () => {
       asked: () => asked,
       deps: {
         build: async (ask: string) =>
-          /xau|gold/i.test(ask) ? signal("XAUUSD", "BUY", 80) : { reply: "wait" },
+          /btc|bitcoin/i.test(ask) ? signal("BTCUSD", "BUY", 80) : { reply: "wait" },
         post: async (text: string) => (posted.push(text), posted.length),
         confirm: deskConfirmer(
           db,
@@ -284,12 +286,12 @@ describe("the desk checks the chart engine's 70%+ alerts", () => {
 
   test("posted when the desk backs it, with the chief's take profit", async () => {
     const { db } = fakeDb();
-    const moved = { ...signal("XAUUSD", "BUY", 80), reply: "card with the chief's take profit" };
+    const moved = { ...signal("BTCUSD", "BUY", 80), reply: "card with the chief's take profit" };
     const run = scanDeps(db, async () => ({
       signal: moved,
       desk: desk("BUY", ["BUY", "BUY", "WAIT", "SELL"]),
     }));
-    expect((await scanAndBroadcast(db, run.deps)).posted).toEqual(["XAUUSD BUY"]);
+    expect((await scanAndBroadcast(db, run.deps)).posted).toEqual(["BTCUSD BUY"]);
     expect(run.posted).toEqual(["card with the chief's take profit"]);
     // A repeat never asks the AIs again.
     const again = scanDeps(db, async () => {
@@ -302,7 +304,7 @@ describe("the desk checks the chart engine's 70%+ alerts", () => {
   test("turned down, that side isn't re-asked for 10 minutes", async () => {
     const { db } = fakeDb();
     const against = async () => ({
-      signal: signal("XAUUSD", "BUY", 80),
+      signal: signal("BTCUSD", "BUY", 80),
       desk: desk("SELL", ["SELL", "SELL", "BUY"]),
     });
     const run = scanDeps(db, against);
@@ -318,12 +320,12 @@ describe("the desk checks the chart engine's 70%+ alerts", () => {
 
   test("with no AI answering, the engine's alert stands; too late in a run, it waits", async () => {
     const { db } = fakeDb();
-    const down = scanDeps(db, async () => ({ signal: signal("XAUUSD", "BUY", 80), desk: null }));
-    expect((await scanAndBroadcast(db, down.deps)).posted).toEqual(["XAUUSD BUY"]);
+    const down = scanDeps(db, async () => ({ signal: signal("BTCUSD", "BUY", 80), desk: null }));
+    expect((await scanAndBroadcast(db, down.deps)).posted).toEqual(["BTCUSD BUY"]);
     const { db: db2 } = fakeDb();
     const late = scanDeps(
       db2,
-      async () => ({ signal: signal("XAUUSD", "BUY", 80), desk: null }),
+      async () => ({ signal: signal("BTCUSD", "BUY", 80), desk: null }),
       T0 + 30_000,
     );
     expect((await scanAndBroadcast(db2, late.deps)).posted).toEqual([]);
@@ -342,7 +344,9 @@ describe("what isn't sent is shadowed, and alerts carry the desk's say", () => {
       summary: { waitReason: "Too quiet: price is barely moving, so targets rarely get reached." },
     } as never;
     const deps = {
-      build: async (ask: string) => (/xau|gold/i.test(ask) ? wait : signal("BTCUSD", "SELL", 64)),
+      // Bitcoin only: a wait on one chart, an under-70 setup on the other.
+      build: async (ask: string) => (/15m/i.test(ask) ? signal("BTCUSD", "SELL", 64) : wait),
+      frames: ["5m", "15m"] as SignalTimeframe[],
       post: async () => 1,
       shadow: async (_s: unknown, why: string) => void shadows.push(why),
       now: () => T0,
@@ -353,7 +357,7 @@ describe("what isn't sent is shadowed, and alerts carry the desk's say", () => {
     const { db: db2 } = fakeDb();
     const confirm = deskConfirmer(
       db2,
-      async () => ({ signal: signal("XAUUSD", "BUY", 80), desk: desk("SELL", ["SELL", "SELL"]) }),
+      async () => ({ signal: signal("BTCUSD", "BUY", 80), desk: desk("SELL", ["SELL", "SELL"]) }),
       {
         now: () => T0,
         askUntil: T0 + 20_000,
@@ -362,25 +366,25 @@ describe("what isn't sent is shadowed, and alerts carry the desk's say", () => {
     );
     await scanAndBroadcast(db2, {
       build: async (ask: string) =>
-        /xau|gold/i.test(ask) ? signal("XAUUSD", "BUY", 80) : { reply: "" },
+        /btc|bitcoin/i.test(ask) ? signal("BTCUSD", "BUY", 80) : { reply: "" },
       post: async () => 1,
       confirm,
       now: () => T0,
     });
-    expect(vetoed).toEqual(["XAUUSD"]);
+    expect(vetoed).toEqual(["BTCUSD"]);
 
     const { db: db3 } = fakeDb();
     const backing = deskConfirmer(
       db3,
       async () => ({
-        signal: signal("XAUUSD", "BUY", 80),
+        signal: signal("BTCUSD", "BUY", 80),
         desk: desk("BUY", ["BUY", "BUY", "WAIT"]),
       }),
       { now: () => T0, askUntil: T0 + 20_000 },
     );
     await scanAndBroadcast(db3, {
       build: async (ask: string) =>
-        /xau|gold/i.test(ask) ? signal("XAUUSD", "BUY", 80) : { reply: "" },
+        /btc|bitcoin/i.test(ask) ? signal("BTCUSD", "BUY", 80) : { reply: "" },
       post: async () => 1,
       confirm: backing,
       follow: async (s) => void followed.push(s.plan!.feeds),

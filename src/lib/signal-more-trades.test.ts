@@ -120,20 +120,15 @@ describe("scanner: 15-minute scalps and the learned bar", () => {
       build: async (ask) => {
         asked.push(ask);
         const tf = ask.endsWith("15m") ? "15M" : "5M";
-        return ask.startsWith("XAU") ? card("XAUUSD", tf, tf === "15M" ? 66 : 50) : { reply: "" };
+        return card("BTCUSD", tf, tf === "15M" ? 66 : 50);
       },
-      // Gold's bar has come down to 65; bitcoin's is still 70.
-      alertBar: async (m) => (m === "XAUUSD" ? 65 : 70),
+      // Bitcoin's bar has come down to 65 (gold is retired and never scanned).
+      alertBar: async (m) => (m === "BTCUSD" ? 65 : 70),
       post: async () => 1,
       now: Date.now,
     });
-    expect(asked).toEqual([
-      "XAUUSD signal 5m",
-      "BTCUSD signal 5m",
-      "XAUUSD signal 15m",
-      "BTCUSD signal 15m",
-    ]);
-    expect(out.posted).toEqual(["XAUUSD BUY 15M"]);
+    expect(asked).toEqual(["BTCUSD signal 5m", "BTCUSD signal 15m"]);
+    expect(out.posted).toEqual(["BTCUSD BUY 15M"]);
     expect(d.rows[0]).toMatchObject({ timeframe: "15M" });
   });
 });

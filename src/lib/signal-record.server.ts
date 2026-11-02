@@ -12,6 +12,7 @@
 // Outcomes come straight from each signal's own tracked status, so signals
 // sent before the results book existed still count.
 import { resultFor, setupKey } from "./signal-results.server";
+import { RETIRED_IN, isRetiredMarket } from "./signal-markets";
 
 type Admin = any;
 
@@ -180,6 +181,8 @@ export async function signalRecord(admin: Admin): Promise<SignalRecord | null> {
           "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, entered_at, feeds",
         )
         .gte("confidence_pct", RECORD_MIN_CONFIDENCE)
+        // Retired markets (gold) stay stored but stop counting.
+        .not("market", "in", RETIRED_IN)
         .gte("created_at", from)
         .order("created_at", { ascending: true })
         .range(a, b),
@@ -321,7 +324,7 @@ export function resultsAnnouncement(
         ]
       : []),
     ...Object.entries(byMarket ?? {})
-      .filter(([, v]) => Number.isFinite(v))
+      .filter(([m, v]) => Number.isFinite(v) && !isRetiredMarket(m))
       .map(([m, v]) => `${MARKET_NAMES[m] ?? m} ${cash(v)}`),
     ...(demo ? [demo] : []),
   ].join("\n");
