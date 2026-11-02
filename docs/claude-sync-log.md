@@ -203,7 +203,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-02 · #NEXT** · (1) Boss dashboard: Signals tab
+- **Boss's Claude · 2026-11-02 · #207** · (1) Boss dashboard: Signals tab
   is switches first (portal, the demo reset moved from Telegram, MT5) then
   record, report, backtest; `BossCommandBar` on /admin (free access popover
   with +1h/+24h/+7d, web signals switch, fleet, demo balance + copy bot);
