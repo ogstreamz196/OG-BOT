@@ -26,15 +26,20 @@ describe("signal buttons in the bottom bar", () => {
   it("a coin tap is a scalp; the Holding switch swaps in 1-hour coins; the Boss also gets 1 min", async () => {
     const { SIGNAL_BUTTONS, signalButtonRows, BACK_BUTTON, HOLDING_BUTTON, SCALP_BUTTON } =
       await import("./telegram-signals");
-    expect(signalButtonRows(false)).toEqual([
-      ["🥇 Gold", "₿ BTC"],
-      [HOLDING_BUTTON, BACK_BUTTON],
-    ]);
+    // Bitcoin only: gold is retired.
+    expect(signalButtonRows(false)).toEqual([["₿ BTC"], [HOLDING_BUTTON, BACK_BUTTON]]);
     expect(signalButtonRows(false, "holding")).toEqual([
-      ["🥇 Gold · Holding", "₿ BTC · Holding"],
+      ["₿ BTC · Holding"],
       [SCALP_BUTTON, BACK_BUTTON],
     ]);
     expect(signalButtonRows(true).flat()).toContain("₿ BTC · 1 min");
+    expect(
+      signalButtonRows(true)
+        .flat()
+        .some((b) => /Gold/.test(b)),
+    ).toBe(false);
+    // Old gold buttons still on members' screens still map, and get the
+    // "Bitcoin only now" reply from the engine.
     expect(SIGNAL_BUTTONS["🥇 Gold"]).toEqual({ pair: "XAU", timeframe: "5m" });
     expect(SIGNAL_BUTTONS["₿ BTC"]).toEqual({ pair: "BTC", timeframe: "5m" });
     expect(SIGNAL_BUTTONS["₿ BTC · Holding"]).toEqual({ pair: "BTC", timeframe: "1h" });

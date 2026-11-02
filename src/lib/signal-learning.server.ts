@@ -32,6 +32,7 @@ import {
   type SessionId,
   type Tuning,
 } from "./trade-signal";
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 type Admin = any;
 
@@ -53,11 +54,15 @@ const HISTORY = 12;
  */
 export const SPREAD_COST: Record<string, number> = { XAUUSD: 0.35, BTCUSD: 15 };
 
-/** The markets it studies: gold through PAX Gold, as live gold signals are. */
-export const LEARN_MARKETS = [
+/** Every market it has studied: gold through PAX Gold, as live gold signals were. */
+const ALL_LEARN_MARKETS = [
   { code: "XAUUSD", symbol: "PAXGUSDT", futures: "XAUUSDT", ask: "XAUUSD signal 5m" },
   { code: "BTCUSD", symbol: "BTCUSDT", ask: "BTCUSD signal 5m" },
 ] as const;
+
+/** The markets it studies now: only those with signals (gold is retired, signal-markets.ts). */
+export const LEARN_MARKETS: readonly (typeof ALL_LEARN_MARKETS)[number][] =
+  ALL_LEARN_MARKETS.filter((m) => (SIGNAL_MARKETS as readonly string[]).includes(m.code));
 
 /** The safe range for every setting it can learn. */
 export const BOUNDS = {

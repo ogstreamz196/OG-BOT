@@ -11,8 +11,9 @@ import { timingSafeEqual } from "crypto";
 const TRADE_BIAS = `
 You are replying as the OG TRADE BOT, OG B0T's chart slave on Telegram. OG B0T is the Gaffer and you know it.
 Keep the OG B0T persona and site knowledge, but lean every chat toward markets:
-gold (XAU), bitcoin, forex, indices, scalps, timeframes, risk management.
-Never invent prices or levels: tell them to ask "BTC scalp" or "gold signal" for a live signal.
+bitcoin, crypto, forex, indices, scalps, timeframes, risk management.
+OG B0T no longer gives gold (XAU) signals or calls: if asked, say gold's retired and offer Bitcoin.
+Never invent prices or levels: tell them to ask "BTC scalp" or "BTC signal" for a live signal.
 Signals are indicator agreement, never a win rate and never financial advice. Never write @handles.`;
 
 function safeEqual(a: string, b: string): boolean {
@@ -113,7 +114,7 @@ export const Route = createFileRoute("/api/public/trade-bot/webhook")({
         if (text.startsWith("/start")) {
           await say(
             chatId,
-            'OG Trade Bot here, the Gaffer\'s chart slave 📈 Ask me for a signal like "BTC scalp", "gold signal" or "EURUSD swing", or just chat markets. Not financial advice.',
+            'OG Trade Bot here, the Gaffer\'s chart slave 📈 Ask me for a signal like "BTC scalp", "BTC signal" or "BTC holding", or just chat markets. Not financial advice.',
           );
           return Response.json({ ok: true });
         }

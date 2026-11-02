@@ -192,7 +192,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               () =>
                 scanAndBroadcast(supabaseAdmin, {
                   build: buildTradeSignal,
-                  // Gold and bitcoin on the 1-minute, 5-minute, 15-minute and hourly
+                  // Bitcoin (gold is retired) on the 1-minute, 5-minute, 15-minute and hourly
                   // charts: more setups (chart patterns too), each still checked the
                   // same way against the same confidence bar.
                   frames: ["1m", "5m", "15m", "1h"],
@@ -236,7 +236,6 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             random,
             aiRunsToday: await deskRunsToday(supabaseAdmin),
             alertBars: {
-              XAUUSD: await alertBar(supabaseAdmin, "XAUUSD"),
               BTCUSD: await alertBar(supabaseAdmin, "BTCUSD"),
             },
           };

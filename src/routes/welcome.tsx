@@ -1100,7 +1100,7 @@ function Hero() {
               imageAlt="OG Signals badge"
               eyebrow="Members only"
               title="OG Signals"
-              description="Gold, crypto and forex setups. Entry, SL and targets, live."
+              description="Bitcoin setups, entry, SL and targets, live."
               cta="Open Signals"
               onClick={openSignals}
             />

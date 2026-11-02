@@ -134,37 +134,41 @@ describe("tradeRequest", () => {
 });
 
 describe("placeAutoTrade", () => {
+  // Bitcoin only: gold is retired.
+  const btc = (over: Partial<SignalPlan> = {}) =>
+    plan({ market: "BTCUSD", label: "BTC/USD", ...over });
   it("does nothing until the Boss switches it on", async () => {
     metaApi({});
     const { db } = fakeDb({});
-    expect(await placeAutoTrade(db, plan())).toBe("skipped: switched off");
+    expect(await placeAutoTrade(db, btc())).toBe("skipped: switched off");
     expect(calls).toHaveLength(0);
   });
   it("never trades bias calls, other markets or under 70%", async () => {
     metaApi({});
     const { db } = fakeDb({ "mt5.autotrade": "on" });
-    expect(await placeAutoTrade(db, plan({ feeds: { bias: true } }))).toBe("skipped: bias call");
-    expect(await placeAutoTrade(db, plan({ market: "EURUSD" }))).toBe("skipped: market");
-    expect(await placeAutoTrade(db, plan({ confidencePct: 69 }))).toBe("skipped: under 70%");
+    expect(await placeAutoTrade(db, btc({ feeds: { bias: true } }))).toBe("skipped: bias call");
+    expect(await placeAutoTrade(db, btc({ market: "EURUSD" }))).toBe("skipped: market");
+    expect(await placeAutoTrade(db, btc({ market: "XAUUSD" }))).toBe("skipped: market");
+    expect(await placeAutoTrade(db, btc({ confidencePct: 69 }))).toBe("skipped: under 70%");
     expect(calls).toHaveLength(0);
   });
   it("places the trade once per setup and records it", async () => {
     metaApi({ "/trade": { stringCode: "TRADE_RETCODE_DONE", orderId: "555", positionId: "555" } });
     const { db, tables } = fakeDb({ "mt5.autotrade": "on" });
-    expect(await placeAutoTrade(db, plan())).toBe("opened");
+    expect(await placeAutoTrade(db, btc())).toBe("opened");
     expect(calls[0].url).toBe(
       "https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/acc/trade",
     );
     expect(calls[0].body).toMatchObject({ actionType: "ORDER_TYPE_BUY", volume: 0.01 });
     expect(tables.mt5_trades[0]).toMatchObject({ status: "open", ticket: "555" });
     // The same setup again (another scan pass): no second trade.
-    expect(await placeAutoTrade(db, plan())).toBe("skipped: already traded");
+    expect(await placeAutoTrade(db, btc())).toBe("skipped: already traded");
     expect(calls).toHaveLength(1);
   });
   it("records a broker rejection as failed", async () => {
     metaApi({ "/trade": { stringCode: "TRADE_RETCODE_INVALID_STOPS", message: "Invalid stops" } });
     const { db, tables } = fakeDb({ "mt5.autotrade": "on" });
-    expect(await placeAutoTrade(db, plan())).toBe("failed: Invalid stops");
+    expect(await placeAutoTrade(db, btc())).toBe("failed: Invalid stops");
     expect(tables.mt5_trades[0]).toMatchObject({ status: "failed", error: "Invalid stops" });
   });
 });

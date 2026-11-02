@@ -44,7 +44,6 @@ const TOKEN_RE = /^(t_[a-f0-9]{32}|[a-f0-9]{24})$/;
 const BOSS_TELEGRAM_USERNAMES = ["ogstreamz", "ogstreamz196"] as const;
 const BOSS_EMAIL = "ogstreamz196@gmail.com";
 
-
 function safeEqual(a: string, b: string): boolean {
   const la = Buffer.from(a);
   const lb = Buffer.from(b);
@@ -625,7 +624,7 @@ const INTRO_TEXT =
   "<b>OG B0T here.</b> No filter, no bullshit, and no wasting my fucking time.\n\n" +
   "🧠 <b>Ask anything</b>: advice, ideas, homework, whatever's on your mind.\n" +
   "⚽ <b>Sports</b>: fixtures, scores and kick-off times.\n" +
-  "📈 <b>Signals</b>: live gold and bitcoin setups.\n" +
+  "📈 <b>Signals</b>: live bitcoin setups.\n" +
   "🔥 <b>Roast me</b>: go on, try me. I'll rip you a new one.\n\n" +
   "Type something or smash the buttons below.";
 
@@ -777,7 +776,7 @@ Just type to chat with me, same brain as the in-app messenger. Or use the button
 /vault  your OG Vault login
 
 📈 <b>Signals & sports</b>
-/signals  live gold and bitcoin signals
+/signals  live bitcoin signals
 /sports  the Sports Guide (try <code>/sports arsenal</code>)
 
 👤 <b>You</b>
@@ -1166,8 +1165,7 @@ async function runChatAI(
       .limit(20);
     tradeText = trade.resolveTradeRequest(userText, recent ?? []);
   }
-  // "Whats a good trade right now": no market named, so the stronger of gold
-  // and bitcoin.
+  // "Whats a good trade right now": no market named, so bitcoin (gold is retired).
   if (!tradeText && trade.isAnyMarketAsk(userText)) {
     void tg("sendChatAction", { chat_id, action: "typing" });
     const { bestMarketAsk } = await import("@/lib/trade-signal-context.server");
@@ -1184,6 +1182,12 @@ async function runChatAI(
       void tg("sendChatAction", { chat_id, action: "typing" });
       const market = trade.detectTradeIntent(tradeText);
       if (!market) return;
+      // Gold is retired (signal-markets.ts): one line, no chart, no AI desk.
+      const { isRetiredMarket, RETIRED_REPLY } = await import("@/lib/signal-markets");
+      if (isRetiredMarket(market.code)) {
+        await reply(chat_id, RETIRED_REPLY);
+        return;
+      }
       // OG B0T's AI desk reads the chart and the chief makes the call (prices from code).
       const { deskSignal } = await import("@/lib/trade-signal-context.server");
       const signalJob = deskSignal(tradeText);
@@ -1697,7 +1701,7 @@ const GROUP_HELP =
   "🎯 <b>roast</b> @someone to set me on them\n" +
   "👋 New members get initiated the second they walk in\n" +
   "💬 <b>og</b> then a proper question\n" +
-  "📈 <b>signal gold</b> or <b>signal btc</b> for a scalp, add <b>holding</b> for 1-hour\n\n" +
+  "📈 <b>signal btc</b> for a scalp, add <b>holding</b> for 1-hour\n\n" +
   "I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
 
 const CONNECT_NUDGE =
@@ -1812,20 +1816,15 @@ const GROUP_SIGNAL_TEXT =
   "📈 <b>Live signals</b>\nTap a coin for a ⚡ scalp (5-minute chart), or 🕐 holding for 1-hour 👇";
 const GROUP_SIGNAL_BUTTONS = {
   inline_keyboard: [
-    [
-      { text: "🥇 Gold", callback_data: "gsig:XAU:5m" },
-      { text: "₿ BTC", callback_data: "gsig:BTC:5m" },
-    ],
-    [
-      { text: "🕐 Gold · Holding", callback_data: "gsig:XAU:1h" },
-      { text: "🕐 BTC · Holding", callback_data: "gsig:BTC:1h" },
-    ],
+    // Bitcoin only: gold is retired (signal-markets.ts).
+    [{ text: "₿ BTC", callback_data: "gsig:BTC:5m" }],
+    [{ text: "🕐 BTC · Holding", callback_data: "gsig:BTC:1h" }],
   ],
 };
 
 /**
  * A group message that starts with a command word, typed without the "/":
- * "signal gold", "roast @dave", "og who wins tonight", or just "help".
+ * "signal btc", "roast @dave", "og who wins tonight", or just "help".
  */
 function plainCommand(line: string): { 1: string; 3: string } | null {
   const m = /^(signals?|roast|og|ask|help)\b[\s,:!.?-]*([\s\S]*)$/i.exec(line);
@@ -1967,7 +1966,7 @@ async function handleGroupMessage(
   // People replying to each other (without an @mention) are left to it.
   if (!slash && msg.reply_to_message && !repliedToMe && !mentioned && !repliedToWorker)
     return ignored();
-  // No "/" needed: "signal gold", "roast Dave", "help" and "og …" work as
+  // No "/" needed: "signal btc", "roast Dave", "help" and "og …" work as
   // they are, the same as the commands.
   const command: { 1: string; 3?: string } | null = slash
     ? { 1: slash[1], 3: slash[3] }

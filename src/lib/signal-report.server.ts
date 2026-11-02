@@ -9,6 +9,8 @@ import { resultFor, setupKey } from "./signal-results.server";
 import { SPREAD_COST } from "./signal-learning.server";
 import { SESSIONS, ukSession } from "./trade-signal";
 import { SHADOW_REASONS, type ShadowReason } from "./signal-shadows.server";
+import { SIGNAL_MARKETS } from "./signal-markets";
+import { RETIRED_IN } from "./signal-markets";
 
 type Admin = any;
 
@@ -405,6 +407,8 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
       .select(
         "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, confidence_pct, created_at, timeframe, entered_at, closed_at, feeds",
       )
+      // Retired markets (gold) stay stored but leave the report.
+      .not("market", "in", RETIRED_IN)
       .gte("created_at", since)
       .order("created_at", { ascending: true })
       .range(a, b),
@@ -415,6 +419,7 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
       admin
         .from("signal_shadows")
         .select("market, label, reason, outcome, pips, pip")
+        .not("market", "in", RETIRED_IN)
         .gte("created_at", since)
         .not("outcome", "is", null)
         .order("created_at", { ascending: true })
@@ -427,7 +432,7 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
   const { costPerTrade } = await import("./broker-quotes.server");
   const costs = Object.fromEntries(
     await Promise.all(
-      ["XAUUSD", "BTCUSD"].map(async (m) => [
+      ([...SIGNAL_MARKETS] as string[]).map(async (m) => [
         m,
         await costPerTrade(m, SPREAD_COST[m] ?? 0).catch(() => SPREAD_COST[m] ?? 0),
       ]),

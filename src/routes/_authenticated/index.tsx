@@ -372,7 +372,7 @@ function DashboardHome() {
                 live
                 badge="Real time"
                 title="OG Signals"
-                description="Gold, crypto and forex setups. Entry, SL and targets, live."
+                description="Bitcoin setups, entry, SL and targets, live."
                 cta="Open Signals"
                 onClick={() => navigate({ to: "/signals" })}
               />

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { getMt5Status, saveMt5Settings } from "@/lib/mt5.functions";
 import { AdminSection } from "./AdminSection";
+import { SIGNAL_MARKETS } from "@/lib/signal-markets";
 
 const KEY = ["mt5-status"];
 
@@ -48,7 +49,7 @@ export function Mt5Panel() {
     <AdminSection
       icon={<CandlestickChart className="h-4 w-4 text-emerald-400" />}
       title="MT5 auto-trading"
-      subtitle="Your own Vantage MT5 account takes every 70%+ gold and bitcoin alert at 0.01 lot, with the bot's stop loss and Quick Scalp as take profit. The copy bot announces each trade in the signals chat."
+      subtitle="Your own Vantage MT5 account takes every 70%+ bitcoin alert at 0.01 lot, with the bot's stop loss and Quick Scalp as take profit. The copy bot announces each trade in the signals chat."
     >
       {isLoading || !data ? (
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -152,16 +153,14 @@ export function Mt5Panel() {
             </p>
             <p className="text-xs text-muted-foreground">
               Vantage spread measured by the bot:{" "}
-              {(["XAUUSD", "BTCUSD"] as const)
-                .map((mk) => {
-                  const s = data.spread?.[mk];
-                  const dp = mk === "BTCUSD" ? 1 : 2;
-                  const label = mk === "XAUUSD" ? "gold" : "bitcoin";
-                  return s?.latest != null
-                    ? `${label} ${s.latest.toFixed(dp)} now${s.usual != null ? `, usually ${s.usual.toFixed(dp)} at this hour` : ""}`
-                    : `${label} not measured yet`;
-                })
-                .join(" · ")}
+              {SIGNAL_MARKETS.map((mk) => {
+                const s = data.spread?.[mk];
+                const dp = 1;
+                const label = "bitcoin";
+                return s?.latest != null
+                  ? `${label} ${s.latest.toFixed(dp)} now${s.usual != null ? `, usually ${s.usual.toFixed(dp)} at this hour` : ""}`
+                  : `${label} not measured yet`;
+              }).join(" · ")}
             </p>
           </div>
 

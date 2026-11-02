@@ -13,6 +13,7 @@
 // - commission: Raw/Pro ECN accounts pay a commission per lot as well
 //   (site_content "mt5.commissionPerLot", USD per 1.0 lot round turn; 0 on a
 //   Standard account), turned into price by the contract size.
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 type Admin = any;
 
@@ -129,11 +130,11 @@ async function setting(admin: Admin, key: string): Promise<string | null> {
   return (data as { value?: string } | null)?.value ?? null;
 }
 
-/** Records gold's and bitcoin's spread at Vantage (once a minute, from the watcher). Never throws. */
+/** Records each signal market's spread at Vantage (once a minute, from the watcher). Never throws. */
 export async function recordSpreads(admin: Admin, now = Date.now()): Promise<string> {
   try {
     const quotes = await Promise.all(
-      ["XAUUSD", "BTCUSD"].map(async (m) => [m, await brokerQuote(m)] as const),
+      ([...SIGNAL_MARKETS] as string[]).map(async (m) => [m, await brokerQuote(m)] as const),
     );
     const live = quotes.filter(([, q]) => q);
     if (!live.length) return "no quotes";

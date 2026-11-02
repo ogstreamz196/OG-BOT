@@ -28,7 +28,8 @@ type Admin = any;
 export const BROADCAST_MIN_CONFIDENCE = 70;
 /** From here every timeframe agrees: the alert says TOP. */
 const TOP_CONFIDENCE = 90;
-export const BROADCAST_MARKETS: SignalPair[] = ["XAU", "BTC"];
+/** Bitcoin only: the Boss retired gold (signal-markets.ts). */
+export const BROADCAST_MARKETS: SignalPair[] = ["BTC"];
 const POSTS = "signal_broadcasts";
 
 type Built = {
@@ -169,8 +170,11 @@ type PostRow = {
 
 /** After a stop loss, the same side isn't posted again for this long. */
 export const AFTER_STOP_MS = 15 * 60_000;
-/** Most alerts one market can have running at once. */
-export const MAX_RUNNING_PER_MARKET = 3;
+/**
+ * Most alerts one market can have running at once: 6 since gold was retired,
+ * so Bitcoin gets the room gold had (it was 3 each). Same confidence bar.
+ */
+export const MAX_RUNNING_PER_MARKET = 6;
 /** A second same-side alert waits at least this long after the last running one. */
 export const SAME_SIDE_GAP_MS = 10 * 60_000;
 /** Entries closer than this share of the risk are the same setup, not a new trade. */
