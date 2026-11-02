@@ -79,4 +79,28 @@ describe("random strategy signals", () => {
     });
     expect(out).toBe("not due");
   });
+
+  it("ranks by money made, not win rate: small take profits can win often and still lose", async () => {
+    const flat = () => 0.5;
+    // Wins 60% but loses money (small wins, full losses) vs wins 45% and makes money.
+    const busyLoser = { n: 20, wins: 12, losses: 8, sumR: -1.6 };
+    const quietWinner = { n: 20, wins: 9, losses: 11, sumR: 2.5 };
+    expect(strategyScore(quietWinner, flat)).toBeGreaterThan(strategyScore(busyLoser, flat));
+  });
+
+  it("learns from every signal the bot gives, not only random ones", async () => {
+    const { strategyOf } = await import("./signal-random.server");
+    expect(strategyOf({ strategy: "fvg_retest" })).toBe("fvg_retest");
+    expect(strategyOf({ setup: "Flag continuation" })).toBe("flag_continuation");
+    expect(strategyOf({ desk: "unanimous" })).toBe("desk");
+    expect(strategyOf({ desk: "backed" })).toBe("engine");
+    expect(strategyOf(null)).toBe("engine");
+    expect(strategyOf({ strategy: "nonsense", setup: "Wick rejection" })).toBe("wick_rejection");
+  });
+
+  it("gives a random signal every 20 to 45 minutes now Bitcoin has gold's room", async () => {
+    const { RANDOM_EVERY_MIN, RANDOM_MIN_CONFIDENCE } = await import("./signal-random.server");
+    expect(RANDOM_EVERY_MIN).toEqual([20, 45]);
+    expect(RANDOM_MIN_CONFIDENCE).toBe(60);
+  });
 });
