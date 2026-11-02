@@ -7,6 +7,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `clean-tv-help` · No foul mouth when anyone asks for TV
+  or app help (setup, Firestick, OG Vault, installing). Touches
+  `src/lib/ai-endpoint.server.ts`, `og-chat.server.ts`, the Telegram webhook's
+  tone, and a new `src/lib/tv-help.ts`.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
