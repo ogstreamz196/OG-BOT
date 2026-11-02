@@ -149,7 +149,10 @@ export async function runOgChat(
   const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
   const isVip = roles.includes("vip") || roles.includes("admin") || freeAccess || onTrial;
 
-  const foulMouth = isVip ? (prefRes.data?.foul_mouth ?? true) : false;
+  // TV and app help is always answered clean (tv-help.ts), foul mouth or not.
+  const { isTvHelpChat } = await import("@/lib/tv-help");
+  const tvHelp = isTvHelpChat(data.messages.filter((m) => m.role === "user").map((m) => m.content));
+  const foulMouth = isVip && !tvHelp ? (prefRes.data?.foul_mouth ?? true) : false;
 
   // The messenger has no level selector — VIP chat always runs at full DEMON intensity.
   const foulIntensity = isVip ? 3 : 1;

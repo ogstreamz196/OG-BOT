@@ -1400,7 +1400,12 @@ async function runChatAI(
   const personaMap = new Map<string, string>(
     (siteRes.data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]),
   );
-  const foulMouth = foul.on;
+  // TV and app help is always answered clean (tv-help.ts), foul mouth or not.
+  const { isTvHelpChat } = await import("@/lib/tv-help");
+  const lastAsk = ((historyRes.data ?? []) as { role: string; content: string }[]).find(
+    (m) => m.role === "user",
+  )?.content;
+  const foulMouth = foul.on && !isTvHelpChat([lastAsk, userText]);
 
   const userCtx: UserContextSummary = group
     ? {
