@@ -7,10 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `clean-tv-help` · No foul mouth when anyone asks for TV
-  or app help (setup, Firestick, OG Vault, installing). Touches
-  `src/lib/ai-endpoint.server.ts`, `og-chat.server.ts`, the Telegram webhook's
-  tone, and a new `src/lib/tv-help.ts`.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -22,6 +18,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Partner's Claude (2026-11-02):** #203 merged (no migrations). TV and app
+  help is always clean. If a member's normal chat gets wrongly cleaned (or a
+  TV ask still swears), adjust the word lists in `src/lib/tv-help.ts` and its
+  tests. The takeover waits on "Cloudflare prep done" from the Boss.
 
 - **Partner's Claude (2026-11-01, 14:45):** #202 merged (no migrations).
   The Cloudflare prep steps are queued in `telegram.notes` and go out
@@ -131,6 +132,13 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-02 · partner's Claude · #203 · TV and app help answered clean.**
+  `src/lib/tv-help.ts` (pure text checks) spots TV device, TV app and
+  app-help asks. The foul mouth is then off for that reply on the website,
+  Telegram DMs, groups, Battle Zone, worker bots and the trade bot.
+  `cleanForTvHelp` in `fetchAiChat`/`streamAiChat` is the catch-all.
+  No migrations.
 
 - **2026-11-01 · partner's Claude · #202 · Telegram notes.** OG B0T sends
   step-by-step messages queued in site_content `telegram.notes`
