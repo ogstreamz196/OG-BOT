@@ -716,16 +716,16 @@ export async function maybeLearn(
       days || LEARN_DAYS,
       floor,
     );
-    // One other chart a study, in turn (1m, 15m, 1h), proves the setups on
-    // its own history; a chart that can't be read keeps its last proof.
+    // The 1m, 15m and 1h charts each prove the setups on their own history,
+    // every study (a fraction of a second each since Bitcoin is the only
+    // market); a chart that can't be read keeps its last proof.
     const frameSetups = { ...(had?.frameSetups ?? {}) };
     try {
       const fs = await import("./signal-frame-setups.server");
-      const order = ["1m", "15m", "1h"] as const;
-      const frame = order[(had?.runs ?? 0) % order.length];
       const typical = (t: number) => bq.typicalSpread(model, market.code, t) ?? fallback;
-      const studied = await fs.studyFrames(market, out.next, typical, now, fetcher, [frame]);
-      if (studied[frame]) frameSetups[frame] = studied[frame];
+      const studied = await fs.studyFrames(market, out.next, typical, now, fetcher);
+      for (const frame of ["1m", "15m", "1h"] as const)
+        if (studied[frame]) frameSetups[frame] = studied[frame];
     } catch {
       /* keep the last proof */
     }

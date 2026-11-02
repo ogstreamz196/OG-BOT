@@ -43,12 +43,14 @@ const SignalsBacktestPanel = lazy(() =>
 );
 
 function SignalsTab() {
+  // Switches first (portal, demo reset, MT5), then how the signals are doing.
   return (
     <>
+      <SignalsPortalPanel />
+      <SignalsChatResetPanel />
+      <Mt5Panel />
       <SignalRecordPanel />
       <SignalReportPanel />
-      <Mt5Panel />
-      <SignalsPortalPanel />
       <Suspense
         fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
       >
@@ -62,7 +64,6 @@ function TelegramTab() {
   return (
     <>
       <TelegramWebhookStatus />
-      <SignalsChatResetPanel />
       <TelegramFleetPanel />
       <TelegramGroupsPanel />
     </>

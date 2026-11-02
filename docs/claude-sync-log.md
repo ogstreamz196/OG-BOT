@@ -203,6 +203,19 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-02 · #207** · (1) Boss dashboard: Signals tab
+  is switches first (portal, the demo reset moved from Telegram, MT5) then
+  record, report, backtest; `BossCommandBar` on /admin (free access popover
+  with +1h/+24h/+7d, web signals switch, fleet, demo balance + copy bot);
+  Settings' Boss card is the Boss Switchboard; search sends the demo reset to
+  Signals. Every switch still lives in one place (`useBossSwitches` only
+  reads; the bar calls the same mutations). (2) Signals: random signals every
+  20–45 min (was 30–90) with Bitcoin the only market; the strategy picker
+  scores by money made per trade in risks, not win rate (your #204 note:
+  take profits under the stop distance), and learns from every trade-bot
+  signal (`strategyOf`), not only random ones; the 1m/15m/1h proof runs all
+  three charts every study. Built on #204/#205. No migration.
+
 - **Boss's Claude · 2026-11-01 · #200** · Boss: "add check for all
   migrations, checklist for verification" (the move off Lovable waits until
   current work is done). `scripts/hub/migrations-checklist.mjs` builds

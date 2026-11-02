@@ -146,10 +146,10 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Signals demo account & start fresh",
-    where: area("OG B0T", "Telegram"),
+    where: area("OG B0T", "Signals"),
     to: "/admin/bot",
-    tab: "telegram",
-    keywords: "1000 demo test account balance purge signals chat vantage",
+    tab: "signals",
+    keywords: "1000 demo test account balance purge signals chat vantage reset fresh start",
   },
   {
     title: "Telegram groups",

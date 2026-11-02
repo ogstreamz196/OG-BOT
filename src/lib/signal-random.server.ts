@@ -11,6 +11,7 @@
 // come in. A strategy that has lost money over RANDOM_MIN_TRADES or more is
 // picked much less often.
 import { SETUP_IDS, SETUP_NAMES, type SetupId } from "./trade-setups";
+import { SIGNAL_MARKETS } from "./signal-markets";
 
 type Admin = any;
 
@@ -25,7 +26,7 @@ export const STRATEGY_NAMES: Record<Strategy, string> = {
 };
 
 /** How often a random signal is due: somewhere between these (minutes). */
-export const RANDOM_EVERY_MIN = [30, 90] as const;
+export const RANDOM_EVERY_MIN = [20, 45] as const;
 /** The lowest confidence a random signal is posted at (a request-style read, but never a coin toss). */
 export const RANDOM_MIN_CONFIDENCE = 60;
 /** Trades a strategy needs before its losses count against it. */
@@ -36,17 +37,41 @@ export const RANDOM_NEXT_KEY = "signals.random.nextAt";
 export type StrategyStats = { n: number; wins: number; losses: number; sumR: number };
 
 /**
- * How keen to be on a strategy: its win rate so far (starting from an even
- * 1 in 2), plus a random nudge that's bigger the fewer trades it has, so new
- * ones get tried. One that has lost money over RANDOM_MIN_TRADES or more is
- * marked well down. Pure (given `rand`).
+ * How keen to be on a strategy: what it has actually made per trade, in
+ * risks (not its win rate: with take profits under the stop's distance a
+ * strategy can win more than half its trades and still lose money), pulled
+ * towards 0 while it has few trades (as if it had 3 flat ones more), plus a
+ * random nudge that's bigger the fewer trades it has, so new ones get tried.
+ * One that has lost money over RANDOM_MIN_TRADES or more is marked well down.
+ * Pure (given `rand`).
  */
 export function strategyScore(s: StrategyStats | undefined, rand: () => number): number {
   const n = s?.n ?? 0;
-  const mean = ((s?.wins ?? 0) + 1) / ((s?.wins ?? 0) + (s?.losses ?? 0) + 2);
-  const nudge = (rand() - 0.5) / Math.sqrt(n + 1);
-  const losing = n >= RANDOM_MIN_TRADES && (s?.sumR ?? 0) < 0;
-  return (mean + nudge) * (losing ? 0.3 : 1);
+  const sumR = s?.sumR ?? 0;
+  const mean = sumR / (n + 3);
+  const nudge = ((rand() - 0.5) * 0.8) / Math.sqrt(n + 1);
+  const losing = n >= RANDOM_MIN_TRADES && sumR < 0;
+  return mean + nudge - (losing ? 0.5 : 0);
+}
+
+/**
+ * Which strategy a trade-bot signal was: a random signal says so itself
+ * (feeds.strategy); a scanner alert names its setup when one stood in for the
+ * engine (feeds.setup, by its card name); a desk-scout post was every AI
+ * agreeing (feeds.desk "unanimous"); anything else is the chart engine. So the
+ * picker learns from every signal the bot gives, not only its random ones.
+ * Pure.
+ */
+export function strategyOf(feeds: Record<string, unknown> | null | undefined): Strategy {
+  const own = feeds?.strategy;
+  if (typeof own === "string" && (STRATEGIES as string[]).includes(own)) return own as Strategy;
+  const setup = feeds?.setup;
+  if (typeof setup === "string") {
+    const id = SETUP_IDS.find((k) => SETUP_NAMES[k] === setup);
+    if (id) return id;
+  }
+  if (feeds?.desk === "unanimous") return "desk";
+  return "engine";
 }
 
 /** The strategy to try now. Pure (given `rand`). */
@@ -78,8 +103,9 @@ export function tagStrategy(card: string, s: Strategy): string {
 }
 
 /**
- * Each strategy's record from its random signals over the last 60 days
- * (read only; results in risks, resultInRisks). Never throws.
+ * Each strategy's record from every signal the trade bot gave on the markets
+ * it still trades over the last 60 days (strategyOf; read only; results in
+ * risks, resultInRisks). Never throws.
  */
 export async function strategyStats(
   admin: Admin,
@@ -91,16 +117,16 @@ export async function strategyStats(
       .from("trade_signals")
       .select("direction, entry, stop, tp1, status, best_target, feeds")
       .eq("sender_worker", "trade")
-      .not("feeds->>strategy", "is", null)
+      .in("market", [...SIGNAL_MARKETS])
       .not("status", "in", "(pending,open,tp1,tp2)")
       .gte("created_at", new Date(now - 60 * 86_400_000).toISOString())
       .limit(5000);
     const out: Partial<Record<Strategy, StrategyStats>> = {};
     for (const r of (data ?? []) as (Parameters<typeof resultInRisks>[0] & {
-      feeds: { strategy?: string } | null;
+      feeds: Record<string, unknown> | null;
     })[]) {
-      const s = r.feeds?.strategy as Strategy | undefined;
-      if (!s || !STRATEGIES.includes(s)) continue;
+      if (r.feeds?.bias) continue;
+      const s = strategyOf(r.feeds);
       const res = resultInRisks(r);
       if (res == null) continue;
       const t = (out[s] ??= { n: 0, wins: 0, losses: 0, sumR: 0 });

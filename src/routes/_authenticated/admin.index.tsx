@@ -16,6 +16,7 @@ import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BOSS_AREAS, BossNav } from "@/components/admin/BossNav";
 import { BossKpiStrip, ProviderPulse } from "@/components/admin/BossOverview";
+import { BossCommandBar } from "@/components/admin/BossCommandBar";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
@@ -46,6 +47,7 @@ function AdminDashboard() {
             <SectionHeading title="Today" desc="Live numbers, refreshed every minute" />
             <BossKpiStrip />
             <ProviderPulse />
+            <BossCommandBar />
           </section>
 
           <NeedsAttention />
