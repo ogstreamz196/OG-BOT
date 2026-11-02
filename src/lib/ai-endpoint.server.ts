@@ -6,6 +6,8 @@
  * Lovable AI is never used as a fallback.
  */
 
+import { CLEAN_TV_HELP_NOTE, isTvHelpChat } from "./tv-help";
+
 export type AiChatTarget = {
   url: string;
   headers: Record<string, string>;
@@ -383,11 +385,51 @@ async function hedged(
   }
 }
 
+/** A chat message's text, whether it's a plain string or text-and-image parts. */
+function messageText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content))
+    return content
+      .map((c) =>
+        c && typeof c === "object" && "text" in c ? String((c as { text: unknown }).text) : "",
+      )
+      .join(" ");
+  return "";
+}
+
+/**
+ * TV and app help is always answered clean, whoever asks and whichever bot
+ * answers (tv-help.ts): the foul mouth is switched off for the reply and the
+ * system prompt gets the clean-answer note. Every chat reply passes through
+ * here, so this covers the website, Telegram, groups and the worker bots.
+ */
+export function cleanForTvHelp(
+  body: Record<string, unknown>,
+  opts: AiChatOpts,
+): { body: Record<string, unknown>; opts: AiChatOpts; tvHelp: boolean } {
+  const messages = Array.isArray(body.messages)
+    ? (body.messages as { role?: string; content?: unknown }[])
+    : [];
+  const userTexts = messages.filter((m) => m.role === "user").map((m) => messageText(m.content));
+  if (!isTvHelpChat(userTexts)) return { body, opts, tvHelp: false };
+  const first = messages[0];
+  const withNote =
+    first?.role === "system" && typeof first.content === "string"
+      ? [{ ...first, content: `${first.content}\n\n${CLEAN_TV_HELP_NOTE}` }, ...messages.slice(1)]
+      : [{ role: "system", content: CLEAN_TV_HELP_NOTE }, ...messages];
+  return {
+    body: { ...body, messages: withNote },
+    opts: { ...opts, foulMouth: false },
+    tvHelp: true,
+  };
+}
+
 export async function fetchAiChat(
   body: Record<string, unknown>,
   affinity = "default",
   opts: AiChatOpts = {},
 ): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
+  ({ body, opts } = cleanForTvHelp(body, opts));
   const { free, paid, pro } = await chatPlan(body, affinity, opts);
   // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
   // tier never leaves the user hanging.
@@ -513,6 +555,7 @@ export async function streamAiChat(
   opts: AiChatOpts,
   onDelta: (delta: string) => void,
 ): Promise<{ text: string; provider: AiChatTarget["provider"] }> {
+  ({ body, opts } = cleanForTvHelp(body, opts));
   const { free, paid, pro } = await chatPlan(body, affinity, opts);
   const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
   const targets = pro ? [...paid, ...free] : [...free, ...paid];

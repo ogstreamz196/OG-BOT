@@ -279,6 +279,9 @@ async function battleAnswer(
   };
   const text = (json.choices?.[0]?.message?.content ?? "").trim();
   if (!text) return null;
+  // TV and app help is answered clean (tv-help.ts; the AI was told so too).
+  const { isTvHelp } = await import("@/lib/tv-help");
+  if (isTvHelp(turn.content)) return text;
   // A free model other than the swearing one can come out soft: keep it foul.
   const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
   return ensureFoulFlavour(text, Math.random, bond.friend);
