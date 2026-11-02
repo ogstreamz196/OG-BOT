@@ -40,9 +40,14 @@ sync. Follow this every time.
    **Log**, with the real PR number, not "this PR"), take your line out of
    **In progress**, and refresh **Where things stand** so the other Claude
    can pick up from there.
-5. PR into `lovable-sync`, merge, then give the person you're working for a
-   Lovable prompt (pull lovable-sync, apply any new migrations unchanged,
-   publish, and what to check).
+5. PR into `lovable-sync` and merge. Lovable picks up every merge by itself
+   (check `latest_commit_sha` with the Lovable connector's `get_project`).
+   Then publish it yourself with the Lovable connector's `deploy_project`
+   (project 07659a42-5b68-4c8b-83b5-ee9a625dbb92) and check it yourself: the
+   live site's code at ogbot.co.uk, and the database through `query_database`
+   (read-only checks). The Boss wants Lovable to do as little as possible, so
+   only give the person a Lovable prompt for what you can't do: a new
+   migration Lovable must apply, or a secret only they can enter.
 6. Old branches stay on GitHub (Claude sessions can't delete them). A branch
    only counts as open work if it has an open pull request or a line under
    **In progress**; anything already in `lovable-sync` is done.

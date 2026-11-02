@@ -145,6 +145,14 @@ merged work, not open work.
 
 ## Log
 
+- **2026-11-02 · partner's Claude · #206 · Claudes publish and check it
+  themselves.** The Boss asked for Lovable to do as little as possible.
+  Lovable already pulls every merge into `lovable-sync` by itself. A Claude
+  now publishes with the Lovable connector's `deploy_project` and checks
+  the live site and database itself (CLAUDE.md step 5). #203, #204 and #205
+  were published this way at about 14:07 UTC: the live welcome page shows
+  "Bitcoin setups", and gold scans stopped at 14:05.
+
 - **2026-11-02 · partner's Claude · #205 · Gold retired, Bitcoin only.**
   `src/lib/signal-markets.ts` (SIGNAL_MARKETS / RETIRED_MARKETS) is the one
   list every scanner, learner, MT5, report, page and panel reads. Gold asks
