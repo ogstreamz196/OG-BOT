@@ -7,7 +7,8 @@
 // at least BAR_MIN_WIN_RATE and money made after the spread; the bar steps
 // down through the bands from the top and stops at the first one that hasn't
 // earned it, never below BAR_FLOOR. A band that starts losing puts the bar
-// straight back up. No AI is involved.
+// straight back up. Shadows count once per market move (oneShadowPerMove).
+// No AI is involved.
 import { BROADCAST_MIN_CONFIDENCE } from "./signal-broadcast.server";
 import { SPREAD_COST } from "./signal-learning.server";
 
@@ -51,7 +52,9 @@ export async function alertBar(admin: Admin, market: string, now = Date.now()): 
       const [shadows, live] = await Promise.all([
         admin
           .from("signal_shadows")
-          .select("confidence_pct, outcome, pips, pip")
+          .select(
+            "confidence_pct, outcome, pips, pip, market, reason, direction, timeframe, created_at",
+          )
           .eq("market", market)
           .eq("reason", "below_alert")
           .gte("created_at", since)
@@ -73,14 +76,22 @@ export async function alertBar(admin: Admin, market: string, now = Date.now()): 
       if (shadows.error) return BROADCAST_MIN_CONFIDENCE;
       const trades: BandTrade[] = [];
       let size = 1;
-      for (const r of (shadows.data ?? []) as {
+      // Each market move counts once (a setup under the bar is shadowed every
+      // five minutes while it keeps showing).
+      const { oneShadowPerMove } = await import("./signal-shadows.server");
+      const rows = (shadows.data ?? []) as {
         confidence_pct: number;
         outcome: string;
         pips: number | null;
         pip: number | null;
-      }[]) {
+        market: string;
+        reason: string;
+        direction: string;
+        timeframe: string | null;
+        created_at: string;
+      }[];
+      for (const r of oneShadowPerMove(rows.filter((x) => x.outcome !== "unfilled"))) {
         if (Number(r.pip) > 0) size = Number(r.pip);
-        if (r.outcome === "unfilled") continue;
         trades.push({
           confidence: Number(r.confidence_pct),
           outcome: r.outcome as BandTrade["outcome"],

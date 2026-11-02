@@ -19,6 +19,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Partner's Claude (2026-11-02, later):** #204 merged (no migrations).
+  Gold's no_room filter goes back on at the next filter study. Open
+  question for the Boss: the take profit is smaller than the stop
+  (about 0.67× when posted); a 1:1 or better target is a strategy call,
+  not changed yet.
+
 - **Partner's Claude (2026-11-02):** #203 merged (no migrations). TV and app
   help is always clean. If a member's normal chat gets wrongly cleaned (or a
   TV ask still swears), adjust the word lists in `src/lib/tv-help.ts` and its
@@ -132,6 +138,16 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-02 · partner's Claude · #204 · Fewer losing trades.** Since
+  31 Oct midday the trade bot went 16 won, 27 lost. Trades let through by
+  learned-off filters went 6 won, 16 lost (BTC no_room 10/15, gold no_room
+  0/4). Cause: shadows are kept every 5 minutes, so one move counted as a
+  dozen winners. Now `oneShadowPerMove` counts each move once (filters and
+  the alert bar), and `TIGHTEN_MIN_DECIDED` is 4 instead of 10. No
+  migrations. Not changed but worth knowing: live take profits sit at about
+  0.67–0.87× the stop distance, so the engine needs 55–60% wins just to
+  break even.
 
 - **2026-11-02 · partner's Claude · #203 · TV and app help answered clean.**
   `src/lib/tv-help.ts` (pure text checks) spots TV device, TV app and
