@@ -1,38 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { START_MAX, conversationHeat, heatBand, messageDelta, startHeat } from "./og-heat";
+import { FIRST_CUSS, SECOND_CUSS, conversationHeat, heatBand, isCuss } from "./og-heat";
 import { buildSystemPrompt, flavourForLevel } from "./og-persona.server";
 
 describe("swear level that follows the member", () => {
-  it("starts between 0 and 45, the same every time for the same member", () => {
-    for (const id of ["a", "b", "user-123", "", "4f2c-ee"]) {
-      const h = startHeat(id);
-      expect(h).toBeGreaterThanOrEqual(0);
-      expect(h).toBeLessThanOrEqual(START_MAX);
-      expect(startHeat(id)).toBe(h);
-    }
+  it("starts at 0 and stays clean while they're friendly", () => {
+    expect(conversationHeat("a", [])).toBe(0);
+    expect(heatBand(conversationHeat("a", ["hi", "what's the weather like", "thanks"]))).toBe(
+      "clean",
+    );
   });
 
-  it("cranks up when they swear or come at the bot, eases off when they're polite", () => {
-    expect(messageDelta("you're fucking useless mate")).toBeGreaterThan(20);
-    expect(messageDelta("thanks, that helps")).toBeLessThan(0);
-    expect(messageDelta("what time is it in tokyo")).toBe(-3);
+  it("disses them at 45 on the first cuss, 60 on the second, then higher", () => {
+    expect(conversationHeat("x", ["hi", "you're shit"])).toBe(FIRST_CUSS);
+    expect(heatBand(FIRST_CUSS)).toBe("medium");
+    expect(conversationHeat("x", ["you're shit", "fuck off"])).toBe(SECOND_CUSS);
+    const third = conversationHeat("x", ["you're shit", "fuck off", "come at me then you prick"]);
+    expect(third).toBeGreaterThan(SECOND_CUSS);
+    const lots = conversationHeat("x", Array(8).fill("fuck off"));
+    expect(lots).toBe(100);
+    expect(heatBand(lots)).toBe("savage");
   });
 
-  it("drops right down when something's serious", () => {
-    expect(messageDelta("my nan passed away this morning")).toBe(-40);
-    const hot = conversationHeat("x", ["fuck off", "shit bot", "come at me then you prick"]);
-    expect(hot).toBeGreaterThan(70);
-    expect(
-      heatBand(conversationHeat("x", ["fuck off", "shit bot", "i'm really depressed"])),
-    ).not.toBe("savage");
+  it("eases down when they're polite and resets when something's serious", () => {
+    expect(conversationHeat("x", ["fuck off", "thanks, that helps"])).toBeLessThan(FIRST_CUSS);
+    expect(conversationHeat("x", ["fuck off", "shit bot", "my nan passed away"])).toBe(0);
+    expect(conversationHeat("x", ["fuck off", "i'm really depressed", "you're shit"])).toBe(
+      FIRST_CUSS,
+    );
   });
 
-  it("calm chat stays clean or light", () => {
-    const h = conversationHeat("calm", ["hi", "what's the weather like", "thanks"]);
-    expect(["clean", "light"]).toContain(heatBand(h));
+  it("knows a cuss from plain chat", () => {
+    expect(isCuss("you're fucking useless mate")).toBe(true);
+    expect(isCuss("what time is it in tokyo")).toBe(false);
   });
 });
-
 describe("the persona follows the level", () => {
   const user = { display_name: null, email: null, coin_balance: 0, is_admin: false, is_vip: false };
   const base = {

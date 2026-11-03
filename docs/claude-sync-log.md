@@ -241,6 +241,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #230** · Swear level in steps
+  (`src/lib/og-heat.ts`): everyone starts at 0 (clean, like the bored
+  messages); first cuss → 45 and it disses them back, second → 60, +12
+  per insult after, up to 100. Polite/plain chat eases it down, serious
+  resets to 0. Never announced.
+
 - **Boss's Claude · 2026-11-03 · #229** · Swear level follows the
   member (`src/lib/og-heat.ts`): starts at 0–45 per member, goes up when
   they swear or come at the bot, down when they're polite or serious, read
