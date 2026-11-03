@@ -203,6 +203,17 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-03 · #211** · The ⚡ button everywhere, old
+  signal menus gone (Boss's ask). OG B0T's private bar: ⚡ full width, then
+  Menu | Clear chat (unlinked: ⚡, then Clear chat | site, a free
+  chart-engine signal). The 📈 Signals sub-menu and the group coin picker are
+  gone (Bitcoin only); old buttons still on screens keep working and swap in
+  the new bar. Groups get the button only where OG B0T hears taps (privacy
+  off or admin; `hearsTaps`, `ensureGroupButton`, once a day). Worker bots'
+  private chats carry it too and answer a tap with a BTC scalp. 1 min stays
+  Boss-only. `telegram-flow.test.ts` rewritten for the new bar (7 tests that
+  described the old menus) plus 2 new. No migration.
+
 - **Boss's Claude · 2026-11-03 · #210** · An always-on "⚡ Generate BTC
   Signal Now" button at the bottom of the signals chat: a persistent reply
   keyboard (`GENERATE_SIGNAL_KEYBOARD`) on every results post, so it's

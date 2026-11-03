@@ -340,33 +340,23 @@ describe("telegram bot flow", () => {
     Object.assign(who, { roles: [], foulAllowed: true, foulOn: true });
   });
 
-  test("signal buttons stay while signals run; menu items lead back to the menu", async () => {
+  test("the ⚡ button runs signals straight from the bar; menu items lead back to the menu", async () => {
     await type("/start");
     const intro = barHolder();
     expect(intro.text).toContain("OG B0T here");
-    expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
+    // One full-width signal button, then Menu and Clear chat: no signals sub-menu.
+    expect(barButtons()).toEqual(["⚡ Generate BTC Signal Now", "📂 Menu", "🧹 Clear chat"]);
 
-    // Signals: the intro clears, the signal buttons take over the bar.
-    await type("📈 Signals");
-    expect(deleted.has(intro.id)).toBe(true);
-    const signalsBar = barHolder();
-    expect(barButtons()).toEqual(["₿ BTC", "🕐 Holding", "⬅️ Back"]);
-
-    // Run signals back to back: the signal buttons are never deleted.
-    await type("₿ BTC");
-    await type("₿ BTC · Scalp");
-    await type("₿ BTC");
-    expect(deleted.has(signalsBar.id)).toBe(false);
-    expect(barHolder().id).toBe(signalsBar.id);
+    // Signals back to back from the same bar: it's never swapped or deleted.
+    await type("⚡ Generate BTC Signal Now");
+    await type("⚡ Generate BTC Signal Now");
+    await type("⚡ Generate BTC Signal Now");
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+    const mainBar = barHolder();
+    expect(barButtons()[0]).toBe("⚡ Generate BTC Signal Now");
     // Each new signal wipes out the last; "hold on" lines go on the next tap.
     expect(showing("GOLD SCALP card").length).toBe(1);
     expect(showing("Hold on").length).toBe(1);
-
-    // Back: main bar returns, the signals bar message goes.
-    await type("⬅️ Back");
-    expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
-    expect(deleted.has(signalsBar.id)).toBe(true);
-    const mainBar = barHolder();
 
     // Menu → VIP → back to the menu, all without losing the bar.
     await type("📂 Menu");
@@ -472,14 +462,16 @@ describe("telegram bot flow", () => {
     expect(lastSent().text).toContain("OG Menu");
   });
 
-  test("1 min signals are on the Boss bar only", async () => {
+  test("1 min signals are Boss-only: never on the bar, an old Boss button still runs", async () => {
     await type("/start");
-    await type("📈 Signals");
     expect(barButtons()).not.toContain("₿ BTC · 1 min");
-    expect(barButtons().at(-1)).toBe("⬅️ Back");
     who.roles = ["boss"];
-    await type("📈 Signals");
-    expect(barButtons()).toContain("₿ BTC · 1 min");
+    await type("/start");
+    expect(barButtons()).not.toContain("₿ BTC · 1 min");
+    await type("₿ BTC · 1 min");
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 1m");
+    // An old button swaps in the new bar; still only one bar.
+    expect(barButtons()[0]).toBe("⚡ Generate BTC Signal Now");
     expect(liveBars()).toHaveLength(1);
   });
 
@@ -500,17 +492,16 @@ describe("telegram bot flow", () => {
 
   test("clear chat brings back the intro and the bar", async () => {
     await type("/start");
-    await type("📈 Signals");
+    await type("⚡ Generate BTC Signal Now");
     await type("🧹 Clear chat");
     expect(barHolder().text).toContain("OG B0T here");
-    expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
+    expect(barButtons()).toEqual(["⚡ Generate BTC Signal Now", "📂 Menu", "🧹 Clear chat"]);
     expect(liveBars()).toHaveLength(1);
   });
 
   test("a new signal wipes the last card and the updates under it, but not menus or chat", async () => {
     await type("/start");
-    await type("📈 Signals");
-    await type("₿ BTC");
+    await type("⚡ Generate BTC Signal Now");
     const first = sent.filter((m) => m.text.includes("GOLD SCALP card")).at(-1)!;
     // The watcher posts an update under the card (it marks it as part of the signal).
     const update = { id: nextId++, text: "📊 BTC BUY · TP1 hit" };
@@ -520,48 +511,71 @@ describe("telegram bot flow", () => {
     const question = nextId;
     await type("what's the gold price doing?");
 
-    await type("₿ BTC");
+    await type("⚡ Generate BTC Signal Now");
     expect(deleted.has(first.id)).toBe(true);
     expect(deleted.has(update.id)).toBe(true);
     expect(deleted.has(question)).toBe(false);
     expect(showing("GOLD SCALP card")).toHaveLength(1);
-    // The signal buttons are still there.
-    expect(barButtons()).toContain("₿ BTC");
+    // The signal button is still there.
+    expect(barButtons()).toContain("⚡ Generate BTC Signal Now");
     expect(liveBars()).toHaveLength(1);
   });
 
-  test("signals: tap a coin for its scalp; Holding switches the coins to 1-hour and back", async () => {
+  test("old signal bar buttons still work and swap in the new bar", async () => {
     await type("/start");
+    // 📈 Signals (the old bar): a BTC scalp now, and the new bar.
     await type("📈 Signals");
-    await type("₿ BTC");
     expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
-    await type("₿ BTC · Scalp");
-    expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
-
-    const scalpBar = barHolder();
-    await type("🕐 Holding");
-    expect(barButtons()).toEqual(["₿ BTC · Holding", "⚡ Scalp", "⬅️ Back"]);
-    expect(barHolder().text).toContain("Holding signals");
-    // The bar changed: the old one's message goes, only one bar left.
-    expect(deleted.has(scalpBar.id)).toBe(true);
+    expect(barButtons()).toEqual(["⚡ Generate BTC Signal Now", "📂 Menu", "🧹 Clear chat"]);
     expect(liveBars()).toHaveLength(1);
-    // The switch tap itself is tidied away; no signal was asked for.
-    expect(signalAsks).toHaveLength(2);
+    // The old sub-bar's buttons do what they said.
+    await type("🕐 Holding");
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 1h");
     await type("₿ BTC · Holding");
     expect(signalAsks.at(-1)).toBe("BTCUSD signal 1h");
-
     await type("⚡ Scalp");
-    expect(barButtons()).toEqual(["₿ BTC", "🕐 Holding", "⬅️ Back"]);
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+    const asks = signalAsks.length;
     await type("⬅️ Back");
-    expect(barButtons()).toEqual(["📂 Menu", "📈 Signals", "🧹 Clear chat"]);
+    expect(signalAsks).toHaveLength(asks);
+    expect(barButtons()[0]).toBe("⚡ Generate BTC Signal Now");
     // An old four-button bar still on someone's screen keeps working.
     await type("₿ BTC · Scalp");
     expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+    expect(liveBars()).toHaveLength(1);
     // Gold is retired: an old gold button gets one line, and no chart is read.
     const asked = signalAsks.length;
     await type("🥇 Gold · Scalp");
     expect(lastSent().text).toContain("Gold's off the menu");
     expect(signalAsks).toHaveLength(asked);
+  });
+
+  test("not connected yet: the ⚡ button is on their bar and gets a free signal (no AI)", async () => {
+    const STRANGER = 5555; // a private chat with no OG B0T account
+    const say = (text: string) =>
+      post({
+        message: {
+          message_id: nextId++,
+          text,
+          chat: { id: STRANGER, type: "private" },
+          from: { id: STRANGER, first_name: "Sam" },
+        },
+      });
+    await say("/help");
+    const bar = [...sent]
+      .reverse()
+      .find((m) => m.chat === STRANGER && m.markup && "keyboard" in m.markup)!;
+    expect((bar.markup!.keyboard as { text: string }[][]).flat().map((b) => b.text)).toEqual([
+      "⚡ Generate BTC Signal Now",
+      "🧹 Clear chat",
+      "🌐 OGBOT.CO.UK",
+    ]);
+    const tapId = nextId;
+    await say("⚡ Generate BTC Signal Now");
+    expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+    expect(deleted.has(tapId)).toBe(true);
+    expect(sent.filter((m) => m.chat === STRANGER).at(-1)!.text).toContain("card");
+    expect(ai.requests).toHaveLength(0);
   });
 
   describe("in a group", () => {
@@ -838,10 +852,11 @@ describe("telegram bot flow", () => {
       expect(signalAsks).toHaveLength(3);
       expect(ai.battles).toHaveLength(0);
 
+      // Bitcoin's the only market: a bare "signal" is a BTC scalp, no picker.
       await inGroup("signal");
-      expect(buttons(groupSent().at(-1)!).map((b) => b.callback_data)).toContain("gsig:BTC:5m");
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
       await inGroup("help");
-      expect(groupSent().at(-1)!.text).toContain("OG B0T in the group");
+      expect(groupSent().some((m) => m.text.includes("OG B0T in the group"))).toBe(true);
       await inGroup("roast @dave");
       expect(battleTurn(0)).toBe("Imran: roast @dave");
       await inGroup("og who wins tonight");
@@ -858,6 +873,42 @@ describe("telegram bot flow", () => {
       const before = groupSent().length;
       await inGroup("signal btc", { reply_to: { text: "what's btc doing", fromBot: false } });
       expect(groupSent()).toHaveLength(before);
+    });
+
+    test("the ⚡ button goes up only where OG B0T hears the taps", async () => {
+      const { forgetCached } = await import("@/lib/server-cache");
+      const HEARS = -100555;
+      const DEAF = -100556;
+      const ask = (chat: number) =>
+        post({
+          message: {
+            message_id: nextId++,
+            text: "/signal btc",
+            chat: { id: chat, type: "supergroup" },
+            from: { id: CHAT, first_name: "Imran" },
+          },
+        });
+      const buttonIn = (chat: number) =>
+        sent.filter((m) => m.chat === chat && m.markup && "keyboard" in m.markup);
+      // Reads every message: the button goes up, once.
+      botReadsAll.value = true;
+      forgetCached("telegram-bot-info");
+      await ask(HEARS);
+      await ask(HEARS);
+      expect(buttonIn(HEARS)).toHaveLength(1);
+      expect(
+        (buttonIn(HEARS)[0].markup!.keyboard as { text: string }[][]).flat().map((b) => b.text),
+      ).toEqual(["⚡ Generate BTC Signal Now"]);
+      // Privacy on and not an admin: it wouldn't hear a tap, so no button.
+      botReadsAll.value = false;
+      forgetCached("telegram-bot-info");
+      try {
+        await ask(DEAF);
+        expect(buttonIn(DEAF)).toHaveLength(0);
+      } finally {
+        botReadsAll.value = true;
+        forgetCached("telegram-bot-info");
+      }
     });
 
     test("tells the Boss when Group Privacy is stopping it hearing plain messages", async () => {
@@ -998,14 +1049,14 @@ describe("telegram bot flow", () => {
       expect(ai.battles).toHaveLength(1);
     });
 
-    test("signals: picker buttons, a tap or a typed pair; a snapshot, not followed", async () => {
+    test("signals: a bare /signal is a BTC scalp, old picker taps still work; followed", async () => {
+      // No picker any more (Bitcoin only): straight to the scalp.
+      const asked = nextId;
       await inGroup("/signal");
-      const picker = groupSent().at(-1)!;
-      const data = buttons(picker).map((b) => b.callback_data);
-      // Coins first (scalps), holding underneath.
-      // Bitcoin only: gold is retired.
-      expect(buttons(picker).map((b) => b.text)).toEqual(["₿ BTC", "🕐 BTC · Holding"]);
-      expect(data).toEqual(["gsig:BTC:5m", "gsig:BTC:1h"]);
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+      expect(groupSent().some((m) => m.text.includes("card") && repliesTo(m) === asked)).toBe(true);
+      // An old picker message (from before) still works when tapped.
+      const picker = { id: 77 };
 
       await post({
         callback_query: {
@@ -1015,7 +1066,9 @@ describe("telegram bot flow", () => {
           message: { message_id: picker.id, chat: { id: GROUP } },
         },
       });
-      const card = groupSent().find((m) => m.text.includes("GOLD SCALP card"))!;
+      const card = groupSent()
+        .filter((m) => m.text.includes("GOLD SCALP card"))
+        .at(-1)!;
       expect(card).toBeTruthy();
       expect(repliesTo(card)).toBe(picker.id);
       // Tagged to whoever tapped.
@@ -1031,7 +1084,8 @@ describe("telegram bot flow", () => {
         1,
       );
       // Group cards are followed at the delivered chat/message, without private history.
-      expect(recordSignal).toHaveBeenCalledTimes(3);
+      // /signal, the old picker tap, then the two typed ones.
+      expect(recordSignal).toHaveBeenCalledTimes(4);
       expect(
         recordSignal.mock.calls.every(
           ([opts]) => opts.chatId === GROUP && opts.messageId != null && opts.messageId > 0,
@@ -1039,7 +1093,7 @@ describe("telegram bot flow", () => {
       ).toBe(true);
       // Whoever tapped is remembered, so a win can be announced to them by name.
       expect(
-        (recordSignal.mock.calls[0][0] as unknown as { plan: { feeds: { requester: unknown } } })
+        (recordSignal.mock.calls[1][0] as unknown as { plan: { feeds: { requester: unknown } } })
           .plan.feeds.requester,
       ).toEqual({ id: CHAT, name: "Imran" });
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);

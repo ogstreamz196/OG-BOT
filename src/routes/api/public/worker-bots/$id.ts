@@ -67,18 +67,55 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
           .insert({ worker_id: bot.id, update_id: update?.update_id as number });
         if (claim) return Response.json({ ok: true });
         let reply = "";
+        // Every bot's private chat carries the always-on "⚡ Generate BTC
+        // Signal Now" button; a tap is a Bitcoin scalp, whichever bot it is.
+        const { GENERATE_SIGNAL_KEYBOARD, isGenerateSignal, signalRequest } =
+          await import("@/lib/telegram-signals");
+        const tap = isGenerateSignal(msg.text);
+        const ask = tap ? signalRequest("BTC", "5m") : msg.text.slice(0, 2000);
+        if (tap && bot.role !== "trade") {
+          // The copy bot and assistants: the chart engine's card (no AI).
+          const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
+          const s = await buildTradeSignal(ask).catch(() => null);
+          const text =
+            s?.reply || "📉 The charts aren't answering right now. Try again in a minute.";
+          const sent = await f.fleetApi<{ message_id: number }>(
+            bot.id,
+            "sendMessage",
+            { chat_id: msg.chat.id, text, reply_markup: GENERATE_SIGNAL_KEYBOARD },
+            key,
+          );
+          if (s?.plan && sent.ok && sent.result) {
+            const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
+            await recordSignal({
+              userId: bot.created_by,
+              chatId: msg.chat.id,
+              messageId: sent.result.message_id,
+              card: text,
+              plan: {
+                ...s.plan,
+                feeds: {
+                  ...s.plan.feeds,
+                  requester: { id: msg.chat.id, name: msg.from?.first_name || "you" },
+                },
+              },
+              senderWorker: bot.id,
+            });
+          }
+          return Response.json({ ok: true });
+        }
         if (bot.role === "trade") {
           const { deskSignal, cardToSend, plainForTelegram } =
             await import("@/lib/trade-signal-context.server");
           // No clean setup: the market-bias call instead of "no signal".
-          const signal = cardToSend(await deskSignal(msg.text.slice(0, 2000)));
+          const signal = cardToSend(await deskSignal(ask));
           reply = signal.reply
             ? plainForTelegram(signal.reply)
             : await f.assistantReply(bot, msg.text.slice(0, 2000));
           const sent = await f.fleetApi<{ message_id: number }>(
             bot.id,
             "sendMessage",
-            { chat_id: msg.chat.id, text: reply },
+            { chat_id: msg.chat.id, text: reply, reply_markup: GENERATE_SIGNAL_KEYBOARD },
             key,
           );
           if (signal.plan && sent.ok && sent.result) {
@@ -108,19 +145,22 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             {
               chat_id: msg.chat.id,
               text: copy.text,
-              ...(copy.link
-                ? {
-                    reply_markup: {
-                      inline_keyboard: [[{ text: "📋 Copy my trades", url: copy.link }]],
-                    },
-                  }
-                : {}),
+              // The copy link's button when there is one (a message has one
+              // set of buttons); else the always-on signal button.
+              reply_markup: copy.link
+                ? { inline_keyboard: [[{ text: "📋 Copy my trades", url: copy.link }]] }
+                : GENERATE_SIGNAL_KEYBOARD,
             },
             key,
           );
         } else {
           reply = await f.assistantReply(bot, msg.text.slice(0, 2000));
-          await f.fleetApi(bot.id, "sendMessage", { chat_id: msg.chat.id, text: reply }, key);
+          await f.fleetApi(
+            bot.id,
+            "sendMessage",
+            { chat_id: msg.chat.id, text: reply, reply_markup: GENERATE_SIGNAL_KEYBOARD },
+            key,
+          );
         }
         return Response.json({ ok: true });
       },

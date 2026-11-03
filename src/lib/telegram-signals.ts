@@ -47,7 +47,24 @@ export const SIGNAL_BUTTONS: Record<
   // Still on some members' screens from the old four-button bar.
   "🥇 Gold · Scalp": { pair: "XAU", timeframe: "5m" },
   "₿ BTC · Scalp": { pair: "BTC", timeframe: "5m" },
+  // The one button every bot shows now (GENERATE_SIGNAL_TEXT below).
+  "⚡ Generate BTC Signal Now": { pair: "BTC", timeframe: "5m" },
 };
+
+/**
+ * Buttons from the old signals bar (📈 Signals, then BTC / Holding / Back),
+ * still on some members' screens: a tap still does what it says and swaps
+ * in the new bar.
+ */
+export function oldSignalBarButton(text: string): boolean {
+  return (
+    text === SIGNALS_BUTTON ||
+    text === HOLDING_BUTTON ||
+    text === SCALP_BUTTON ||
+    text === BACK_BUTTON ||
+    (Object.hasOwn(SIGNAL_BUTTONS, text) && text !== "⚡ Generate BTC Signal Now")
+  );
+}
 
 /** Rows for the signals bottom bar (1 min is Boss-only). */
 export function signalButtonRows(boss: boolean, mode: "scalp" | "holding" = "scalp"): string[][] {
