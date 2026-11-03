@@ -74,6 +74,13 @@ type PostDeps = {
   confirm?: (signal: Built) => Promise<Built | null>;
   /** The test account's lot and balance on the card (paper-account.server.ts), when it's running. */
   paper?: (signal: Built) => Promise<Built>;
+  /**
+   * The last check before an alert goes out (signal-gate.ts): a reason to
+   * hold it back when its record says it's a loser, else null.
+   */
+  gate?: (signal: Built) => Promise<string | null>;
+  /** Keeps a silent shadow of a setup that isn't sent (signal-shadows.server.ts). */
+  shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
   follow?: (signal: Built, messageId: number, card: string) => Promise<void>;
   now: () => number;
 };
@@ -84,8 +91,6 @@ export type ScanDeps = PostDeps & {
   frames?: SignalTimeframe[];
   /** The confidence an alert needs for a market (learned; default BROADCAST_MIN_CONFIDENCE). */
   alertBar?: (market: string) => Promise<number>;
-  /** Keeps a silent shadow of a setup that isn't sent (signal-shadows.server.ts). */
-  shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
 };
 
 /** The lines a signals-chat card keeps: the trade, the stop, the take profit, timeframe and confidence. */
@@ -293,6 +298,14 @@ async function postOnce(
   )
     return false;
 
+  // Only what's most likely to win goes out (signal-gate.ts); the rest is
+  // followed silently, so learning still sees it. Before the desk, so a
+  // held-back alert never costs an AI call.
+  const held = deps.gate ? await deps.gate(signal).catch(() => null) : null;
+  if (held) {
+    await deps.shadow?.(signal, "losing_record").catch(() => undefined);
+    return false;
+  }
   // Every AI works with the chart engine: an engine alert only goes out when
   // the desk backs it (asked only now, so repeats never cost an AI call).
   if (askDesk && deps.confirm) {

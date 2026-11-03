@@ -30,7 +30,8 @@ export type ShadowReason =
   | "no_room"
   | "blackout"
   | "trial_check"
-  | "spread";
+  | "spread"
+  | "losing_record";
 
 /** What the report calls each reason. */
 export const SHADOW_REASONS: Record<ShadowReason, string> = {
@@ -45,6 +46,7 @@ export const SHADOW_REASONS: Record<ShadowReason, string> = {
   blackout: "Blackout (rollover, big news, Friday close)",
   trial_check: "Pair check said no (dollar or order flow)",
   spread: "Vantage's spread blown out",
+  losing_record: "Its record has been losing (confidence, strategy or chart)",
 };
 
 /** Why the engine waited, as a shadow reason; null for waits worth nothing (closed, no spot price). */
