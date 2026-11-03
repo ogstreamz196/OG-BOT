@@ -7,6 +7,7 @@
  */
 
 import { CLEAN_TV_HELP_NOTE, isTvHelpChat } from "./tv-help";
+import { extraKeysNow, loadExtraKeys } from "./ai-keys.server";
 
 export type AiChatTarget = {
   url: string;
@@ -65,12 +66,39 @@ export const FOUL_CAPABLE_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
  * the OpenRouter model that actually swears is used, then Gemini.
  */
 export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
+  // The Boss's extra keys (Boss → System → API keys, kept in the hub) go
+  // first; the keys set as secrets are the fallback. Loaded by loadAiKeys().
+  const extra = extraKeysNow();
+  const own = (
+    key: string,
+    provider: AiChatTarget["provider"],
+    url: string,
+    model: string,
+    more: Record<string, string> = {},
+  ): AiChatTarget => ({
+    url,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...more },
+    model,
+    provider,
+    free: true,
+  });
+  const extraOpenrouter = extra.openrouter.map((k) =>
+    own(k, "openrouter", OR_URL, FOUL_CAPABLE_FREE_MODEL, OR_HEADERS),
+  );
+  const freeGeminiModel =
+    process.env.GEMINI_FREE_MODEL || process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const extraFirst = [
+    ...extra.gemini.map((k) => own(k, "gemini", GEMINI_OPENAI_URL, freeGeminiModel)),
+    ...extra.pollinations.map((k) => own(k, "pollinations", POLL_URL, "openai-fast")),
+    ...extraOpenrouter,
+  ];
   const openrouter = ["OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].map((env) =>
     keyed(env, "openrouter", OR_URL, FOUL_CAPABLE_FREE_MODEL, OR_HEADERS),
   );
   const list = foulMouth
-    ? openrouter
+    ? [...extraOpenrouter, ...openrouter]
     : [
+        ...extraFirst,
         keyed("GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
         keyed("GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
         // Second Groq account — separate rate-limit budget.
@@ -81,6 +109,11 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
         ...openrouter,
       ];
   return list.filter((t): t is AiChatTarget => t !== null);
+}
+
+/** Loads the Boss's extra keys (cached a minute) before a target list is built. Never throws. */
+export async function loadAiKeys(): Promise<void> {
+  await loadExtraKeys().catch(() => undefined);
 }
 
 type ProMsg = { role: string; content: unknown };
@@ -269,6 +302,7 @@ async function chatPlan(
   // Free AIs answer ordinary chat; paid Gemini goes first only for media or
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
+  await loadAiKeys();
   const free = freeFallbackTargets(!!opts.foulMouth);
   if (opts.freeOnly) {
     // Free or nothing, so try every free model before giving up: for Foul

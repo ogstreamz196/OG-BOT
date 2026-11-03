@@ -12,7 +12,7 @@
 // Only free tiers are used (free Google keys for the chief), never the paid
 // Gemini key nor OpenRouter (kept for the group roasts), and any failure
 // falls back to the engine's own card.
-import { freeFallbackTargets, type AiChatTarget } from "./ai-endpoint.server";
+import { freeFallbackTargets, loadAiKeys, type AiChatTarget } from "./ai-endpoint.server";
 
 export type DeskLean = "BUY" | "SELL" | "WAIT";
 export type DeskFinding = { role: DeskRoleId; lean: DeskLean; conviction: number; finding: string };
@@ -208,6 +208,7 @@ export async function runDesk(
 ): Promise<DeskDecision | null> {
   // OpenRouter's free model is what the group roasts swear with, and its
   // daily allowance is small: the desk (now every 10 minutes) leaves it alone.
+  await loadAiKeys();
   const free = freeFallbackTargets(false).filter((t) => t.provider !== "openrouter");
   if (!free.length) return null;
   const outer = AbortSignal.timeout(DESK_BUDGET_MS);

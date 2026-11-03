@@ -4,7 +4,7 @@
  * background batch of fresh lines is generated and added for everyone.
  * Battle Zone does NOT use this — it stays fresh every message.
  */
-import { freeFallbackTargets, aiChatTargets } from "@/lib/ai-endpoint.server";
+import { freeFallbackTargets, aiChatTargets, loadAiKeys } from "@/lib/ai-endpoint.server";
 
 export type CatchTone = "foul" | "cheeky" | "safe";
 type Admin = {
@@ -32,6 +32,7 @@ async function generateBatch(kind: Kind, tone: CatchTone): Promise<string[]> {
     kind === "trade_hold"
       ? TRADE_HOLD_PROMPT(tone)
       : `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "ROASTS / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for OG B0T, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
+  await loadAiKeys();
   for (const t of [...freeFallbackTargets(), ...aiChatTargets("catchphrases")]) {
     try {
       const res = await fetch(t.url, {

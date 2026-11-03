@@ -239,6 +239,13 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "services connectors ping secrets",
   },
   {
+    title: "Extra free AI keys",
+    where: area("System", "API keys"),
+    to: "/admin/system",
+    tab: "apis",
+    keywords: "add key pollinations openrouter gemini free ai more keys",
+  },
+  {
     title: "Ledgerly",
     where: area("System", "API keys › Payments"),
     to: "/admin/system",
