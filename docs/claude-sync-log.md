@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Sports Guide group chat
+- **Boss's Claude · 2026-11-03 · #232** · Sports Guide group chat
   (`src/lib/sports-group.server.ts`): in the Boss's sports group OG B0T now
   reads and chats, not just mirrors. Members (unlocked guide / VIP) get royal
   treatment + the fixtures on "which game is on"; non-members get a cheeky
