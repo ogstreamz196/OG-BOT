@@ -7,6 +7,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · boss-nav · Boss console navigation: Signals becomes its
+  own area (/admin/signals), Members filter chips, System's Tools & logs,
+  Boss search on every page (Ctrl/Cmd+K), phone tab dropdown, remembered
+  tabs, Needs attention first. Touches `src/routes/_authenticated/admin.*`,
+  `src/components/admin/Boss*`, `boss-search.ts`, tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
