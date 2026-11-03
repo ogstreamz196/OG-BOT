@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · More signals, more at once
+- **Boss's Claude · 2026-11-03 · #236** · More signals, more at once
   (the Boss: "increase the frequency, up to 10 trades at the same time, any
   direction"): MAX_RUNNING_PER_MARKET 6→10, SAME_SIDE_GAP_MS 10→3 min,
   AFTER_STOP_MS 15→5 min, SAME_SETUP_R 0.5→0.3, random cadence 10–25→4–12 min.
