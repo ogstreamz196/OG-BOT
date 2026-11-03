@@ -2002,6 +2002,75 @@ const dmButton = async (text: string) => ({
   inline_keyboard: [[{ text, url: `https://t.me/${await botUsername()}` }]],
 });
 
+/**
+ * A person chatting in the OG Sports Guide group. Members (unlocked guide or
+ * VIP) are treated like royalty and get the fixtures; anyone not signed up gets
+ * cheeky banter and a push to join. Only engages on a "which game" question or
+ * when OG B0T is spoken to, so it never spams the group. No AI. (the Boss, 2026-11-03)
+ */
+async function handleSportsGroupChat(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  msg: GroupMessage,
+): Promise<Response> {
+  const chat_id = msg.chat.id;
+  const text = typeof msg.text === "string" ? msg.text.trim() : "";
+  if (!text) return Response.json({ ok: true, sports_group: "quiet" });
+  const me = (await botUsername()).toLowerCase();
+  const mentioned = new RegExp(`@${me}\\b`, "i").test(text);
+  const repliedToMe =
+    !!msg.reply_to_message?.from?.is_bot &&
+    msg.reply_to_message.from.username?.toLowerCase() === me;
+  const sg = await import("@/lib/sports-group.server");
+  const { detectSportsIntent } = await import("@/lib/sports-guide-context.server");
+  const wantsGames = sg.isWhichGameAsk(text) || detectSportsIntent(text);
+  // Stay quiet unless they're asking about games or talking to OG B0T.
+  if (!wantsGames && !mentioned && !repliedToMe)
+    return Response.json({ ok: true, sports_group: "quiet" });
+
+  const fromId = msg.from?.id;
+  const name = msg.from?.first_name ?? null;
+  const ctx: GroupContext = { replyTo: msg.message_id, thread: undefined, name: name ?? undefined, user: msg.from };
+  const send = (body: string, extra: Record<string, unknown> = {}) =>
+    reply(chat_id, body, { ...groupSendExtra(ctx), ...extra });
+
+  const profileId = await linkedProfileId(admin, fromId);
+  let member = false;
+  if (profileId) {
+    const { data } = await admin.rpc("has_sports_guide_access", { _user: profileId });
+    member = !!data;
+  }
+
+  if (wantsGames) {
+    if (member) {
+      const split = await sg.groupFixtureSplit(admin);
+      await send(sg.memberFixturesReply(split));
+      return Response.json({ ok: true, sports_group: "member_fixtures" });
+    }
+    await send(sg.nonMemberLockReply(name), { reply_markup: await sportsJoinButtons() });
+    return Response.json({ ok: true, sports_group: "locked" });
+  }
+
+  // Spoken to, not about games.
+  if (member) {
+    await send(sg.royalChatLine(name));
+    return Response.json({ ok: true, sports_group: "royal" });
+  }
+  // A cheeky jab at a non-member, but no more than the daily group nudge rate.
+  if (fromId && (await shouldNudge(admin, chat_id, fromId))) {
+    await send(sg.nonMemberJabLine(name), { reply_markup: await sportsJoinButtons() });
+    return Response.json({ ok: true, sports_group: "jab" });
+  }
+  return Response.json({ ok: true, sports_group: "quiet" });
+}
+
+/** Store + connect buttons for a non-member in the Sports Guide group. */
+const sportsJoinButtons = async () => ({
+  inline_keyboard: [
+    [{ text: "🏆 Unlock Sports Guide", url: "https://www.ogbot.co.uk/store" }],
+    [{ text: "🔗 Connect to OG B0T", url: `https://t.me/${await botUsername()}?start=connect` }],
+  ],
+});
+
 async function handleGroupMessage(
   admin: Awaited<ReturnType<typeof loadAdmin>>,
   msg: GroupMessage,
@@ -2325,6 +2394,24 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             return Response.json({ ok: true, ignored: "other_channel" });
           }
           const body: string = (sgPost.text ?? sgPost.caption ?? "").trim();
+          // A person chatting in the group (not a feed listing) is answered, not
+          // mirrored: members get the fixtures and royal treatment, anyone not
+          // signed up gets banter and a push to join.
+          const isChannelPost = !!(update?.channel_post ?? update?.edited_channel_post);
+          const fromHuman = !isChannelPost && !!sgPost.from?.id && !sgPost.from?.is_bot;
+          if (body && fromHuman) {
+            const sg = await import("@/lib/sports-group.server");
+            if (!sg.looksLikeListing(body)) {
+              const sgAdmin = await loadAdmin();
+              if (typeof updateId === "number") {
+                const { error: dup } = await sgAdmin
+                  .from("telegram_processed_updates")
+                  .insert({ update_id: updateId, chat_id: SPORTS_GUIDE_CHAT_ID, kind: "sports_group" });
+                if (dup?.code === "23505") return Response.json({ ok: true, duplicate: true });
+              }
+              return await handleSportsGroupChat(sgAdmin, sgPost as GroupMessage);
+            }
+          }
           if (body) {
             const sgAdmin = await loadAdmin();
             const { error: sgErr } = await sgAdmin.from("sports_guide_posts").upsert(
