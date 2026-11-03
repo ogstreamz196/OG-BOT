@@ -306,6 +306,30 @@ async function checkChatKey(env: string, url: string, model: string, extra: Reco
   }
 }
 
+/** Pollinations' open endpoint answers without any key (the router's last free resort). */
+async function checkPollinationsNoKey(): Promise<Partial_> {
+  try {
+    const { result, latencyMs } = await timed(() =>
+      fetch("https://text.pollinations.ai/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "openai", messages: [{ role: "user", content: "Reply PONG" }] }),
+        signal: AbortSignal.timeout(20_000),
+      }),
+    );
+    if (result.status === 429)
+      return { status: "degraded", detail: "Answering, but busy right now (HTTP 429).", fix: "It's shared and free; try again shortly.", latencyMs };
+    if (!result.ok)
+      return { status: "unreachable", detail: `HTTP ${result.status}. The open endpoint may need a key now.`, fix: "Add a free Pollinations key in the API vault above.", latencyMs };
+    const j = (await result.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
+    return (j.choices?.[0]?.message?.content ?? "").trim()
+      ? { status: "ok", detail: "Answered with no key.", latencyMs }
+      : { status: "degraded", detail: "Answered with an empty reply.", latencyMs };
+  } catch (e) {
+    return { status: "unreachable", detail: `No response: ${e instanceof Error ? e.message : "network error"}`, fix: "Retry shortly." };
+  }
+}
+
 async function checkStripe(): Promise<Partial_> {
   const key = process.env["STRIPE_SECRET_KEY"];
   if (!key) return missing("STRIPE_SECRET_KEY");
@@ -400,6 +424,8 @@ const SPECS: Spec[] = [
     run: () => checkChatKey("POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
   { key: "pollinations_backup", label: "Pollinations backup", secret: "POLLINATIONS_BACKUP_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
     run: () => checkChatKey("POLLINATIONS_BACKUP_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
+  { key: "pollinations_free", label: "Pollinations free (no key needed, last resort)", group: "AI chat & lyrics", required: false,
+    run: checkPollinationsNoKey },
   { key: "suno", label: "Suno (song generation)", secret: "SUNO_API_KEY", help: "sunoapi.org", group: "Music", required: true, run: checkSuno },
   { key: "stripe", label: "Stripe (card checkout)", secret: "STRIPE_SECRET_KEY", help: "dashboard.stripe.com/apikeys", group: "Payments", required: true, run: checkStripe },
   { key: "ledgerly", label: "Ledgerly bookkeeping", group: "Payments", required: false, run: checkLedgerly },

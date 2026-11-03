@@ -28,6 +28,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-03, keyless AI):** #PR_NUM merged (no
+  migrations). The API vault is still empty: the Boss adds keys himself
+  (Claudes can't sign up for accounts, and the sandbox can't reach AI
+  providers to test). A keyless Pollinations fallback is now last in the
+  free list; test with Ping on the live API keys page.
+
 - **Boss's Claude (2026-11-03, API vault and OG KEYS teaser):** #220
   merged (no migrations). For the partner: the Boss made a hub secret key
   named `og_bot` (OGSTREAMZ → Settings → API Keys) only for OG B0T and
@@ -213,6 +219,11 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Free AI with no key:
+  Pollinations' open endpoint is the last free model before paid Gemini
+  (`POLLINATIONS_NO_KEY=off` switches it off), with its own Ping on Boss →
+  System → API keys.
 
 - **Boss's Claude · 2026-11-03 · #220** · OG KEYS teaser: a
   coming-soon card (last in the mode grid on the landing page and the
