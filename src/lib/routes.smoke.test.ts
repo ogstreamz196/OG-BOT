@@ -27,6 +27,7 @@ const KEY_LINKS = [
   "/admin/og-persona",
   "/admin/music",
   "/admin/coins",
+  "/admin/signals",
   "/admin/bot",
   "/admin/system",
   "/admin/audit",

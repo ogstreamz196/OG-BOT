@@ -102,7 +102,7 @@ export function BossCommandBar() {
       </div>
 
       {/* Telegram worker fleet. */}
-      <Link to="/admin/bot" search={{ tab: "telegram" }} className={pill(fleetTone(fleet))}>
+      <Link to="/admin/signals" search={{ tab: "bots" }} className={pill(fleetTone(fleet))}>
         <Bot className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">
           {fleetLoading
@@ -115,7 +115,7 @@ export function BossCommandBar() {
       </Link>
 
       {/* Signals demo account. */}
-      <Link to="/admin/bot" search={{ tab: "signals" }} className={pill("muted")}>
+      <Link to="/admin/signals" search={{ tab: "controls" }} className={pill("muted")}>
         <Wallet className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1 truncate">
           {demoLoading ? (

@@ -115,7 +115,13 @@ function AdminUsersPage() {
   const startQ = Route.useSearch().q ?? "";
   const [q, setQ] = useState(startQ);
   useEffect(() => setQ(startQ), [startQ]);
-  const [filter, setFilter] = useState<MemberFilter>("all");
+  // Chips combine: VIP + Telegram shows VIP members with Telegram linked.
+  // "All" (or no chip) shows everyone.
+  const [picked, setPicked] = useState<MemberFilter[]>([]);
+  const toggle = (k: MemberFilter) =>
+    setPicked((cur) =>
+      k === "all" ? [] : cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k],
+    );
   const [sort, setSort] = useState<SortKey>("joined");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
@@ -132,8 +138,8 @@ function AdminUsersPage() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const test = FILTERS.find((f) => f.key === filter)?.test ?? (() => true);
-    let list = all.filter(test);
+    const tests = FILTERS.filter((f) => picked.includes(f.key)).map((f) => f.test);
+    let list = all.filter((m) => tests.every((t) => t(m)));
     if (needle) list = list.filter((u) => memberMatches(u, needle));
     const time = (s: string | null) => (s ? new Date(s).getTime() : 0);
     return [...list].sort((a, b) => {
@@ -147,9 +153,9 @@ function AdminUsersPage() {
       else if (sort === "buys") cmp = a.purchase_count - b.purchase_count;
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [all, q, filter, sort, sortDir]);
+  }, [all, q, picked, sort, sortDir]);
 
-  useEffect(() => setPage(0), [q, filter, sort, sortDir]);
+  useEffect(() => setPage(0), [q, picked, sort, sortDir]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
@@ -263,9 +269,10 @@ function AdminUsersPage() {
                 <button
                   key={f.key}
                   type="button"
-                  onClick={() => setFilter(f.key)}
+                  onClick={() => toggle(f.key)}
+                  aria-pressed={f.key === "all" ? picked.length === 0 : picked.includes(f.key)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wide transition-colors ${
-                    filter === f.key
+                    (f.key === "all" ? picked.length === 0 : picked.includes(f.key))
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   }`}
@@ -358,13 +365,13 @@ function AdminUsersPage() {
               <div className="grid place-items-center gap-2 py-16 text-muted-foreground">
                 <UsersIcon className="h-8 w-8" />
                 <p className="text-sm">No members match.</p>
-                {(q || filter !== "all") && (
+                {(q || picked.length > 0) && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
                       setQ("");
-                      setFilter("all");
+                      setPicked([]);
                     }}
                   >
                     Clear filters

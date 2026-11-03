@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/admin/audit")({
     typeof s.tab === "string" ? { tab: s.tab } : {},
   beforeLoad: ({ search }) => {
     if (search.tab === "actions") {
-      throw redirect({ to: "/admin/system", search: { tab: "actions" } });
+      throw redirect({ to: "/admin/system", search: { tab: "tools" } });
     }
     throw redirect({
       to: "/admin/coins",

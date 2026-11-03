@@ -43,14 +43,15 @@ function AdminDashboard() {
         <BossNav />
 
         <div className="space-y-6">
+          {/* What needs you comes first; it's a single calm line when all is well. */}
+          <NeedsAttention />
+
           <section className="space-y-3">
             <SectionHeading title="Today" desc="Live numbers, refreshed every minute" />
             <BossKpiStrip />
             <ProviderPulse />
             <BossCommandBar />
           </section>
-
-          <NeedsAttention />
 
           <section className="space-y-3">
             <SectionHeading title="Quick actions" desc="The things you do most" />
@@ -60,7 +61,7 @@ function AdminDashboard() {
               <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG B0T persona" />
               <QuickAction
                 to="/admin/system"
-                tab="tests"
+                tab="tools"
                 Icon={FlaskConical}
                 label="Run diagnostics"
               />
@@ -111,7 +112,7 @@ function QuickAction({
   Icon,
   label,
 }: {
-  to: "/admin/users" | "/admin/coins" | "/admin/bot" | "/admin/system";
+  to: "/admin/users" | "/admin/coins" | "/admin/signals" | "/admin/bot" | "/admin/system";
   tab?: string;
   Icon: typeof ToggleRight;
   label: string;

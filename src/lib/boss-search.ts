@@ -9,13 +9,14 @@ export type BossPath =
   | "/admin/users"
   | "/admin/music"
   | "/admin/coins"
+  | "/admin/signals"
   | "/admin/bot"
   | "/admin/system"
   | "/settings";
 
 export type BossSetting = {
   title: string;
-  /** Where it lives, e.g. "OG B0T › Signals". */
+  /** Where it lives, e.g. "Signals › Controls". */
   where: string;
   to: BossPath;
   tab?: string;
@@ -139,23 +140,23 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Telegram worker bots",
-    where: area("OG B0T", "Telegram"),
-    to: "/admin/bot",
-    tab: "telegram",
+    where: area("Signals", "Bots"),
+    to: "/admin/signals",
+    tab: "bots",
     keywords: "fleet workers bot tokens on off switch webhook",
   },
   {
     title: "Signals demo account & start fresh",
-    where: area("OG B0T", "Signals"),
-    to: "/admin/bot",
-    tab: "signals",
+    where: area("Signals", "Controls"),
+    to: "/admin/signals",
+    tab: "controls",
     keywords: "1000 demo test account balance purge signals chat vantage reset fresh start",
   },
   {
     title: "Telegram groups",
-    where: area("OG B0T", "Telegram"),
-    to: "/admin/bot",
-    tab: "telegram",
+    where: area("Signals", "Bots"),
+    to: "/admin/signals",
+    tab: "bots",
     keywords: "group chats worker switches",
   },
   {
@@ -167,24 +168,45 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Signals portal on/off",
-    where: area("OG B0T", "Signals"),
-    to: "/admin/bot",
-    tab: "signals",
+    where: area("Signals", "Controls"),
+    to: "/admin/signals",
+    tab: "controls",
     keywords: "trade signals switch btc gold xau",
   },
   {
     title: "MT5 auto-trade",
-    where: area("OG B0T", "Signals"),
-    to: "/admin/bot",
-    tab: "signals",
+    where: area("Signals", "Controls"),
+    to: "/admin/signals",
+    tab: "controls",
     keywords: "metatrader mt5 auto trade switch",
   },
   {
-    title: "Signal record & backtest",
-    where: area("OG B0T", "Signals"),
-    to: "/admin/bot",
-    tab: "signals",
-    keywords: "wins losses results history test past prices",
+    title: "Signal results",
+    where: area("Signals", "Results"),
+    to: "/admin/signals",
+    tab: "results",
+    keywords: "record wins losses streak win rate history",
+  },
+  {
+    title: "Signal report",
+    where: area("Signals", "Report"),
+    to: "/admin/signals",
+    tab: "report",
+    keywords: "breakdown by chart session check timing strategies",
+  },
+  {
+    title: "Signal backtest",
+    where: area("Signals", "Backtest"),
+    to: "/admin/signals",
+    tab: "backtest",
+    keywords: "test past prices history simulate",
+  },
+  {
+    title: "Telegram webhook status",
+    where: area("Signals", "Bots"),
+    to: "/admin/signals",
+    tab: "bots",
+    keywords: "messages arriving webhook telegram connected",
   },
   {
     title: "Live users",
@@ -239,21 +261,21 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Diagnostics",
-    where: area("System", "Diagnostics"),
+    where: area("System", "Tools & logs"),
     to: "/admin/system",
-    tab: "tests",
+    tab: "tools",
     keywords: "smoke test check telegram foul mouth",
   },
   {
     title: "Boss actions log",
-    where: area("System", "Boss actions"),
+    where: area("System", "Tools & logs"),
     to: "/admin/system",
-    tab: "actions",
+    tab: "tools",
     keywords: "audit history who did what",
   },
   {
-    title: "More tools",
-    where: area("System", "More tools"),
+    title: "Route map, lyric debug & transfer",
+    where: area("System", "Tools & logs"),
     to: "/admin/system",
     tab: "tools",
     keywords: "route map lyric debug transfer readiness",

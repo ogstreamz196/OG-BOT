@@ -1,74 +1,37 @@
-import { lazy, Suspense } from "react";
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bell, HeartPulse, LineChart, Radio, Send, Sparkles } from "lucide-react";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
+import { Bell, HeartPulse, Radio, Sparkles } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
 import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { GeminiUsagePanel } from "@/components/admin/GeminiUsagePanel";
 import { OgBotPing } from "@/components/admin/OgBotPing";
-import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
-import { TelegramFleetPanel } from "@/components/admin/TelegramFleetPanel";
-import { TelegramGroupsPanel } from "@/components/admin/TelegramGroupsPanel";
-import { SignalsChatResetPanel } from "@/components/admin/SignalsChatResetPanel";
 import { BossNotificationsPanel } from "@/components/admin/BossNotificationsPanel";
 import { OgPersonaPanel } from "@/components/admin/OgPersonaPanel";
 import { LiveUsersPanel } from "@/components/admin/LiveUsersPanel";
-import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
-import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
-import { SignalReportPanel } from "@/components/admin/SignalReportPanel";
-import { Mt5Panel } from "@/components/admin/Mt5Panel";
 
 export const Route = createFileRoute("/_authenticated/admin/bot")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
+  // Signals and Telegram moved to their own Boss area (/admin/signals).
+  beforeLoad: ({ search }) => {
+    if (search.tab === "signals")
+      throw redirect({ to: "/admin/signals", search: { tab: "controls" } });
+    if (search.tab === "telegram")
+      throw redirect({ to: "/admin/signals", search: { tab: "bots" } });
+  },
   head: () => ({
     meta: [
-      { title: "Telegram & Workers | OG B0T Boss" },
-      { name: "description", content: "Manage OG B0T, Telegram chats and your worker fleet." },
-      { property: "og:title", content: "Telegram & Workers | OG B0T Boss" },
-      { property: "og:description", content: "Manage Telegram chats and worker bots securely." },
+      { title: "OG B0T | Boss" },
+      { name: "description", content: "OG B0T's persona, health, your alerts and live users." },
+      { property: "og:title", content: "OG B0T | Boss" },
+      { property: "og:description", content: "OG B0T's persona, health, your alerts and live users." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AdminBotPage,
 });
-
-// The backtest pulls in the whole signal engine, so it loads only when opened.
-const SignalsBacktestPanel = lazy(() =>
-  import("@/components/admin/SignalsBacktestPanel").then((m) => ({
-    default: m.SignalsBacktestPanel,
-  })),
-);
-
-function SignalsTab() {
-  // Switches first (portal, demo reset, MT5), then how the signals are doing.
-  return (
-    <>
-      <SignalsPortalPanel />
-      <SignalsChatResetPanel />
-      <Mt5Panel />
-      <SignalRecordPanel />
-      <SignalReportPanel />
-      <Suspense
-        fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
-      >
-        <SignalsBacktestPanel />
-      </Suspense>
-    </>
-  );
-}
-
-function TelegramTab() {
-  return (
-    <>
-      <TelegramWebhookStatus />
-      <TelegramFleetPanel />
-      <TelegramGroupsPanel />
-    </>
-  );
-}
 
 function BotHealth() {
   return (
@@ -95,25 +58,11 @@ const TABS: readonly BossTab[] = [
     Panel: BotHealth,
   },
   {
-    value: "telegram",
-    label: "Telegram",
-    Icon: Send,
-    hint: "Whether Telegram messages are reaching the bot, and the groups it runs with its worker bots.",
-    Panel: TelegramTab,
-  },
-  {
     value: "alerts",
     label: "Your alerts",
     Icon: Bell,
     hint: "Which events OG B0T sends to your Telegram.",
     Panel: BossNotificationsPanel,
-  },
-  {
-    value: "signals",
-    label: "Signals",
-    Icon: LineChart,
-    hint: "Turn the OG Signals portal on or off, and test how signals would have done on past prices.",
-    Panel: SignalsTab,
   },
   {
     value: "live",

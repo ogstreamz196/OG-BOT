@@ -48,6 +48,25 @@ export function BossSearch({ className }: { className?: string }) {
 
   useEffect(() => setActive(0), [query]);
 
+  // One keystroke from any Boss page: Ctrl+K (⌘K on a Mac), or "/" when
+  // you're not already typing somewhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing =
+        e.target instanceof HTMLElement &&
+        (e.target.isContentEditable || /^(input|textarea|select)$/i.test(e.target.tagName));
+      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing)) {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        setOpen(true);
+        setUsed(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Close when tapping anywhere outside the box.
   useEffect(() => {
     if (!open) return;
@@ -113,6 +132,7 @@ export function BossSearch({ className }: { className?: string }) {
         }}
         onKeyDown={onKeyDown}
         placeholder="Search settings or members…"
+        aria-keyshortcuts="Control+K Meta+K /"
         aria-label="Search Boss settings and members"
         aria-expanded={open && !!query}
         aria-controls="boss-search-results"
@@ -132,6 +152,12 @@ export function BossSearch({ className }: { className?: string }) {
         >
           <X className="h-3.5 w-3.5" />
         </button>
+      )}
+      {!q && (
+        // The shortcut, shown on computers only (phones have no keyboard shortcut).
+        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground sm:inline">
+          Ctrl K
+        </kbd>
       )}
       {open && query && (
         <div
