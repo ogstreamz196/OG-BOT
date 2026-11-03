@@ -74,3 +74,16 @@ sync. Follow this every time.
   for the AI to keep learning. Reads limit themselves to the window they
   need instead of anything being deleted.
 - The Boss trades on Vantage, Standard STP (no commission, spread only).
+- **Lovable credits are limited (the Boss's standing rule, for every
+  project).** Do all the work yourself: code, checks, merging, publishing
+  with the Lovable connector, and read-only checks. Never send the Boss a
+  Lovable chat prompt for something a Claude can do; if a Claude really
+  can't (a new migration Lovable must apply, a secret only the Boss can
+  enter, or no Lovable connector in this session), say so, and remind the
+  Boss that clicking Publish → Update in Lovable costs no credits.
+- **Balance first, and no stop or take profit on the order book.** Protect
+  profit before chasing it (the 70/30 profit lock, the trailing stop as a
+  take profit is about to hit). When the real trading bot is built, orders
+  carry no stop loss or take profit at the broker: the bot closes with market
+  orders when its own levels are reached, and every result counts the
+  spread (a buy closes on the bid, a sell on the ask).

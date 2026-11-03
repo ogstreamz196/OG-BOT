@@ -413,8 +413,13 @@ type ClosedTrade = {
   bestTarget: number;
   /** Last price (mid) for a trade closed on time. */
   lastPrice: number | null;
-  /** Where the profit lock put the stop, when the trade had one. */
+  /** Where the profit lock (or the trailing stop) put the stop, when the trade had one. */
   lockStop?: number | null;
+  /**
+   * Closed by a trailing stop: followed on the mid price, so the market close
+   * (on the bid for a buy) pays half a spread more.
+   */
+  trailExit?: boolean;
 };
 
 /**
@@ -443,7 +448,8 @@ export function paperPnl(t: ClosedTrade, lots: number, spread: number): number {
       const rest = t.bestTarget >= 2 ? move(t.tp3) : t.lockStop != null ? move(t.lockStop) : 0;
       points = move(t.tp1) / 3 + (rest * 2) / 3;
     }
-  } else if (t.status === "breakeven") points = t.lockStop != null ? move(t.lockStop) : 0;
+  } else if (t.status === "breakeven")
+    points = t.lockStop != null ? move(t.lockStop) - (t.trailExit ? half : 0) : 0;
   else if (t.entered && (t.status === "expired" || t.status === "cancelled") && t.lastPrice != null)
     // Closed on time, or called off once in: out at the bid/ask.
     points = move(t.lastPrice) - half;

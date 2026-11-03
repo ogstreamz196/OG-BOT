@@ -203,6 +203,18 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-03 · #208** · Boss: "balance takes priority, do
+  trailing loss instantly as TP1 about to hit". At 90% of the way to the take
+  profit a trade trails instead of closing there (`tpTrailArm`): stop 20% of
+  the distance behind the best price (2 spreads at least, never under the
+  lock), so 70% is locked at arming; a far cap at 3×. Profit-lock and
+  trailing exits in profit now count as wins in the record (the 16 won / 27
+  lost you logged in #204 left lock exits out). Trailing exits pay half a
+  spread more in the demo. New CLAUDE.md house rules: Lovable credits are
+  limited (do the work, publish with the connector, Publish → Update costs no
+  credits), and balance first with no stop or take profit on the broker's
+  order book (close at market, count the spread). No migration.
+
 - **Boss's Claude · 2026-11-02 · #207** · (1) Boss dashboard: Signals tab
   is switches first (portal, the demo reset moved from Telegram, MT5) then
   record, report, backtest; `BossCommandBar` on /admin (free access popover

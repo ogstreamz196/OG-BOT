@@ -581,7 +581,14 @@ export type SignalFeeds = {
    * An open take profit with a trailing stop (TRAIL): the first risk, and
    * where the trailing stop is now once it has started.
    */
-  trail?: { risk: number; stop?: number; said?: number };
+  trail?: {
+    risk: number;
+    stop?: number;
+    said?: number;
+    /** A take profit that turned into a trailing stop (tpTrailArm): its moves aren't announced. */
+    quiet?: boolean;
+    armedAt?: string;
+  };
   /** Each take profit move, oldest first. */
   tpMoves?: { kind: "extend" | "pull"; from: number; to: number; at: string }[];
   /** The stop has moved (the profit lock, or an older breakeven, fired). */

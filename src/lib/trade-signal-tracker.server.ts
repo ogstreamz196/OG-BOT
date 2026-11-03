@@ -17,6 +17,7 @@ import {
   isActive,
   profitLock,
   targetsReached,
+  tpTrailArm,
   trackRecordText,
   tpMove,
   type OutcomeEvent,
@@ -257,6 +258,18 @@ export function chatLiveLine(row: Row, price: number, now: number, _lots?: numbe
   return row.status === "pending"
     ? `📍 ${fmt(price)} · waiting for entry · ${when}`
     : `📍 ${fmt(price)} · ${when}`;
+}
+
+/** The signals chat's line when the take profit becomes a trailing stop. */
+export function chatTrailArmLine(row: Row, stop: number): string {
+  const { fmt } = formatter(row);
+  return `🏃 Nearly at take profit · trailing my stop at ${fmt(stop)} instead of closing`;
+}
+
+/** Other chats' line when the take profit becomes a trailing stop. */
+export function trailArmLine(row: Row, stop: number): string {
+  const { fmt, move } = formatter(row);
+  return `🏃 It's nearly at my take profit, so I'm not closing it yet: my stop's trailing behind at ${fmt(stop)} (${move(row.entry, stop)} locked in). Let's see how far it runs`;
 }
 
 /** The signals chat's short take profit move line. */
@@ -796,7 +809,11 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           .filter((e) => e.kind !== "expired" || timeStopped)
           // The trailing stop: only its latest move, and only when it locked in
           // another whole risk (or first reached the entry).
-          .filter((e) => e.kind !== "trailed" || (e === lastTrailed && trailStep > trailSaid))
+          .filter(
+            (e) =>
+              e.kind !== "trailed" ||
+              (!row.feeds?.trail?.quiet && e === lastTrailed && trailStep > trailSaid),
+          )
           // One take profit: its hit is one line, not three; a runner's two
           // last levels are one too.
           .filter((e) => !(singleTarget(row) && (e.kind === "tp2" || e.kind === "tp3")))
@@ -849,7 +866,55 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const enteredMs = row.entered_at
           ? Date.parse(row.entered_at)
           : result.events.find((e) => e.kind === "filled")?.at;
+        // Balance first: about to hit the take profit (90% of the way), it
+        // trails instead of closing there (tpTrailArm): the stop 20% of the
+        // distance behind the best price (2 spreads at least), a far cap at 3x.
+        // Said once; the stop then follows quietly and the MT5 trade with it.
+        let armed = false;
         if (status === "open" && singleTarget(row) && enteredMs != null && !row.feeds?.trail) {
+          const since = closed.filter((c) => c.t >= Math.floor(enteredMs / MINUTE) * MINUTE);
+          const buy = row.direction === "BUY";
+          const bestPx = since.length
+            ? buy
+              ? Math.max(...since.map((c) => c.h))
+              : Math.min(...since.map((c) => c.l))
+            : NaN;
+          const { SPREAD_COST } = await import("./signal-learning.server");
+          const tp0 = Number(row.feeds.tp0 ?? row.tp1);
+          const arm = tpTrailArm({
+            direction: row.direction,
+            entry: Number(row.entry),
+            tp: tp0,
+            best: bestPx,
+            spread: half > 0 ? half * 2 : (SPREAD_COST[row.market] ?? 0),
+          });
+          if (arm) {
+            armed = true;
+            const dp = Math.max(0, Math.min(8, Number(row.decimals) || 2));
+            const cap = Number(arm.cap.toFixed(dp));
+            const stop = Number(arm.stop.toFixed(dp));
+            update.tp1 = update.tp2 = update.tp3 = cap;
+            row.feeds = {
+              ...row.feeds,
+              tp0,
+              trail: { risk: arm.gap, stop, quiet: true, armedAt: new Date(now).toISOString() },
+            };
+            update.feeds = { ...row.feeds };
+            lines.push(inChat ? chatTrailArmLine(row, stop) : trailArmLine(row, stop));
+            if (row.sender_worker === "trade") {
+              const mt5 = await import("./mt5-autotrade.server");
+              await mt5.moveStopToEntry(admin, row, stop).catch(() => undefined);
+              await mt5.moveTakeProfit(admin, row, cap).catch(() => undefined);
+            }
+          }
+        }
+        if (
+          !armed &&
+          status === "open" &&
+          singleTarget(row) &&
+          enteredMs != null &&
+          !row.feeds?.trail
+        ) {
           const moves = (row.feeds.tpMoves ?? []) as NonNullable<SignalFeeds["tpMoves"]>;
           const from = Number(row.tp1);
           const mv = tpMove({
@@ -916,7 +981,9 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               status,
               bestTarget: best,
               lastPrice: Number.isFinite(lastPrice) ? lastPrice : null,
-              lockStop: lockOf(row)?.stop ?? trailOf(row) ?? null,
+              // The trailing stop when it took over, else the profit lock.
+              lockStop: trailOf(row) ?? lockOf(row)?.stop ?? null,
+              trailExit: trailOf(row) != null,
             },
             paper.lots,
             half > 0 ? half * 2 : (SPREAD_COST[row.market] ?? 0),
