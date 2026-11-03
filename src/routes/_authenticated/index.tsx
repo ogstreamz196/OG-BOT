@@ -48,6 +48,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { ModeCard } from "@/components/welcome/ModeCard";
 import { OgPowers } from "@/components/welcome/OgPowers";
 import { useCarromLink } from "@/hooks/use-carrom-link";
@@ -391,6 +392,23 @@ function DashboardHome() {
               description="Strike. Pocket. Win. Online, vs the computer or with mates."
               cta="Play OG Carrom"
               onClick={() => void carrom.open()}
+            />
+            {/* Teaser: OG KEYS, the coming password and API key vault. */}
+            <ModeCard
+              compact
+              tone="silver"
+              className="og-rise"
+              style={{ animationDelay: signalsPortal.enabled ? "0.5s" : "0.4s" }}
+              image={modeArt.ogKeys}
+              imageAlt="OG KEYS coming soon badge"
+              eyebrow="Coming soon"
+              badge="Soon"
+              title="OG Keys"
+              description="Passwords and API keys, locked in one vault."
+              cta="Coming soon"
+              onClick={() =>
+                toast("OG KEYS is coming soon. Your own vault for passwords and keys.")
+              }
             />
           </div>
         </div>
