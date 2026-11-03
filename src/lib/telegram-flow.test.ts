@@ -1045,25 +1045,56 @@ describe("telegram bot flow", () => {
       expect(inserts.filter((i) => i.table === "og_messages")).toHaveLength(0);
     });
 
-    test("account commands point to the DM; signal taps need a connected account", async () => {
+    test("account commands point to the DM; signals are free for members not connected", async () => {
       for (const cmd of ["/balance", "/vault", "/sports arsenal", "/vip@OGStreamzBot"]) {
         await inGroup(cmd);
         const m = groupSent().at(-1)!;
         expect(m.text, cmd).toContain("Ask me in our DM");
         expect(buttons(m)[0].url).toBe("https://t.me/OGStreamzBot");
       }
+      // Not connected: the signal still comes (the Boss's rule), straight from
+      // the chart engine with no AI, replying to the picker, followed and counted.
+      const before = recordSignal.mock.calls.length;
       await post({
         callback_query: {
           id: "cb",
           data: "gsig:BTC:1h",
-          from: { id: FRIEND },
+          from: { id: FRIEND, first_name: "Fai" },
           message: { message_id: 1, chat: { id: GROUP } },
         },
       });
       const alert = calls.filter((c) => c.method === "answerCallbackQuery").at(-1)!;
-      expect(alert.body.show_alert).toBe(true);
+      expect(alert.body.show_alert).toBeUndefined();
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 1h");
       expect(ai.requests).toHaveLength(0);
-      expect(groupSent().some((m) => m.text.includes("card"))).toBe(false);
+      const card = groupSent().at(-1)!;
+      expect(card.text).toContain("card");
+      expect(repliesTo(card)).toBe(1);
+      expect(recordSignal.mock.calls.length).toBe(before + 1);
+      const free = recordSignal.mock.calls.at(-1)![0] as unknown as {
+        chatId: number;
+        messageId: number;
+        plan: { feeds: { requester: unknown; freeGroup?: boolean } };
+      };
+      expect(free.chatId).toBe(GROUP);
+      expect(free.messageId).toBe(card.id);
+      expect(free.plan.feeds).toMatchObject({
+        requester: { id: FRIEND, name: "Fai" },
+        freeGroup: true,
+      });
+
+      // Typed too: "/signal btc" from someone not connected gets the card, not the nudge.
+      await post({
+        message: {
+          message_id: nextId++,
+          text: "/signal btc",
+          chat: { id: GROUP, type: "group" },
+          from: { id: FRIEND, first_name: "Fai" },
+        },
+      });
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+      expect(groupSent().at(-1)!.text).toContain("card");
+      expect(ai.requests).toHaveLength(0);
     });
 
     describe("the Gaffer and its chart slave (the OG Trade Bot)", () => {

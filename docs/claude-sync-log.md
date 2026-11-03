@@ -203,6 +203,15 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-03 · #209** · Boss: signals are free for every
+  member of the Telegram group. A signal request in a group (typed or a
+  button) from someone with no connected account used to get the Connect
+  nudge; now `freeGroupSignal` answers with the chart engine's card (no AI),
+  recorded under the Boss's account with the member as requester
+  (`feeds.freeGroup`), so it's followed and counted. Chat, roasts and account
+  commands still need a connected account. `telegram-flow.test.ts` updated
+  (that test used to expect the "not connected" alert). No migration.
+
 - **Boss's Claude · 2026-11-03 · #208** · Boss: "balance takes priority, do
   trailing loss instantly as TP1 about to hit". At 90% of the way to the take
   profit a trade trails instead of closing there (`tpTrailArm`): stop 20% of
