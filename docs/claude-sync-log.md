@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, signal ETA):** #PR_NUM merged (no
+- **Boss's Claude (2026-11-03, signal ETA):** #219 merged (no
   migrations). New house rule in CLAUDE.md: the Copy Trader B0T copies
   every signal, good or bad; all accuracy work goes on the signals bot.
   "No signal" cards now say what the chart is waiting for and when the
@@ -195,7 +195,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · CLAUDE.md house rule: the
+- **Boss's Claude · 2026-11-03 · #219** · CLAUDE.md house rule: the
   copy bot copies every signal; accuracy goes on the signals bot. "No
   signal" cards end with "⏳ Waiting for … · next signal likely in about
   …" (signal-eta.server.ts: the wait reason in plain words, and the time
