@@ -28,7 +28,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, API vault and OG KEYS teaser):** #PR_NUM
+- **Boss's Claude (2026-11-03, API vault and OG KEYS teaser):** #220
   merged (no migrations). For the partner: the Boss made a hub secret key
   named `og_bot` (OGSTREAMZ → Settings → API Keys) only for OG B0T and
   added it in Lovable as `OG_HUB_SERVICE_KEY`; OG B0T's server uses it to
@@ -214,7 +214,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · OG KEYS teaser: a
+- **Boss's Claude · 2026-11-03 · #220** · OG KEYS teaser: a
   coming-soon card (last in the mode grid on the landing page and the
   members' home, art made from the master logo) and the plan in
   `docs/og-keys-plan.md`, listed under Planned. The key section in Boss →
