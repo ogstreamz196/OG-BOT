@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, extra AI keys):** #PR_NUM merged. Hub table
+- **Boss's Claude (2026-11-03, extra AI keys):** #217 merged. Hub table
   `og_bot.ai_keys` created on the hub (supabase/hub/03_ai_keys.sql, no
   Lovable migration). Waiting on the Boss: the Lovable secret
   `OG_HUB_SERVICE_KEY` (the hub's secret key) and og_bot in the hub's
@@ -182,7 +182,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Extra free AI keys. Boss →
+- **Boss's Claude · 2026-11-03 · #217** · Extra free AI keys. Boss →
   System → API keys has a section to add any number of Pollinations,
   OpenRouter and free Gemini keys (dropdown, paste, optional name; test,
   switch off, remove). Kept encrypted in the hub (`og_bot.ai_keys`), not on
