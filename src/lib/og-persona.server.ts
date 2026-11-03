@@ -599,7 +599,7 @@ export interface BuildPromptOpts {
   firstReply?: boolean;
   /**
    * The member's swear level for everyday chat (0..100, og-heat.ts): starts
-   * at 0..45 and follows how they talk. Unset: medium, as before.
+   * at 0, 45 at their first cuss, 60 at the second, higher after. Unset: medium.
    */
   level?: number;
 }
