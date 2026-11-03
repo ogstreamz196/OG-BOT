@@ -28,7 +28,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, keyless AI):** #PR_NUM merged (no
+- **Boss's Claude (2026-11-03, keyless AI):** #221 merged (no
   migrations). The API vault is still empty: the Boss adds keys himself
   (Claudes can't sign up for accounts, and the sandbox can't reach AI
   providers to test). A keyless Pollinations fallback is now last in the
@@ -220,7 +220,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Free AI with no key:
+- **Boss's Claude · 2026-11-03 · #221** · Free AI with no key:
   Pollinations' open endpoint is the last free model before paid Gemini
   (`POLLINATIONS_NO_KEY=off` switches it off), with its own Ping on Boss →
   System → API keys.
