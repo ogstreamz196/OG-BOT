@@ -1449,6 +1449,9 @@ async function runChatAI(
   // "How much did we make today?": the bot's own results book.
   const sr = await import("@/lib/signal-results.server");
   const resultsNote = sr.asksAboutResults(userText) ? await sr.signalResultsNote(admin) : "";
+  // A private chat with no reply from OG B0T yet: polite this once.
+  const firstReply =
+    !group && !((historyRes.data ?? []) as { role: string }[]).some((m) => m.role === "assistant");
 
   const system =
     sportsNote +
@@ -1456,6 +1459,7 @@ async function runChatAI(
     buildSystemPrompt({
       mode: "og",
       foulMouth,
+      firstReply,
       bossScript: personaMap.get("og_persona.script") ?? null,
       bossVoice: personaMap.get("og_persona.voice") ?? null,
       bossDictionary: personaMap.get("og_persona.dictionary") ?? null,
@@ -1569,10 +1573,10 @@ async function runChatAI(
       void import("@/lib/og-memory.server").then((m) =>
         m.learnFromMessage(admin as never, profileId, userText, memories),
       );
-    if (foulMouth) {
-      const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
-      const { isFriend } = await import("@/lib/og-bond");
-      replyText = ensureFoulFlavour(replyText, Math.random, isFriend(bond.score));
+    if (foulMouth && !firstReply) {
+      // Medium Foul Mouth: a mild swear now and then, never forced into every reply.
+      const { ensureMildFlavour } = await import("@/lib/og-persona.server");
+      replyText = ensureMildFlavour(replyText, Math.random);
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
 

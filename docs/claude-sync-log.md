@@ -245,6 +245,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #225** · Foul Mouth turned down to
+  medium for everyday chat and random questions (cuss battles stay
+  savage), the first reply of a conversation is polite, and an "I'm bored"
+  Telegram nudge with a gold/BTC fact after an hour of quiet
+  (`og-idle-nudge.server.ts`). No migrations.
+
 - **Boss's Claude · 2026-11-03 · #224** · House rule in CLAUDE.md: never
   say "roast", say "cuss battle" (cuss = diss for fun). The app still has
   about 40 files with "roast" in their copy; they change when the Boss asks.
