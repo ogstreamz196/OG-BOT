@@ -174,16 +174,18 @@ type PostRow = {
 };
 
 /** After a stop loss, the same side isn't posted again for this long. */
-export const AFTER_STOP_MS = 15 * 60_000;
+export const AFTER_STOP_MS = 5 * 60_000;
 /**
- * Most alerts one market can have running at once: 6 since gold was retired,
- * so Bitcoin gets the room gold had (it was 3 each). Same confidence bar.
+ * Most alerts one market can have running at once (the Boss, 2026-11-03:
+ * "increase the frequency, up to 10 trades at the same time, any direction").
+ * Same confidence bar — more trades come from room and shorter cooldowns, not
+ * a lower bar.
  */
-export const MAX_RUNNING_PER_MARKET = 6;
+export const MAX_RUNNING_PER_MARKET = 10;
 /** A second same-side alert waits at least this long after the last running one. */
-export const SAME_SIDE_GAP_MS = 10 * 60_000;
+export const SAME_SIDE_GAP_MS = 3 * 60_000;
 /** Entries closer than this share of the risk are the same setup, not a new trade. */
-export const SAME_SETUP_R = 0.5;
+export const SAME_SETUP_R = 0.3;
 
 type TradeState = "running" | "stopped_recently" | "over";
 

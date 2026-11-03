@@ -157,8 +157,8 @@ describe("auto-posted scalp signals", () => {
       created_at: new Date().toISOString(),
     };
     tables.trade_signals.push(trade);
-    // Still running: no repeat.
-    expect((await scanAndBroadcast(db, deps(btc, T0 + 5 * 60_000))).posted).toEqual([]);
+    // Two minutes on, still running: too soon (3-min same-side gap), no repeat.
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 2 * 60_000))).posted).toEqual([]);
     // Take profit hit ten minutes in: the next buy can go straight out.
     Object.assign(trade, { status: "tp3", closed_at: new Date(T0 + 10 * 60_000).toISOString() });
     expect((await scanAndBroadcast(db, deps(btc, T0 + 11 * 60_000))).posted).toEqual([
@@ -166,7 +166,7 @@ describe("auto-posted scalp signals", () => {
     ]);
   });
 
-  test("after a stop loss, the same side waits 15 minutes", async () => {
+  test("after a stop loss, the same side waits 5 minutes", async () => {
     const { db, tables } = fakeDb();
     const btc = { BTC: card("BTCUSD", "BUY", 90, 60) };
     await scanAndBroadcast(db, deps(btc));
@@ -179,13 +179,15 @@ describe("auto-posted scalp signals", () => {
       // Recorded as the alert went out (the fake stamps posts with the real clock).
       created_at: new Date().toISOString(),
     });
-    expect((await scanAndBroadcast(db, deps(btc, T0 + 10 * 60_000))).posted).toEqual([]);
-    expect((await scanAndBroadcast(db, deps(btc, T0 + 21 * 60_000))).posted).toEqual([
+    // Four minutes after the stop (closed at T0+5): still sitting out.
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 9 * 60_000))).posted).toEqual([]);
+    // Six minutes after the stop: the side can post again.
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 11 * 60_000))).posted).toEqual([
       "BTCUSD BUY",
     ]);
   });
 
-  test("several trades run at once: a new setup goes out beside a running one", async () => {
+  test("several trades run at once, up to the cap, any direction", async () => {
     const { db, tables } = fakeDb();
     const at = (entry: number, direction: "BUY" | "SELL" = "BUY") => ({
       BTC: {
@@ -205,47 +207,45 @@ describe("auto-posted scalp signals", () => {
       });
     expect((await scanAndBroadcast(db, deps(at(100) as never))).posted).toEqual(["BTCUSD BUY"]);
     running(1);
-    // Five minutes on, a different buy: too soon after the running one.
-    expect((await scanAndBroadcast(db, deps(at(110) as never, T0 + 5 * 60_000))).posted).toEqual(
+    // Two minutes on, a different buy: too soon after the running one (3-min gap).
+    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 2 * 60_000))).posted).toEqual(
       [],
     );
-    // Twelve minutes on, the same setup found again (within half the risk): no.
-    expect((await scanAndBroadcast(db, deps(at(102) as never, T0 + 12 * 60_000))).posted).toEqual(
+    // Four minutes on, the same setup found again (within 0.3 of the risk): no.
+    expect((await scanAndBroadcast(db, deps(at(101) as never, T0 + 4 * 60_000))).posted).toEqual(
       [],
     );
     // A new setup well away from the first: it runs alongside it.
-    expect((await scanAndBroadcast(db, deps(at(110) as never, T0 + 12 * 60_000))).posted).toEqual([
+    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 4 * 60_000))).posted).toEqual([
       "BTCUSD BUY",
     ]);
     running(2);
-    // A sell can run beside them too.
+    // A sell can run beside them too (any direction).
     expect(
-      (await scanAndBroadcast(db, deps(at(120, "SELL") as never, T0 + 13 * 60_000))).posted,
+      (await scanAndBroadcast(db, deps(at(160, "SELL") as never, T0 + 5 * 60_000))).posted,
     ).toEqual(["BTCUSD SELL"]);
     running(3);
-    // Bitcoin has gold's room now: up to MAX_RUNNING_PER_MARKET (6) at once.
-    expect(MAX_RUNNING_PER_MARKET).toBe(6);
-    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 30 * 60_000))).posted).toEqual([
-      "BTCUSD BUY",
-    ]);
-    running(4);
-    expect((await scanAndBroadcast(db, deps(at(150) as never, T0 + 45 * 60_000))).posted).toEqual([
-      "BTCUSD BUY",
-    ]);
-    running(5);
-    expect((await scanAndBroadcast(db, deps(at(170) as never, T0 + 56 * 60_000))).posted).toEqual([
-      "BTCUSD BUY",
-    ]);
-    running(6);
-    // Six running: the most at once.
-    expect((await scanAndBroadcast(db, deps(at(190) as never, T0 + 67 * 60_000))).posted).toEqual(
-      [],
-    );
+    // Fill up to the cap: up to MAX_RUNNING_PER_MARKET (10) at once.
+    expect(MAX_RUNNING_PER_MARKET).toBe(10);
+    let entry = 200;
+    let mins = 10;
+    for (let msg = 4; msg <= 10; msg++) {
+      expect(
+        (await scanAndBroadcast(db, deps(at(entry) as never, T0 + mins * 60_000))).posted,
+      ).toEqual(["BTCUSD BUY"]);
+      running(msg);
+      entry += 20;
+      mins += 4;
+    }
+    // Ten running: the most at once, so the next is held back.
+    expect(
+      (await scanAndBroadcast(db, deps(at(entry) as never, T0 + mins * 60_000))).posted,
+    ).toEqual([]);
     // One of them hits its take profit: room for another.
     tables.trade_signals[0].status = "tp3";
-    expect((await scanAndBroadcast(db, deps(at(190) as never, T0 + 68 * 60_000))).posted).toEqual([
-      "BTCUSD BUY",
-    ]);
+    expect(
+      (await scanAndBroadcast(db, deps(at(entry) as never, T0 + (mins + 1) * 60_000))).posted,
+    ).toEqual(["BTCUSD BUY"]);
   });
 
   test("without the table, nothing is posted (it can't tell repeats apart)", async () => {
