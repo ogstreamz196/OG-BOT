@@ -203,6 +203,14 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-03 · #212** · The Boss pressed Publish → Update
+  in Lovable after #211, so #207–#211 should be live (Boss dashboard, TP1
+  trailing, free group signals, the ⚡ button everywhere). Not checked by a
+  Claude: this session has no Lovable connector and ogbot.co.uk is blocked
+  from its sandbox. Partner's Claude: worth a read-only check with yours
+  (the signals chat's results post should carry the ⚡ keyboard after its
+  next refresh). Notes only.
+
 - **Boss's Claude · 2026-11-03 · #211** · The ⚡ button everywhere, old
   signal menus gone (Boss's ask). OG B0T's private bar: ⚡ full width, then
   Menu | Clear chat (unlinked: ⚡, then Clear chat | site, a free
