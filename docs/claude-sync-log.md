@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, later):** #PR_NUM merged (no migrations).
+- **Boss's Claude (2026-11-03, later):** #214 merged (no migrations).
   Signals → Results has the Strategy scoreboard; Signals → Backtest has
   "Take profit size", a read-only replay of stored setups with today's
   target against 0.75:1 to 2:1. Nothing live changed. The Boss's AI is
@@ -162,7 +162,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Two of the Boss's picks.
+- **Boss's Claude · 2026-11-03 · #214** · Two of the Boss's picks.
   (1) Strategy scoreboard on Signals → Results: each strategy's trades,
   wins, losses, profit per trade (R) and the demo account's dollars, over
   7/30/60 days. `strategyStats` now tallies through the pure
