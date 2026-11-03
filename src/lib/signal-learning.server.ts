@@ -218,7 +218,7 @@ export function timeLimits(tune: Tuning, t: number): TimeLimits {
   };
 }
 
-export function applyTuning(s: LearnSample, tune: Tuning) {
+export function applyTuning(s: LearnSample, tune: Tuning, tpToStop?: number) {
   const side = s.direction === "BUY" ? 1 : -1;
   const pull = s.raw.pull;
   const alt = s.raw.alt;
@@ -250,7 +250,11 @@ export function applyTuning(s: LearnSample, tune: Tuning) {
   // a third there and the rest further on. Learned: just short of the first
   // level (or round number) in the way, when that's nearer.
   let tp = scaleTargets(s.direction, entry, raw, s.raw.atr * 0.05, tune.scale)[0];
-  if (tune.tpPad > 0 && s.raw.ahead != null) {
+  if (tpToStop != null && tpToStop > 0) {
+    // A what-if (signal-tp-compare.server.ts): the take profit at this many
+    // times the stop's distance, e.g. 1 for one to one. Learning never sets it.
+    tp = entry + side * Math.abs(entry - stop) * tpToStop;
+  } else if (tune.tpPad > 0 && s.raw.ahead != null) {
     const capped = s.raw.ahead + shift - side * tune.tpPad * s.raw.atr;
     const reach = (capped - entry) * side;
     if (reach >= risk * 0.3 && reach < Math.abs(tp - entry)) tp = capped;
@@ -271,7 +275,12 @@ export function applyTuning(s: LearnSample, tune: Tuning) {
  * rules: a third off at each target, the stop to entry after the first,
  * the stop counting first when a candle touches both.
  */
-export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
+export function evaluate(
+  samples: LearnSample[],
+  tune: Tuning,
+  /** What-if only: the take profit at this multiple of the stop's distance. */
+  tpToStop?: number,
+): Evaluation {
   let n = 0;
   let wins = 0;
   let losses = 0;
@@ -282,7 +291,7 @@ export function evaluate(samples: LearnSample[], tune: Tuning): Evaluation {
     // Too quiet, or a time of day it sits out (unknown readings never filter).
     if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
     if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
-    const { entry, type, stop, targets, beTrigger, beStop } = applyTuning(s, tune);
+    const { entry, type, stop, targets, beTrigger, beStop } = applyTuning(s, tune, tpToStop);
     // With the setting's time limits: the entry's to fill in time, and a trade
     // that's gone nowhere is closed on time.
     const market = type === "market";

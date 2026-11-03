@@ -9,6 +9,8 @@ import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 import { SignalsChatResetPanel } from "@/components/admin/SignalsChatResetPanel";
 import { Mt5Panel } from "@/components/admin/Mt5Panel";
 import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
+import { StrategyBoardPanel } from "@/components/admin/StrategyBoardPanel";
+import { TargetComparePanel } from "@/components/admin/TargetComparePanel";
 import { SignalReportPanel } from "@/components/admin/SignalReportPanel";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
 import { TelegramFleetPanel } from "@/components/admin/TelegramFleetPanel";
@@ -50,13 +52,26 @@ function Controls() {
   );
 }
 
+/** The record, then how each strategy is doing. */
+function Results() {
+  return (
+    <>
+      <SignalRecordPanel />
+      <StrategyBoardPanel />
+    </>
+  );
+}
+
 function Backtest() {
   return (
-    <Suspense
-      fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
-    >
-      <SignalsBacktestPanel />
-    </Suspense>
+    <>
+      <TargetComparePanel />
+      <Suspense
+        fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>}
+      >
+        <SignalsBacktestPanel />
+      </Suspense>
+    </>
   );
 }
 
@@ -83,8 +98,8 @@ const SIGNALS_TABS: readonly BossTab[] = [
     value: "results",
     label: "Results",
     Icon: Trophy,
-    hint: "The record: streak, win rate and the latest results.",
-    Panel: SignalRecordPanel,
+    hint: "The record: streak, win rate and the latest results, then each strategy's scoreboard.",
+    Panel: Results,
   },
   {
     value: "report",
@@ -97,7 +112,7 @@ const SIGNALS_TABS: readonly BossTab[] = [
     value: "backtest",
     label: "Backtest",
     Icon: FlaskConical,
-    hint: "How signals would have done on past prices.",
+    hint: "The take profit size compared on stored setups, and how signals would have done on past prices.",
     Panel: Backtest,
   },
   {

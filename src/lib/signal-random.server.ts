@@ -34,7 +34,50 @@ export const RANDOM_MIN_TRADES = 12;
 /** site_content: when the next random signal is due. */
 export const RANDOM_NEXT_KEY = "signals.random.nextAt";
 
-export type StrategyStats = { n: number; wins: number; losses: number; sumR: number };
+export type StrategyStats = {
+  n: number;
+  wins: number;
+  losses: number;
+  sumR: number;
+  /** The demo account's dollars on this strategy's trades (those it took). */
+  cash?: number;
+};
+
+/** A finished trade-bot signal, as strategyStats reads it. */
+export type StrategyRow = {
+  direction: "BUY" | "SELL";
+  entry: number;
+  stop: number;
+  tp1: number;
+  status: string;
+  best_target: number;
+  feeds: Record<string, unknown> | null;
+};
+
+/**
+ * Each strategy's record from finished signals: trades, wins, losses and
+ * result in risks (resultInRisks), plus the demo's dollars where it took the
+ * trade. Bias-only rows and ones that never filled don't count. Pure.
+ */
+export function tallyStrategies(
+  rows: StrategyRow[],
+  inRisks: (r: StrategyRow) => number | null,
+): Partial<Record<Strategy, StrategyStats>> {
+  const out: Partial<Record<Strategy, StrategyStats>> = {};
+  for (const r of rows) {
+    if (r.feeds?.bias) continue;
+    const res = inRisks(r);
+    if (res == null) continue;
+    const t = (out[strategyOf(r.feeds)] ??= { n: 0, wins: 0, losses: 0, sumR: 0, cash: 0 });
+    t.n++;
+    t.sumR += res;
+    if (res > 0) t.wins++;
+    else if (res < 0) t.losses++;
+    const pnl = Number((r.feeds?.paper as { pnl?: unknown } | undefined)?.pnl);
+    if (Number.isFinite(pnl)) t.cash = Math.round(((t.cash ?? 0) + pnl) * 100) / 100;
+  }
+  return out;
+}
 
 /**
  * How keen to be on a strategy: what it has actually made per trade, in
@@ -104,12 +147,13 @@ export function tagStrategy(card: string, s: Strategy): string {
 
 /**
  * Each strategy's record from every signal the trade bot gave on the markets
- * it still trades over the last 60 days (strategyOf; read only; results in
+ * it still trades over the last `days` (60 for the picker; strategyOf; read only; results in
  * risks, resultInRisks). Never throws.
  */
 export async function strategyStats(
   admin: Admin,
   now = Date.now(),
+  days = 60,
 ): Promise<Partial<Record<Strategy, StrategyStats>>> {
   try {
     const { resultInRisks } = await import("./paper-account.server");
@@ -119,23 +163,11 @@ export async function strategyStats(
       .eq("sender_worker", "trade")
       .in("market", [...SIGNAL_MARKETS])
       .not("status", "in", "(pending,open,tp1,tp2)")
-      .gte("created_at", new Date(now - 60 * 86_400_000).toISOString())
+      .gte("created_at", new Date(now - days * 86_400_000).toISOString())
       .limit(5000);
-    const out: Partial<Record<Strategy, StrategyStats>> = {};
-    for (const r of (data ?? []) as (Parameters<typeof resultInRisks>[0] & {
-      feeds: Record<string, unknown> | null;
-    })[]) {
-      if (r.feeds?.bias) continue;
-      const s = strategyOf(r.feeds);
-      const res = resultInRisks(r);
-      if (res == null) continue;
-      const t = (out[s] ??= { n: 0, wins: 0, losses: 0, sumR: 0 });
-      t.n++;
-      t.sumR += res;
-      if (res > 0) t.wins++;
-      else if (res < 0) t.losses++;
-    }
-    return out;
+    return tallyStrategies((data ?? []) as StrategyRow[], (r) =>
+      resultInRisks(r as Parameters<typeof resultInRisks>[0]),
+    );
   } catch {
     return {};
   }

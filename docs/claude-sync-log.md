@@ -7,12 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · strategy-board · Signals → Results gets a per-strategy
-  scoreboard (cash), and a read-only take profit comparison (current target
-  vs 1:1 and others) on stored signals. Nothing live changes. Touches
-  `src/lib/signal-*`, `src/components/admin/Signal*Panel.tsx`, a new
-  server function.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -24,6 +18,16 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Boss's Claude (2026-11-03, later):** #PR_NUM merged (no migrations).
+  Signals → Results has the Strategy scoreboard; Signals → Backtest has
+  "Take profit size", a read-only replay of stored setups with today's
+  target against 0.75:1 to 2:1. Nothing live changed. The Boss's AI is
+  fine-tuning the bot next. For the customer dashboard later: the Boss will
+  sell activation codes that let a customer link their account, start/stop
+  the bot, see the live balance and set a max take profit and max daily
+  loss; may run it on their own VPS rather than MetaApi to keep costs down.
+  Not started; waiting on the Boss.
 
 - **Boss's Claude (2026-11-03, Boss nav):** #213 merged (no migrations).
   Signals is its own Boss area at `/admin/signals` (Controls, Results,
@@ -157,6 +161,17 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Two of the Boss's picks.
+  (1) Strategy scoreboard on Signals → Results: each strategy's trades,
+  wins, losses, profit per trade (R) and the demo account's dollars, over
+  7/30/60 days. `strategyStats` now tallies through the pure
+  `tallyStrategies` (same numbers for the picker, plus cash). (2) Take
+  profit size on Signals → Backtest: the stored learning setups replayed
+  with today's target and with 0.75, 1, 1.25, 1.5 and 2 times the stop,
+  with the spread and the profit lock, in dollars at 0.1 lot. `evaluate`
+  and `applyTuning` take an optional `tpToStop` that learning never passes,
+  so learning is unchanged. Read only throughout; nothing deleted.
 
 - **Boss's Claude · 2026-11-03 · #213** · Boss console navigation, the
   Boss's five asks. (1) Signals moved out of OG B0T into its own area,
