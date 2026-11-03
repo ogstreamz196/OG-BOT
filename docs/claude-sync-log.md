@@ -245,6 +245,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Store-safe phone apps (a
+  standing rule for every app, in CLAUDE.md): OG VAULT / the Vault Pass is
+  now hidden in the Android/iOS app too (Settings card, store item, app
+  chat), alongside trading, which already was. `src/lib/native-policy.ts`
+  lists what stays website-only. Website unchanged.
+
 - **Boss's Claude · 2026-11-03 · #226** · The "I'm bored" message moved
   to the signals chat (the Boss's correction): after an hour with no alert
   or update there, OG B0T posts a friendly gold/BTC fact, at most hourly,

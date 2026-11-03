@@ -388,7 +388,8 @@ function SettingsPage() {
             </form>
           </SettingsCard>
           {extras.data?.og_vip_id && <OgVipIdCard id={extras.data.og_vip_id} />}
-          <OgVaultPassCard />
+          {/* The Vault Pass (IPTV logins, apps outside the store) stays out of the phone apps. */}
+          {!native && <OgVaultPassCard />}
         </Group>
 
         {/* 2. Membership & integrations */}
