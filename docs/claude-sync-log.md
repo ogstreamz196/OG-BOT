@@ -203,7 +203,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-03 · #NEXT** · Boss: "balance takes priority, do
+- **Boss's Claude · 2026-11-03 · #208** · Boss: "balance takes priority, do
   trailing loss instantly as TP1 about to hit". At 90% of the way to the take
   profit a trade trails instead of closing there (`tpTrailArm`): stop 20% of
   the distance behind the best price (2 spreads at least, never under the
