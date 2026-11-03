@@ -2120,6 +2120,23 @@ async function handleGroupMessage(
 
   const text = typeof msg.text === "string" ? msg.text.trim() : "";
   if (!text || msg.from?.is_bot) return ignored();
+  // Snooping on someone's identity: message deleted, snooper cussed 3 times. No AI.
+  {
+    const guard = await import("@/lib/telegram-identity-guard");
+    if (guard.isIdentitySnoop(text)) {
+      void tg("deleteMessage", { chat_id, message_id: msg.message_id }).catch(() => undefined);
+      const tag = guard.mentionHtml(msg.from ?? {});
+      for (const line of guard.pickSnoopCusses(3)) {
+        await tg("sendMessage", {
+          chat_id,
+          text: `${tag} ${line}`,
+          parse_mode: "HTML",
+          ...(thread ? { message_thread_id: thread } : {}),
+        }).catch(() => undefined);
+      }
+      return Response.json({ ok: true, group: "identity_snoop" });
+    }
+  }
   const slash = /^\/([a-z_]+)(?:@(\w+))?(?:\s+([\s\S]*))?$/i.exec(text);
   // Another bot's command.
   if (slash?.[2] && slash[2].toLowerCase() !== me) return ignored();
