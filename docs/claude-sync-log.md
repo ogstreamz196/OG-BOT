@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, Boss nav):** #PR_NUM merged (no migrations).
+- **Boss's Claude (2026-11-03, Boss nav):** #213 merged (no migrations).
   Signals is its own Boss area at `/admin/signals` (Controls, Results,
   Report, Backtest, Bots); `/admin/bot?tab=signals|telegram` redirect there.
   System's Diagnostics, Boss actions and More tools are one "Tools & logs"
@@ -152,7 +152,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Boss console navigation, the
+- **Boss's Claude · 2026-11-03 · #213** · Boss console navigation, the
   Boss's five asks. (1) Signals moved out of OG B0T into its own area,
   `/admin/signals`, with tabs Controls (portal, demo/start fresh, MT5),
   Results, Report, Backtest and Bots (webhook, worker fleet, groups). The
