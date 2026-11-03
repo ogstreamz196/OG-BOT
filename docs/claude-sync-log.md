@@ -203,7 +203,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-03 · #NEXT** · The ⚡ button everywhere, old
+- **Boss's Claude · 2026-11-03 · #211** · The ⚡ button everywhere, old
   signal menus gone (Boss's ask). OG B0T's private bar: ⚡ full width, then
   Menu | Clear chat (unlinked: ⚡, then Clear chat | site, a free
   chart-engine signal). The 📈 Signals sub-menu and the group coin picker are
