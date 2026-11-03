@@ -1172,7 +1172,7 @@ function VipFoulPromo({
         </div>
         <h3 className="mt-2 font-display text-lg font-black">Unlock Foul Mouth</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          OG B0T goes unfiltered — savage roasts, UK street slang, no holding back.
+          OG B0T goes unfiltered — savage cussing, UK street slang, no holding back.
         </p>
         <ul className="mt-3 space-y-1 text-left text-xs text-foreground/90">
           <li>🔥 Unfiltered OG B0T persona</li>

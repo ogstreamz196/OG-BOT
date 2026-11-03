@@ -48,7 +48,7 @@ export function DissAmbushCard({
       const { data: lyr, error: lyrErr } = await supabase.functions.invoke("generate-lyrics", {
         body: {
           songName: title,
-          description: `A savage, funny ${style} diss track roasting ${name}, built from what they told OG B0T in chat.`,
+          description: `A savage, funny ${style} diss track cussing ${name}, built from what they told OG B0T in chat.`,
           styleTags: [style, "diss track"],
           language: "English",
           vocal: "Male voice",

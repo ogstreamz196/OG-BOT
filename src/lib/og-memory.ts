@@ -85,5 +85,5 @@ export function memoryNote(facts: string[]): string {
   if (!facts.length) return "";
   return `\n\nWHAT YOU REMEMBER ABOUT THIS MEMBER (from past chats, private to them):
 ${facts.map((f) => `- ${f}`).join("\n")}
-Use these naturally when they fit (ammo for roasts, banter about their team, their coins), like a mate who remembers. Never list them back or say "my notes say". If they correct something, go with the correction.`;
+Use these naturally when they fit (ammo for cuss battles, banter about their team, their coins), like a mate who remembers. Never list them back or say "my notes say". If they correct something, go with the correction.`;
 }

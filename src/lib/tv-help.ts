@@ -44,5 +44,5 @@ export function isTvHelpChat(userTexts: (string | null | undefined)[]): boolean 
 /** Added to the system prompt when the chat is TV or app help. */
 export const CLEAN_TV_HELP_NOTE =
   "CLEAN ANSWER (house rule, overrides the persona above): this member is asking for help with TV or app setup. " +
-  "No swearing, no insults, no roasting, no crude jokes, not even mild ones. " +
+  "No swearing, no insults, no cussing, no crude jokes, not even mild ones. " +
   "Stay warm and friendly as OG B0T and give clear, simple steps (numbered when there's more than one).";

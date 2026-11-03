@@ -77,7 +77,7 @@ async function scoreRoast(
           {
             role: "system",
             content:
-              "You are the judge of a roast battle. Score the CHALLENGER's message 0-10 " +
+              "You are the judge of a cuss battle. Score the CHALLENGER's message 0-10 " +
               "using this rubric, adding the points for each criterion:\n" +
               "+0-3 BITE: how hard the burn actually lands on OG B0T.\n" +
               "+0-3 ORIGINALITY: fresh angle and wordplay; generic insults score 0-1.\n" +
@@ -321,7 +321,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       );
       if (hit) {
         void bonds.nudgeBond(supabaseAdmin, context.userId, "hit_friend", HIT_A_FRIEND);
-        note += `\n\nDEFEND YOUR FRIEND: ${displayName} is going after ${hit}, one of your friends. Do NOT roast ${hit}. Refuse, stick up for ${hit} loudly and loyally, and turn it on ${displayName} instead.`;
+        note += `\n\nDEFEND YOUR FRIEND: ${displayName} is going after ${hit}, one of your friends. Do NOT cuss ${hit}. Refuse, stick up for ${hit} loudly and loyally, and turn it on ${displayName} instead.`;
       }
       return note;
     })().catch(() => "");
@@ -372,7 +372,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
         const lines: string[] = [];
         if (rec?.rounds)
           lines.push(
-            `${displayName} has fought ${rec.rounds} rounds, ${rec.streak_days ?? 0}-day streak, won ${rec.total_awarded_coins ?? 0} coins off you. Use it — veteran = respect-roast, rookie = fresh meat.`,
+            `${displayName} has fought ${rec.rounds} rounds, ${rec.streak_days ?? 0}-day streak, won ${rec.total_awarded_coins ?? 0} coins off you. Use it — veteran = respect-cuss, rookie = fresh meat.`,
           );
         const phrases = (mine ?? []).map((r) => r.phrase).filter(Boolean);
         if (phrases.length && useFoul)
@@ -956,7 +956,7 @@ async function crewMemory(
     names.length > 1
       ? `\nThey're GANGING UP on you (${names.join(", ")}). Take them all on in one reply — name each one and hit them with something personal from their own past lines below. Never back down from a pile-on.`
       : "";
-  return `\n\nCREW MEMORY (their past lines — use them for personal, specific roasts; never repeat them verbatim):\n${lines.join("\n")}${gang}`;
+  return `\n\nCREW MEMORY (their past lines — use them for personal, specific disses; never repeat them verbatim):\n${lines.join("\n")}${gang}`;
 }
 
 /** Shared bot reply used by guest battles. */

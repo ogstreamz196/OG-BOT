@@ -40,13 +40,16 @@ export const Route = createFileRoute("/_authenticated/messenger")({
   }),
   head: () => ({
     meta: [
-      { title: "OG B0T Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
+      { title: "OG B0T Battle Zone — Foul-Mouth AI Cuss Battles & Diss Tracks" },
       {
         name: "description",
         content:
           "Step into the Battle Zone and trade insults with foul-mouth OG B0T. Earn OG Coins, then get a savage AI diss track cooked about you.",
       },
-      { property: "og:title", content: "OG B0T Battle Zone — Foul-Mouth AI Roasts & Diss Tracks" },
+      {
+        property: "og:title",
+        content: "OG B0T Battle Zone — Foul-Mouth AI Cuss Battles & Diss Tracks",
+      },
       {
         property: "og:description",
         content:

@@ -139,7 +139,7 @@ export function MessengerWelcomeDialog({
                 OG Battle Zone
               </span>
               <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
-                Everyone vs OG B0T — see if you can win a roast battle.
+                Everyone vs OG B0T — see if you can win a cuss battle.
               </span>
             </span>
           </button>

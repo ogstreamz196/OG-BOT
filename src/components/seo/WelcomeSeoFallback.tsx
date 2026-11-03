@@ -34,7 +34,7 @@ export function WelcomeSeoFallback() {
           OG Streamz · Powered by OG B0T
         </p>
         <h1 className="mt-3 font-display text-3xl sm:text-5xl">
-          Roast the bot. Drop the diss. Or cook a hit.
+          Cuss the bot. Drop the diss. Or cook a hit.
         </h1>
         <p className="mt-3 text-muted-foreground">
           Step into the world of OG B0T. Enter the battle, create your sound and unleash your
@@ -44,7 +44,7 @@ export function WelcomeSeoFallback() {
         <section className="mt-8">
           <h2 className="text-xl font-bold">Choose your mode</h2>
           <h3 className="mt-3 font-semibold">Battle Zone</h3>
-          <p className="text-muted-foreground">Roast OG B0T. Bank coins for every hit.</p>
+          <p className="text-muted-foreground">Cuss OG B0T. Bank coins for every hit.</p>
           <h3 className="mt-3 font-semibold">Make a Track</h3>
           <p className="text-muted-foreground">Your idea. Real vocals. Cover art. Done.</p>
           <h3 className="mt-3 font-semibold">Sports Guide</h3>
@@ -57,9 +57,9 @@ export function WelcomeSeoFallback() {
 
         <section className="mt-8">
           <h2 className="text-xl font-bold">Unleash your OG powers</h2>
-          <h3 className="mt-3 font-semibold">Roast &amp; Destroy</h3>
+          <h3 className="mt-3 font-semibold">Cuss &amp; Destroy</h3>
           <p className="text-muted-foreground">
-            Enter the Battle Zone. Unleash savage roasts, brutal comebacks and personalised diss
+            Enter the Battle Zone. Unleash savage disses, brutal comebacks and personalised diss
             tracks.
           </p>
           <h3 className="mt-3 font-semibold">OG Hit Factory</h3>

@@ -166,7 +166,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
         description: "Your winnings and your chat come with you.",
       });
     } else {
-      toast("Nothing to bank yet", { description: "Land harder roasts to build up a reward." });
+      toast("Nothing to bank yet", { description: "Land harder disses to build up a reward." });
     }
     onNeedAccount();
   }
@@ -222,7 +222,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
               <DropdownMenuContent align="end">
                 {roast ? (
                   <DropdownMenuItem onSelect={() => setShowRoast((v) => !v)}>
-                    {showRoast ? "Hide roast of the day" : "Show roast of the day"}
+                    {showRoast ? "Hide cuss of the day" : "Show cuss of the day"}
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem onSelect={clearMine}>

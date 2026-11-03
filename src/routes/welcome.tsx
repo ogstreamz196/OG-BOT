@@ -835,7 +835,7 @@ function AuthModal() {
               <p className="mt-1 text-sm">Join free to keep battling — your chat comes with you.</p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
                 <li>🔒 Unlock Private chat — just you &amp; OG B0T, nobody else sees a word</li>
-                <li>🪙 Earn OG Coins for every roast you land</li>
+                <li>🪙 Earn OG Coins for every cuss you land</li>
                 <li>👑 15 days of VIP on us</li>
               </ul>
             </div>
@@ -1014,7 +1014,7 @@ function BattleModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none">
-        <DialogTitle className="sr-only">Battle Zone — roast OG B0T</DialogTitle>
+        <DialogTitle className="sr-only">Battle Zone — cuss OG B0T</DialogTitle>
         <GuestBattle
           onNeedAccount={() => {
             setOpen(false);
@@ -1034,7 +1034,7 @@ function Hero() {
       <MasterLogo />
       <div className="relative mx-auto -mt-2 w-full max-w-3xl text-center sm:mt-0 md:max-w-5xl">
         <h1 className="font-display text-[clamp(1.8rem,8vw,2.6rem)] font-black leading-[0.95] tracking-[-0.035em] [text-wrap:balance] md:text-[clamp(2.4rem,4.6vw,3.4rem)]">
-          <span className="wc-pop block md:inline">ROAST THE BOT. </span>
+          <span className="wc-pop block md:inline">CUSS THE BOT. </span>
           <span className="wc-pop block md:inline" style={{ animationDelay: "0.12s" }}>
             DROP THE{" "}
             <span className="wc-bounce-soft inline-block italic text-accent">DISS.</span>{" "}
@@ -1063,7 +1063,7 @@ function Hero() {
             eyebrow="Live now"
             live
             title="Battle Zone"
-            description="Roast OG B0T. Bank coins for every hit."
+            description="Cuss OG B0T. Bank coins for every hit."
             cta="Enter Battle Zone"
             onClick={openBattle}
           />

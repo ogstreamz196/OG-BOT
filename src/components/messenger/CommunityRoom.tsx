@@ -446,7 +446,7 @@ export function CommunityRoom() {
         });
       } else {
         toast("Battle over — nothing banked this time", {
-          description: "Land harder roasts to build up a reward.",
+          description: "Land harder disses to build up a reward.",
         });
       }
     },
@@ -541,7 +541,7 @@ export function CommunityRoom() {
             <DropdownMenuContent align="end">
               {roastOfDay?.roast ? (
                 <DropdownMenuItem onSelect={() => setShowRoast((v) => !v)}>
-                  {showRoast ? "Hide roast of the day" : "Show roast of the day"}
+                  {showRoast ? "Hide cuss of the day" : "Show cuss of the day"}
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem

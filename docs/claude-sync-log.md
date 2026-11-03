@@ -26,14 +26,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
     through its own ADB, with a build check after. Native part needs store
     APK 1.2.0 (versionCode 3) built in Android Studio and published in Boss
     Controls → Store Updates. Details in that repo's AGENTS.md.
-  - Next: Admin tier ("staff" in code, "Admin" on screen, between VIP and
-    Boss), Admin Apps category, My Apps (VIP members' private apps: upload
-    up to 200 MB to R2, or a Downloader code resolved via aftv.news), and an
-    activity log. Database draft on branch `admin-tier-my-apps`
-    (`drizzle/migrations/0018_admin_tier_and_my_apps.sql`), not applied to
-    the hub yet (the Boss's approval prompt timed out). Then server
-    functions, screens, and a check of the hierarchy as each tier.
-    The Boss now has plenty of Lovable credits (2026-11-03).
+  - Done (OG VAULT PRs #6–#12): Admin tier, Admin Apps, My Apps (uploads
+    up to 200 MB, Downloader codes), activity log, the dev.b033 PIN login
+    (PIN set in Boss Controls → Members) and member PINs after a streaming
+    sign-in. See that repo's AGENTS.md.
 
 - **OG KEYS**, the Boss's own password and API key manager, later an
   add-on like OG Ledger. Plan in `docs/og-keys-plan.md`. A coming-soon card
@@ -244,6 +240,12 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · "Roast" → "cuss" everywhere
+  people see it (screens, Telegram help, bot prompts with a never-say-roast
+  rule). `/cuss` and `cuss @someone` work in groups; `/roast` still works.
+  Internal names unchanged. Also refreshed the Planned list (OG VAULT's
+  Admin tier and My Apps are done).
 
 - **Boss's Claude · 2026-11-03 · #227** · Store-safe phone apps (a
   standing rule for every app, in CLAUDE.md): OG VAULT / the Vault Pass is

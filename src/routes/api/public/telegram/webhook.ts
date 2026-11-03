@@ -630,7 +630,7 @@ const INTRO_TEXT =
   "🧠 <b>Ask anything</b>: advice, ideas, homework, whatever's on your mind.\n" +
   "⚽ <b>Sports</b>: fixtures, scores and kick-off times.\n" +
   "📈 <b>Signals</b>: live bitcoin setups.\n" +
-  "🔥 <b>Roast me</b>: go on, try me. I'll rip you a new one.\n\n" +
+  "🔥 <b>Cuss me</b>: start a cuss battle. Go on, try me.\n\n" +
   "Type something or smash the buttons below.";
 
 const LINK_STEPS =
@@ -792,7 +792,7 @@ Just type to chat with me, same brain as the in-app messenger. Or use the button
 /clear  wipe this chat and start fresh
 
 👥 <b>Groups</b>
-Add me to a group chat: /og asks me anything, /signal drops a live signal, /roast if you dare.`;
+Add me to a group chat: /og asks me anything, /signal drops a live signal, /cuss if you dare.`;
 
 const HELP_ADMIN = `${HELP_USER}
 
@@ -1766,7 +1766,7 @@ const GROUP_NOTE =
 const GROUP_HELP =
   "🤖 <b>OG B0T in the group</b>\nNo / needed, just type.\n\n" +
   "🔥 Say anything and I'll come for you. Gang up if you want, I'll take the lot of you.\n" +
-  "🎯 <b>roast</b> @someone to set me on them\n" +
+  "🎯 <b>cuss</b> @someone to set me on them\n" +
   "👋 New members get initiated the second they walk in\n" +
   "💬 <b>og</b> then a proper question\n" +
   "📈 <b>signal btc</b> for a scalp, add <b>holding</b> for 1-hour\n\n" +
@@ -1778,7 +1778,7 @@ const CONNECT_NUDGE =
 
 // Group roasts only use free AI; when it's down, this instead of a paid answer.
 const ROAST_BUSY =
-  "🥵 My roasting brain's taking a breather, give me a minute and come at me again.";
+  "🥵 My cussing brain's taking a breather, give me a minute and come at me again.";
 
 const SLOW_MODE = (seconds: number) =>
   `🐌 Easy, spam merchant. You're on slow mode: I'll answer you again in ${seconds}s.`;
@@ -1930,7 +1930,7 @@ async function ensureGroupButton(chatId: number) {
 function plainCommand(line: string): { 1: string; 3: string } | null {
   // The signals chat's "⚡ Generate BTC Signal Now" button: a Bitcoin scalp.
   if (isGenerateSignal(line)) return { 1: "signal", 3: "btc" };
-  const m = /^(signals?|roast|og|ask|help)\b[\s,:!.?-]*([\s\S]*)$/i.exec(line);
+  const m = /^(signals?|cuss|roast|og|ask|help)\b[\s,:!.?-]*([\s\S]*)$/i.exec(line);
   if (!m) return null;
   const cmd = m[1].toLowerCase();
   // "help me with…" is a question, not the help card.
@@ -2157,8 +2157,9 @@ async function handleGroupMessage(
       // A scalp unless they ask for holding.
       ask = signalRequest(pair, /\b(hold|holding|1\s?h|swing)\b/i.test(arg) ? "1h" : "5m");
       signalAsk = true;
-    } else if (cmd === "roast") {
-      return battle(arg ? `roast ${arg}` : "roast me");
+    } else if (cmd === "cuss" || cmd === "roast") {
+      // "cuss" is the word (the Boss's rule); the old "roast" still works.
+      return battle(arg ? `cuss ${arg}` : "cuss me");
     } else if (PRIVATE_COMMANDS.has(cmd)) {
       await answer("🔒 That's between you and me. Ask me in our DM 👇", {
         reply_markup: await dmButton("💬 Open my DM"),

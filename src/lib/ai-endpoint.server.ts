@@ -177,7 +177,7 @@ export async function needsThinking(text: string): Promise<boolean> {
           {
             role: "user",
             content: `Route this chat message. Reply with one word only.
-BANTER = chit-chat, jokes, roasts, greetings, opinions, or a simple one-line fact.
+BANTER = chit-chat, jokes, disses, greetings, opinions, or a simple one-line fact.
 THINK = needs reasoning or care: explanations, advice, maths, planning, comparisons, writing something long, money, health, legal or technical help.
 
 Message: """${text.slice(0, 1200)}"""`,

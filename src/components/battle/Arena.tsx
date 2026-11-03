@@ -108,7 +108,7 @@ export function ArenaRanks({
   return (
     <div className="ar-panel">
       <p className="ar-silver mb-1 text-[0.7rem] font-black uppercase tracking-wider">
-        Most savage roasters
+        Most savage cussers
       </p>
       {loading ? (
         <p className="ar-silver py-1 text-xs">Counting the bodies…</p>
@@ -145,7 +145,7 @@ export function ArenaRoastOfDay({ name, content }: { name: string; content: stri
       </span>
       <div className="min-w-0">
         <p className="ar-gold text-[0.7rem] font-black uppercase tracking-wider">
-          Roast of the day — {name}
+          Cuss of the day — {name}
         </p>
         <p className="ar-white line-clamp-2 text-xs">{content}</p>
       </div>
@@ -224,8 +224,8 @@ export function ArenaMessage({
         </p>
         <div className="ar-text">{content}</div>
         {isBot && scoreTenths && scoreTenths > 0 ? (
-          <span className="ar-score" title="Coins that roast earned">
-            🔥 Roast scored · +{(scoreTenths / 10).toFixed(2)} OG
+          <span className="ar-score" title="Coins that cuss earned">
+            🔥 Cuss scored · +{(scoreTenths / 10).toFixed(2)} OG
           </span>
         ) : null}
       </div>
@@ -245,7 +245,7 @@ export function ArenaEmpty({ loading }: { loading?: boolean }) {
       ) : (
         <>
           <h3>😈 Think you can handle OG B0T?</h3>
-          <p>Drop your first roast. Let's see if you can take the heat or bank some OG Coins.</p>
+          <p>Drop your first cuss. Let's see if you can take the heat or bank some OG Coins.</p>
         </>
       )}
     </div>
@@ -300,7 +300,7 @@ export const ArenaComposer = forwardRef<
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        aria-label="Your roast"
+        aria-label="Your cuss"
         rows={2}
         maxLength={maxLength}
         enterKeyHint="send"
