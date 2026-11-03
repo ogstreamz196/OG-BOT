@@ -203,7 +203,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-03 · #NEXT** · An always-on "⚡ Generate BTC
+- **Boss's Claude · 2026-11-03 · #210** · An always-on "⚡ Generate BTC
   Signal Now" button at the bottom of the signals chat: a persistent reply
   keyboard (`GENERATE_SIGNAL_KEYBOARD`) on every results post, so it's
   re-sent with each refresh. A tap is read as "signal btc"
