@@ -30,6 +30,34 @@ const sig = (status: string, over: Record<string, unknown> = {}) => {
 };
 
 describe("70%+ record", () => {
+  it("orders recent form by when trades closed, not when they opened", () => {
+    // A win opened earlier but closed later than a loss opened after it:
+    // the win must be the last on the streak.
+    const win = sig("tp3", {
+      best_target: 3,
+      created_at: "2026-10-28T10:00:00Z",
+      closed_at: "2026-10-28T12:00:00Z",
+      entry: 3000,
+      stop: 2995,
+      tp1: 3003,
+      tp2: 3006,
+      tp3: 3010,
+    });
+    const loss = sig("stopped", {
+      created_at: "2026-10-28T10:30:00Z",
+      closed_at: "2026-10-28T10:45:00Z",
+      entry: 4000,
+      stop: 3995,
+      tp1: 4003,
+      tp2: 4006,
+      tp3: 4010,
+    });
+    // Passed in creation order (win first); form should still end on the win.
+    const r = tallyRecord([win, loss], null);
+    expect(r.form).toEqual(["lost", "won"]);
+    expect(r.form.at(-1)).toBe("won");
+  });
+
   it("puts every signal in exactly one bucket, so the counts add up", () => {
     const rows = [
       sig("tp3", { best_target: 3 }), // won +100 pips

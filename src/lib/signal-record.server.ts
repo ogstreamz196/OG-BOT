@@ -77,6 +77,8 @@ type SignalRow = {
   status: string;
   best_target: number;
   entered_at: string | null;
+  created_at?: string | null;
+  closed_at?: string | null;
   feeds: {
     bias?: boolean;
     trail?: { risk: number; stop?: number };
@@ -102,6 +104,8 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
       filled: boolean;
       /** A trailing stop that closed it in profit: how far past the entry (price units). */
       trailed: number;
+      /** When it settled (ms); recent form is ordered by this. */
+      settledAt: number;
     }
   >();
   for (const s of signals) {
@@ -114,7 +118,12 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
       active: false,
       filled: false,
       trailed: 0,
+      settledAt: 0,
     };
+    // When this setup settled: the latest closed_at across its copies, else
+    // its created time. The recent-form streak is ordered by this, so "the
+    // last one" is the trade that most recently closed, not the newest signal.
+    seen.settledAt = Math.max(seen.settledAt, Date.parse(s.closed_at ?? s.created_at ?? "") || 0);
     seen.best = Math.max(seen.best, Number(s.best_target) || 0);
     seen.stopped ||= s.status === "stopped";
     seen.active ||= ACTIVE.has(s.status);
@@ -146,7 +155,10 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
     form: [],
   };
   const byMarket = new Map<string, { market: string; label: string; unit: string; pips: number }>();
-  for (const { row, best, stopped, active, filled, trailed } of setups.values()) {
+  // Decided results, kept with their settle time so recent form reads in the
+  // order trades actually closed (a trade opened earlier can close later).
+  const decidedForm: { result: "won" | "lost"; at: number }[] = [];
+  for (const { row, best, stopped, active, filled, trailed, settledAt } of setups.values()) {
     const size = Number(row.pip) > 0 ? Number(row.pip) : 1;
     // A trailing stop that closed it in profit is a win, its pips locked in.
     const result =
@@ -162,7 +174,7 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
     if (result) {
       if (result.outcome === "win") record.wins++;
       else record.losses++;
-      record.form.push(result.outcome === "win" ? "won" : "lost");
+      decidedForm.push({ result: result.outcome === "win" ? "won" : "lost", at: settledAt });
       const m = byMarket.get(row.market) ?? {
         market: row.market,
         label: row.label,
@@ -177,6 +189,9 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
     else record.cancelled++;
     record.signals++;
   }
+  // Oldest settle first, so form.at(-1) is the trade that just closed.
+  decidedForm.sort((a, b) => a.at - b.at);
+  record.form = decidedForm.map((d) => d.result);
   record.markets = [...byMarket.values()].map((m) => ({
     ...m,
     pips: Math.round(m.pips * 10) / 10,
@@ -193,7 +208,7 @@ export async function signalRecord(admin: Admin): Promise<SignalRecord | null> {
       admin
         .from("trade_signals")
         .select(
-          "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, entered_at, feeds",
+          "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, entered_at, created_at, closed_at, feeds",
         )
         .gte("confidence_pct", RECORD_MIN_CONFIDENCE)
         // Retired markets (gold) stay stored but stop counting.
