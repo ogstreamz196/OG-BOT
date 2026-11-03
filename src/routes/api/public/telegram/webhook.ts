@@ -163,15 +163,19 @@ async function handleCallbackQuery(cq: {
       .select("id")
       .eq("telegram_chat_id", cq.from?.id ?? 0)
       .maybeSingle();
-    if (!profile) {
-      await tg("answerCallbackQuery", {
-        callback_query_id: cq.id,
-        text: "You're not connected to OG B0T yet. Send me /start in a private chat and I'll give you the link.",
-        show_alert: true,
-      });
-      return Response.json({ ok: true, unlinked: true });
-    }
+    const ask = signalRequest(groupSignal[1] as "XAU" | "BTC", groupSignal[2] as "1h" | "5m");
+    const g = {
+      replyTo: cq.message?.message_id,
+      thread: cq.message?.is_topic_message ? cq.message.message_thread_id : undefined,
+      name: cq.from?.first_name,
+      user: cq.from,
+    };
     await answer("Checking the live charts…");
+    // Free for every group member: not connected, the chart engine answers.
+    if (!profile) {
+      await freeGroupSignal(admin, chatId, ask, g as GroupContext);
+      return Response.json({ ok: true, group: "free_signal" });
+    }
     const { roles } = await isAdmin(admin, profile.id);
     await runChatAI(
       admin,
@@ -1690,6 +1694,53 @@ function groupSendExtra(g: GroupContext) {
   };
 }
 
+/**
+ * Signals are free for every member of an OG B0T group (the Boss's rule): a
+ * member who hasn't connected an account still gets the signal, straight from
+ * the chart engine (no AI, so none of the AI keys are spent). It's followed
+ * and counted like any other signal, filed under the Boss's account with the
+ * member as the requester. Linked members keep the AI's answer.
+ */
+async function freeGroupSignal(
+  admin: Awaited<ReturnType<typeof loadAdmin>>,
+  chatId: number,
+  ask: string,
+  g: GroupContext,
+) {
+  const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
+  const s = await buildTradeSignal(ask).catch(() => null);
+  const text = s?.reply || "📉 The charts aren't answering right now. Try again in a minute.";
+  const sent = (await tg("sendMessage", {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+    ...groupSendExtra(g),
+  })) as { result?: { message_id?: number } } | null;
+  if (!s?.plan) return;
+  const { data: owner } = await admin
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+  if (!owner) return;
+  const { recordSignal } = await import("@/lib/trade-signal-tracker.server");
+  await recordSignal({
+    userId: owner.user_id,
+    chatId,
+    messageId: sent?.result?.message_id ?? null,
+    card: text,
+    plan: {
+      ...s.plan,
+      feeds: {
+        ...s.plan.feeds,
+        requester: { id: g.user?.id ?? chatId, name: g.name || "a member" },
+        freeGroup: true,
+      },
+    },
+  });
+}
+
 const GROUP_NOTE =
   "\n\nGROUP CHAT: you're answering one person in a Telegram group, and everyone in it can read your reply. " +
   "Never mention their coins, VIP status, account, email, purchases or anything else private; if they ask, tell them to DM you. " +
@@ -1702,7 +1753,7 @@ const GROUP_HELP =
   "👋 New members get initiated the second they walk in\n" +
   "💬 <b>og</b> then a proper question\n" +
   "📈 <b>signal btc</b> for a scalp, add <b>holding</b> for 1-hour\n\n" +
-  "I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
+  "📈 Signals are free for everyone in the group. For the rest I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
 
 const CONNECT_NUDGE =
   "👋 I don't know you yet. Connect your Telegram to OG B0T and I'm all yours. " +
@@ -2026,6 +2077,8 @@ async function handleGroupMessage(
   };
 
   let ask: string;
+  /** A signal request: free for every member, connected or not. */
+  let signalAsk = false;
   if (command) {
     const cmd = command[1].toLowerCase();
     const arg = withoutMention(command[3] ?? "");
@@ -2046,6 +2099,7 @@ async function handleGroupMessage(
       }
       // A scalp unless they ask for holding.
       ask = signalRequest(pair, /\b(hold|holding|1\s?h|swing)\b/i.test(arg) ? "1h" : "5m");
+      signalAsk = true;
     } else if (cmd === "roast") {
       return battle(arg ? `roast ${arg}` : "roast me");
     } else if (PRIVATE_COMMANDS.has(cmd)) {
@@ -2106,8 +2160,13 @@ async function handleGroupMessage(
     ask = line;
   }
 
-  // /og and /signal answers come from the member's own account.
+  // /og and /signal answers come from the member's own account; a signal is
+  // free for members who haven't connected one (the chart engine answers).
   const profileId = await linkedProfileId(admin, fromId);
+  if (!profileId && signalAsk) {
+    await freeGroupSignal(admin, chat_id, ask, ctx);
+    return Response.json({ ok: true, group: "free_signal" });
+  }
   if (!profileId) return nudge();
   const { roles } = await isAdmin(admin, profileId);
   await runChatAI(admin, profileId, chat_id, ask, roles, ctx);

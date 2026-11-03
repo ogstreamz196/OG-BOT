@@ -575,6 +575,8 @@ export type SignalFeeds = {
   beAt?: number;
   /** The profit lock (PROFIT_LOCK): 70% of the way to TP1, the stop moves to 30% of the way. */
   lock?: boolean;
+  /** Given free to a group member with no connected account (the chart engine's answer, no AI). */
+  freeGroup?: boolean;
   /** The take profit it was sent with, once it's been moved (tpMove). */
   tp0?: number;
   /**

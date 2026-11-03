@@ -7,10 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · signals-free · Signals free for every Telegram group
-  member (no linked account needed for a signal). Touches
-  `src/routes/api/public/telegram/webhook.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -206,6 +202,15 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-03 · #NEXT** · Boss: signals are free for every
+  member of the Telegram group. A signal request in a group (typed or a
+  button) from someone with no connected account used to get the Connect
+  nudge; now `freeGroupSignal` answers with the chart engine's card (no AI),
+  recorded under the Boss's account with the member as requester
+  (`feeds.freeGroup`), so it's followed and counted. Chat, roasts and account
+  commands still need a connected account. `telegram-flow.test.ts` updated
+  (that test used to expect the "not connected" alert). No migration.
 
 - **Boss's Claude · 2026-11-03 · #208** · Boss: "balance takes priority, do
   trailing loss instantly as TP1 about to hit". At 90% of the way to the take
