@@ -28,7 +28,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03 09:15, signals stalled):** #PR_NUM merged.
+- **Boss's Claude (2026-11-03 09:15, signals stalled):** #222 merged.
   The Boss saw no signals from about 3am. Likely cause: #218's gate (live
   from about 2am) held back any confidence band averaging under 0R (common
   with the take profit inside the stop) and its 3-losses rule could never
@@ -229,7 +229,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Unstick the signal gate:
+- **Boss's Claude · 2026-11-03 · #222** · Unstick the signal gate:
   `POST_BAD_EDGE` −0.3R instead of any loss, the loss-streak rule removed,
   and the 30-minute safety valve (`POST_QUIET_MIN`).
 
