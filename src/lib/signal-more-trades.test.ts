@@ -131,4 +131,21 @@ describe("scanner: 15-minute scalps and the learned bar", () => {
     expect(out.posted).toEqual(["BTCUSD BUY 15M"]);
     expect(d.rows[0]).toMatchObject({ timeframe: "15M" });
   });
+
+  it("holds back an alert whose record has been losing and follows it silently", async () => {
+    const d = db();
+    const shadows: string[] = [];
+    const posts: string[] = [];
+    const out = await scanAndBroadcast(d, {
+      frames: ["5m"],
+      build: async () => card("BTCUSD", "5M", 75),
+      gate: async () => "Range fade has been losing",
+      shadow: async (_s, why) => void shadows.push(why),
+      post: async (t) => (posts.push(t), 1),
+      now: Date.now,
+    });
+    expect(out.posted).toEqual([]);
+    expect(posts).toEqual([]);
+    expect(shadows).toEqual(["losing_record"]);
+  });
 });

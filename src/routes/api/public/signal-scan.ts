@@ -150,34 +150,15 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             s.plan.market,
             s.plan.confidencePct,
           );
-          // The Copy Trader B0T is choosy: it decides here, before the entry,
-          // whether it copies this alert at all (copy-filter.ts). One it sits
-          // out has no lot, so it's never in its balance either way.
-          const rnd = await import("@/lib/signal-random.server");
-          const { copyDecision } = await import("@/lib/copy-filter");
-          const stats = await rnd.signalStats(supabaseAdmin);
-          const strategy = rnd.strategyOf(s.plan.feeds ?? null);
-          const chart =
-            s.summary.timeframe.toLowerCase() as import("@/lib/signal-random.server").RandomFrame;
-          const pick = copyDecision({
+          const { lots, why } = pa.chooseLot({
+            market: s.plan.market,
+            entry: s.plan.entry,
+            stop: s.summary.stop,
+            balance,
             confidencePct: s.plan.confidencePct,
+            big,
             ...learned,
-            strategy: stats.strategies[strategy],
-            chart: stats.frames[chart],
-            strategyName: rnd.STRATEGY_NAMES[strategy],
-            chartName: `${s.summary.timeframe} chart`,
           });
-          const { lots, why } = !pick.copy
-            ? { lots: 0, why: pick.why }
-            : pa.chooseLot({
-                market: s.plan.market,
-                entry: s.plan.entry,
-                stop: s.summary.stop,
-                balance,
-                confidencePct: s.plan.confidencePct,
-                big,
-                ...learned,
-              });
           const { CARD_LOT } = await import("@/lib/trade-bias");
           return {
             ...s,
@@ -191,6 +172,36 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             },
           };
         };
+        // The signals bot only posts what's most likely to win (signal-gate.ts);
+        // the Copy Trader B0T copies everything it posts.
+        const gate = async (s: Built): Promise<string | null> => {
+          if (!s.plan || !s.summary) return null;
+          const pa = await import("@/lib/paper-account.server");
+          const rnd = await import("@/lib/signal-random.server");
+          const { postDecision } = await import("@/lib/signal-gate");
+          const state = await pa.paperState(supabaseAdmin);
+          const learned = await pa.lotInputs(
+            supabaseAdmin,
+            state ?? { start: 0, startedAt: new Date().toISOString() },
+            s.plan.market,
+            s.plan.confidencePct,
+          );
+          const stats = await rnd.signalStats(supabaseAdmin);
+          const strategy = rnd.strategyOf(s.plan.feeds ?? null);
+          const chart =
+            s.summary.timeframe.toLowerCase() as import("@/lib/signal-random.server").RandomFrame;
+          const d = postDecision({
+            confidencePct: s.plan.confidencePct,
+            ...learned,
+            strategy: stats.strategies[strategy],
+            chart: stats.frames[chart],
+            strategyName: rnd.STRATEGY_NAMES[strategy],
+            chartName: `${s.summary.timeframe} chart`,
+          });
+          return d.post ? null : d.why;
+        };
+        const shadow = (s: Built, why: import("@/lib/signal-shadows.server").ShadowReason) =>
+          recordShadow(supabaseAdmin, s.summary, why);
         const confirm = deskConfirmer(supabaseAdmin, (ask) => budgeted(ask, false), {
           now: Date.now,
           askUntil: startedAt + 20_000,
@@ -221,7 +232,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   follow,
                   confirm,
                   paper,
-                  shadow: (s, why) => recordShadow(supabaseAdmin, s.summary, why),
+                  gate,
+                  shadow,
                   now: Date.now,
                 }),
               { everyMs: 10_000, lastStartMs: 40_000 },
@@ -231,6 +243,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               read: (ask) => budgeted(ask, true),
               news: economicCalendar,
               paper,
+              gate,
+              shadow,
               post: postToSignalsChannel,
               follow,
               now: Date.now,
@@ -242,6 +256,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               build: buildTradeSignal,
               read: (ask) => budgeted(ask, true),
               paper,
+              gate,
+              shadow,
               post: postToSignalsChannel,
               follow,
               now: Date.now,

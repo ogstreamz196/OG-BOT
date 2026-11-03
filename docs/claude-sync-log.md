@@ -19,6 +19,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-03, signal gate):** #218 merged (no
+  migrations). The Boss's rule: accuracy changes go on the signals bot;
+  the Copy Trader B0T copies every signal it posts and only gets copy
+  changes. Staying on the demo account for now. Tune `signal-gate.ts`
+  from results; held-back alerts show in the report as "Its record has
+  been losing".
+
 - **Boss's Claude (2026-11-03, extra AI keys):** #217 merged. Hub table
   `og_bot.ai_keys` created on the hub (supabase/hub/03_ai_keys.sql, no
   Lovable migration). Waiting on the Boss: the Lovable secret
@@ -181,6 +188,12 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #218** · Accuracy moved from the copy
+  bot to the signals bot. #216's copy filter is now `postDecision`
+  (src/lib/signal-gate.ts), checked in `postOnce` for every automatic
+  alert before the AI desk; a held-back alert is a shadow trade
+  ("losing_record"). The demo/copy bot copies every posted signal again.
 
 - **Boss's Claude · 2026-11-03 · #217** · Extra free AI keys. Boss →
   System → API keys has a section to add any number of Pollinations,
