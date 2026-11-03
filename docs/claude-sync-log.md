@@ -7,6 +7,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · button-everywhere · The "⚡ Generate BTC Signal Now"
+  button in every bot's chats (OG B0T private and groups where it can see
+  taps, worker bots' private chats), old signal sub-menus removed. Touches
+  `telegram/webhook.ts`, `worker-bots/$id.ts`, `telegram-signals.ts`, tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
