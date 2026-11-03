@@ -19,6 +19,22 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- The Boss's shared to-do list: ideas agreed but not built yet. -->
 
+- **OG VAULT (repo og-vault-react, branch main, database = the hub's
+  `public` schema, so changes can be applied straight to the hub with
+  the database tools):**
+  - Done (PR #5 there, 2026-11-03): automatic installs on the Firestick
+    through its own ADB, with a build check after. Native part needs store
+    APK 1.2.0 (versionCode 3) built in Android Studio and published in Boss
+    Controls → Store Updates. Details in that repo's AGENTS.md.
+  - Next: Admin tier ("staff" in code, "Admin" on screen, between VIP and
+    Boss), Admin Apps category, My Apps (VIP members' private apps: upload
+    up to 200 MB to R2, or a Downloader code resolved via aftv.news), and an
+    activity log. Database draft on branch `admin-tier-my-apps`
+    (`drizzle/migrations/0018_admin_tier_and_my_apps.sql`), not applied to
+    the hub yet (the Boss's approval prompt timed out). Then server
+    functions, screens, and a check of the hierarchy as each tier.
+    The Boss now has plenty of Lovable credits (2026-11-03).
+
 - **OG KEYS**, the Boss's own password and API key manager, later an
   add-on like OG Ledger. Plan in `docs/og-keys-plan.md`. A coming-soon card
   is on the home pages and the Boss's API vault (System → API keys) is its
