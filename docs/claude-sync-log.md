@@ -248,6 +248,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Copy Trader win/loss fix
+  (`src/lib/signal-record.server.ts`): the streak/last-ten and "Won/Lost the
+  last one" were ordered by signal creation time, so a trade that opened
+  earlier but closed last (e.g. a BTC win that hit TP after a later loss)
+  showed the wrong "last" result — a win read as a red loss. Form is now
+  ordered by settle time (trade_signals.closed_at, else created_at). Tested.
+
 - **Boss's Claude · 2026-11-03 · #232** · Sports Guide group chat
   (`src/lib/sports-group.server.ts`): in the Boss's sports group OG B0T now
   reads and chats, not just mirrors. Members (unlocked guide / VIP) get royal
