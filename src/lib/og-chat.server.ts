@@ -154,8 +154,13 @@ export async function runOgChat(
   const tvHelp = isTvHelpChat(data.messages.filter((m) => m.role === "user").map((m) => m.content));
   const foulMouth = isVip && !tvHelp ? (prefRes.data?.foul_mouth ?? true) : false;
 
-  // The messenger has no level selector — VIP chat always runs at full DEMON intensity.
-  const foulIntensity = isVip ? 3 : 1;
+  // How hard to swear follows the member (og-heat.ts): 0..45 to start, then
+  // up or down with how they talk. Never shown to them.
+  const { conversationHeat } = await import("@/lib/og-heat");
+  const level = conversationHeat(
+    context.userId,
+    data.messages.filter((m) => m.role === "user").map((m) => m.content),
+  );
 
   const userCtx: UserContextSummary = {
     display_name: profile.display_name,
@@ -174,9 +179,8 @@ export async function runOgChat(
   const latestUserMsg = [...data.messages].reverse().find((m) => m.role === "user");
   const songIntent = detectSongIntent(latestUserMsg?.content) || detectSongIntent(data.pageContext);
 
-  const intensityNote = foulMouth
-    ? `\n\nSWEAR INTENSITY: ${["", "MILD — light cheeky swearing only", "SPICY — regular swearing and sharp disses", "DEMON — maximum savage, uncensored cussing"][foulIntensity]}.`
-    : "";
+  // The swear level goes in the persona (heatNote); nothing extra here.
+  const intensityNote = "";
   // Everything that needs the member's settings loads together.
   const vp = await import("@/lib/vip-promo.server");
   const cp = await import("@/lib/og-catchphrases.server");
@@ -205,6 +209,7 @@ export async function runOgChat(
     mode: data.mode,
     foulMouth,
     firstReply,
+    level,
     bossScript: personaMap.get("og_persona.script") ?? null,
     bossVoice: personaMap.get("og_persona.voice") ?? null,
     bossDictionary: personaMap.get("og_persona.dictionary") ?? null,
@@ -399,9 +404,10 @@ export async function runOgChat(
       !firstReply &&
       (!data.language || /^english$/i.test(data.language))
     ) {
-      // Medium Foul Mouth: a mild swear now and then, never forced into every reply.
-      const { ensureMildFlavour } = await import("@/lib/og-persona.server");
-      reply = ensureMildFlavour(reply, Math.random);
+      // The touch of swearing that fits their level (og-heat.ts).
+      const { flavourForLevel } = await import("@/lib/og-persona.server");
+      const { isFriend } = await import("@/lib/og-bond");
+      reply = flavourForLevel(reply, level, Math.random, isFriend(bond.score));
     }
     if (promo) {
       const { ensureCodeInReply } = await import("@/lib/vip-promo.server");

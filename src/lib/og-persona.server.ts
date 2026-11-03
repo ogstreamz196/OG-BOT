@@ -12,6 +12,7 @@
  * The first reply of a conversation is polite.)
  */
 import { INVITE_LINK } from "./invite-promo.server";
+import { heatBand, heatNote } from "./og-heat";
 
 export type OgMode = "safe" | "og";
 
@@ -408,6 +409,23 @@ const MILD_CLOSERS = [
  * Medium Foul Mouth: now and then (about a third of replies with no swear in
  * them), a mild opener or closer. Never forces a swear into every reply.
  */
+/**
+ * After a reply in everyday chat: the touch of swearing that fits the
+ * member's level (og-heat.ts). Clean and light add nothing; medium a mild
+ * opener or closer now and then; savage makes sure it swears.
+ */
+export function flavourForLevel(
+  text: string,
+  level: number,
+  rand: () => number = Math.random,
+  friend = false,
+): string {
+  const band = heatBand(level);
+  if (band === "savage") return ensureFoulFlavour(text, rand, friend);
+  if (band === "medium") return ensureMildFlavour(text, rand);
+  return text;
+}
+
 export function ensureMildFlavour(text: string, rand: () => number = Math.random): string {
   const t = text.trim();
   if (!t || t === "…" || hasFoulFlavour(t) || rand() >= 0.35) return text;
@@ -579,6 +597,11 @@ export interface BuildPromptOpts {
   heat?: "everyday" | "battle";
   /** No earlier reply from OG B0T in this conversation: be polite this once. */
   firstReply?: boolean;
+  /**
+   * The member's swear level for everyday chat (0..100, og-heat.ts): starts
+   * at 0..45 and follows how they talk. Unset: medium, as before.
+   */
+  level?: number;
 }
 
 const SONG_INTENT_RE =
@@ -592,9 +615,21 @@ export function detectSongIntent(text: string | null | undefined): boolean {
 export function buildSystemPrompt(opts: BuildPromptOpts): string {
   let base: string;
   if (opts.mode === "safe") base = SAFE_PERSONA;
-  else if (opts.foulMouth) base = opts.heat === "battle" ? OG_FOUL_PERSONA : OG_MEDIUM_PERSONA;
+  else if (opts.foulMouth && opts.heat === "battle") base = OG_FOUL_PERSONA;
+  else if (opts.foulMouth && opts.level != null)
+    base =
+      heatBand(opts.level) === "savage"
+        ? OG_FOUL_PERSONA
+        : heatBand(opts.level) === "clean"
+          ? OG_CHEEKY_PERSONA
+          : OG_MEDIUM_PERSONA;
+  else if (opts.foulMouth) base = OG_MEDIUM_PERSONA;
   else base = OG_CHEEKY_PERSONA;
-  const battle = opts.foulMouth && opts.heat === "battle";
+  // Full savage: a cuss battle, or a member who's cranked it all the way up.
+  const battle =
+    opts.foulMouth &&
+    (opts.heat === "battle" || (opts.level != null && heatBand(opts.level) === "savage"));
+  const swears = opts.foulMouth && !(opts.level != null && heatBand(opts.level) === "clean");
 
   const roles = [
     opts.user.is_admin ? "BOSS / admin" : null,
@@ -632,7 +667,10 @@ export function buildSystemPrompt(opts: BuildPromptOpts): string {
     opts.user.is_admin ? BOSS_NOTE : BOSS_ONLY_NOTE,
     opts.songIntent ? SONGWRITING_PLAYBOOK : null,
     RESEARCH_NOTE,
-    opts.mode === "og" && opts.foulMouth ? (battle ? buildLexicon() : buildMildLexicon()) : null,
+    opts.mode === "og" && swears ? (battle ? buildLexicon() : buildMildLexicon()) : null,
+    opts.mode === "og" && opts.foulMouth && opts.heat !== "battle" && opts.level != null
+      ? heatNote(opts.level)
+      : null,
     languageBlock,
     opts.firstReply ? FIRST_REPLY_NOTE : null,
     learnedBlock,
