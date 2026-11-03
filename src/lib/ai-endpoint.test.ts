@@ -23,6 +23,8 @@ beforeEach(() => {
   for (const k of Object.keys(process.env)) {
     if (/_API_KEY$|^GEMINI_/.test(k)) delete process.env[k];
   }
+  // These tests are about the keyed models; the keyless last resort has its own test.
+  process.env.POLLINATIONS_NO_KEY = "off";
 });
 afterEach(() => {
   globalThis.fetch = realFetch;
@@ -319,5 +321,40 @@ describe("OG B0T's voice", () => {
     );
     expect(provider).toBe("openrouter");
     expect(hits).toEqual(["openrouter"]);
+  });
+});
+
+describe("keyless free fallback", () => {
+  it("uses Pollinations' open endpoint last, with no key, before the paid model", async () => {
+    delete process.env.POLLINATIONS_NO_KEY;
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: { url: string; auth?: string }[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init: { headers: Record<string, string> }) => {
+        hits.push({ url, auth: init.headers.Authorization });
+        if (url.includes("groq")) return new Response("busy", { status: 503 });
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat({ messages: [{ role: "user", content: "hey" }] }, "u");
+    expect(provider).toBe("pollinations");
+    const open = hits.find((h) => h.url.includes("text.pollinations.ai"))!;
+    expect(open.auth).toBeUndefined();
+    expect(hits.some((h) => h.url.includes("generativelanguage"))).toBe(false);
+  });
+
+  it("can be switched off", async () => {
+    process.env.POLLINATIONS_NO_KEY = "off";
+    process.env.GEMINI_API_KEY = "g";
+    const urls: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        urls.push(url);
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi" } }] }));
+      }),
+    );
+    await fetchAiChat({ messages: [{ role: "user", content: "hey" }] }, "u");
+    expect(urls.some((u) => u.includes("text.pollinations.ai"))).toBe(false);
   });
 });

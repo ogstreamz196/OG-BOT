@@ -11,6 +11,8 @@ beforeEach(() => {
   for (const k of Object.keys(process.env)) {
     if (/_API_KEY$|^GEMINI_/.test(k)) delete process.env[k];
   }
+  // These tests are about the keyed models; the keyless last resort has its own test.
+  process.env.POLLINATIONS_NO_KEY = "off";
   aiTiming.foulHedgeMs = 5_000;
 });
 afterEach(() => {

@@ -54,6 +54,15 @@ const OR_HEADERS = { "HTTP-Referer": "https://ogbot.co.uk", "X-Title": "OG BOT" 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const POLL_URL = "https://gen.pollinations.ai/v1/chat/completions";
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
+/** Pollinations' open, keyless chat endpoint (free, rate-limited). */
+export const POLL_NO_KEY_URL = "https://text.pollinations.ai/openai";
+const POLL_NO_KEY_TARGET: AiChatTarget = {
+  url: POLL_NO_KEY_URL,
+  headers: { "Content-Type": "application/json" },
+  model: "openai",
+  provider: "pollinations",
+  free: true,
+};
 /** Passed the live Foul Mouth test (swears back reliably and fast). */
 export const FOUL_CAPABLE_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 
@@ -107,6 +116,9 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
         keyed("POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
         keyed("POLLINATIONS_BACKUP_API_KEY", "pollinations", POLL_URL, "openai-fast"),
         ...openrouter,
+        // Last resort, free and needs no key at all: Pollinations' open
+        // endpoint (rate-limited). Switch off with POLLINATIONS_NO_KEY=off.
+        ...(process.env.POLLINATIONS_NO_KEY === "off" ? [] : [POLL_NO_KEY_TARGET]),
       ];
   return list.filter((t): t is AiChatTarget => t !== null);
 }
