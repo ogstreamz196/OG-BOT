@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt, ensureMildFlavour } from "./og-persona.server";
-import { NUDGE_MARK, awakeHours, dueForNudge, pickNudge } from "./og-idle-nudge.server";
+import {
+  NUDGE_MARK,
+  awakeHours,
+  chatNudgeDue,
+  dueForNudge,
+  pickNudge,
+} from "./og-idle-nudge.server";
 
 const user = { display_name: null, email: null, coin_balance: 0, is_admin: false, is_vip: false };
 const base = { mode: "og" as const, bossScript: null, bossVoice: null, bossDictionary: null, user };
@@ -53,5 +59,17 @@ describe("the I'm bored nudge", () => {
   it("only in the daytime, UK time", () => {
     expect(awakeHours(Date.parse("2026-11-03T14:00:00Z"))).toBe(true);
     expect(awakeHours(Date.parse("2026-11-03T23:30:00Z"))).toBe(false);
+  });
+});
+
+describe("the signals chat's I'm bored message", () => {
+  const now = Date.parse("2026-11-03T14:00:00Z");
+  const ago = (m: number) => now - m * 60_000;
+  it("goes after an hour of quiet, then at most once an hour", () => {
+    expect(chatNudgeDue(ago(30), null, now)).toBe(false);
+    expect(chatNudgeDue(ago(61), null, now)).toBe(true);
+    expect(chatNudgeDue(ago(200), new Date(ago(20)).toISOString(), now)).toBe(false);
+    expect(chatNudgeDue(ago(200), new Date(ago(61)).toISOString(), now)).toBe(true);
+    expect(chatNudgeDue(NaN, null, now)).toBe(true);
   });
 });
