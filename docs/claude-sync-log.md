@@ -241,7 +241,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Swear level in steps
+- **Boss's Claude · 2026-11-03 · #230** · Swear level in steps
   (`src/lib/og-heat.ts`): everyone starts at 0 (clean, like the bored
   messages); first cuss → 45 and it disses them back, second → 60, +12
   per insult after, up to 100. Polite/plain chat eases it down, serious
