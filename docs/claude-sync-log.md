@@ -203,7 +203,7 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
-- **Boss's Claude · 2026-11-03 · #NEXT** · Boss: signals are free for every
+- **Boss's Claude · 2026-11-03 · #209** · Boss: signals are free for every
   member of the Telegram group. A signal request in a group (typed or a
   button) from someone with no connected account used to get the Connect
   nudge; now `freeGroupSignal` answers with the chart engine's card (no AI),
