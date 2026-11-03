@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Copy Trader win/loss fix
+- **Boss's Claude · 2026-11-03 · #234** · Copy Trader win/loss fix
   (`src/lib/signal-record.server.ts`): the streak/last-ten and "Won/Lost the
   last one" were ordered by signal creation time, so a trade that opened
   earlier but closed last (e.g. a BTC win that hit TP after a later loss)
