@@ -1083,6 +1083,25 @@ describe("telegram bot flow", () => {
         freeGroup: true,
       });
 
+      // The signals chat's always-on button: its text is a BTC scalp, the tap
+      // message is cleared at once, and the card tags the member instead.
+      const tapId = nextId++;
+      await post({
+        message: {
+          message_id: tapId,
+          text: "⚡ Generate BTC Signal Now",
+          chat: { id: GROUP, type: "group" },
+          from: { id: FRIEND, first_name: "Fai" },
+        },
+      });
+      expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
+      expect(deleted.has(tapId)).toBe(true);
+      const tapCard = groupSent().at(-1)!;
+      expect(tapCard.text).toContain("card");
+      expect(repliesTo(tapCard)).toBeUndefined();
+      expect(tags(tapCard)).toEqual([["Fai", FRIEND]]);
+      expect(ai.requests).toHaveLength(0);
+
       // Typed too: "/signal btc" from someone not connected gets the card, not the nudge.
       await post({
         message: {

@@ -203,6 +203,15 @@ merged work, not open work.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
 
+- **Boss's Claude · 2026-11-03 · #210** · An always-on "⚡ Generate BTC
+  Signal Now" button at the bottom of the signals chat: a persistent reply
+  keyboard (`GENERATE_SIGNAL_KEYBOARD`) on every results post, so it's
+  re-sent with each refresh. A tap is read as "signal btc"
+  (`isGenerateSignal`), the tap message is deleted, and the BTC scalp tags
+  the member (free for all, #209). One line only: Telegram can't break a
+  button's text. Needs OG B0T to stay admin in the signals chat (it sees the
+  tap). No migration.
+
 - **Boss's Claude · 2026-11-03 · #209** · Boss: signals are free for every
   member of the Telegram group. A signal request in a group (typed or a
   button) from someone with no connected account used to get the Connect
