@@ -28,6 +28,15 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-03 09:15, signals stalled):** #PR_NUM merged.
+  The Boss saw no signals from about 3am. Likely cause: #218's gate (live
+  from about 2am) held back any confidence band averaging under 0R (common
+  with the take profit inside the stop) and its 3-losses rule could never
+  reset with nothing posting. Now only clearly losing records (−0.3R or
+  worse) are held back, the streak rule is gone, and after 30 quiet minutes
+  the next alert always goes out. Not verified live (no Lovable connector
+  here): check the signals chat after the Boss publishes.
+
 - **Boss's Claude (2026-11-03, keyless AI):** #221 merged (no
   migrations). The API vault is still empty: the Boss adds keys himself
   (Claudes can't sign up for accounts, and the sandbox can't reach AI
@@ -219,6 +228,10 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Unstick the signal gate:
+  `POST_BAD_EDGE` −0.3R instead of any loss, the loss-streak rule removed,
+  and the 30-minute safety valve (`POST_QUIET_MIN`).
 
 - **Boss's Claude · 2026-11-03 · #221** · Free AI with no key:
   Pollinations' open endpoint is the last free model before paid Gemini

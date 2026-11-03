@@ -190,9 +190,20 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const strategy = rnd.strategyOf(s.plan.feeds ?? null);
           const chart =
             s.summary.timeframe.toLowerCase() as import("@/lib/signal-random.server").RandomFrame;
+          // How long since the signals bot last posted (the safety valve).
+          const { data: lastPost } = await supabaseAdmin
+            .from("trade_signals")
+            .select("created_at")
+            .eq("sender_worker", "trade")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const lastAt = Date.parse(
+            (lastPost as { created_at?: string }[] | null)?.[0]?.created_at ?? "",
+          );
           const d = postDecision({
             confidencePct: s.plan.confidencePct,
             ...learned,
+            minutesSinceLastPost: Number.isFinite(lastAt) ? (Date.now() - lastAt) / 60_000 : null,
             strategy: stats.strategies[strategy],
             chart: stats.frames[chart],
             strategyName: rnd.STRATEGY_NAMES[strategy],
