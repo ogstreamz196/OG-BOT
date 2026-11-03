@@ -247,7 +247,7 @@ export async function runOgChat(
       : "";
   // In the phone app: no trading content at all (store rules), whatever else the prompt says.
   const nativeAppNote = nativeApp
-    ? "\n\nPHONE APP (Google Play / App Store): this member is in the OG B0T phone app. Trading signals, market calls, entries, stops, targets, market bias, signal results, brokers and trading-account or copy-trading links are NOT part of the app. If they ask for any of that, say in one line, in your voice, that signals aren't in the app, and move on. Never give a trading call or a broker link here."
+    ? "\n\nPHONE APP (Google Play / App Store): this member is in the OG B0T phone app. Trading signals, market calls, entries, stops, targets, market bias, signal results, brokers and trading-account or copy-trading links are NOT part of the app. If they ask for any of that, say in one line, in your voice, that signals aren't in the app, and move on. Never give a trading call or a broker link here. The same goes for OG VAULT, the Vault Pass, IPTV or streaming logins, and installing apps from outside the app store (APKs, Downloader codes, sideloading): those aren't in the app either, so point them to ogbot.co.uk on the web in one line."
     : "";
   const system =
     baseSystem +

@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { StoreSectionHead } from "@/components/store/StoreSectionHead";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
+import { storeItemAllowed } from "@/lib/native-policy";
 import { arePaymentsEnabled } from "@/lib/stripe";
 import { StoreItemCard } from "@/components/store/StoreItemCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,7 +57,16 @@ export function StoreItemsSection() {
   const getVipStatus = useServerFn(getVipPassStatus);
   const buyVipPass = useServerFn(purchaseVipPass);
   const vipStatus = useQuery({ queryKey: ["vip-pass-status"], queryFn: () => getVipStatus() });
-  const categories = catalog.data?.categories ?? [];
+  // Some items are website-only (native-policy.ts): the Vault Pass isn't sold in the phone apps.
+  const [native, setNative] = useState(false);
+  useEffect(() => setNative(Capacitor.isNativePlatform()), []);
+  const categories = useMemo(
+    () =>
+      (catalog.data?.categories ?? [])
+        .map((c) => ({ ...c, items: c.items.filter((i) => storeItemAllowed(i.slug, native)) }))
+        .filter((c) => c.items.length > 0),
+    [catalog.data, native],
+  );
   const allItems = useMemo(() => categories.flatMap((category) => category.items), [categories]);
   useEffect(() => {
     if (allItems.length === 0 || typeof window === "undefined") return;

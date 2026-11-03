@@ -90,6 +90,16 @@ sync. Follow this every time.
   its own trades. So accuracy work goes on the signals bot: what it posts,
   how it reads the chart, and its estimate of when the next signal is
   likely. Change the copy bot only for how it copies (lots, tally, display).
+- **Phone apps stay store-safe (the Boss's rule, 2026-11-03, for every app).**
+  The Android/iOS apps load the live website, so anything that makes Google
+  Play or App Store approval hard hides itself in the app at runtime
+  (useIsNativeApp / Capacitor.isNativePlatform) and the website keeps it:
+  trading (signals, market calls, brokers, copy trading, MT5), OG VAULT and
+  the Vault Pass (IPTV logins, installing apps from outside the store), and
+  paying for digital goods outside the store's billing. List and helpers in
+  `src/lib/native-policy.ts`. New features like these are website-only from
+  the start. Never break the website to do it, and keep the Android project
+  building in Android Studio.
 - **Balance first, and no stop or take profit on the order book.** Protect
   profit before chasing it (the 70/30 profit lock, the trailing stop as a
   take profit is about to hit). When the real trading bot is built, orders
