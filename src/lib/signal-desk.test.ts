@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./ai-endpoint.server", () => ({
+  loadAiKeys: async () => undefined,
   freeFallbackTargets: () => [
     { url: "https://groq/a", headers: {}, model: "openai/gpt-oss-120b", provider: "groq" },
     { url: "https://groq/b", headers: {}, model: "qwen/qwen3.8-27b", provider: "groq" },
