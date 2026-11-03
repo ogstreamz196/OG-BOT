@@ -9,6 +9,7 @@ import {
   BACK_BUTTON,
   HOLDING_BUTTON,
   HOLDING_TEXT,
+  isGenerateSignal,
   SCALP_BUTTON,
   ONE_MINUTE_RE,
   SIGNAL_BUTTONS,
@@ -1709,11 +1710,21 @@ async function freeGroupSignal(
 ) {
   const { buildTradeSignal } = await import("@/lib/trade-signal-context.server");
   const s = await buildTradeSignal(ask).catch(() => null);
-  const text = s?.reply || "📉 The charts aren't answering right now. Try again in a minute.";
+  const card = s?.reply || "📉 The charts aren't answering right now. Try again in a minute.";
+  // Not a reply (a button tap's message is cleared): the member's name, tagged.
+  const who = !g.replyTo && g.user?.id ? (g.name || "You").slice(0, 40) : null;
+  const text = who ? `${who} 👇\n${card}` : card;
   const sent = (await tg("sendMessage", {
     chat_id: chatId,
     text,
     disable_web_page_preview: true,
+    ...(who
+      ? {
+          entities: [
+            { type: "text_mention", offset: 0, length: who.length, user: { id: g.user!.id } },
+          ],
+        }
+      : {}),
     ...groupSendExtra(g),
   })) as { result?: { message_id?: number } } | null;
   if (!s?.plan) return;
@@ -1878,6 +1889,8 @@ const GROUP_SIGNAL_BUTTONS = {
  * "signal btc", "roast @dave", "og who wins tonight", or just "help".
  */
 function plainCommand(line: string): { 1: string; 3: string } | null {
+  // The signals chat's "⚡ Generate BTC Signal Now" button: a Bitcoin scalp.
+  if (isGenerateSignal(line)) return { 1: "signal", 3: "btc" };
   const m = /^(signals?|roast|og|ask|help)\b[\s,:!.?-]*([\s\S]*)$/i.exec(line);
   if (!m) return null;
   const cmd = m[1].toLowerCase();
@@ -2023,8 +2036,14 @@ async function handleGroupMessage(
     ? { 1: slash[1], 3: slash[3] }
     : plainCommand(withoutMention(text));
 
+  // A tap on the "⚡ Generate BTC Signal Now" button: its message is cleared
+  // straight away (no wall of taps in the chat) and the signal tags the member
+  // instead of replying to it.
+  const tapped = !slash && isGenerateSignal(withoutMention(text));
+  if (tapped)
+    void tg("deleteMessage", { chat_id, message_id: msg.message_id }).catch(() => undefined);
   const ctx: GroupContext = {
-    replyTo: msg.message_id,
+    replyTo: tapped ? undefined : msg.message_id,
     thread,
     name: msg.from?.first_name,
     user: msg.from,

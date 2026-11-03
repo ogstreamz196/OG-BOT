@@ -7,10 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · signal-button · An always-on "⚡ Generate BTC Signal Now"
-  button at the bottom of the signals chat. Touches `signal-chat.server.ts`,
-  `telegram-signals.ts`, `telegram/webhook.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -206,6 +202,15 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-03 · #NEXT** · An always-on "⚡ Generate BTC
+  Signal Now" button at the bottom of the signals chat: a persistent reply
+  keyboard (`GENERATE_SIGNAL_KEYBOARD`) on every results post, so it's
+  re-sent with each refresh. A tap is read as "signal btc"
+  (`isGenerateSignal`), the tap message is deleted, and the BTC scalp tags
+  the member (free for all, #209). One line only: Telegram can't break a
+  button's text. Needs OG B0T to stay admin in the signals chat (it sees the
+  tap). No migration.
 
 - **Boss's Claude · 2026-11-03 · #209** · Boss: signals are free for every
   member of the Telegram group. A signal request in a group (typed or a

@@ -157,6 +157,11 @@ describe("refreshScore", () => {
     const sent = calls.find((c) => c.method === "sendMessage")!;
     expect(sent.bot).toBe("og");
     expect(sent.body.text).toMatch(/^📣 OG TRADE BOT RESULTS/);
+    // The always-on "⚡ Generate BTC Signal Now" button rides on it.
+    expect(sent.body.reply_markup).toMatchObject({
+      keyboard: [[{ text: "⚡ Generate BTC Signal Now" }]],
+      is_persistent: true,
+    });
     expect(sent.body.text).not.toMatch(/TODAY|70%/);
     expect(sent.body.disable_notification).toBe(true);
     // The old post goes, whichever bot sent it.

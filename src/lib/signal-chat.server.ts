@@ -171,8 +171,12 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     const copier = await copyBot(admin, chatId);
     const copying =
       copier && state ? await pa.copyingNow(admin, state).catch(() => [] as string[]) : [];
+    // The always-on "⚡ Generate BTC Signal Now" button rides on the results
+    // post, so it's re-sent with every refresh and can never fall away.
+    const { GENERATE_SIGNAL_KEYBOARD } = await import("./telegram-signals");
     const message = {
       chat_id: chatId,
+      reply_markup: GENERATE_SIGNAL_KEYBOARD,
       text: tally
         ? resultsAnnouncement(
             record,

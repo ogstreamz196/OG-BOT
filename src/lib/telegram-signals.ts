@@ -75,3 +75,25 @@ export function parseSignalAction(data: string) {
 export function signalRequest(pair: SignalPair, timeframe: SignalTimeframe) {
   return `${pair === "XAU" ? "XAUUSD" : "BTCUSD"} signal ${timeframe}`;
 }
+
+/**
+ * The always-on button at the bottom of the signals chat (the Boss's ask): a
+ * Telegram reply keyboard, shown to everyone in place of the phone keyboard
+ * and kept there (is_persistent). Telegram can't break a button's text over
+ * two lines, so it's one wide button. Tapping it sends this text, which OG
+ * B0T (an admin there, so it sees it) answers like "signal btc": a free
+ * Bitcoin scalp for whoever tapped.
+ */
+export const GENERATE_SIGNAL_TEXT = "⚡ Generate BTC Signal Now";
+
+export const GENERATE_SIGNAL_KEYBOARD = {
+  keyboard: [[{ text: GENERATE_SIGNAL_TEXT }]],
+  is_persistent: true,
+  resize_keyboard: true,
+  input_field_placeholder: "Tap ⚡ for a free BTC signal",
+} as const;
+
+/** Whether a group message is the button's tap (its text, give or take emoji and case). Pure. */
+export function isGenerateSignal(text: string): boolean {
+  return /^\W*generate\s+btc\s+signal(\s+now)?\W*$/iu.test(text.trim());
+}
