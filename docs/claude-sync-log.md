@@ -241,6 +241,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #229** · Swear level follows the
+  member (`src/lib/og-heat.ts`): starts at 0–45 per member, goes up when
+  they swear or come at the bot, down when they're polite or serious, read
+  from their last 12 messages, never shown. Replaces the app chat's fixed
+  DEMON level. Cuss battles stay savage. No Foul Mouth teaser message.
+
 - **Boss's Claude · 2026-11-03 · #228** · "Roast" → "cuss" everywhere
   people see it (screens, Telegram help, bot prompts with a never-say-roast
   rule). `/cuss` and `cuss @someone` work in groups; `/roast` still works.

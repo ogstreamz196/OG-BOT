@@ -1449,6 +1449,16 @@ async function runChatAI(
   // "How much did we make today?": the bot's own results book.
   const sr = await import("@/lib/signal-results.server");
   const resultsNote = sr.asksAboutResults(userText) ? await sr.signalResultsNote(admin) : "";
+  // How hard to swear follows the member (og-heat.ts), from their recent
+  // private messages and this one. Never shown to them.
+  const { conversationHeat } = await import("@/lib/og-heat");
+  const level = conversationHeat(profileId, [
+    ...((historyRes.data ?? []) as { role: string; content: string }[])
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .reverse(),
+    userText,
+  ]);
   // A private chat with no reply from OG B0T yet: polite this once.
   const firstReply =
     !group && !((historyRes.data ?? []) as { role: string }[]).some((m) => m.role === "assistant");
@@ -1460,6 +1470,7 @@ async function runChatAI(
       mode: "og",
       foulMouth,
       firstReply,
+      level,
       bossScript: personaMap.get("og_persona.script") ?? null,
       bossVoice: personaMap.get("og_persona.voice") ?? null,
       bossDictionary: personaMap.get("og_persona.dictionary") ?? null,
@@ -1574,9 +1585,10 @@ async function runChatAI(
         m.learnFromMessage(admin as never, profileId, userText, memories),
       );
     if (foulMouth && !firstReply) {
-      // Medium Foul Mouth: a mild swear now and then, never forced into every reply.
-      const { ensureMildFlavour } = await import("@/lib/og-persona.server");
-      replyText = ensureMildFlavour(replyText, Math.random);
+      // The touch of swearing that fits their level (og-heat.ts).
+      const { flavourForLevel } = await import("@/lib/og-persona.server");
+      const { isFriend } = await import("@/lib/og-bond");
+      replyText = flavourForLevel(replyText, level, Math.random, isFriend(bond.score));
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
 
