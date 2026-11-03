@@ -128,6 +128,42 @@ export function trailsThis(confidencePct: number, direction: "BUY" | "SELL", hig
   );
 }
 
+/**
+ * Balance first (the Boss's rule): as the take profit is about to hit
+ * (ARM, 90% of the way), the trade isn't closed there any more. It trails
+ * instead: the stop goes GAP of the take profit's distance behind the best
+ * price (never closer than SPREADS spreads, so bid/ask flicker can't knock it
+ * out; never under the profit lock's 30%), so at arming it locks 70% of the
+ * take profit, and follows the price from there, never back. Only a far cap
+ * (CAP times the distance) still closes it. Exits are market closes paying the
+ * spread (no stop or take profit sits on the broker's order book).
+ */
+export const TP_TRAIL = { ARM: 0.9, GAP: 0.2, SPREADS: 2, CAP: 3 } as const;
+
+/** The trailing stop and far cap once a trade is about to hit its take profit, or null. Pure. */
+export function tpTrailArm(o: {
+  direction: "BUY" | "SELL";
+  entry: number;
+  /** The take profit it was sent with. */
+  tp: number;
+  /** The best price since the entry (high for a buy, low for a sell). */
+  best: number;
+  /** The spread (ask minus bid) in price. */
+  spread: number;
+}): { stop: number; gap: number; cap: number } | null {
+  const side = o.direction === "BUY" ? 1 : -1;
+  const d = (o.tp - o.entry) * side;
+  if (!(d > 0) || !Number.isFinite(o.best)) return null;
+  const reach = ((o.best - o.entry) * side) / d;
+  // Not near yet, or the take profit was already hit (it closed there).
+  if (reach < TP_TRAIL.ARM || reach >= 1) return null;
+  const gap = Math.max(TP_TRAIL.GAP * d, TP_TRAIL.SPREADS * Math.max(0, o.spread));
+  const lock = o.entry + side * d * PROFIT_LOCK.keep;
+  const trail = o.best - side * gap;
+  const stop = side > 0 ? Math.max(trail, lock) : Math.min(trail, lock);
+  return { stop, gap, cap: o.entry + side * d * TP_TRAIL.CAP };
+}
+
 /** Where the profit lock triggers and where it puts the stop, or null for a bad take profit. */
 export function profitLock(
   direction: "BUY" | "SELL",

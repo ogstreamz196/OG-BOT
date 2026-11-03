@@ -12,6 +12,7 @@
 // Outcomes come straight from each signal's own tracked status, so signals
 // sent before the results book existed still count.
 import { resultFor, setupKey } from "./signal-results.server";
+import { profitLock } from "./trade-signal-outcome";
 import { RETIRED_IN, isRetiredMarket } from "./signal-markets";
 
 type Admin = any;
@@ -76,7 +77,12 @@ type SignalRow = {
   status: string;
   best_target: number;
   entered_at: string | null;
-  feeds: { bias?: boolean; trail?: { risk: number; stop?: number } } | null;
+  feeds: {
+    bias?: boolean;
+    trail?: { risk: number; stop?: number };
+    lock?: boolean;
+    tp0?: number;
+  } | null;
 };
 
 const ACTIVE = new Set(["pending", "open", "tp1", "tp2"]);
@@ -113,10 +119,19 @@ export function tallyRecord(signals: SignalRow[], since: string | null): SignalR
     seen.stopped ||= s.status === "stopped";
     seen.active ||= ACTIVE.has(s.status);
     seen.filled ||= !!s.entered_at || ENTERED.has(s.status);
-    const trailStop = Number(s.feeds?.trail?.stop);
-    if (s.status === "breakeven" && Number.isFinite(trailStop)) {
-      const gained = (trailStop - Number(s.entry)) * (s.direction === "BUY" ? 1 : -1);
-      seen.trailed = Math.max(seen.trailed, gained);
+    // Closed on a moved stop in profit (the trailing stop, else the profit
+    // lock): money made, so a win (the Boss: balance first; a lock exit used
+    // to count as neither).
+    if (s.status === "breakeven") {
+      const trailStop = Number(s.feeds?.trail?.stop);
+      const lock = s.feeds?.lock
+        ? profitLock(s.direction, Number(s.entry), Number(s.feeds.tp0 ?? s.tp1))
+        : null;
+      const exit = Number.isFinite(trailStop) ? trailStop : lock?.stop;
+      if (exit != null) {
+        const gained = (exit - Number(s.entry)) * (s.direction === "BUY" ? 1 : -1);
+        seen.trailed = Math.max(seen.trailed, gained);
+      }
     }
     setups.set(key, seen);
   }
