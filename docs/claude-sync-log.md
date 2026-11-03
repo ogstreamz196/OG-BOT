@@ -19,7 +19,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
-- **Boss's Claude (2026-11-03, choosy copy bot):** #PR_NUM merged (no
+- **Boss's Claude (2026-11-03, choosy copy bot):** #216 merged (no
   migrations). Everyone is watching the Copy Trader B0T's live test; the
   Boss wants its success rate up and to keep tweaking as we go. It now
   only copies alerts that pass `copyDecision` (src/lib/copy-filter.ts),
@@ -174,7 +174,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Choosy Copy Trader B0T. Before
+- **Boss's Claude · 2026-11-03 · #216** · Choosy Copy Trader B0T. Before
   each entry `copyDecision` decides whether the copy bot (the demo account)
   copies the alert: not when that confidence band has been losing, not under
   70% unless the band is proven, not when the alert's strategy or chart has
