@@ -1188,12 +1188,25 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   const rrs = plan.rr.split(" / ").map((r) => r.replace(/\.0$/, ""));
   // No clean setup: say so plainly instead of handing out levels to trade.
   // Nothing worth trading: short and rude, not an essay.
+  // What the chart is waiting for, and when the next signal is likely from
+  // how often the bot has really posted at this time of day (signal-eta.server.ts).
+  const marketShut = /\bclosed\b/i.test(plan.waitReason ?? "");
+  const etaRead =
+    plan.verdict === "wait" && !marketShut
+      ? await import("./signal-eta.server")
+          .then(async (e) => {
+            const mins = { "1M": 1, "5M": 5, "15M": 15, "1H": 60, "4H": 240 }[entryLabel] ?? 5;
+            return e.etaLine(plan.waitReason, await e.signalEta(inst.code, mins));
+          })
+          .catch(() => null)
+      : null;
   const waitCard = [
     `⏸ No signal · ${inst.label} · ${entryLabel}`,
     // Market shut (gold at the weekend): say that, not "the chart's a mess".
-    /\bclosed\b/i.test(plan.waitReason ?? "")
+    marketShut
       ? MARKET_SHUT_LINE
       : NO_SIGNAL_LINES[Math.floor(Math.random() * NO_SIGNAL_LINES.length)],
+    ...(etaRead ? [etaRead] : []),
   ].join("\n");
   // OG B0T talks its own trade through in the first person, plainly: what
   // it's doing and where, never telling anyone what to do. The levels

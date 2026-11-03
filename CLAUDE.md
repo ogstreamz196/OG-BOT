@@ -81,6 +81,11 @@ sync. Follow this every time.
   can't (a new migration Lovable must apply, a secret only the Boss can
   enter, or no Lovable connector in this session), say so, and remind the
   Boss that clicking Publish → Update in Lovable costs no credits.
+- **The Copy Trader B0T copies every signal, good or bad (the Boss's rule,
+  2026-11-03).** It copies everything the signals bot posts and never picks
+  its own trades. So accuracy work goes on the signals bot: what it posts,
+  how it reads the chart, and its estimate of when the next signal is
+  likely. Change the copy bot only for how it copies (lots, tally, display).
 - **Balance first, and no stop or take profit on the order book.** Protect
   profit before chasing it (the 70/30 profit lock, the trailing stop as a
   take profit is about to hit). When the real trading bot is built, orders
