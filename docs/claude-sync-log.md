@@ -19,6 +19,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-03, signal ETA):** #PR_NUM merged (no
+  migrations). New house rule in CLAUDE.md: the Copy Trader B0T copies
+  every signal, good or bad; all accuracy work goes on the signals bot.
+  "No signal" cards now say what the chart is waiting for and when the
+  next signal is likely.
+
 - **Boss's Claude (2026-11-03, signal gate):** #218 merged (no
   migrations). The Boss's rule: accuracy changes go on the signals bot;
   the Copy Trader B0T copies every signal it posts and only gets copy
@@ -188,6 +194,12 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · CLAUDE.md house rule: the
+  copy bot copies every signal; accuracy goes on the signals bot. "No
+  signal" cards end with "⏳ Waiting for … · next signal likely in about
+  …" (signal-eta.server.ts: the wait reason in plain words, and the time
+  from how often signals were posted at each hour over the last week).
 
 - **Boss's Claude · 2026-11-03 · #218** · Accuracy moved from the copy
   bot to the signals bot. #216's copy filter is now `postDecision`
