@@ -70,6 +70,7 @@ import { Route as AuthenticatedAdminOgPersonaRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin.onboarding'
 import { Route as AuthenticatedAdminReferralsAuditRouteImport } from './routes/_authenticated/admin.referrals-audit'
 import { Route as AuthenticatedAdminRouteMapRouteImport } from './routes/_authenticated/admin.route-map'
+import { Route as AuthenticatedAdminSignalsRouteImport } from './routes/_authenticated/admin.signals'
 import { Route as AuthenticatedAdminStoreRouteImport } from './routes/_authenticated/admin.store'
 import { Route as AuthenticatedAdminSystemRouteImport } from './routes/_authenticated/admin.system'
 import { Route as AuthenticatedAdminUserSettingsRouteImport } from './routes/_authenticated/admin.user-settings'
@@ -409,6 +410,12 @@ const AuthenticatedAdminRouteMapRoute =
     path: '/admin/route-map',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminSignalsRoute =
+  AuthenticatedAdminSignalsRouteImport.update({
+    id: '/admin/signals',
+    path: '/admin/signals',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminStoreRoute = AuthenticatedAdminStoreRouteImport.update({
   id: '/admin/store',
   path: '/admin/store',
@@ -626,6 +633,7 @@ export interface FileRoutesByFullPath {
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
   '/admin/route-map': typeof AuthenticatedAdminRouteMapRoute
+  '/admin/signals': typeof AuthenticatedAdminSignalsRoute
   '/admin/store': typeof AuthenticatedAdminStoreRoute
   '/admin/system': typeof AuthenticatedAdminSystemRoute
   '/admin/user-settings': typeof AuthenticatedAdminUserSettingsRoute
@@ -714,6 +722,7 @@ export interface FileRoutesByTo {
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
   '/admin/route-map': typeof AuthenticatedAdminRouteMapRoute
+  '/admin/signals': typeof AuthenticatedAdminSignalsRoute
   '/admin/store': typeof AuthenticatedAdminStoreRoute
   '/admin/system': typeof AuthenticatedAdminSystemRoute
   '/admin/user-settings': typeof AuthenticatedAdminUserSettingsRoute
@@ -804,6 +813,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
   '/_authenticated/admin/route-map': typeof AuthenticatedAdminRouteMapRoute
+  '/_authenticated/admin/signals': typeof AuthenticatedAdminSignalsRoute
   '/_authenticated/admin/store': typeof AuthenticatedAdminStoreRoute
   '/_authenticated/admin/system': typeof AuthenticatedAdminSystemRoute
   '/_authenticated/admin/user-settings': typeof AuthenticatedAdminUserSettingsRoute
@@ -894,6 +904,7 @@ export interface FileRouteTypes {
     | '/admin/onboarding'
     | '/admin/referrals-audit'
     | '/admin/route-map'
+    | '/admin/signals'
     | '/admin/store'
     | '/admin/system'
     | '/admin/user-settings'
@@ -982,6 +993,7 @@ export interface FileRouteTypes {
     | '/admin/onboarding'
     | '/admin/referrals-audit'
     | '/admin/route-map'
+    | '/admin/signals'
     | '/admin/store'
     | '/admin/system'
     | '/admin/user-settings'
@@ -1071,6 +1083,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/referrals-audit'
     | '/_authenticated/admin/route-map'
+    | '/_authenticated/admin/signals'
     | '/_authenticated/admin/store'
     | '/_authenticated/admin/system'
     | '/_authenticated/admin/user-settings'
@@ -1570,6 +1583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteMapRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/signals': {
+      id: '/_authenticated/admin/signals'
+      path: '/admin/signals'
+      fullPath: '/admin/signals'
+      preLoaderRoute: typeof AuthenticatedAdminSignalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/store': {
       id: '/_authenticated/admin/store'
       path: '/admin/store'
@@ -1809,6 +1829,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminReferralsAuditRoute: typeof AuthenticatedAdminReferralsAuditRoute
   AuthenticatedAdminRouteMapRoute: typeof AuthenticatedAdminRouteMapRoute
+  AuthenticatedAdminSignalsRoute: typeof AuthenticatedAdminSignalsRoute
   AuthenticatedAdminStoreRoute: typeof AuthenticatedAdminStoreRoute
   AuthenticatedAdminSystemRoute: typeof AuthenticatedAdminSystemRoute
   AuthenticatedAdminUserSettingsRoute: typeof AuthenticatedAdminUserSettingsRoute
@@ -1848,6 +1869,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminReferralsAuditRoute: AuthenticatedAdminReferralsAuditRoute,
   AuthenticatedAdminRouteMapRoute: AuthenticatedAdminRouteMapRoute,
+  AuthenticatedAdminSignalsRoute: AuthenticatedAdminSignalsRoute,
   AuthenticatedAdminStoreRoute: AuthenticatedAdminStoreRoute,
   AuthenticatedAdminSystemRoute: AuthenticatedAdminSystemRoute,
   AuthenticatedAdminUserSettingsRoute: AuthenticatedAdminUserSettingsRoute,

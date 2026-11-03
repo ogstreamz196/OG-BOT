@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
-import { ClipboardCheck, FlaskConical, History, KeyRound, ToggleRight, Wrench } from "lucide-react";
+import { ClipboardCheck, KeyRound, ToggleRight, Wrench } from "lucide-react";
 import { TransferReadiness } from "@/components/admin/TransferReadiness";
 import { ApiHub } from "@/components/admin/ApiHub";
 import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
@@ -19,31 +19,38 @@ import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 export const Route = createFileRoute("/_authenticated/admin/system")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
-  // The Stripe webhook moved to Money; old links follow it.
+  // Old links follow what moved: the Stripe webhook to Money, and
+  // Diagnostics and Boss actions into Tools & logs.
   beforeLoad: ({ search }) => {
     if (search.tab === "webhooks") {
       throw redirect({ to: "/admin/coins", search: { tab: "webhooks" } });
+    }
+    if (search.tab === "tests" || search.tab === "actions") {
+      throw redirect({ to: "/admin/system", search: { tab: "tools" } });
     }
   },
   component: AdminSystemHub,
 });
 
-/** One-click checks that used to be scattered across the old Overview desks. */
-function Diagnostics() {
-  return (
-    <>
-      <E2ESmokeTest />
-      <TelegramSmokeTest />
-      <FoulMouthSmokeTest />
-      <HardwiredCapabilities />
-    </>
-  );
-}
-
-/** Rarely needed tools, kept together so the tab bar stays short. */
-function MoreTools() {
+/**
+ * Checks, the Boss log and the rarely needed tools, on one tab so the tab bar
+ * stays short. Each panel is the same one it always was, just stacked.
+ */
+function ToolsAndLogs() {
   return (
     <div className="space-y-8">
+      <ToolSection
+        title="Diagnostics"
+        desc="Run a full app, Telegram or foul-mouth check when something feels off."
+      >
+        <E2ESmokeTest />
+        <TelegramSmokeTest />
+        <FoulMouthSmokeTest />
+        <HardwiredCapabilities />
+      </ToolSection>
+      <ToolSection title="Boss actions" desc="Everything done from Boss controls, newest first.">
+        <BossAuditLog />
+      </ToolSection>
       <ToolSection title="Route map" desc="Every page in the app.">
         <RouteMapPage />
       </ToolSection>
@@ -103,25 +110,11 @@ const TABS: readonly BossTab[] = [
     Panel: OnboardingWizard,
   },
   {
-    value: "tests",
-    label: "Diagnostics",
-    Icon: FlaskConical,
-    hint: "Run a full app, Telegram or foul-mouth check when something feels off.",
-    Panel: Diagnostics,
-  },
-  {
-    value: "actions",
-    label: "Boss actions",
-    Icon: History,
-    hint: "Everything done from Boss controls, newest first.",
-    Panel: BossAuditLog,
-  },
-  {
     value: "tools",
-    label: "More tools",
+    label: "Tools & logs",
     Icon: Wrench,
-    hint: "Route map, lyric debug and transfer readiness.",
-    Panel: MoreTools,
+    hint: "Diagnostics, the Boss actions log, route map, lyric debug and transfer readiness.",
+    Panel: ToolsAndLogs,
   },
 ];
 

@@ -13,14 +13,36 @@ export type BossTab = {
   Panel: ComponentType;
 };
 
+/** Where the last open tab of each Boss area is remembered (this browser only). */
+const lastTabKey = (path: string) => `og-boss-tab:${path}`;
+
+function readLastTab(path: string): string | null {
+  try {
+    return window.localStorage.getItem(lastTabKey(path));
+  } catch {
+    return null;
+  }
+}
+
+function saveLastTab(path: string, tab: string) {
+  try {
+    window.localStorage.setItem(lastTabKey(path), tab);
+  } catch {
+    // Private mode or blocked storage: just don't remember.
+  }
+}
+
 /**
  * Tab strip used by every Boss area page. The open tab is kept in `?tab=` so
- * the dashboard can link straight to it and a refresh stays put.
+ * the dashboard can link straight to it and a refresh stays put. Opening an
+ * area without `?tab=` goes back to the tab you last had open there. On phones
+ * the strip is a dropdown, so every tab is one tap away without scrolling.
  */
 export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: ReactNode }) {
   const routerTab = useRouterState({
     select: (s) => (s.location.search as Record<string, unknown> | undefined)?.tab,
   });
+  const path = useRouterState({ select: (s) => s.location.pathname });
   const pick = (t: unknown) =>
     typeof t === "string" && tabs.some((x) => x.value === t) ? t : tabs[0].value;
   const [tab, setTab] = useState(() => pick(routerTab));
@@ -32,8 +54,18 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   useEffect(() => centerActiveChild(listRef.current, '[data-state="active"]'), [tab]);
   const navigate = useNavigate();
 
+  // No ?tab= in the link: reopen the tab last used in this area (after load,
+  // so the server and the browser draw the same first page).
+  useEffect(() => {
+    if (routerTab !== undefined) return;
+    const last = readLastTab(path);
+    if (last && last !== tab && tabs.some((t) => t.value === last)) select(last);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path]);
+
   function select(next: string) {
     setTab(next);
+    saveLastTab(path, next);
     // Through the router (not history directly) so it knows the open tab.
     void navigate({
       to: ".",
@@ -46,9 +78,23 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   return (
     <Tabs value={tab} onValueChange={select} className="w-full">
       {intro}
+      <label className="mb-2 block sm:hidden">
+        <span className="sr-only">Section</span>
+        <select
+          value={tab}
+          onChange={(e) => select(e.target.value)}
+          className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm font-bold text-foreground"
+        >
+          {tabs.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
       <TabsList
         ref={listRef}
-        className="relative mb-2 flex h-auto w-full justify-start gap-4 overflow-x-auto whitespace-nowrap rounded-none border-0 border-b border-border/60 bg-transparent p-0 [scrollbar-width:none]"
+        className="relative mb-2 hidden h-auto sm:flex w-full justify-start gap-4 overflow-x-auto whitespace-nowrap rounded-none border-0 border-b border-border/60 bg-transparent p-0 [scrollbar-width:none]"
       >
         {tabs.map(({ value, label, Icon }) => (
           <TabsTrigger

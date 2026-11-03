@@ -7,12 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · boss-nav · Boss console navigation: Signals becomes its
-  own area (/admin/signals), Members filter chips, System's Tools & logs,
-  Boss search on every page (Ctrl/Cmd+K), phone tab dropdown, remembered
-  tabs, Needs attention first. Touches `src/routes/_authenticated/admin.*`,
-  `src/components/admin/Boss*`, `boss-search.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -24,6 +18,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Boss's Claude (2026-11-03, Boss nav):** #PR_NUM merged (no migrations).
+  Signals is its own Boss area at `/admin/signals` (Controls, Results,
+  Report, Backtest, Bots); `/admin/bot?tab=signals|telegram` redirect there.
+  System's Diagnostics, Boss actions and More tools are one "Tools & logs"
+  tab (`?tab=tools`; old `tests`/`actions` redirect). New Signals panels go
+  on `admin.signals.tsx`, not `admin.bot.tsx`.
 
 - **Partner's Claude (2026-11-02, gold retired):** #205 merged (no
   migrations). Signals are Bitcoin only. **Don't add gold back** anywhere
@@ -150,6 +151,20 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Boss console navigation, the
+  Boss's five asks. (1) Signals moved out of OG B0T into its own area,
+  `/admin/signals`, with tabs Controls (portal, demo/start fresh, MT5),
+  Results, Report, Backtest and Bots (webhook, worker fleet, groups). The
+  panels are the same components, only moved. OG B0T keeps Persona,
+  Health, Your alerts and Live users. (2) Members' filter chips combine
+  (VIP + Telegram = VIP members with Telegram); "All" clears them.
+  (3) System: Diagnostics, Boss actions and More tools are one "Tools &
+  logs" tab. (4) Boss search: Ctrl/Cmd+K or "/" jumps to it from any Boss
+  page. (5) On phones the tab strip is a dropdown; each area reopens the
+  tab you last used (this browser only, when the link has no `?tab=`);
+  "Needs your attention" is first on the dashboard. Every old link
+  redirects; boss-search entries and tests updated.
 
 - **2026-11-02 · partner's Claude · #206 · Claudes publish and check it
   themselves.** The Boss asked for Lovable to do as little as possible.

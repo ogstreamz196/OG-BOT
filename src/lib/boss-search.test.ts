@@ -26,7 +26,8 @@ describe("Boss search registry", () => {
 describe("searchSettings", () => {
   test("finds switches by what they do, title hits first", () => {
     expect(searchSettings("free access")[0].title).toBe("Free access for everyone");
-    expect(searchSettings("mt5")[0].tab).toBe("signals");
+    expect(searchSettings("mt5")[0].tab).toBe("controls");
+    expect(searchSettings("mt5")[0].to).toBe("/admin/signals");
     expect(searchSettings("foul")[0].to).toBe("/settings");
     expect(searchSettings("stripe")[0].tab).toBe("webhooks");
   });
