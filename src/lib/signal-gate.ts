@@ -2,9 +2,9 @@
 // "make any tweaks to signal bot in terms of accuracy"; the Copy Trader B0T
 // copies every signal it posts). Just before an automatic alert goes out
 // (postOnce's gate), postDecision holds it back when its record says it's a
-// loser: its confidence band, its strategy or its chart has been losing, it's
-// under 70% without a winning record, or the last three lost and it's under
-// 80%. A held-back alert is followed silently as a shadow trade
+// loser: its confidence band, its strategy or its chart has been clearly
+// losing (POST_BAD_EDGE), or it's under 70% without a winning record. If
+// nothing has been posted for POST_QUIET_MIN, the next alert goes out anyway. A held-back alert is followed silently as a shadow trade
 // ("losing_record"), so learning still sees it. Records come from posted
 // signals over 60 days, so a blocked strategy or chart gets another go once
 // its losing trades age out of that window.
@@ -12,46 +12,56 @@ import { RANDOM_MIN_TRADES, type StrategyStats } from "./signal-random.server";
 
 /** Alerts under this need a winning record at their confidence to be posted. */
 export const POST_MIN_CONFIDENCE = 70;
-/** After this many losses in a row it only posts the surest alerts (POST_COOL_CONFIDENCE). */
-export const POST_COOL_STREAK = 3;
-export const POST_COOL_CONFIDENCE = 80;
 /** Settled calls needed before a record (edge, strategy, chart) can rule a trade out. */
 export const POST_MIN_RECORD = 8;
+/**
+ * A record only rules alerts out when it's clearly losing: an average of
+ * this many risks per trade or worse. A small average loss isn't enough
+ * (with the take profit inside the stop, a decent win rate can still average
+ * a little under zero), or nearly everything would be held back.
+ */
+export const POST_BAD_EDGE = -0.3;
+/**
+ * The safety valve (2026-11-03, after the gate held back everything for
+ * hours): when nothing has been posted for this long, the next alert goes
+ * out whatever its record, so the chat never goes quiet and the records
+ * keep getting fresh trades to learn from.
+ */
+export const POST_QUIET_MIN = 30;
 
 export type PostInputs = {
   confidencePct: number;
   /** Average result in risks of recent settled calls at this confidence, and how many. */
   edge?: number | null;
   edgeTrades?: number;
-  /** The signals' losses in a row (the demo account's, which copies them all), newest first. */
-  lossStreak?: number;
   /** The record of the strategy and the chart this alert came from. */
   strategy?: StrategyStats;
   chart?: StrategyStats;
   /** Names for the reason line. */
   strategyName?: string;
   chartName?: string;
+  /** Minutes since the signals bot last posted anything (null: never or unknown). */
+  minutesSinceLastPost?: number | null;
 };
 
-const losing = (s: StrategyStats | undefined, min: number) => !!s && s.n >= min && s.sumR < 0;
+const clearlyLosing = (s: StrategyStats | undefined) =>
+  !!s && s.n >= RANDOM_MIN_TRADES && s.sumR / s.n <= POST_BAD_EDGE;
 
 /** Whether the signals bot posts this alert, and why not. Pure. */
 export function postDecision(o: PostInputs): { post: true } | { post: false; why: string } {
+  // Quiet for a while: post, so the chat (and the learning) never stalls.
+  if (o.minutesSinceLastPost == null || o.minutesSinceLastPost >= POST_QUIET_MIN)
+    return { post: true };
   const sure = o.confidencePct;
   const proven =
     o.edge != null && Number.isFinite(o.edge) && (o.edgeTrades ?? 0) >= POST_MIN_RECORD;
-  if (proven && o.edge! < 0)
+  if (proven && o.edge! <= POST_BAD_EDGE)
     return { post: false, why: `calls at ${sure}% have been losing lately` };
   if (sure < POST_MIN_CONFIDENCE && !(proven && o.edge! > 0))
     return { post: false, why: `only ${sure}% sure` };
-  if (losing(o.strategy, RANDOM_MIN_TRADES))
+  if (clearlyLosing(o.strategy))
     return { post: false, why: `${o.strategyName ?? "this strategy"} has been losing` };
-  if (losing(o.chart, RANDOM_MIN_TRADES))
+  if (clearlyLosing(o.chart))
     return { post: false, why: `the ${o.chartName ?? "chart"} has been losing` };
-  if ((o.lossStreak ?? 0) >= POST_COOL_STREAK && sure < POST_COOL_CONFIDENCE)
-    return {
-      post: false,
-      why: `${o.lossStreak} losses in a row, so only ${POST_COOL_CONFIDENCE}%+ until it wins again`,
-    };
   return { post: true };
 }
