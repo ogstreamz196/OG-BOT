@@ -98,9 +98,83 @@ describe("random strategy signals", () => {
     expect(strategyOf({ strategy: "nonsense", setup: "Wick rejection" })).toBe("wick_rejection");
   });
 
-  it("gives a random signal every 20 to 45 minutes now Bitcoin has gold's room", async () => {
+  it("gives a random signal every 10 to 25 minutes (the Boss: more signals, free)", async () => {
     const { RANDOM_EVERY_MIN, RANDOM_MIN_CONFIDENCE } = await import("./signal-random.server");
-    expect(RANDOM_EVERY_MIN).toEqual([20, 45]);
+    expect(RANDOM_EVERY_MIN).toEqual([10, 25]);
     expect(RANDOM_MIN_CONFIDENCE).toBe(60);
+  });
+});
+
+describe("more signals that win more", () => {
+  it("leans towards the charts making money", async () => {
+    const { pickFrame } = await import("./signal-random.server");
+    const stats = {
+      "1m": { n: 30, wins: 10, losses: 20, sumR: -6 },
+      "15m": { n: 30, wins: 20, losses: 10, sumR: 5 },
+    };
+    const rand = seeded(9);
+    const picks: Record<string, number> = {};
+    for (let i = 0; i < 2000; i++) {
+      const f = pickFrame(stats, rand);
+      picks[f] = (picks[f] ?? 0) + 1;
+    }
+    expect(picks["15m"] ?? 0).toBeGreaterThan(picks["1m"] ?? 0);
+  });
+
+  it("tallies each chart from the stored timeframe", async () => {
+    const { tallyFrames } = await import("./signal-random.server");
+    const row = (timeframe: string, status: string) => ({
+      direction: "BUY" as const,
+      entry: 100,
+      stop: 90,
+      tp1: 108,
+      status,
+      best_target: status === "tp1" ? 1 : 0,
+      feeds: null,
+      timeframe,
+    });
+    const out = tallyFrames(
+      [row("5M", "tp1"), row("5M", "stopped"), row("1H", "tp1"), row("4H", "tp1")],
+      (r) => (r.best_target >= 1 ? 0.8 : -1),
+    );
+    expect(out["5m"]).toMatchObject({ n: 2, wins: 1, losses: 1 });
+    expect(out["1h"]).toMatchObject({ n: 1, wins: 1 });
+    expect(Object.keys(out)).toHaveLength(2);
+  });
+
+  it("skips a quick signal against the 1-hour trend", async () => {
+    const { againstTheHour } = await import("./signal-random.server");
+    expect(againstTheHour("5m", "BUY", { direction: "SELL", confidencePct: 65 })).toBe(true);
+    expect(againstTheHour("5m", "BUY", { direction: "SELL", confidencePct: 55 })).toBe(false);
+    expect(againstTheHour("5m", "BUY", { direction: "BUY", confidencePct: 80 })).toBe(false);
+    expect(againstTheHour("1h", "BUY", { direction: "SELL", confidencePct: 90 })).toBe(false);
+    expect(againstTheHour("1m", "SELL", undefined)).toBe(false);
+  });
+
+  it("doesn't post when the hour reads the other way", async () => {
+    const { maybeRandomSignal } = await import("./signal-broadcast.server");
+    const admin = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({ maybeSingle: async () => ({ data: null }) }),
+        }),
+      }),
+    };
+    const post = vi.fn(async () => 1);
+    const out = await maybeRandomSignal(admin, {
+      build: async (ask: string) =>
+        ask.endsWith("1h")
+          ? { reply: "", plan: { direction: "SELL", confidencePct: 72 } }
+          : {
+              reply: "🟢 buy\n⏱ 1M · 💪 75%",
+              plan: { market: "BTCUSD", direction: "BUY", confidencePct: 75 },
+            },
+      read: async () => ({ signal: { reply: "" }, desk: null }),
+      post,
+      now: () => Date.parse("2026-11-03T12:00:00Z"),
+      rand: () => 0,
+    } as never);
+    expect(out).toBe("engine BTC 1m: against the 1h trend");
+    expect(post).not.toHaveBeenCalled();
   });
 });

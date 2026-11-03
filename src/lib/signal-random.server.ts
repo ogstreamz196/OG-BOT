@@ -25,8 +25,17 @@ export const STRATEGY_NAMES: Record<Strategy, string> = {
   ...SETUP_NAMES,
 };
 
-/** How often a random signal is due: somewhere between these (minutes). */
-export const RANDOM_EVERY_MIN = [20, 45] as const;
+/** How often a random signal is due: somewhere between these (minutes). Free: no AI unless the desk is picked. */
+export const RANDOM_EVERY_MIN = [10, 25] as const;
+/** The charts a random signal can be read on; the picker leans towards the ones winning. */
+export const RANDOM_FRAMES = ["1m", "5m", "15m", "1h"] as const;
+export type RandomFrame = (typeof RANDOM_FRAMES)[number];
+/**
+ * A quick signal (1m, 5m, 15m) is skipped when the 1-hour chart reads the
+ * other way at this confidence or more: trading with the bigger trend wins
+ * more often. Free (one more chart read, no AI).
+ */
+export const HOUR_AGAINST_CONFIDENCE = 60;
 /** The lowest confidence a random signal is posted at (a request-style read, but never a coin toss). */
 export const RANDOM_MIN_CONFIDENCE = 60;
 /** Trades a strategy needs before its losses count against it. */
@@ -117,12 +126,12 @@ export function strategyOf(feeds: Record<string, unknown> | null | undefined): S
   return "engine";
 }
 
-/** The strategy to try now. Pure (given `rand`). */
-export function pickStrategy(
-  stats: Partial<Record<Strategy, StrategyStats>>,
+/** The option scoring best now (strategyScore). Pure (given `rand`). */
+function pickBest<K extends string>(
+  allowed: readonly K[],
+  stats: Partial<Record<K, StrategyStats>>,
   rand: () => number,
-  allowed: Strategy[] = STRATEGIES,
-): Strategy {
+): K {
   let best = allowed[0];
   let top = -Infinity;
   for (const s of allowed) {
@@ -130,6 +139,56 @@ export function pickStrategy(
     if (v > top) ((top = v), (best = s));
   }
   return best;
+}
+
+/** The strategy to try now. Pure (given `rand`). */
+export function pickStrategy(
+  stats: Partial<Record<Strategy, StrategyStats>>,
+  rand: () => number,
+  allowed: Strategy[] = STRATEGIES,
+): Strategy {
+  return pickBest(allowed, stats, rand);
+}
+
+/** The chart to read now, leaning towards the ones making money, same as strategies. Pure (given `rand`). */
+export function pickFrame(
+  stats: Partial<Record<RandomFrame, StrategyStats>>,
+  rand: () => number,
+): RandomFrame {
+  return pickBest(RANDOM_FRAMES, stats, rand);
+}
+
+/** Each chart's record (stored timeframes are "5M", "1H"), from the same rows as tallyStrategies. Pure. */
+export function tallyFrames(
+  rows: (StrategyRow & { timeframe?: string | null })[],
+  inRisks: (r: StrategyRow) => number | null,
+): Partial<Record<RandomFrame, StrategyStats>> {
+  const out: Partial<Record<RandomFrame, StrategyStats>> = {};
+  for (const r of rows) {
+    const f = String(r.timeframe ?? "").toLowerCase() as RandomFrame;
+    if (!RANDOM_FRAMES.includes(f) || r.feeds?.bias) continue;
+    const res = inRisks(r);
+    if (res == null) continue;
+    const t = (out[f] ??= { n: 0, wins: 0, losses: 0, sumR: 0 });
+    t.n++;
+    t.sumR += res;
+    if (res > 0) t.wins++;
+    else if (res < 0) t.losses++;
+  }
+  return out;
+}
+
+/**
+ * Whether a quick signal goes against the 1-hour chart: the hour reads the
+ * other side at HOUR_AGAINST_CONFIDENCE or more. Pure.
+ */
+export function againstTheHour(
+  frame: RandomFrame,
+  direction: "BUY" | "SELL",
+  hour: { direction: "BUY" | "SELL"; confidencePct: number } | undefined,
+): boolean {
+  if (frame === "1h" || !hour) return false;
+  return hour.direction !== direction && hour.confidencePct >= HOUR_AGAINST_CONFIDENCE;
 }
 
 /** The ask that builds a strategy's signal ("BTCUSD signal 5m setup:flag_continuation"). */
@@ -150,27 +209,39 @@ export function tagStrategy(card: string, s: Strategy): string {
  * it still trades over the last `days` (60 for the picker; strategyOf; read only; results in
  * risks, resultInRisks). Never throws.
  */
-export async function strategyStats(
+export async function signalStats(
   admin: Admin,
   now = Date.now(),
   days = 60,
-): Promise<Partial<Record<Strategy, StrategyStats>>> {
+): Promise<{
+  strategies: Partial<Record<Strategy, StrategyStats>>;
+  frames: Partial<Record<RandomFrame, StrategyStats>>;
+}> {
   try {
     const { resultInRisks } = await import("./paper-account.server");
     const { data } = await admin
       .from("trade_signals")
-      .select("direction, entry, stop, tp1, status, best_target, feeds")
+      .select("direction, entry, stop, tp1, status, best_target, feeds, timeframe")
       .eq("sender_worker", "trade")
       .in("market", [...SIGNAL_MARKETS])
       .not("status", "in", "(pending,open,tp1,tp2)")
       .gte("created_at", new Date(now - days * 86_400_000).toISOString())
       .limit(5000);
-    return tallyStrategies((data ?? []) as StrategyRow[], (r) =>
-      resultInRisks(r as Parameters<typeof resultInRisks>[0]),
-    );
+    const rows = (data ?? []) as (StrategyRow & { timeframe?: string | null })[];
+    const inR = (r: StrategyRow) => resultInRisks(r as Parameters<typeof resultInRisks>[0]);
+    return { strategies: tallyStrategies(rows, inR), frames: tallyFrames(rows, inR) };
   } catch {
-    return {};
+    return { strategies: {}, frames: {} };
   }
+}
+
+/** Each strategy's record (signalStats). Never throws. */
+export async function strategyStats(
+  admin: Admin,
+  now = Date.now(),
+  days = 60,
+): Promise<Partial<Record<Strategy, StrategyStats>>> {
+  return (await signalStats(admin, now, days)).strategies;
 }
 
 /** One line per strategy for the Boss: "Flag continuation: 7 of 11 won (+2.4R)". */
