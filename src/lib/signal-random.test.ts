@@ -98,9 +98,9 @@ describe("random strategy signals", () => {
     expect(strategyOf({ strategy: "nonsense", setup: "Wick rejection" })).toBe("wick_rejection");
   });
 
-  it("gives a random signal every 10 to 25 minutes (the Boss: more signals, free)", async () => {
+  it("gives a random signal every 4 to 12 minutes (the Boss: more signals, free)", async () => {
     const { RANDOM_EVERY_MIN, RANDOM_MIN_CONFIDENCE } = await import("./signal-random.server");
-    expect(RANDOM_EVERY_MIN).toEqual([10, 25]);
+    expect(RANDOM_EVERY_MIN).toEqual([4, 12]);
     expect(RANDOM_MIN_CONFIDENCE).toBe(60);
   });
 });
