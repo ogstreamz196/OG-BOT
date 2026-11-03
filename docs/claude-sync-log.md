@@ -241,7 +241,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · "Roast" → "cuss" everywhere
+- **Boss's Claude · 2026-11-03 · #228** · "Roast" → "cuss" everywhere
   people see it (screens, Telegram help, bot prompts with a never-say-roast
   rule). `/cuss` and `cuss @someone` work in groups; `/roast` still works.
   Internal names unchanged. Also refreshed the Planned list (OG VAULT's
