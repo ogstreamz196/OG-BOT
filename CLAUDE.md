@@ -60,6 +60,10 @@ sync. Follow this every time.
   do nothing, never crash. Migrations are idempotent (`IF NOT EXISTS`).
 - Brand: **OG B0T** (letter O, zero only in B0T). Never "Supabase" in
   anything users see. No blue text: foreground, muted, emerald, rose, amber.
+- **Never use the word "roast" (the Boss's rule, 2026-11-03).** Say **cuss
+  battle** (to cuss = to diss someone for fun) in anything you write: app
+  copy, bot replies, cards, docs and messages to the Boss. Old "roast" text
+  still in the app gets changed to cuss/cuss battle when the Boss says so.
 - Never commit, paste, print or log secrets or Telegram API URLs.
 - Never edit `src/routeTree.gen.ts` by hand. Route files export only `Route`.
 - No AI model names or IDs in commits, PRs or code.

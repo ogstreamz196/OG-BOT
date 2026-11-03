@@ -245,6 +245,10 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #224** · House rule in CLAUDE.md: never
+  say "roast", say "cuss battle" (cuss = diss for fun). The app still has
+  about 40 files with "roast" in their copy; they change when the Boss asks.
+
 - **Boss's Claude · 2026-11-03 · #222** · Unstick the signal gate:
   `POST_BAD_EDGE` −0.3R instead of any loss, the loss-streak rule removed,
   and the 30-minute safety valve (`POST_QUIET_MIN`).
