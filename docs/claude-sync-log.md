@@ -19,6 +19,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-03, more signals):** #PR_NUM merged (no
+  migrations). The Boss's focus now: win rate up, and more signals for
+  free. Keep replies to the Boss about outcomes, not backend detail. Random
+  signals every 10–25 min, the chart picked by what's winning, quick ones
+  skipped against the 1h trend.
+
 - **Boss's Claude (2026-11-03, later):** #214 merged (no migrations).
   Signals → Results has the Strategy scoreboard; Signals → Backtest has
   "Take profit size", a read-only replay of stored setups with today's
@@ -161,6 +167,13 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · More signals, higher win rate,
+  all free (no AI). Random signals every 10–25 minutes (was 20–45). The
+  chart (1m/5m/15m/1h) is picked by `pickFrame`, leaning towards the charts
+  making money like `pickStrategy`, from one `signalStats` read. A 1m/5m/15m
+  random signal is skipped when the 1-hour chart leans the other way at 60%+
+  (`againstTheHour`).
 
 - **Boss's Claude · 2026-11-03 · #214** · Two of the Boss's picks.
   (1) Strategy scoreboard on Signals → Results: each strategy's trades,

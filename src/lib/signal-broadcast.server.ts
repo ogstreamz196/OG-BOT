@@ -621,10 +621,11 @@ export async function maybeRandomSignal(admin: Admin, deps: RandomDeps): Promise
       .maybeSingle();
     const due = Date.parse((data as { value?: string } | null)?.value ?? "");
     if (Number.isFinite(due) && now < due) return "not due";
-    const strategy = rnd.pickStrategy(await rnd.strategyStats(admin, now), rand);
+    // The strategy and the chart, each leaning towards what's been making money.
+    const stats = await rnd.signalStats(admin, now);
+    const strategy = rnd.pickStrategy(stats.strategies, rand);
     const pair = BROADCAST_MARKETS[Math.floor(rand() * BROADCAST_MARKETS.length)];
-    const frames: SignalTimeframe[] = ["1m", "5m", "15m", "1h"];
-    const frame = frames[Math.floor(rand() * frames.length)];
+    const frame: SignalTimeframe = rnd.pickFrame(stats.frames, rand);
     const ask = rnd.strategyAsk(signalRequest(pair, frame), strategy);
     let signal: Built;
     if (strategy === "desk") {
@@ -643,12 +644,20 @@ export async function maybeRandomSignal(admin: Admin, deps: RandomDeps): Promise
     const plan = signal.plan;
     if (!plan || plan.confidencePct < rnd.RANDOM_MIN_CONFIDENCE)
       return `${strategy} ${pair} ${frame}: nothing now`;
+    // A quick one against the 1-hour trend isn't posted (free: a chart read, no AI).
+    if (frame !== "1h") {
+      const h = await deps.build(signalRequest(pair, "1h")).catch(() => null);
+      // The hour's lean even when it's a wait (summary), else its trade.
+      const hour = h?.summary ?? h?.plan;
+      if (rnd.againstTheHour(frame, plan.direction, hour))
+        return `${strategy} ${pair} ${frame}: against the 1h trend`;
+    }
     signal = { ...signal, plan: { ...plan, feeds: { ...(plan.feeds ?? {}), strategy } } };
     const posted = await postOnce(admin, deps, signal, (s) =>
       rnd.tagStrategy(compactCard(s.reply), strategy),
     );
     if (!posted) return `${strategy} ${pair} ${frame}: not posted`;
-    // Posted: the next one somewhere in the next 30 to 90 minutes.
+    // Posted: the next one somewhere in RANDOM_EVERY_MIN (10 to 25 minutes).
     const [lo, hi] = rnd.RANDOM_EVERY_MIN;
     const next = new Date(now + (lo + rand() * (hi - lo)) * 60_000).toISOString();
     await admin
