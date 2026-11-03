@@ -7,11 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Boss's Claude · button-everywhere · The "⚡ Generate BTC Signal Now"
-  button in every bot's chats (OG B0T private and groups where it can see
-  taps, worker bots' private chats), old signal sub-menus removed. Touches
-  `telegram/webhook.ts`, `worker-bots/$id.ts`, `telegram-signals.ts`, tests.
-
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -207,6 +202,17 @@ merged work, not open work.
   are untouched. No migrations.
 
 <!-- Newest first. Who · date · PR · what changed · migration? · anything left for later -->
+
+- **Boss's Claude · 2026-11-03 · #NEXT** · The ⚡ button everywhere, old
+  signal menus gone (Boss's ask). OG B0T's private bar: ⚡ full width, then
+  Menu | Clear chat (unlinked: ⚡, then Clear chat | site, a free
+  chart-engine signal). The 📈 Signals sub-menu and the group coin picker are
+  gone (Bitcoin only); old buttons still on screens keep working and swap in
+  the new bar. Groups get the button only where OG B0T hears taps (privacy
+  off or admin; `hearsTaps`, `ensureGroupButton`, once a day). Worker bots'
+  private chats carry it too and answer a tap with a BTC scalp. 1 min stays
+  Boss-only. `telegram-flow.test.ts` rewritten for the new bar (7 tests that
+  described the old menus) plus 2 new. No migration.
 
 - **Boss's Claude · 2026-11-03 · #210** · An always-on "⚡ Generate BTC
   Signal Now" button at the bottom of the signals chat: a persistent reply

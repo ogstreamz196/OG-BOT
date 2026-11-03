@@ -8,15 +8,15 @@ import { SPORTS_GUIDE_CHAT_ID, detectSport, detectEventTime } from "@/lib/sports
 import {
   BACK_BUTTON,
   HOLDING_BUTTON,
-  HOLDING_TEXT,
+  GENERATE_SIGNAL_KEYBOARD,
+  GENERATE_SIGNAL_TEXT,
   isGenerateSignal,
+  oldSignalBarButton,
   SCALP_BUTTON,
   ONE_MINUTE_RE,
   SIGNAL_BUTTONS,
   SIGNALS_BUTTON,
-  SIGNALS_TEXT,
   parseSignalAction,
-  signalButtonRows,
   signalRequest,
   withoutOneMinute,
 } from "@/lib/telegram-signals";
@@ -222,8 +222,8 @@ async function handleCallbackQuery(cq: {
           : "",
     );
     if (action.kind !== "run" || memberOneMinute) {
-      // An old in-chat picker: signals live in the bottom bar now.
-      await setKeys(chatId, SIGNALS_TEXT, kb(signalButtonRows(staff)));
+      // An old in-chat picker: signals are the bottom bar's ⚡ button now.
+      await setKeys(chatId, MAIN_KEYS_TEXT, USER_KEYBOARD);
       await tidyScreens(chatId);
     } else {
       // The picker and anything else from the menu go; the signal comes next.
@@ -696,8 +696,10 @@ async function clearRecentChat(chat_id: number, upToMessageId: number) {
   if (ids.length) await tg("deleteMessages", { chat_id, message_ids: ids });
 }
 
-// The bottom bar is always showing: Menu, Signals and Clear chat. Menu opens
-// one panel of the important things (inline buttons under the message).
+// The bottom bar is always showing: the full-width "⚡ Generate BTC Signal
+// Now" button (Bitcoin is the only market, so one tap, no signal sub-menu),
+// then Menu and Clear chat. Menu opens one panel of the important things
+// (inline buttons under the message).
 const kb = (rows: string[][]) => ({
   keyboard: rows.map((r) => r.map((text) => ({ text }))),
   resize_keyboard: true,
@@ -706,9 +708,9 @@ const kb = (rows: string[][]) => ({
 const MENU = "📂 Menu";
 const CLEAR = "🧹 Clear chat";
 const SITE = "🌐 OGBOT.CO.UK";
-const USER_KEYBOARD = kb([[MENU, SIGNALS_BUTTON, CLEAR]]);
-// Before linking there's nothing to open yet, so just the basics.
-const UNLINKED_KEYBOARD = kb([[CLEAR, SITE]]);
+const USER_KEYBOARD = kb([[GENERATE_SIGNAL_TEXT], [MENU, CLEAR]]);
+// Before linking: signals are free for everyone, then the basics.
+const UNLINKED_KEYBOARD = kb([[GENERATE_SIGNAL_TEXT], [CLEAR, SITE]]);
 // Buttons from the old category menu, still on some members' screens.
 const OLD_MENU_BUTTONS = new Set([
   "🔙 Categories",
@@ -1696,8 +1698,8 @@ function groupSendExtra(g: GroupContext) {
 }
 
 /**
- * Signals are free for every member of an OG B0T group (the Boss's rule): a
- * member who hasn't connected an account still gets the signal, straight from
+ * Signals are free for everyone (the Boss's rule): a group member or a
+ * private chat with no connected account still gets the signal, straight from
  * the chart engine (no AI, so none of the AI keys are spent). It's followed
  * and counted like any other signal, filed under the Boss's account with the
  * member as the requester. Linked members keep the AI's answer.
@@ -1874,15 +1876,48 @@ async function isBossTelegramUser(
   return (await isAdmin(admin, profile.id)).admin;
 }
 
-const GROUP_SIGNAL_TEXT =
-  "📈 <b>Live signals</b>\nTap a coin for a ⚡ scalp (5-minute chart), or 🕐 holding for 1-hour 👇";
-const GROUP_SIGNAL_BUTTONS = {
-  inline_keyboard: [
-    // Bitcoin only: gold is retired (signal-markets.ts).
-    [{ text: "₿ BTC", callback_data: "gsig:BTC:5m" }],
-    [{ text: "🕐 BTC · Holding", callback_data: "gsig:BTC:1h" }],
-  ],
-};
+/**
+ * Whether OG B0T sees a plain "⚡ Generate BTC Signal Now" tap in a group:
+ * only when Telegram lets it read every message (Group Privacy off) or it's
+ * an admin there. Anywhere else the button would do nothing, so it isn't
+ * shown (members can still type /signal). Cached 6 hours per group.
+ */
+async function hearsTaps(chatId: number): Promise<boolean> {
+  if ((await botInfo()).readsAll) return true;
+  return cached(`tg-hears-taps:${chatId}`, 6 * 3_600_000, async () => {
+    const me = (await tg("getMe", {})) as { result?: { id?: number } } | null;
+    if (!me?.result?.id) return false;
+    const member = (await tg("getChatMember", { chat_id: chatId, user_id: me.result.id })) as {
+      result?: { status?: string };
+    } | null;
+    return ["administrator", "creator"].includes(member?.result?.status ?? "");
+  });
+}
+
+/**
+ * Puts the always-on "⚡ Generate BTC Signal Now" button at the bottom of a
+ * group (a persistent reply keyboard everyone sees), at most once a day per
+ * group, and only where OG B0T hears the taps. The signals chat gets it on
+ * every results post instead. Never throws.
+ */
+async function ensureGroupButton(chatId: number) {
+  try {
+    const { isSignalsChat } = await import("@/lib/signal-chat.server");
+    if (await isSignalsChat(chatId)) return;
+    if (!(await hearsTaps(chatId))) return;
+    await cached(`tg-group-button:${chatId}`, 24 * 3_600_000, async () => {
+      await tg("sendMessage", {
+        chat_id: chatId,
+        text: "⚡ Free BTC signals for everyone here: tap the button below any time 👇",
+        reply_markup: GENERATE_SIGNAL_KEYBOARD,
+        disable_notification: true,
+      });
+      return true;
+    });
+  } catch {
+    /* the button's a nice-to-have */
+  }
+}
 
 /**
  * A group message that starts with a command word, typed without the "/":
@@ -2109,13 +2144,12 @@ async function handleGroupMessage(
       ask = arg;
     } else if (cmd === "start" || cmd === "help") {
       await answer(GROUP_HELP);
+      await ensureGroupButton(chat_id);
       return Response.json({ ok: true, group: "help" });
     } else if (cmd === "signal" || cmd === "signals") {
-      const pair = /\b(gold|xau)/i.test(arg) ? "XAU" : /\b(btc|bitcoin)/i.test(arg) ? "BTC" : null;
-      if (!pair) {
-        await answer(GROUP_SIGNAL_TEXT, { reply_markup: GROUP_SIGNAL_BUTTONS });
-        return Response.json({ ok: true, group: "signals" });
-      }
+      // Bitcoin is the only market, so no picker: a bare /signal is a BTC
+      // scalp (gold still gets its "retired" line).
+      const pair = /\b(gold|xau)/i.test(arg) ? "XAU" : "BTC";
       // A scalp unless they ask for holding.
       ask = signalRequest(pair, /\b(hold|holding|1\s?h|swing)\b/i.test(arg) ? "1h" : "5m");
       signalAsk = true;
@@ -2184,11 +2218,13 @@ async function handleGroupMessage(
   const profileId = await linkedProfileId(admin, fromId);
   if (!profileId && signalAsk) {
     await freeGroupSignal(admin, chat_id, ask, ctx);
+    await ensureGroupButton(chat_id);
     return Response.json({ ok: true, group: "free_signal" });
   }
   if (!profileId) return nudge();
   const { roles } = await isAdmin(admin, profileId);
   await runChatAI(admin, profileId, chat_id, ask, roles, ctx);
+  if (signalAsk) await ensureGroupButton(chat_id);
   return Response.json({ ok: true, group: "answered" });
 }
 
@@ -2398,25 +2434,32 @@ async function handleTelegramUpdate(
       void tg("deleteMessage", { chat_id, message_id: tapId });
     }
 
-    // Signals swap the bottom bar for the signal buttons, which then stay put
-    // however many signals are run, until Back.
-    if (trimmed === SIGNALS_BUTTON || /^\/signals(?:@\w+)?$/i.test(trimmed)) {
-      await setKeys(chat_id, SIGNALS_TEXT, kb(signalButtonRows(isBoss)));
+    // A button from the old signals bar (📈 Signals → BTC / Holding / Back):
+    // the new bar goes in first, then the tap does what it said.
+    if (oldSignalBarButton(trimmed)) await setKeys(chat_id, MAIN_KEYS_TEXT, USER_KEYBOARD);
+    if (trimmed === BACK_BUTTON) {
       await tidyScreens(chat_id);
-      return Response.json({ ok: true, signals: "menu" });
+      return Response.json({ ok: true, menu: "back" });
     }
-    // Holding swaps the coin buttons for 1-hour signals; Scalp swaps back.
-    if (trimmed === HOLDING_BUTTON || trimmed === SCALP_BUTTON) {
-      const holding = trimmed === HOLDING_BUTTON;
-      await setKeys(
+    // 📈 Signals, /signals and Scalp: a Bitcoin scalp; Holding: a 1-hour one.
+    if (
+      trimmed === SIGNALS_BUTTON ||
+      trimmed === SCALP_BUTTON ||
+      trimmed === HOLDING_BUTTON ||
+      /^\/signals(?:@\w+)?$/i.test(trimmed)
+    ) {
+      await tidyScreens(chat_id);
+      await runChatAI(
+        admin,
+        linkedProfile.id,
         chat_id,
-        holding ? HOLDING_TEXT : SIGNALS_TEXT,
-        kb(signalButtonRows(isBoss, holding ? "holding" : "scalp")),
+        signalRequest("BTC", trimmed === HOLDING_BUTTON ? "1h" : "5m"),
+        roles,
       );
-      await tidyScreens(chat_id);
-      return Response.json({ ok: true, signals: holding ? "holding" : "scalp" });
+      return Response.json({ ok: true, signals: "run" });
     }
-    // A signal button in the bottom bar: straight to the live signal.
+    // A signal button (⚡ Generate BTC Signal Now, or an old coin button):
+    // straight to the live signal.
     const signalButton = Object.hasOwn(SIGNAL_BUTTONS, trimmed) ? SIGNAL_BUTTONS[trimmed] : null;
     if (signalButton && (!signalButton.bossOnly || isBoss)) {
       await tidyScreens(chat_id);
@@ -2428,11 +2471,6 @@ async function handleTelegramUpdate(
         roles,
       );
       return Response.json({ ok: true, signals: "run" });
-    }
-    if (trimmed === BACK_BUTTON) {
-      await setKeys(chat_id, MAIN_KEYS_TEXT, USER_KEYBOARD);
-      await tidyScreens(chat_id);
-      return Response.json({ ok: true, menu: "back" });
     }
     if (trimmed === MENU || /^\/menu\b/i.test(trimmed) || OLD_MENU_BUTTONS.has(trimmed)) {
       // An old category keyboard gets swapped back to the normal bottom bar first.
@@ -2744,6 +2782,19 @@ async function handleTelegramUpdate(
       if (mid) await clearRecentChat(chat_id, mid);
       await reply(chat_id, `${INTRO_TEXT}\n\n${LINK_STEPS}`, { reply_markup: UNLINKED_KEYBOARD });
       return Response.json({ ok: true, cleared: true });
+    }
+    // Signals are free for everyone: the ⚡ button (or an old Signals button)
+    // gets a Bitcoin scalp straight from the chart engine (no AI).
+    if (isGenerateSignal(unlinkedText) || oldSignalBarButton(unlinkedText)) {
+      const mid = (msg as { message_id?: number }).message_id;
+      if (mid) void tg("deleteMessage", { chat_id, message_id: mid });
+      await freeGroupSignal(
+        admin,
+        chat_id,
+        signalRequest("BTC", unlinkedText === HOLDING_BUTTON ? "1h" : "5m"),
+        { name: msg.from?.first_name },
+      );
+      return Response.json({ ok: true, free_signal: true });
     }
     if (unlinkedText === SITE) {
       await reply(chat_id, "🌐 <b>OG B0T on the web</b>", {
