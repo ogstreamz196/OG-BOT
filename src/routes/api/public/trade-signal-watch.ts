@@ -39,9 +39,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // The setups that weren't sent, followed silently for the Boss's report.
           const { followShadows } = await import("@/lib/signal-shadows.server");
           const shadows = await followShadows(supabaseAdmin);
-          // Quiet for an hour: OG B0T says it's bored, with a gold or BTC fact (og-idle-nudge.server.ts).
-          const { maybeIdleNudges } = await import("@/lib/og-idle-nudge.server");
-          const idle = await maybeIdleNudges(supabaseAdmin);
+          // Signals chat quiet for an hour: OG B0T says it's bored, with a gold or BTC fact.
+          const { maybeSignalsChatNudge } = await import("@/lib/og-idle-nudge.server");
+          const idle = await maybeSignalsChatNudge(supabaseAdmin);
           // Not busy (nothing to send this minute): study past signals and learn.
           const { maybeLearn } = await import("@/lib/signal-learning.server");
           const learning = events === 0 ? await maybeLearn(supabaseAdmin) : "busy";

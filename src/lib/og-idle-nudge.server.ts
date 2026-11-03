@@ -1,20 +1,14 @@
-// When it's gone quiet (the Boss, 2026-11-03): an hour after a member's last
-// message with OG B0T, OG B0T sends them one friendly "I'm bored" message on
-// Telegram with a random gold or Bitcoin fact and a conversation starter.
-// Never sweary, no AI (a fixed list, so it's free and the facts are right),
-// once per quiet spell: the nudge is saved as OG B0T's own message (with an
-// invisible mark), so nothing more goes until the member writes again. Only
-// for members with Telegram linked who chatted in the last day, between 9am
-// and 10pm UK time, a few per run, checked at most every 5 minutes.
+// When it's gone quiet (the Boss, 2026-11-03): OG B0T says it's bored in the
+// signals chat, with a random gold or Bitcoin fact and a conversation starter
+// (maybeSignalsChatNudge). Never sweary, no AI (a fixed list, so it's free and
+// the facts are right), only between 9am and 10pm UK time. dueForNudge is kept
+// for private chats but nothing sends those (the Boss wants the signals chat).
 type Admin = any;
 
 /** Quiet this long after the last message before the nudge. */
 export const IDLE_AFTER_MS = 60 * 60_000;
 /** Only members who chatted within this window get one. */
 const LOOK_BACK_MS = 24 * 3600_000;
-const RUN_EVERY_MS = 5 * 60_000;
-const PER_RUN = 10;
-const RUN_KEY = "og.idleNudge.lastRun";
 /** Invisible mark on a nudge, so it's never sent twice for one quiet spell. */
 export const NUDGE_MARK = "⁣";
 
@@ -88,56 +82,81 @@ export function awakeHours(now = Date.now()): boolean {
   return hour >= 9 && hour < 22;
 }
 
-/** Sends the nudges due now. Never throws; returns a short summary. */
-export async function maybeIdleNudges(admin: Admin, now = Date.now()): Promise<string> {
+const CHAT_KEY = "signals.chat.boredAt";
+
+/**
+ * The signals chat (the Boss: "all this is for the signals chat"): after an
+ * hour with nothing new in it (no alert, no update, no member's signal), OG
+ * B0T posts one friendly "I'm bored" message with a gold or BTC fact, and
+ * again each hour it stays quiet, between 9am and 10pm UK. The last one is
+ * deleted when the next goes up, so they never pile up. Never sweary, no AI.
+ * Never throws; returns a short summary.
+ */
+export async function maybeSignalsChatNudge(admin: Admin, now = Date.now()): Promise<string> {
   try {
     if (!awakeHours(now)) return "night";
-    const { data: run } = await admin
+    const { signalsChatId } = await import("./signal-chat.server");
+    const chatId = await signalsChatId();
+    if (chatId == null) return "no signals chat";
+    const { data: last } = await admin
+      .from("signal_chat_messages")
+      .select("created_at")
+      .eq("chat_id", chatId)
+      .in("kind", ["card", "update"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const lastActivity = Date.parse(
+      (last as { created_at: string }[] | null)?.[0]?.created_at ?? "",
+    );
+    const { data: row } = await admin
       .from("site_content")
       .select("value")
-      .eq("key", RUN_KEY)
+      .eq("key", CHAT_KEY)
       .maybeSingle();
-    const last = Date.parse((run as { value?: string } | null)?.value ?? "");
-    if (Number.isFinite(last) && now - last < RUN_EVERY_MS) return "not due";
-    await admin
-      .from("site_content")
-      .upsert({ key: RUN_KEY, value: new Date(now).toISOString() }, { onConflict: "key" });
-
-    const { data: rows, error } = await admin
-      .from("og_messages")
-      .select("user_id, role, content, created_at")
-      .gte("created_at", new Date(now - LOOK_BACK_MS).toISOString())
-      .order("created_at", { ascending: false })
-      .limit(3000);
-    if (error) return "no messages";
-    const due = dueForNudge((rows ?? []) as ChatRow[], now);
-    if (!due.length) return "none";
-
-    const { data: people } = await admin
-      .from("profiles")
-      .select("id, telegram_chat_id")
-      .in("id", due.slice(0, 200))
-      .not("telegram_chat_id", "is", null);
-    const linked = ((people ?? []) as { id: string; telegram_chat_id: number }[]).slice(0, PER_RUN);
-    if (!linked.length) return "none linked";
-
+    const prev = parseBored((row as { value?: string } | null)?.value);
+    if (!chatNudgeDue(lastActivity, prev?.at ?? null, now)) return "not due";
+    const text = pickNudge();
     const { telegramApi } = await import("./telegram-api.server");
-    let sent = 0;
-    for (const p of linked) {
-      const text = pickNudge();
-      // Saved first, so a slow send can't make the next run nudge again.
-      const { error: saveErr } = await admin
-        .from("og_messages")
-        .insert({ user_id: p.id, role: "assistant", content: text + NUDGE_MARK });
-      if (saveErr) continue;
-      // Blocked the bot, or Telegram busy: the saved nudge still stops repeats.
-      const res = await telegramApi("sendMessage", { chat_id: p.telegram_chat_id, text }).catch(
+    const sent = await telegramApi<{ message_id?: number }>("sendMessage", {
+      chat_id: chatId,
+      text,
+      disable_notification: true,
+    });
+    const id = sent?.ok ? sent.result?.message_id : undefined;
+    if (!id) return "failed: couldn't post";
+    // Only the newest one stays in the chat.
+    if (prev?.id)
+      await telegramApi("deleteMessage", { chat_id: chatId, message_id: prev.id }).catch(
         () => null,
       );
-      if (res?.ok) sent++;
-    }
-    return `sent ${sent}`;
+    await admin
+      .from("site_content")
+      .upsert(
+        { key: CHAT_KEY, value: JSON.stringify({ at: new Date(now).toISOString(), id }) },
+        { onConflict: "key" },
+      );
+    return "posted";
   } catch {
     return "failed";
   }
+}
+
+function parseBored(raw: string | null | undefined): { at: string; id?: number } | null {
+  try {
+    const v = JSON.parse(raw ?? "");
+    return v && typeof v.at === "string" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether the signals chat is due an "I'm bored" message: quiet for an hour
+ * (or nothing ever posted) and the last one at least an hour ago. Pure.
+ */
+export function chatNudgeDue(lastActivity: number, lastNudge: string | null, now: number): boolean {
+  const quiet = !Number.isFinite(lastActivity) || now - lastActivity >= IDLE_AFTER_MS;
+  const t = lastNudge ? Date.parse(lastNudge) : NaN;
+  const spaced = !Number.isFinite(t) || now - t >= IDLE_AFTER_MS;
+  return quiet && spaced;
 }
