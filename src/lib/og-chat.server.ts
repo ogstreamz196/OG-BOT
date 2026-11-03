@@ -199,9 +199,12 @@ export async function runOgChat(
     tradePromise,
     bondPromise,
   ]);
+  // No reply from OG B0T yet in this conversation: polite this once.
+  const firstReply = !data.messages.some((m) => m.role === "assistant");
   const baseSystem = buildSystemPrompt({
     mode: data.mode,
     foulMouth,
+    firstReply,
     bossScript: personaMap.get("og_persona.script") ?? null,
     bossVoice: personaMap.get("og_persona.voice") ?? null,
     bossDictionary: personaMap.get("og_persona.dictionary") ?? null,
@@ -226,7 +229,7 @@ export async function runOgChat(
   data.messages.splice(0, data.messages.length, ...cleanHistory);
   const bal = profile.coin_balance ?? 0;
   const dissNote =
-    `\n\nDISS TRACK HUSTLE: You are a roast battle bot first. Take the piss out of the user, and casually fish for personal ammo one question at a time (name or nickname, where they're from, job, mates, ex, football team, bad habits, what they're proud of). Remember what they tell you and throw it back at them. The user's current OG coin balance is ${bal}; say it out loud if they ask about coins or balance. A personalised diss track about them costs ${da.DISS_TRACK_COST} OG coins, or ${da.DISS_TRACK_PRICE_GBP} to buy those coins. Never invent prices.` +
+    `\n\nDISS TRACK HUSTLE: Keep it friendly. Now and then, casually ask one light question about them (name or nickname, where they're from, football team, what they're proud of) and remember the answers for a cuss battle later; never push. The user's current OG coin balance is ${bal}; say it out loud if they ask about coins or balance. A personalised diss track about them costs ${da.DISS_TRACK_COST} OG coins, or ${da.DISS_TRACK_PRICE_GBP} to buy those coins. Never invent prices.` +
     (ambush
       ? `\n\nAMBUSH NOW: End this reply with 1–2 lines asking if they want to hear a diss track made about them from what they've said. Mention it's ${da.DISS_TRACK_COST} coins (they have ${bal}) or ${da.DISS_TRACK_PRICE_GBP}, and that they can keep chatting for now. Buttons appear under your message — don't write links.`
       : "");
@@ -390,10 +393,15 @@ export async function runOgChat(
     void import("@/lib/og-memory.server").then((m) =>
       m.learnFromMessage(supabaseAdmin as never, context.userId, lastUserText, memories),
     );
-    if (data.mode === "og" && foulMouth && (!data.language || /^english$/i.test(data.language))) {
-      const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
-      const { isFriend } = await import("@/lib/og-bond");
-      reply = ensureFoulFlavour(reply, Math.random, isFriend(bond.score));
+    if (
+      data.mode === "og" &&
+      foulMouth &&
+      !firstReply &&
+      (!data.language || /^english$/i.test(data.language))
+    ) {
+      // Medium Foul Mouth: a mild swear now and then, never forced into every reply.
+      const { ensureMildFlavour } = await import("@/lib/og-persona.server");
+      reply = ensureMildFlavour(reply, Math.random);
     }
     if (promo) {
       const { ensureCodeInReply } = await import("@/lib/vip-promo.server");
