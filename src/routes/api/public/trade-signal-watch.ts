@@ -42,6 +42,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // Signals chat quiet for an hour: OG B0T says it's bored, with a gold or BTC fact.
           const { maybeSignalsChatNudge } = await import("@/lib/og-idle-nudge.server");
           const idle = await maybeSignalsChatNudge(supabaseAdmin);
+          // Cheeky banter in the Sports Guide group about games coming up / just gone.
+          const { maybeSportsGroupBanter } = await import("@/lib/sports-group.server");
+          const sportsBanter = await maybeSportsGroupBanter(supabaseAdmin);
           // Not busy (nothing to send this minute): study past signals and learn.
           const { maybeLearn } = await import("@/lib/signal-learning.server");
           const learning = events === 0 ? await maybeLearn(supabaseAdmin) : "busy";
@@ -59,6 +62,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             mt5,
             promo,
             idle,
+            sportsBanter,
             learning,
             filters,
             spreads,

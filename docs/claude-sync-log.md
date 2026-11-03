@@ -248,6 +248,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Sports Guide group chat
+  (`src/lib/sports-group.server.ts`): in the Boss's sports group OG B0T now
+  reads and chats, not just mirrors. Members (unlocked guide / VIP) get royal
+  treatment + the fixtures on "which game is on"; non-members get a cheeky
+  block and a push to join. Random cheeky banter about games to come / just
+  gone every ~3h (cron, daytime). No AI, no new tables (reuses
+  sports_guide_posts + site_content, so the data still moves off Lovable).
+  Only verifiable live over Telegram.
+
 - **Boss's Claude · 2026-11-03 · #230** · Swear level in steps
   (`src/lib/og-heat.ts`): everyone starts at 0 (clean, like the bored
   messages); first cuss → 45 and it disses them back, second → 60, +12
