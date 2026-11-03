@@ -245,7 +245,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · The "I'm bored" message moved
+- **Boss's Claude · 2026-11-03 · #226** · The "I'm bored" message moved
   to the signals chat (the Boss's correction): after an hour with no alert
   or update there, OG B0T posts a friendly gold/BTC fact, at most hourly,
   9am–10pm UK, replacing the previous one. Private chats get none now.
