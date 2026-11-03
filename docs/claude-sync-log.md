@@ -15,9 +15,28 @@ add to it before merging. See `CLAUDE.md` for the routine.
   `wrangler.jsonc`, a deploy workflow, sign-in, `src/routes/lovable/email`,
   the database client.
 
+## Planned (not started)
+
+<!-- The Boss's shared to-do list: ideas agreed but not built yet. -->
+
+- **OG KEYS**, the Boss's own password and API key manager, later an
+  add-on like OG Ledger. Plan in `docs/og-keys-plan.md`. A coming-soon card
+  is on the home pages and the Boss's API vault (System → API keys) is its
+  first piece. Waiting on the Boss (low on credits) and an empty repo.
+
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Boss's Claude (2026-11-03, API vault and OG KEYS teaser):** #220
+  merged (no migrations). For the partner: the Boss made a hub secret key
+  named `og_bot` (OGSTREAMZ → Settings → API Keys) only for OG B0T and
+  added it in Lovable as `OG_HUB_SERVICE_KEY`; OG B0T's server uses it to
+  read `og_bot.ai_keys`. Still to do on the Boss's side: add `og_bot` to
+  the hub's exposed schemas (Settings → Data API). If the takeover's
+  Worker needs a hub key, it can reuse that secret or get its own. The
+  Boss → System → API keys section is now called "API vault"; it moves
+  into OG KEYS later (`docs/og-keys-plan.md`).
 
 - **Boss's Claude (2026-11-03, signal ETA):** #219 merged (no
   migrations). New house rule in CLAUDE.md: the Copy Trader B0T copies
@@ -194,6 +213,13 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #220** · OG KEYS teaser: a
+  coming-soon card (last in the mode grid on the landing page and the
+  members' home, art made from the master logo) and the plan in
+  `docs/og-keys-plan.md`, listed under Planned. The key section in Boss →
+  System → API keys is renamed "API vault". Partner told about the
+  `og_bot` hub key / `OG_HUB_SERVICE_KEY`.
 
 - **Boss's Claude · 2026-11-03 · #219** · CLAUDE.md house rule: the
   copy bot copies every signal; accuracy goes on the signals bot. "No

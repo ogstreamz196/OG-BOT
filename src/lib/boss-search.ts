@@ -239,7 +239,7 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "services connectors ping secrets",
   },
   {
-    title: "Extra free AI keys",
+    title: "API vault (extra free AI keys)",
     where: area("System", "API keys"),
     to: "/admin/system",
     tab: "apis",

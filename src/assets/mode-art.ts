@@ -10,6 +10,8 @@ import carrom from "./og-carrom.webp";
 import carrom480 from "./og-carrom-480.webp";
 import signals from "./og-signals.webp";
 import signals480 from "./og-signals-480.webp";
+import ogKeys from "./og-keys.webp";
+import ogKeys480 from "./og-keys-480.webp";
 
 export type ModeArt = { src: string; srcSet: string };
 
@@ -25,4 +27,6 @@ export const modeArt = {
   sportsGuide: { src: sportsGuide, srcSet: `${sportsGuide} 480w` },
   carrom: art(carrom480, carrom),
   signals: art(signals480, signals),
+  // Coming-soon teaser (scripts/brand/make-og-keys-teaser.py, from the master logo).
+  ogKeys: art(ogKeys480, ogKeys),
 };

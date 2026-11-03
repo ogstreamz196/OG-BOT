@@ -73,8 +73,8 @@ export function ExtraAiKeysPanel() {
   return (
     <AdminSection
       icon={<KeyRound className="h-4 w-4 text-emerald-400" />}
-      title="Extra free AI keys"
-      subtitle="Add as many free Pollinations, OpenRouter and Gemini keys as you like. They're stored encrypted in your own OGSTREAMZ database, not on Lovable, and the bot tries them first. When none are added or they're all used up, it falls back to the keys it already has. A key is never shown again after you add it."
+      title="API vault"
+      subtitle="Your extra free AI keys. Add as many Pollinations, OpenRouter and Gemini keys as you like. They're stored encrypted in your own OGSTREAMZ database, not on Lovable, and the bot tries them first. When none are added or they're all used up, it falls back to the keys it already has. A key is never shown again after you add it. This vault moves into OG KEYS, your own password and key manager, when it's built."
     >
       {keys.isLoading ? (
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
