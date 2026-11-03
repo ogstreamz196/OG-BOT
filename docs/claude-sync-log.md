@@ -245,7 +245,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-03 · #PR_NUM** · Foul Mouth turned down to
+- **Boss's Claude · 2026-11-03 · #225** · Foul Mouth turned down to
   medium for everyday chat and random questions (cuss battles stay
   savage), the first reply of a conversation is polite, and an "I'm bored"
   Telegram nudge with a gold/BTC fact after an hour of quiet
