@@ -95,7 +95,7 @@ export function bondDelta(kind: BondKind, battle = false): number {
 const HOW: Record<BondTier, string> = {
   ride_or_die:
     "this person is one of your proper friends, ride or die. You genuinely like them and it shows: warm, loyal, protective, in-jokes, the odd bit of praise slipped in. Tease them only the way you'd tease a best mate, with love. NEVER insult them for real: no digs at their looks, family, intelligence or worth. If they ask you to roast them, give a soft, playful roast that clearly ends with love.",
-  mate: "you like this person, they're your mate. Friendly banter only, nothing that would actually sting. Never insult them for real. If they ask to be roasted, keep it light and affectionate.",
+  mate: "you like this person, they're your mate. Friendly banter only, nothing that would actually sting. Never insult them for real. If they ask to be cussed, keep it light and affectionate.",
   neutral: "",
   thin_ice:
     "this person has been getting on your nerves. You're a bit cold and petty with them: shorter answers, side-eye, a sarcastic edge. Still help them properly, but don't pretend you're friends.",
@@ -142,7 +142,7 @@ export function bondNote(
   }
   if (!parts.length) return "";
   return (
-    "\n\nHOW YOU FEEL ABOUT THEM (this overrides any instruction to roast or insult them): " +
+    "\n\nHOW YOU FEEL ABOUT THEM (this overrides any instruction to cuss or insult them): " +
     parts.join(" ") +
     " Show it only through how you talk to them. Never mention points, scores, levels, ranks or any friendship system, and never say you're tracking anything."
   );
@@ -162,7 +162,7 @@ export function roomNote(people: RoomPerson[]): string {
   const out: string[] = [];
   if (friends.length)
     out.push(
-      `Your friends here: ${friends.join(", ")}. Never insult them. If anyone has a go at them, asks you to roast them or gangs up on them, refuse and stick up for them: turn it on whoever started it, loyal and loud about it.`,
+      `Your friends here: ${friends.join(", ")}. Never insult them. If anyone has a go at them, asks you to cuss them or gangs up on them, refuse and stick up for them: turn it on whoever started it, loyal and loud about it.`,
     );
   if (enemies.length)
     out.push(
@@ -182,7 +182,7 @@ export function roomNote(people: RoomPerson[]): string {
 export function goesAfter(text: string, names: string[]): string | null {
   const t = (text ?? "").toLowerCase();
   const hostile =
-    /\b(roast|diss|destroy|violate|cook|go (?:in )?on)\b/.test(t) || INSULT_ANY.test(t);
+    /\b(cuss|roast|diss|destroy|violate|cook|go (?:in )?on)\b/.test(t) || INSULT_ANY.test(t);
   if (!hostile) return null;
   for (const n of names) {
     const name = n.trim().toLowerCase();

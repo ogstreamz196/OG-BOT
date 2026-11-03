@@ -16,7 +16,7 @@ const CHECKLIST = [
   "Stripe live payment tested with small amount",
   "Android app opens and signs in",
   "Test song created end-to-end",
-  "Battle Zone roast works",
+  "Battle Zone cuss battle works",
   "Vault API self-ping OK",
   "Ledgerly ping OK",
 ];

@@ -60,7 +60,7 @@ export function VipYearlyTeaser() {
           <p className="mt-2 max-w-xl text-sm text-foreground/85 sm:text-base">
             {daysLeft
               ? "Keep everything you've been using. Lock in a whole year and forget about it."
-              : "Unfiltered roasts, faster replies and every style in the studio. One payment covers the year."}
+              : "Unfiltered cussing, faster replies and every style in the studio. One payment covers the year."}
           </p>
           <ul className="mt-4 flex flex-wrap gap-2">
             {PERKS.map((p) => (

@@ -31,7 +31,7 @@ async function generateBatch(kind: Kind, tone: CatchTone): Promise<string[]> {
   const prompt =
     kind === "trade_hold"
       ? TRADE_HOLD_PROMPT(tone)
-      : `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "ROASTS / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for OG B0T, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
+      : `Write 12 brand-new, varied ${kind === "opener" ? "OPENING lines (how a reply starts)" : kind === "closer" ? "SIGN-OFF lines (how a reply ends)" : "DISSES / one-liner insults aimed at the user (affectionate mate-banter, original, funny, British)"} for OG B0T, a UK music & chat bot. Style: ${TONE_BRIEF[tone]}. Each under ${kind === "roast" ? 18 : 10} words, all different structures, no numbering, no quotes, never "here we go you impatient dickhead". Output one per line, nothing else.`;
   await loadAiKeys();
   for (const t of [...freeFallbackTargets(), ...aiChatTargets("catchphrases")]) {
     try {

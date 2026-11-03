@@ -71,7 +71,7 @@ export const Route = createFileRoute("/_authenticated/")({
       {
         name: "description",
         content:
-          "Your OG B0T studio: cook AI songs, roast the bot in Battle Zone, and keep track of your coins and VIP.",
+          "Your OG B0T studio: cook AI songs, cuss the bot in Battle Zone, and keep track of your coins and VIP.",
       },
       { property: "og:title", content: "AI Music Studio | OG B0T — AI Songs & Diss Tracks" },
       {
@@ -323,8 +323,8 @@ function DashboardHome() {
               title="Battle Zone"
               description={
                 isVip
-                  ? "Roast OG B0T. Bank coins for every hit."
-                  : "Roast OG B0T. VIP lets him swear back."
+                  ? "Cuss OG B0T. Bank coins for every hit."
+                  : "Cuss OG B0T. VIP lets him swear back."
               }
               cta="Enter Battle Zone"
               onClick={() => navigate({ to: "/messenger", search: { live: true } })}

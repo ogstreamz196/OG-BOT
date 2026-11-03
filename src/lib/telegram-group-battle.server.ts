@@ -47,7 +47,7 @@ export function slowModeSeconds(messagesLastMinute: number): number {
 
 const GROUP_BATTLE_NOTE =
   "\n\nTELEGRAM GROUP: this is a real group chat. Lines come in as 'Name: message'. " +
-  "Roast whoever's talking by name. Never mention anyone's coins, account, purchases or private details.";
+  "Cuss whoever's talking by name. Never mention anyone's coins, account, purchases or private details.";
 
 async function recentLines(admin: Admin, chatId: number, limit = 40): Promise<Line[]> {
   const read = (cols: string) =>
@@ -150,7 +150,7 @@ export function crewNote(lines: Line[], speaker: string | null, now = Date.now()
       : "";
   const memory = by.filter(Boolean);
   return memory.length || gang
-    ? `\n\nCREW MEMORY (their past lines — use them for personal, specific roasts; never repeat them verbatim):\n${memory.join("\n")}${gang}`
+    ? `\n\nCREW MEMORY (their past lines — use them for personal, specific disses; never repeat them verbatim):\n${memory.join("\n")}${gang}`
     : "";
 }
 
@@ -227,7 +227,7 @@ export async function battleBonds(
       note += turn.note;
       if (hitFriend) {
         void bonds.nudgeBond(admin, opts.profileId, "hit_friend", HIT_A_FRIEND);
-        note += `\n\nDEFEND YOUR FRIEND: ${opts.name ?? "This person"} is going after ${hitFriend}, one of your friends. Do NOT roast ${hitFriend}. Refuse, stick up for ${hitFriend} loudly and loyally, and turn the roast on ${opts.name ?? "them"} instead.`;
+        note += `\n\nDEFEND YOUR FRIEND: ${opts.name ?? "This person"} is going after ${hitFriend}, one of your friends. Do NOT cuss ${hitFriend}. Refuse, stick up for ${hitFriend} loudly and loyally, and turn the roast on ${opts.name ?? "them"} instead.`;
       }
     }
     const { roomNote } = await import("@/lib/og-bond");

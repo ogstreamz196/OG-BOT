@@ -169,7 +169,7 @@ export function gafferOrder(market: string, worker?: string): string {
 /** The Gaffer stepping in when someone has a go at the chart slave. */
 export function gafferDefence(): string {
   return pick([
-    "Oi clown, only I get to bully my chart slave. Back off before I roast you into next week.",
+    "Oi clown, only I get to bully my chart slave. Back off before I cuss you into next week.",
     "Who the fuck asked you? That's MY intern. You want smoke, come to the Gaffer.",
     "Leave the chart boy alone, you absolute melt. He's useless, but he's my useless.",
     "Nobody mugs off my chart slave except me. Try it again and see what happens, dickhead.",

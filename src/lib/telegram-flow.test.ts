@@ -768,11 +768,13 @@ describe("telegram bot flow", () => {
       expect(ai.battles[1].messages.map((m) => m.content)).toContain("BATTLE 1");
     });
 
-    test("/roast sets it on someone", async () => {
+    test("/cuss sets it on someone, and the old /roast still works", async () => {
+      await inGroup("/cuss @dave");
+      expect(battleTurn(0)).toBe("Imran: cuss @dave");
+      await inGroup("/cuss");
+      expect(battleTurn(1)).toBe("Imran: cuss me");
       await inGroup("/roast @dave");
-      expect(battleTurn(0)).toBe("Imran: roast @dave");
-      await inGroup("/roast");
-      expect(battleTurn(1)).toBe("Imran: roast me");
+      expect(battleTurn(2)).toBe("Imran: cuss @dave");
     });
 
     test("someone it doesn't know is asked to connect, once a day, and otherwise left alone", async () => {
@@ -857,8 +859,8 @@ describe("telegram bot flow", () => {
       expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
       await inGroup("help");
       expect(groupSent().some((m) => m.text.includes("OG B0T in the group"))).toBe(true);
-      await inGroup("roast @dave");
-      expect(battleTurn(0)).toBe("Imran: roast @dave");
+      await inGroup("cuss @dave");
+      expect(battleTurn(0)).toBe("Imran: cuss @dave");
       await inGroup("og who wins tonight");
       expect(ai.requests.at(-1)!.messages.at(-1)!.content).toBe("who wins tonight");
       await inGroup("@OGStreamzBot signal btc");

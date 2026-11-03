@@ -175,7 +175,7 @@ export async function runOgChat(
   const songIntent = detectSongIntent(latestUserMsg?.content) || detectSongIntent(data.pageContext);
 
   const intensityNote = foulMouth
-    ? `\n\nSWEAR INTENSITY: ${["", "MILD — light cheeky swearing only", "SPICY — regular swearing and sharp roasts", "DEMON — maximum savage, uncensored roasting"][foulIntensity]}.`
+    ? `\n\nSWEAR INTENSITY: ${["", "MILD — light cheeky swearing only", "SPICY — regular swearing and sharp disses", "DEMON — maximum savage, uncensored cussing"][foulIntensity]}.`
     : "";
   // Everything that needs the member's settings loads together.
   const vp = await import("@/lib/vip-promo.server");
