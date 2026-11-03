@@ -376,6 +376,11 @@ export function demoAnnouncement(
 
 /** The test account's lines on an alert card. */
 export function paperLines(balance: number, lots: number, why?: string): string[] {
+  // Not copied (copy-filter.ts): said plainly, no lot.
+  if (!(lots > 0))
+    return [
+      `💰 Test account balance: ${usd(balance)} · not copying this one${why ? `: ${why}` : ""}`,
+    ];
   return [
     ...(lots >= PAPER_MAX_LOT
       ? [`🔥 I'm going hard on this one: ${PAPER_MAX_LOT} lot, my limit`]

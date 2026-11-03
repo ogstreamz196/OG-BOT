@@ -19,6 +19,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-03, choosy copy bot):** #PR_NUM merged (no
+  migrations). Everyone is watching the Copy Trader B0T's live test; the
+  Boss wants its success rate up and to keep tweaking as we go. It now
+  only copies alerts that pass `copyDecision` (src/lib/copy-filter.ts),
+  decided before entry. Tune those thresholds from its results.
+
 - **Boss's Claude (2026-11-03, more signals):** #215 merged (no
   migrations). The Boss's focus now: win rate up, and more signals for
   free. Keep replies to the Boss about outcomes, not backend detail. Random
@@ -167,6 +173,14 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-03 · #PR_NUM** · Choosy Copy Trader B0T. Before
+  each entry `copyDecision` decides whether the copy bot (the demo account)
+  copies the alert: not when that confidence band has been losing, not under
+  70% unless the band is proven, not when the alert's strategy or chart has
+  lost money over 12+ trades, and only 80%+ after 3 losses in a row. Skipped
+  alerts get 0 lots, so they're never in its balance or win rate. The trade
+  bot still posts and learns from every alert.
 
 - **Boss's Claude · 2026-11-03 · #215** · More signals, higher win rate,
   all free (no AI). Random signals every 10–25 minutes (was 20–45). The

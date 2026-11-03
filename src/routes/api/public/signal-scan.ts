@@ -150,15 +150,34 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             s.plan.market,
             s.plan.confidencePct,
           );
-          const { lots, why } = pa.chooseLot({
-            market: s.plan.market,
-            entry: s.plan.entry,
-            stop: s.summary.stop,
-            balance,
+          // The Copy Trader B0T is choosy: it decides here, before the entry,
+          // whether it copies this alert at all (copy-filter.ts). One it sits
+          // out has no lot, so it's never in its balance either way.
+          const rnd = await import("@/lib/signal-random.server");
+          const { copyDecision } = await import("@/lib/copy-filter");
+          const stats = await rnd.signalStats(supabaseAdmin);
+          const strategy = rnd.strategyOf(s.plan.feeds ?? null);
+          const chart =
+            s.summary.timeframe.toLowerCase() as import("@/lib/signal-random.server").RandomFrame;
+          const pick = copyDecision({
             confidencePct: s.plan.confidencePct,
-            big,
             ...learned,
+            strategy: stats.strategies[strategy],
+            chart: stats.frames[chart],
+            strategyName: rnd.STRATEGY_NAMES[strategy],
+            chartName: `${s.summary.timeframe} chart`,
           });
+          const { lots, why } = !pick.copy
+            ? { lots: 0, why: pick.why }
+            : pa.chooseLot({
+                market: s.plan.market,
+                entry: s.plan.entry,
+                stop: s.summary.stop,
+                balance,
+                confidencePct: s.plan.confidencePct,
+                big,
+                ...learned,
+              });
           const { CARD_LOT } = await import("@/lib/trade-bias");
           return {
             ...s,
@@ -216,7 +235,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               follow,
               now: Date.now,
             }),
-            // Every 30 to 90 minutes, a strategy picked at random (the chart
+            // Every 10 to 25 minutes, a strategy picked at random (the chart
             // engine, the AI desk inside its budget, or a setup or pattern),
             // the request style; the picker leans towards what's winning.
             maybeRandomSignal(supabaseAdmin, {
