@@ -30,6 +30,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
     up to 200 MB, Downloader codes), activity log, the dev.b033 PIN login
     (PIN set in Boss Controls → Members) and member PINs after a streaming
     sign-in. See that repo's AGENTS.md.
+  - Done (OG VAULT PRs #14–#19, 2026-11-03): "Stream profile expiry" with
+    a live countdown under the header (the stream login's end date, kept on
+    the login); sign-in screen shows username + password and a PIN pad side
+    by side; member PINs are 6+ digits, unique, and sign in on their own;
+    the Boss has no PIN or password rules and can set any member's PIN; the
+    dev login is now **dev.b055** (renamed from dev.b033, same account); the
+    activity log is full, in plain words, by UK day, and records sign-ins.
 
 - **OG KEYS**, the Boss's own password and API key manager, later an
   add-on like OG Ledger. Plan in `docs/og-keys-plan.md`. A coming-soon card
