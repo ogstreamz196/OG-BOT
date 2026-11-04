@@ -18,7 +18,7 @@
 //   trade (feeds.paper.pnl) and the balance is the start plus every closed
 //   trade's result since the start (paperBalance), so it's never out of step.
 import { usdPerLotMove } from "./trade-bias";
-import { PROFIT_LOCK } from "./trade-signal-outcome";
+import { PROFIT_LOCK, RUNNER } from "./trade-signal-outcome";
 
 type Admin = any;
 
@@ -444,9 +444,10 @@ type ClosedTrade = {
  * (a buy) or the ask (a sell), so a take profit or stop pays exactly its
  * level (so does the profit lock's stop); a market entry also pays half the
  * spread; a trade closed on time
- * goes out at the bid/ask, half a spread off the last mid. A runner banks a
- * third at the first take profit and the rest at the second, or at the
- * entry if it comes back. Pure, so it can be tested.
+ * goes out at the bid/ask, half a spread off the last mid. A runner banks 70%
+ * at the first take profit (the Boss's rule, 2026-11-04) and runs the other
+ * 30% to the second target, or back at the moved stop (the gain lock, else the
+ * entry). Pure, so it can be tested.
  */
 export function paperPnl(t: ClosedTrade, lots: number, spread: number): number {
   const per = usdPerLotMove(t.market, t.entry) ?? 0;
@@ -459,10 +460,10 @@ export function paperPnl(t: ClosedTrade, lots: number, spread: number): number {
   else if (t.bestTarget >= 1) {
     if (single) points = move(t.tp1);
     else {
-      // A third at TP1; the rest at the runner, or back at the moved stop
-      // (the profit lock, else the entry).
+      // Bank 70% at TP1; the 30% runner at the second target, or back at the
+      // moved stop (the gain lock, else the entry).
       const rest = t.bestTarget >= 2 ? move(t.tp3) : t.lockStop != null ? move(t.lockStop) : 0;
-      points = move(t.tp1) / 3 + (rest * 2) / 3;
+      points = move(t.tp1) * RUNNER.bank + rest * RUNNER.run;
     }
   } else if (t.status === "breakeven")
     points = t.lockStop != null ? move(t.lockStop) - (t.trailExit ? half : 0) : 0;

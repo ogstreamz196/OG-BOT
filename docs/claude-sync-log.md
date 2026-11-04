@@ -248,6 +248,16 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-04 · #PR_NUM** · Runner + gain lock
+  (`trade-signal-outcome.ts`, `paper-account.server.ts`): the Boss's exit rules,
+  all worked out on the backend and closed with market orders (nothing on the
+  broker). (1) Leave a 30% runner: bank 70% at the take profit, run 30%
+  (RUNNER). (2) When super close to the take profit (90% of the way, GAIN_LOCK),
+  the stop locks at least 30% of the gain made so far (gainLockStop), ratcheting
+  up with the best price, never a loss — so the trailing stop (tpTrailArm) now
+  floors at 30% of the gain instead of 30% of the take-profit distance. paperPnl
+  banks 70/30. New pure helpers (gainLockStop, superClose) tested. No new tables.
+
 - **Boss's Claude · 2026-11-04 · #PR_NUM** · Signal gate on real win rate
   (`signal-gate.ts`, `paper-account.server.ts`): the gate already held back a
   confidence band whose average R was clearly losing; it now also holds back a

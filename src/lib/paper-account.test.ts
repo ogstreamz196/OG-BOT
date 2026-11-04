@@ -117,8 +117,8 @@ describe("profit and loss (Standard STP)", () => {
       paperPnl({ ...gold, status: "breakeven", bestTarget: 0, lockStop: 2650.9 }, 0.1, 0.3),
     ).toBe(9);
     const runner = { ...gold, tp2: 2656, tp3: 2656, lockStop: 2650.9 };
-    // A third at 2653 (+$30) and the rest at the lock (+$18) on 0.3 lot.
-    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(48);
+    // 70% at 2653 (3 × 0.7) and the 30% runner at the lock (0.9 × 0.3) on 0.3 lot.
+    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(71.1);
   });
   it("never filled, or an older breakeven: nothing", () => {
     expect(paperPnl({ ...gold, status: "unfilled", bestTarget: 0, entered: false }, 0.1, 0.3)).toBe(
@@ -126,10 +126,12 @@ describe("profit and loss (Standard STP)", () => {
     );
     expect(paperPnl({ ...gold, status: "breakeven", bestTarget: 0 }, 0.1, 0.3)).toBe(0);
   });
-  it("a runner banks a third at the first target, the rest at the runner or the entry", () => {
+  it("banks 70% at the first target, runs the 30% runner to the second or the entry", () => {
     const runner = { ...gold, tp2: 2656, tp3: 2656 };
-    expect(paperPnl({ ...runner, status: "tp3", bestTarget: 3 }, 0.3, 0.3)).toBe(150);
-    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(30);
+    // 70% at 2653 (3 × 0.7) + 30% at 2656 (6 × 0.3) = 3.9, on 0.3 lot = $117.
+    expect(paperPnl({ ...runner, status: "tp3", bestTarget: 3 }, 0.3, 0.3)).toBe(117);
+    // 70% at 2653, the 30% runner back at the entry (no lock) = 2.1, on 0.3 lot = $63.
+    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(63);
   });
   it("bitcoin: 0.1 lot is $0.10 a dollar", () => {
     const btc = {

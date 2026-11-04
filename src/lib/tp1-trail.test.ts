@@ -26,11 +26,12 @@ describe("trailing as the take profit is about to hit", () => {
     expect(arm(110)).toBeNull(); // already hit: it closed there
   });
 
-  it("keeps the gap at 2 spreads at least, and never under the profit lock", () => {
+  it("keeps the gap at 2 spreads at least, and never under 30% of the gain", () => {
     // A 1.5 spread: gap 3 instead of 2.
     expect(arm(109, 1.5)).toEqual({ stop: 106, gap: 3, cap: 130 });
-    // A huge spread can't drag the stop under the lock (30% of the way, 103).
-    expect(arm(109, 5)?.stop).toBe(103);
+    // A huge spread can't drag the stop under the gain lock: 30% of the 9 gain
+    // from 100 to the 109 best = 102.7 (the Boss's rule, 2026-11-04).
+    expect(arm(109, 5)?.stop).toBe(102.7);
   });
 
   it("works the other way round for a sell", () => {
