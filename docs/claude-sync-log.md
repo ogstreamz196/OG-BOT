@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-04 · #PR_NUM** · BTC signal accuracy
+- **Boss's Claude · 2026-11-04 · #238** · BTC signal accuracy
   (`trade-signal.ts`, `signal-broadcast.server.ts`): two accuracy levers. (1)
   Futures positioning now nudges confidence (fundingAdjust): trading WITH an
   over-crowded book (buying into high funding, selling into negative) costs up
