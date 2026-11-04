@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-04 · #PR_NUM** · Runner + gain lock
+- **Boss's Claude · 2026-11-04 · #242** · Runner + gain lock
   (`trade-signal-outcome.ts`, `paper-account.server.ts`): the Boss's exit rules,
   all worked out on the backend and closed with market orders (nothing on the
   broker). (1) Leave a 30% runner: bank 70% at the take profit, run 30%
