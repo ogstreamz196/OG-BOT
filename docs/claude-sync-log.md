@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-04 · #PR_NUM** · Signal gate on real win rate
+- **Boss's Claude · 2026-11-04 · #240** · Signal gate on real win rate
   (`signal-gate.ts`, `paper-account.server.ts`): the gate already held back a
   confidence band whose average R was clearly losing; it now also holds back a
   band that *wins too rarely* (under 42% over 12+ decided calls), even when a
