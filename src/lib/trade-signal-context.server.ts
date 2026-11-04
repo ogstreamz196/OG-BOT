@@ -587,6 +587,8 @@ export type SignalFeeds = {
     risk: number;
     stop?: number;
     said?: number;
+    /** Gain-based trail (the Boss, 2026-11-04): lock this share of the gain, moving up only. */
+    gainKeep?: number;
     /** A take profit that turned into a trailing stop (tpTrailArm): its moves aren't announced. */
     quiet?: boolean;
     armedAt?: string;

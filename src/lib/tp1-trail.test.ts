@@ -21,14 +21,16 @@ const arm = (best: number, spread = 0.5) =>
 describe("trailing as the take profit is about to hit", () => {
   it("arms at 90% of the way: the stop 20% behind the best price, a cap at 3x", () => {
     expect(TP_TRAIL).toEqual({ ARM: 0.9, GAP: 0.2, SPREADS: 2, CAP: 3 });
-    expect(arm(109)).toEqual({ stop: 107, gap: 2, cap: 130 });
+    // The trail starts at 30% of the gain (the Boss, 2026-11-04): 30% of the 9
+    // from 100 to 109 best = 102.7, and reports the gain-keep for the follow.
+    expect(arm(109)).toEqual({ stop: 102.7, gap: 2, gainKeep: 0.3, cap: 130 });
     expect(arm(108.9)).toBeNull(); // not near yet
     expect(arm(110)).toBeNull(); // already hit: it closed there
   });
 
   it("keeps the gap at 2 spreads at least, and never under 30% of the gain", () => {
     // A 1.5 spread: gap 3 instead of 2.
-    expect(arm(109, 1.5)).toEqual({ stop: 106, gap: 3, cap: 130 });
+    expect(arm(109, 1.5)).toEqual({ stop: 102.7, gap: 3, gainKeep: 0.3, cap: 130 });
     // A huge spread can't drag the stop under the gain lock: 30% of the 9 gain
     // from 100 to the 109 best = 102.7 (the Boss's rule, 2026-11-04).
     expect(arm(109, 5)?.stop).toBe(102.7);
@@ -36,8 +38,9 @@ describe("trailing as the take profit is about to hit", () => {
 
   it("works the other way round for a sell", () => {
     expect(tpTrailArm({ direction: "SELL", entry: 100, tp: 90, best: 91, spread: 0.5 })).toEqual({
-      stop: 93,
+      stop: 97.3, // 30% of the 9 gain down from 100 to the 91 best
       gap: 2,
+      gainKeep: 0.3,
       cap: 70,
     });
   });
@@ -50,13 +53,14 @@ describe("trailing as the take profit is about to hit", () => {
       targets: [130, 130, 130] as [number, number, number],
       status: "open" as const,
       expiresAt: 60 * MIN,
-      trail: { risk: 2, stop: 107 },
+      trail: { risk: 2, stop: 102.7, gainKeep: 0.3 },
     };
-    // Through the old take profit (110) to 114: stop trails to 112; then back down.
-    const r = advanceSignal(armed, [bar(0, 108, 114), bar(1, 111, 113)], 2 * MIN);
+    // Through the old take profit (110) to a 114 best: the stop locks 30% of
+    // the 14 gain = 104.2, moving up only; then it falls back to it.
+    const r = advanceSignal(armed, [bar(0, 108, 114), bar(1, 103, 113)], 2 * MIN);
     expect(r.events.map((e) => [e.kind, e.price])).toEqual([
-      ["trailed", 112],
-      ["breakeven", 112],
+      ["trailed", 104.2],
+      ["breakeven", 104.2],
     ]);
   });
 
