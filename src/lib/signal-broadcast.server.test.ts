@@ -11,6 +11,9 @@ vi.mock("./signal-chat.server", async (orig) => ({
 import {
   BROADCAST_MIN_CONFIDENCE,
   MAX_RUNNING_PER_MARKET,
+  CONCURRENCY_FREE,
+  CONCURRENCY_BAR_MAX,
+  concurrencyBar,
   channelCard,
   scanAndBroadcast,
   type ScanDeps,
@@ -285,5 +288,15 @@ describe("auto-posted scalp signals", () => {
         "⏱ 15M · 💪 70%",
       ].join("\n"),
     );
+  });
+});
+
+describe("concurrency-scaled confidence bar", () => {
+  test("holds the base bar for the first few, then rises and caps", () => {
+    // The first few carry no extra floor, so desk/random keep their lower bars.
+    expect(concurrencyBar(0)).toBe(0);
+    expect(concurrencyBar(CONCURRENCY_FREE)).toBe(0);
+    expect(concurrencyBar(CONCURRENCY_FREE + 1)).toBe(BROADCAST_MIN_CONFIDENCE + 2);
+    expect(concurrencyBar(50)).toBe(CONCURRENCY_BAR_MAX);
   });
 });

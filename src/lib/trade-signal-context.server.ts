@@ -935,6 +935,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     session: sessionRead(inst),
     roundStep: roundStepFor(inst.code),
     tuning,
+    flow: flow ?? undefined,
   });
   // A proxy chart (gold from PAX Gold) without a confirmed spot price would
   // print the token's prices, not the real market's: no levels until it's back.

@@ -248,6 +248,18 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-04 · #PR_NUM** · BTC signal accuracy
+  (`trade-signal.ts`, `signal-broadcast.server.ts`): two accuracy levers. (1)
+  Futures positioning now nudges confidence (fundingAdjust): trading WITH an
+  over-crowded book (buying into high funding, selling into negative) costs up
+  to 14 points, 16 with open interest piling in; fading a crowded book adds up
+  to 4. Uses the funding/OI already fetched; live only. So crowded-long BTC
+  buys often fall under the alert bar and don't post. (2) Concurrency-scaled
+  bar (concurrencyBar): beyond 3 running, each extra concurrent trade needs +2
+  confidence up to 84, clawing back accuracy from the new 10-at-once cap. No
+  new tables, no migration. Tested. Confidence stays indicator-based plus
+  these nudges; backtest/learning run classic without funding.
+
 - **Boss's Claude · 2026-11-03 · #236** · More signals, more at once
   (the Boss: "increase the frequency, up to 10 trades at the same time, any
   direction"): MAX_RUNNING_PER_MARKET 6→10, SAME_SIDE_GAP_MS 10→3 min,
