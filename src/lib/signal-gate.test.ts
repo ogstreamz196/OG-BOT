@@ -19,6 +19,18 @@ describe("the signals bot only posts what's most likely to win", () => {
     expect(postDecision({ confidencePct: 64, edge: 0.4, edgeTrades: 3, ...busy }).post).toBe(false);
   });
 
+  it("holds back a band that wins too rarely, even if its average R scrapes by", () => {
+    // 72% sure, average R just positive, but only 30% of decided calls win.
+    const low = { confidencePct: 72, edge: 0.05, edgeTrades: 20, winRate: 0.3, winRateTrades: 20, ...busy };
+    const d = postDecision(low);
+    expect(d.post).toBe(false);
+    if (!d.post) expect(d.why).toContain("win only 30%");
+    // A healthy win rate at the same confidence posts.
+    expect(postDecision({ ...low, winRate: 0.55 }).post).toBe(true);
+    // Too few decided calls: the win rate can't rule it out yet.
+    expect(postDecision({ ...low, winRateTrades: 6 }).post).toBe(true);
+  });
+
   it("only a clearly losing band, strategy or chart is held back, not a small dip", () => {
     expect(postDecision({ confidencePct: 78, edge: -0.4, edgeTrades: 12, ...busy })).toEqual({
       post: false,

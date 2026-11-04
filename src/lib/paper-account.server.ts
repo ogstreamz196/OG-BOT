@@ -169,6 +169,10 @@ export type LotInputs = {
   edge?: number | null;
   /** How many settled calls that average is over. */
   edgeTrades?: number;
+  /** The real win rate (0..1) of those settled calls: targets hit vs stops, flats left out. */
+  winRate?: number | null;
+  /** How many decided (won or lost) calls that win rate is over. */
+  winRateTrades?: number;
   /** The demo's losses in a row, newest first. */
   lossStreak?: number;
   /** How far the balance is below the demo's best, in percent. */
@@ -294,9 +298,9 @@ export async function lotInputs(
   market: string,
   confidencePct: number,
   now = Date.now(),
-): Promise<Pick<LotInputs, "edge" | "edgeTrades" | "lossStreak" | "drawdownPct">> {
+): Promise<Pick<LotInputs, "edge" | "edgeTrades" | "winRate" | "winRateTrades" | "lossStreak" | "drawdownPct">> {
   const [lo, hi] = confidenceBand(confidencePct);
-  const out: Pick<LotInputs, "edge" | "edgeTrades" | "lossStreak" | "drawdownPct"> = {};
+  const out: Pick<LotInputs, "edge" | "edgeTrades" | "winRate" | "winRateTrades" | "lossStreak" | "drawdownPct"> = {};
   try {
     const { data } = await admin
       .from("trade_signals")
@@ -317,6 +321,13 @@ export async function lotInputs(
     if (rs.length) {
       out.edge = rs.reduce((a, b) => a + b, 0) / rs.length;
       out.edgeTrades = rs.length;
+      // Win rate from the same calls: a target hit (positive R) wins, a stop
+      // (negative R) loses, break-even/flat (0) is left out, as the record counts.
+      const decided = rs.filter((r) => r !== 0);
+      if (decided.length) {
+        out.winRate = decided.filter((r) => r > 0).length / decided.length;
+        out.winRateTrades = decided.length;
+      }
     }
   } catch {
     /* neutral */

@@ -248,6 +248,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-04 · #PR_NUM** · Signal gate on real win rate
+  (`signal-gate.ts`, `paper-account.server.ts`): the gate already held back a
+  confidence band whose average R was clearly losing; it now also holds back a
+  band that *wins too rarely* (under 42% over 12+ decided calls), even when a
+  couple of big runners keep its average R just positive. lotInputs computes
+  the band's real win rate from the same settled calls; the scan passes it in.
+  Makes "what the bot posts" track the real hit rate, not just agreement. No
+  new tables, no migration. Tested.
+
 - **Boss's Claude · 2026-11-04 · #238** · BTC signal accuracy
   (`trade-signal.ts`, `signal-broadcast.server.ts`): two accuracy levers. (1)
   Futures positioning now nudges confidence (fundingAdjust): trading WITH an
