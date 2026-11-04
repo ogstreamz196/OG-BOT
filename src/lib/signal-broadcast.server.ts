@@ -186,6 +186,25 @@ export const MAX_RUNNING_PER_MARKET = 10;
 export const SAME_SIDE_GAP_MS = 3 * 60_000;
 /** Entries closer than this share of the risk are the same setup, not a new trade. */
 export const SAME_SETUP_R = 0.3;
+/** This many trades can run on the base bar before the bar starts rising. */
+export const CONCURRENCY_FREE = 3;
+/** Each extra concurrent trade adds this much to the confidence needed. */
+export const CONCURRENCY_STEP = 2;
+/** The concurrency-scaled bar never climbs past this. */
+export const CONCURRENCY_BAR_MAX = 84;
+
+/**
+ * As more trades run at once, the next one needs more confidence (the Boss,
+ * 2026-11-04, accuracy): the first CONCURRENCY_FREE run on the base bar, each
+ * extra adds CONCURRENCY_STEP, capped at CONCURRENCY_BAR_MAX. Offsets the
+ * higher concurrency cap so the last slots aren't filled with weak setups. Pure.
+ */
+export function concurrencyBar(running: number): number {
+  // No extra floor for the first few (desk/random keep their own lower bars).
+  if (running <= CONCURRENCY_FREE) return 0;
+  const extra = running - CONCURRENCY_FREE;
+  return Math.min(CONCURRENCY_BAR_MAX, BROADCAST_MIN_CONFIDENCE + extra * CONCURRENCY_STEP);
+}
 
 type TradeState = "running" | "stopped_recently" | "over";
 
@@ -244,6 +263,8 @@ async function roomForAnother(
   const states = await Promise.all(posts.map((p) => tradeState(admin, plan.market, p, now)));
   const running = posts.filter((_, i) => states[i] === "running");
   if (running.length >= MAX_RUNNING_PER_MARKET) return false;
+  // The more already running, the surer this one has to be.
+  if (plan.confidencePct < concurrencyBar(running.length)) return false;
   const same = (p: PostRow) => p.direction === plan.direction;
   if (posts.some((p, i) => same(p) && states[i] === "stopped_recently")) return false;
   const risk = stop != null ? Math.abs(plan.entry - stop) : NaN;

@@ -516,6 +516,8 @@ export type EngineOptions = {
   tuning?: Tuning;
   /** The market's round-number step (roundStepFor), a level in its own right. */
   roundStep?: number;
+  /** Bitcoin futures positioning (funding + 24h open-interest change); live only. */
+  flow?: { funding: number; oiChange24h: number };
 };
 
 /** Round numbers price reacts at: gold every $10, bitcoin every $500. */
@@ -659,6 +661,41 @@ export function ukBlock(t: number): number {
 
 /** Below this volume ratio a move has little behind it. */
 const LIGHT_VOLUME = 0.5;
+/** Funding leaning at least this far (per 8h) means the crowd is one-sided. */
+export const CROWDED_FUNDING = 0.0005;
+/** Funding this extreme (per 8h) means a squeeze is a real risk. */
+export const EXTREME_FUNDING = 0.001;
+/** Open interest rising at least this much in 24h = leverage piling in. */
+export const OI_PILING_IN = 0.05;
+
+/**
+ * Bitcoin futures positioning as a confidence nudge (the Boss, 2026-11-04,
+ * accuracy: use the funding/OI we already fetch). Trading WITH an over-crowded
+ * book (buying when longs already pay heavily, or selling when shorts do) is
+ * where squeezes happen, so it costs confidence; fading a crowded book is a
+ * small edge, and rising open interest into a crowded book adds squeeze fuel.
+ * NaN funding (unknown, or not crypto) means no change. Pure.
+ */
+export function fundingAdjust(
+  flow: { funding: number; oiChange24h: number } | undefined,
+  direction: "BUY" | "SELL",
+): { delta: number; reason: string | null } {
+  const f = flow?.funding;
+  if (!Number.isFinite(f as number)) return { delta: 0, reason: null };
+  const mag = Math.abs(f as number);
+  const withCrowd = direction === "BUY" ? (f as number) > 0 : (f as number) < 0;
+  const side = direction === "BUY" ? "long" : "short";
+  if (!withCrowd) {
+    if (mag >= EXTREME_FUNDING) return { delta: 4, reason: "fading an over-crowded book" };
+    if (mag >= CROWDED_FUNDING) return { delta: 2, reason: "funding favours this side" };
+    return { delta: 0, reason: null };
+  }
+  const oi = flow?.oiChange24h;
+  const pilingIn = Number.isFinite(oi as number) && (oi as number) >= OI_PILING_IN;
+  if (mag >= EXTREME_FUNDING) return { delta: pilingIn ? -16 : -14, reason: `crowded ${side}, squeeze risk` };
+  if (mag >= CROWDED_FUNDING) return { delta: pilingIn ? -9 : -7, reason: `leaning ${side}` };
+  return { delta: 0, reason: null };
+}
 
 const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
   const s = [...xs].sort((a, b) => (asc ? a - b : b - a));
@@ -783,6 +820,9 @@ export function buildPlan(
   if (momentumAgainst) pct -= 12;
   if (lightVolume) pct -= 6;
   if (session) pct -= session.penalty;
+  const funding = classic ? { delta: 0, reason: null } : fundingAdjust(opts.flow, long ? "BUY" : "SELL");
+  pct += funding.delta;
+  if (funding.reason) reasons.push(`Futures: ${funding.reason}`);
   const confidencePct = Math.round(Math.min(90, Math.max(51, pct)));
   const confidence: TradePlan["confidence"] =
     confidencePct >= 75 ? "High" : confidencePct >= 62 ? "Medium" : "Low";

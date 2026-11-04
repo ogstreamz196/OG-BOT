@@ -528,3 +528,31 @@ describe("volatilityRatio and ukBlock", () => {
     expect(ukBlock(Date.parse("2026-07-14T23:30:00Z"))).toBe(0);
   });
 });
+
+import {
+  fundingAdjust,
+  CROWDED_FUNDING,
+  EXTREME_FUNDING,
+} from "./trade-signal";
+
+describe("funding/OI confidence nudge", () => {
+  it("costs confidence for trading with a crowded book", () => {
+    // Buying while longs pay heavily (crowded long): penalised.
+    expect(fundingAdjust({ funding: EXTREME_FUNDING, oiChange24h: 0 }, "BUY").delta).toBe(-14);
+    expect(fundingAdjust({ funding: CROWDED_FUNDING, oiChange24h: 0 }, "BUY").delta).toBe(-7);
+    // Open interest piling in makes the squeeze risk worse.
+    expect(fundingAdjust({ funding: EXTREME_FUNDING, oiChange24h: 0.08 }, "BUY").delta).toBe(-16);
+    // Selling into crowded shorts is the same risk the other way.
+    expect(fundingAdjust({ funding: -EXTREME_FUNDING, oiChange24h: 0 }, "SELL").delta).toBe(-14);
+  });
+  it("gives a small edge for fading the crowd", () => {
+    // Selling into crowded longs: fading an over-crowded book.
+    expect(fundingAdjust({ funding: EXTREME_FUNDING, oiChange24h: 0 }, "SELL").delta).toBe(4);
+    expect(fundingAdjust({ funding: CROWDED_FUNDING, oiChange24h: 0 }, "SELL").delta).toBe(2);
+  });
+  it("does nothing when funding is mild or unknown", () => {
+    expect(fundingAdjust({ funding: 0.0002, oiChange24h: 0 }, "BUY").delta).toBe(0);
+    expect(fundingAdjust({ funding: NaN, oiChange24h: NaN }, "BUY")).toEqual({ delta: 0, reason: null });
+    expect(fundingAdjust(undefined, "BUY").delta).toBe(0);
+  });
+});
