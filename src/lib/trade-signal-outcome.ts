@@ -36,6 +36,45 @@ export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"]
 export const PROFIT_LOCK = { at: 0.7, keep: 0.3 } as const;
 
 /**
+ * The Boss's runner and gain lock (2026-11-04), all worked out on the backend
+ * and closed with market orders (no stop or take profit on the broker):
+ * - RUNNER: when the take profit is reached, bank 70% and leave 30% running.
+ * - GAIN_LOCK: once a trade is super close to its take profit (ARM of the way),
+ *   the stop moves to lock KEEP of the gain made so far (entry → best price),
+ *   ratcheting up as the best price climbs, never back. So the runner can only
+ *   extend or fall back to 30% of its peak gain, never turn into a loss.
+ */
+export const RUNNER = { bank: 0.7, run: 0.3 } as const;
+export const GAIN_LOCK = { arm: 0.9, keep: 0.3 } as const;
+
+/** The stop that locks `keep` of the gain from entry to the best price. entry if no gain. Pure. */
+export function gainLockStop(
+  direction: "BUY" | "SELL",
+  entry: number,
+  best: number,
+  keep = GAIN_LOCK.keep,
+): number {
+  const side = direction === "BUY" ? 1 : -1;
+  const gain = (best - entry) * side;
+  if (!(gain > 0)) return entry;
+  return entry + side * gain * keep;
+}
+
+/** Whether price is super close to the take profit (ARM of the way from entry). Pure. */
+export function superClose(
+  direction: "BUY" | "SELL",
+  entry: number,
+  tp: number,
+  price: number,
+  arm = GAIN_LOCK.arm,
+): boolean {
+  const side = direction === "BUY" ? 1 : -1;
+  const d = (tp - entry) * side;
+  if (!(d > 0)) return false;
+  return (price - entry) * side >= d * arm;
+}
+
+/**
  * Moving the take profit while a trade runs (one take profit, before it's
  * hit), always announced. Distances are in parts of the ORIGINAL take
  * profit's distance from the entry.
@@ -133,8 +172,9 @@ export function trailsThis(confidencePct: number, direction: "BUY" | "SELL", hig
  * (ARM, 90% of the way), the trade isn't closed there any more. It trails
  * instead: the stop goes GAP of the take profit's distance behind the best
  * price (never closer than SPREADS spreads, so bid/ask flicker can't knock it
- * out; never under the profit lock's 30%), so at arming it locks 70% of the
- * take profit, and follows the price from there, never back. Only a far cap
+ * out; never under 30% of the gain made so far, the Boss's gain lock), so it
+ * protects most of the open gain and never less than 30% of it, and follows
+ * the price up, never back. Only a far cap
  * (CAP times the distance) still closes it. Exits are market closes paying the
  * spread (no stop or take profit sits on the broker's order book).
  */
@@ -158,7 +198,9 @@ export function tpTrailArm(o: {
   // Not near yet, or the take profit was already hit (it closed there).
   if (reach < TP_TRAIL.ARM || reach >= 1) return null;
   const gap = Math.max(TP_TRAIL.GAP * d, TP_TRAIL.SPREADS * Math.max(0, o.spread));
-  const lock = o.entry + side * d * PROFIT_LOCK.keep;
+  // The Boss's rule (2026-11-04): lock 30% of the gain so far (entry → best),
+  // not 30% of the take-profit distance. It ratchets up with the best price.
+  const lock = gainLockStop(o.direction, o.entry, o.best);
   const trail = o.best - side * gap;
   const stop = side > 0 ? Math.max(trail, lock) : Math.min(trail, lock);
   return { stop, gap, cap: o.entry + side * d * TP_TRAIL.CAP };
