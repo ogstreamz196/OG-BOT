@@ -248,7 +248,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-04 · #PR_NUM** · Gain-based trailing stop
+- **Boss's Claude · 2026-11-04 · #244** · Gain-based trailing stop
   (`trade-signal-outcome.ts`): the Boss's refinement of the 30% gain lock. The
   take-profit trail now STARTS the stop at 30% of the gain so far (entry →
   best) and then follows the best price up, locking 30% of the growing gain
