@@ -22,6 +22,14 @@ export const POST_MIN_RECORD = 8;
  */
 export const POST_BAD_EDGE = -0.3;
 /**
+ * A confidence band that wins this rarely is held back, even when its average
+ * R isn't terrible (a few big runners can prop up a low win rate). Needs at
+ * least POST_MIN_WINRATE_TRADES decided calls first.
+ */
+export const POST_MIN_WINRATE = 0.42;
+export const POST_MIN_WINRATE_TRADES = 12;
+
+/**
  * The safety valve (2026-11-03, after the gate held back everything for
  * hours): when nothing has been posted for this long, the next alert goes
  * out whatever its record, so the chat never goes quiet and the records
@@ -34,6 +42,9 @@ export type PostInputs = {
   /** Average result in risks of recent settled calls at this confidence, and how many. */
   edge?: number | null;
   edgeTrades?: number;
+  /** The real win rate (0..1) of those calls, and how many were decided (won or lost). */
+  winRate?: number | null;
+  winRateTrades?: number;
   /** The record of the strategy and the chart this alert came from. */
   strategy?: StrategyStats;
   chart?: StrategyStats;
@@ -57,6 +68,14 @@ export function postDecision(o: PostInputs): { post: true } | { post: false; why
     o.edge != null && Number.isFinite(o.edge) && (o.edgeTrades ?? 0) >= POST_MIN_RECORD;
   if (proven && o.edge! <= POST_BAD_EDGE)
     return { post: false, why: `calls at ${sure}% have been losing lately` };
+  // A band that wins too rarely is held back even if its average R scrapes by.
+  if (
+    o.winRate != null &&
+    Number.isFinite(o.winRate) &&
+    (o.winRateTrades ?? 0) >= POST_MIN_WINRATE_TRADES &&
+    o.winRate < POST_MIN_WINRATE
+  )
+    return { post: false, why: `calls at ${sure}% win only ${Math.round(o.winRate * 100)}% of the time` };
   if (sure < POST_MIN_CONFIDENCE && !(proven && o.edge! > 0))
     return { post: false, why: `only ${sure}% sure` };
   if (clearlyLosing(o.strategy))

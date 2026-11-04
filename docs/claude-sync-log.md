@@ -248,6 +248,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-04 · #PR_NUM** · Signal gate on real win rate
+  (`signal-gate.ts`, `paper-account.server.ts`): the gate already held back a
+  confidence band whose average R was clearly losing; it now also holds back a
+  band that *wins too rarely* (under 42% over 12+ decided calls), even when a
+  couple of big runners keep its average R just positive. lotInputs computes
+  the band's real win rate from the same settled calls; the scan passes it in.
+  Makes "what the bot posts" track the real hit rate, not just agreement. No
+  new tables, no migration. Tested.
+
 - **Boss's Claude · 2026-11-03 · #236** · More signals, more at once
   (the Boss: "increase the frequency, up to 10 trades at the same time, any
   direction"): MAX_RUNNING_PER_MARKET 6→10, SAME_SIDE_GAP_MS 10→3 min,
