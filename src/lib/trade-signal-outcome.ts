@@ -172,9 +172,9 @@ export function trailsThis(confidencePct: number, direction: "BUY" | "SELL", hig
  * (ARM, 90% of the way), the trade isn't closed there any more. It trails
  * instead: the stop goes GAP of the take profit's distance behind the best
  * price (never closer than SPREADS spreads, so bid/ask flicker can't knock it
- * out; never under 30% of the gain made so far, the Boss's gain lock), so it
- * protects most of the open gain and never less than 30% of it, and follows
- * the price up, never back. Only a far cap
+ * out; the Boss's gain lock): the stop STARTS at 30% of the gain made so far
+ * (entry → best) and then follows the best price up, locking 30% of the
+ * growing gain, moving up only, never reducing the profit. Only a far cap
  * (CAP times the distance) still closes it. Exits are market closes paying the
  * spread (no stop or take profit sits on the broker's order book).
  */
@@ -190,7 +190,7 @@ export function tpTrailArm(o: {
   best: number;
   /** The spread (ask minus bid) in price. */
   spread: number;
-}): { stop: number; gap: number; cap: number } | null {
+}): { stop: number; gap: number; gainKeep?: number; cap: number } | null {
   const side = o.direction === "BUY" ? 1 : -1;
   const d = (o.tp - o.entry) * side;
   if (!(d > 0) || !Number.isFinite(o.best)) return null;
@@ -198,12 +198,11 @@ export function tpTrailArm(o: {
   // Not near yet, or the take profit was already hit (it closed there).
   if (reach < TP_TRAIL.ARM || reach >= 1) return null;
   const gap = Math.max(TP_TRAIL.GAP * d, TP_TRAIL.SPREADS * Math.max(0, o.spread));
-  // The Boss's rule (2026-11-04): lock 30% of the gain so far (entry → best),
-  // not 30% of the take-profit distance. It ratchets up with the best price.
-  const lock = gainLockStop(o.direction, o.entry, o.best);
-  const trail = o.best - side * gap;
-  const stop = side > 0 ? Math.max(trail, lock) : Math.min(trail, lock);
-  return { stop, gap, cap: o.entry + side * d * TP_TRAIL.CAP };
+  // The Boss's rule (2026-11-04): the trailing stop starts at 30% of the gain
+  // so far (entry → best) and then follows the best price up, locking 30% of
+  // the growing gain, never back. So it begins with the 30% trail loss.
+  const stop = gainLockStop(o.direction, o.entry, o.best);
+  return { stop, gap, gainKeep: GAIN_LOCK.keep, cap: o.entry + side * d * TP_TRAIL.CAP };
 }
 
 /** Where the profit lock triggers and where it puts the stop, or null for a bad take profit. */
@@ -266,8 +265,11 @@ export type TrackedSignal = {
   /**
    * A trailing stop (TRAIL): `risk` is the trade's first risk, `stop` where
    * the trailing stop is now (none until it's a full risk in profit).
+   * `gainKeep` (the Boss, 2026-11-04): a gain-based trail instead — the stop
+   * locks this share of the gain so far (entry → best), following the best
+   * price up, never back. Used by the take-profit trail (tpTrailArm).
    */
-  trail?: { risk: number; stop?: number };
+  trail?: { risk: number; stop?: number; gainKeep?: number };
 };
 
 export type OutcomeEvent = {
@@ -358,18 +360,26 @@ export function advanceSignal(
       guarded = true;
       events.push({ kind: "protected", at: c.t, price: signal.beTrigger });
     }
-    // A trailing stop: a full risk in profit, the stop to the entry, then
-    // GAP risks behind the best price (from the next candle on, never back).
+    // A trailing stop, from the next candle on and never back:
+    // - gain-based (gainKeep): the stop locks that share of the gain so far
+    //   (the Boss's 30% rule), following the best price up.
+    // - else risk-based (TRAIL): a full risk in profit, then GAP risks behind.
+    const gk = signal.trail?.gainKeep;
     const r = signal.trail?.risk ?? 0;
-    if (r > 0 && status === "open") {
+    if ((gk != null || r > 0) && status === "open") {
+      const side = long ? 1 : -1;
       const best = long ? c.h : c.l;
-      if ((best - signal.entry) * (long ? 1 : -1) >= r) {
-        const next = best - (long ? 1 : -1) * r * TRAIL.GAP;
-        if (!guarded || (next - beStop) * (long ? 1 : -1) > 0) {
-          guarded = true;
-          beStop = next;
-          events.push({ kind: "trailed", at: c.t, price: next });
-        }
+      const gain = (best - signal.entry) * side;
+      let next: number | null = null;
+      if (gk != null) {
+        if (gain > 0) next = signal.entry + side * gain * gk;
+      } else if (gain >= r) {
+        next = best - side * r * TRAIL.GAP;
+      }
+      if (next != null && (!guarded || (next - beStop) * side > 0)) {
+        guarded = true;
+        beStop = next;
+        events.push({ kind: "trailed", at: c.t, price: next });
       }
     }
   }

@@ -710,6 +710,9 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
                 trail: {
                   risk: Number(row.feeds.trail.risk),
                   ...(row.feeds.trail.stop != null ? { stop: Number(row.feeds.trail.stop) } : {}),
+                  ...(row.feeds.trail.gainKeep != null
+                    ? { gainKeep: Number(row.feeds.trail.gainKeep) }
+                    : {}),
                 },
               }
             : {}),
@@ -897,7 +900,13 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             row.feeds = {
               ...row.feeds,
               tp0,
-              trail: { risk: arm.gap, stop, quiet: true, armedAt: new Date(now).toISOString() },
+              trail: {
+                risk: arm.gap,
+                stop,
+                ...(arm.gainKeep != null ? { gainKeep: arm.gainKeep } : {}),
+                quiet: true,
+                armedAt: new Date(now).toISOString(),
+              },
             };
             update.feeds = { ...row.feeds };
             lines.push(inChat ? chatTrailArmLine(row, stop) : trailArmLine(row, stop));

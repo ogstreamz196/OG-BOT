@@ -223,3 +223,30 @@ describe("runner + gain lock (the Boss, 2026-11-04)", () => {
     expect(arm!.stop).toBeGreaterThanOrEqual(gainLockStop("BUY", 100, 109));
   });
 });
+
+describe("gain-based trail (the Boss, 2026-11-04): start at 30%, follow up, never reduce", () => {
+  const MIN = 60_000;
+  const bar = (i: number, l: number, h: number) => ({ t: i * MIN, o: (l + h) / 2, h, l, c: (l + h) / 2 });
+  it("locks 30% of the gain, moving the stop up with new highs, never back", async () => {
+    const { advanceSignal } = await import("./trade-signal-outcome");
+    const armed = {
+      direction: "BUY" as const,
+      entry: 100,
+      stop: 95,
+      targets: [200, 200, 200] as [number, number, number],
+      status: "open" as const,
+      expiresAt: 100 * MIN,
+      trail: { risk: 2, stop: 100, gainKeep: 0.3 },
+    };
+    // Best 110 → lock 103; best 120 → lock 106 (up); a lower high (118) → no move down.
+    const r = advanceSignal(
+      armed,
+      [bar(0, 108, 110), bar(1, 112, 120), bar(2, 116, 118), bar(3, 95, 97)],
+      4 * MIN,
+    );
+    const trails = r.events.filter((e) => e.kind === "trailed").map((e) => e.price);
+    expect(trails).toEqual([103, 106]); // up only, never a lower lock
+    // It exits when price falls back to the locked stop (106), banking profit.
+    expect(r.events.at(-1)).toMatchObject({ kind: "breakeven", price: 106 });
+  });
+});
