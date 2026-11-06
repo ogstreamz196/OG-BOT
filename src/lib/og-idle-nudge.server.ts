@@ -1,5 +1,5 @@
 // When it's gone quiet (the Boss, 2026-11-03): OG B0T says it's bored in the
-// signals chat, with a random gold or Bitcoin fact and a conversation starter
+// signals chat, with a random Bitcoin fact and a conversation starter
 // (maybeSignalsChatNudge). Never sweary, no AI (a fixed list, so it's free and
 // the facts are right), only between 9am and 10pm UK time. dueForNudge is kept
 // for private chats but nothing sends those (the Boss wants the signals chat).
@@ -12,13 +12,25 @@ const LOOK_BACK_MS = 24 * 3600_000;
 /** Invisible mark on a nudge, so it's never sent twice for one quiet spell. */
 export const NUDGE_MARK = "⁣";
 
+/** "{quiet}" becomes how long it's really been quiet (quietFor). */
 const OPENERS = [
   "I'm bored 😴",
   "Bit quiet in here, isn't it?",
   "Oi, I'm bored. Talk to me 👀",
-  "Nobody's said a word for an hour, so here's something random.",
+  "Nobody's said a word for {quiet}, so here's something random.",
   "Right, I'm bored, so here's a fun one.",
 ];
+
+/** How long it's been quiet, in plain words ("an hour", "1 hour 20 minutes", "2 hours"). Pure. */
+export function quietFor(ms: number): string {
+  const mins = Math.max(1, Math.floor(ms / 60_000));
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"}`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const hours = h === 1 ? "an hour" : `${h} hours`;
+  if (m < 5) return hours;
+  return `${h} hour${h === 1 ? "" : "s"} ${m} minutes`;
+}
 
 const FACTS = [
   "There will only ever be 21 million bitcoin.",
@@ -28,13 +40,9 @@ const FACTS = [
   "Roughly every four years the reward for mining bitcoin halves. The last halving was April 2024.",
   "The first thing ever bought with bitcoin was two pizzas, for 10,000 BTC, back in May 2010.",
   "Weekend bitcoin moves can be sharper because fewer people are trading.",
-  "Gold's code XAU comes from aurum, the Latin word for gold.",
-  "Gold is priced per troy ounce, which is about 31.1 grams, a bit heavier than a normal ounce.",
-  "All the gold ever mined would fit in a cube only about 22 metres wide.",
-  "Gold often moves the opposite way to the US dollar: a weaker dollar tends to help gold.",
-  "Gold trades almost round the clock on weekdays, from Sunday night to Friday night UK time.",
-  "Central banks have been some of the biggest gold buyers in recent years.",
-  "Gold often wakes up around the London open, about 8am UK time.",
+  "Bitcoin's creator, Satoshi Nakamoto, has never been identified.",
+  "The very first bitcoin block was mined on 3 January 2009.",
+  "Bitcoin addresses are free to make: you can have as many as you like.",
 ];
 
 const STARTERS = [
@@ -45,10 +53,17 @@ const STARTERS = [
   "Did you know that one?",
 ];
 
-/** One nudge, polite and short. Pure (given `rand`). */
-export function pickNudge(rand: () => number = Math.random): string {
+/**
+ * One nudge, polite and short. `quietMs` is how long the chat has really been
+ * quiet; without it, no opener names a time. Pure (given `rand`).
+ */
+export function pickNudge(rand: () => number = Math.random, quietMs?: number): string {
   const pick = <T>(a: T[]) => a[Math.floor(rand() * a.length) % a.length];
-  return `${pick(OPENERS)} Random one for you: ${pick(FACTS)} ${pick(STARTERS)}`;
+  const openers =
+    quietMs != null && Number.isFinite(quietMs)
+      ? OPENERS.map((o) => o.replace("{quiet}", quietFor(quietMs)))
+      : OPENERS.filter((o) => !o.includes("{quiet}"));
+  return `${pick(openers)} Random one for you: ${pick(FACTS)} ${pick(STARTERS)}`;
 }
 
 export type ChatRow = { user_id: string; role: string; content: string; created_at: string };
@@ -87,7 +102,7 @@ const CHAT_KEY = "signals.chat.boredAt";
 /**
  * The signals chat (the Boss: "all this is for the signals chat"): after an
  * hour with nothing new in it (no alert, no update, no member's signal), OG
- * B0T posts one friendly "I'm bored" message with a gold or BTC fact, and
+ * B0T posts one friendly "I'm bored" message with a Bitcoin fact, and
  * again each hour it stays quiet, between 9am and 10pm UK. The last one is
  * deleted when the next goes up, so they never pile up. Never sweary, no AI.
  * Never throws; returns a short summary.
@@ -98,15 +113,20 @@ export async function maybeSignalsChatNudge(admin: Admin, now = Date.now()): Pro
     const { signalsChatId } = await import("./signal-chat.server");
     const chatId = await signalsChatId();
     if (chatId == null) return "no signals chat";
-    const { data: last } = await admin
-      .from("signal_chat_messages")
-      .select("created_at")
-      .eq("chat_id", chatId)
-      .in("kind", ["card", "update"])
-      .order("created_at", { ascending: false })
-      .limit(1);
-    const lastActivity = Date.parse(
-      (last as { created_at: string }[] | null)?.[0]?.created_at ?? "",
+    // Anything said counts: signal cards and updates, and the group's own chat
+    // (members and OG B0T's replies, kept in telegram_group_lines).
+    const latest = async (table: string, kinds?: string[]) => {
+      let q = admin.from(table).select("created_at").eq("chat_id", chatId);
+      if (kinds) q = q.in("kind", kinds);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(1);
+      if (error) return NaN;
+      return Date.parse((data as { created_at: string }[] | null)?.[0]?.created_at ?? "");
+    };
+    const lastActivity = lastOf(
+      await Promise.all([
+        latest("signal_chat_messages", ["card", "update"]),
+        latest("telegram_group_lines"),
+      ]),
     );
     const { data: row } = await admin
       .from("site_content")
@@ -115,7 +135,10 @@ export async function maybeSignalsChatNudge(admin: Admin, now = Date.now()): Pro
       .maybeSingle();
     const prev = parseBored((row as { value?: string } | null)?.value);
     if (!chatNudgeDue(lastActivity, prev?.at ?? null, now)) return "not due";
-    const text = pickNudge();
+    // Says how long it's really been quiet (since the last message, or since
+    // the last nudge when that's more recent).
+    const since = lastOf([lastActivity, Date.parse(prev?.at ?? "")]);
+    const text = pickNudge(Math.random, Number.isFinite(since) ? now - since : undefined);
     const { telegramApi } = await import("./telegram-api.server");
     const sent = await telegramApi<{ message_id?: number }>("sendMessage", {
       chat_id: chatId,
@@ -139,6 +162,12 @@ export async function maybeSignalsChatNudge(admin: Admin, now = Date.now()): Pro
   } catch {
     return "failed";
   }
+}
+
+/** The latest of some times (NaN for none). Pure. */
+export function lastOf(times: number[]): number {
+  const ok = times.filter(Number.isFinite);
+  return ok.length ? Math.max(...ok) : NaN;
 }
 
 function parseBored(raw: string | null | undefined): { at: string; id?: number } | null {

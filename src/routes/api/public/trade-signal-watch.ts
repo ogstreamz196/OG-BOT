@@ -27,6 +27,9 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // Step-by-step notes a Claude queued for a member's Telegram.
           const { sendTelegramNotes } = await import("@/lib/telegram-notes.server");
           const notes = await sendTelegramNotes(supabaseAdmin);
+          // Every bot's Telegram webhook, checked every 15 minutes and put right.
+          const { maybeKeepWebhooks } = await import("@/lib/webhook-keeper.server");
+          const webhooks = await maybeKeepWebhooks(supabaseAdmin);
           // The Boss's MT5 trades: fills and closes (the copy bot announces them).
           const { followAutoTrades } = await import("@/lib/mt5-autotrade.server");
           const mt5 = await followAutoTrades(supabaseAdmin);
@@ -59,6 +62,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             active: passes.at(-1)?.active ?? 0,
             copyTally,
             notes,
+            webhooks,
             mt5,
             promo,
             idle,

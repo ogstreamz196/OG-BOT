@@ -8,6 +8,11 @@
 
 import { CLEAN_TV_HELP_NOTE, isTvHelpChat } from "./tv-help";
 import { extraKeysNow, loadExtraKeys } from "./ai-keys.server";
+import {
+  loadOpenRouterModels,
+  openRouterFreeModels,
+  openRouterModelGone,
+} from "./openrouter-models.server";
 
 export type AiChatTarget = {
   url: string;
@@ -63,8 +68,14 @@ const POLL_NO_KEY_TARGET: AiChatTarget = {
   provider: "pollinations",
   free: true,
 };
-/** Passed the live Foul Mouth test (swears back reliably and fast). */
-export const FOUL_CAPABLE_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+/**
+ * OpenRouter's free models, best first, then its free router: picked from
+ * OpenRouter's live list (openrouter-models.server.ts), because OpenRouter
+ * retires free models often and a fixed one stops answering.
+ */
+export function foulFreeModels(): string[] {
+  return openRouterFreeModels();
+}
 
 /**
  * Free tiers — answer ordinary chat first. Keyed tiers are skipped when their
@@ -91,8 +102,9 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
     provider,
     free: true,
   });
-  const extraOpenrouter = extra.openrouter.map((k) =>
-    own(k, "openrouter", OR_URL, FOUL_CAPABLE_FREE_MODEL, OR_HEADERS),
+  const orModels = foulFreeModels();
+  const extraOpenrouter = extra.openrouter.flatMap((k) =>
+    orModels.map((m) => own(k, "openrouter", OR_URL, m, OR_HEADERS)),
   );
   const freeGeminiModel =
     process.env.GEMINI_FREE_MODEL || process.env.GEMINI_MODEL || "gemini-3.8-flash";
@@ -101,8 +113,8 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
     ...extra.pollinations.map((k) => own(k, "pollinations", POLL_URL, "openai-fast")),
     ...extraOpenrouter,
   ];
-  const openrouter = ["OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].map((env) =>
-    keyed(env, "openrouter", OR_URL, FOUL_CAPABLE_FREE_MODEL, OR_HEADERS),
+  const openrouter = ["OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].flatMap((env) =>
+    orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
   );
   const list = foulMouth
     ? [...extraOpenrouter, ...openrouter]
@@ -125,7 +137,10 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
 
 /** Loads the Boss's extra keys (cached a minute) before a target list is built. Never throws. */
 export async function loadAiKeys(): Promise<void> {
-  await loadExtraKeys().catch(() => undefined);
+  await Promise.all([
+    loadExtraKeys().catch(() => undefined),
+    loadOpenRouterModels().catch(() => undefined),
+  ]);
 }
 
 type ProMsg = { role: string; content: unknown };
@@ -371,6 +386,9 @@ async function tryTargets(
       }
       continue;
     }
+    // OpenRouter retired this free model: drop it at once (the next one is tried now).
+    if (target.provider === "openrouter" && (response.status === 404 || response.status === 400))
+      openRouterModelGone(target.model);
     let fallThrough = target.free ? !response.ok : shouldFallThrough(response.status);
     // Free tiers sometimes return 200 with an empty/refused body — treat as a failure
     // so the next free provider gets a go instead of the user seeing "…".

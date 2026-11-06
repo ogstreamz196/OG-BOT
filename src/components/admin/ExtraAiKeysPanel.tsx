@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Loader2, Plus, Trash2, Zap } from "lucide-react";
+import { KeyRound, Loader2, Plus, RefreshCw, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { addAiKeyFn, listAiKeysFn, testAiKeyFn, updateAiKeyFn } from "@/lib/ai-keys.functions";
+import {
+  addAiKeyFn,
+  listAiKeysFn,
+  replaceAiKeyFn,
+  testAiKeyFn,
+  updateAiKeyFn,
+} from "@/lib/ai-keys.functions";
 import { cn } from "@/lib/utils";
 import { AdminSection } from "./AdminSection";
 
@@ -32,6 +38,10 @@ export function ExtraAiKeysPanel() {
   const add = useServerFn(addAiKeyFn);
   const update = useServerFn(updateAiKeyFn);
   const test = useServerFn(testAiKeyFn);
+  const replace = useServerFn(replaceAiKeyFn);
+  // The key being replaced, and the new key typed for it.
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const [newKey, setNewKey] = useState("");
   const keys = useQuery({ queryKey: ["extra-ai-keys"], queryFn: () => list() });
   const [provider, setProvider] = useState<Provider>("pollinations");
   const [key, setKey] = useState("");
@@ -53,6 +63,17 @@ export function ExtraAiKeysPanel() {
     mutationFn: (v: { id: string; action: "on" | "off" | "remove" }) => update({ data: v }),
     onSuccess: refresh,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't change the key"),
+  });
+  const replacing = useMutation({
+    mutationFn: (v: { id: string; key: string }) => replace({ data: v }),
+    onSuccess: async (_r, v) => {
+      setSwapping(null);
+      setNewKey("");
+      toast.success("Key replaced. Testing it now…");
+      refresh();
+      await runTest(v.id);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't replace the key"),
   });
   const runTest = async (id: string) => {
     setTesting(id);
@@ -169,6 +190,18 @@ export function ExtraAiKeysPanel() {
                     size="sm"
                     variant="outline"
                     className="gap-1"
+                    onClick={() => {
+                      setSwapping(swapping === r.id ? null : r.id);
+                      setNewKey("");
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Replace
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
                     disabled={testing === r.id}
                     onClick={() => runTest(r.id)}
                   >
@@ -201,6 +234,35 @@ export function ExtraAiKeysPanel() {
                   >
                     <Trash2 className="h-4 w-4 text-rose-400" />
                   </Button>
+                  {swapping === r.id && (
+                    <form
+                      className="flex w-full gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (newKey.trim()) replacing.mutate({ id: r.id, key: newKey });
+                      }}
+                    >
+                      <Input
+                        type="password"
+                        autoComplete="off"
+                        autoFocus
+                        placeholder="Paste the new key"
+                        value={newKey}
+                        onChange={(e) => setNewKey(e.target.value)}
+                        aria-label="New key"
+                      />
+                      <Button type="submit" disabled={!newKey.trim() || replacing.isPending}>
+                        {replacing.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Save"
+                        )}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setSwapping(null)}>
+                        Cancel
+                      </Button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

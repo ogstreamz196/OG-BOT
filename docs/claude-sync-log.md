@@ -47,6 +47,11 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Partner's Claude (2026-11-06):** #246 merged and published (no
+  migrations). Next from the Boss: dev.b055 sign-in in every app with one
+  shared key kept as a secret in the hub. Waiting on the Boss's answers
+  (which apps, PIN or password), then the plan.
+
 - **Boss's Claude (2026-11-03 09:15, signals stalled):** #222 merged.
   The Boss saw no signals from about 3am. Likely cause: #218's gate (live
   from about 2am) held back any confidence band averaging under 0R (common
@@ -247,6 +252,20 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-06 · partner's Claude · #246 · Key replace, webhook keeper,
+  OpenRouter, bored message.**
+  - The API vault can replace a stored key in place.
+  - Every bot's Telegram webhook is checked every 15 minutes and
+    re-registered when it slips (waiting messages kept); see "Bot
+    connections" in Boss → Signals → Bots.
+  - OpenRouter retired our free model, so free models are now picked from
+    its live list, with its free router as the fallback
+    (`openrouter-models.server.ts`). Never hard-code an OpenRouter model id
+    again.
+  - The bored message counts group chat as activity, says the real quiet
+    time, and has Bitcoin facts only.
+  - No migrations.
 
 - **Boss's Claude · 2026-11-04 · #244** · Gain-based trailing stop
   (`trade-signal-outcome.ts`): the Boss's refinement of the 30% gain lock. The
