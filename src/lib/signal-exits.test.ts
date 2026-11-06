@@ -140,7 +140,8 @@ describe("learned entry style", () => {
     const { applyTuning } = await import("./signal-learning.server");
     const at = (entryStyle: number) => applyTuning(s, { ...DEFAULT_TUNING, entryStyle });
     expect(at(0)).toMatchObject({ entry: 100, type: "market" });
-    expect(at(1)).toMatchObject({ entry: 99, type: "limit" });
+    // A pullback waits only 20% of the way back to the mean (98): close to the price.
+    expect(at(1)).toMatchObject({ entry: 99.6, type: "limit" });
     expect(at(2)).toMatchObject({ entry: 101, type: "stop" });
     expect(at(3)).toMatchObject({ entry: 100, type: "market" });
     expect(at(2).stop - at(0).stop).toBeCloseTo(1, 6);
