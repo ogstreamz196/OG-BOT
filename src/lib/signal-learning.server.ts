@@ -73,10 +73,13 @@ export const BOUNDS = {
     [0.6, 0.95],
   ],
   minConfidence: [51, 80],
-  pullback: [0, 1],
+  // At most 30% of the way back to the 20 EMA, so the entry sits close to the
+  // price when it's posted (the Boss, 2026-11-06).
+  pullback: [0, 0.3],
   minVol: [0, 0.8],
   holdFor: [10, 60],
-  fillWithin: [5, 60],
+  // A pending entry waits at most 15 minutes, then it's called off.
+  fillWithin: [5, 15],
   /** 0 (off) or in this range. */
   beAt: [0.5, 1.5],
   runner: [1.5, 3],

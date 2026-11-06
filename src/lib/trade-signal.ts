@@ -601,8 +601,11 @@ export const DEFAULT_TUNING: Tuning = {
   beAt: 0,
   runner: 0,
   holdFor: NO_TIME_LIMIT,
-  fillWithin: NO_TIME_LIMIT,
-  pullback: 0.5,
+  // Entries close to the price when posted, and never waiting long (the Boss,
+  // 2026-11-06: entries too far away and too slow; pullback entries that only
+  // filled when price fell through them were the biggest loser).
+  fillWithin: 15,
+  pullback: 0.2,
   minVol: 0,
   skipBlocks: [],
   stopRoom: STOP_ROOM,

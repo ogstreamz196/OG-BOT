@@ -96,8 +96,10 @@ describe("learnFromSamples", () => {
       ],
     });
     const samples = Array.from({ length: 60 }, (_, i) => pulled(i));
-    expect(evaluate(samples, DEFAULT_TUNING).n).toBe(0);
-    const out = learnFromSamples(samples, DEFAULT_TUNING, seeded(5), "Gold");
+    // Starting from an old, deep pullback (halfway back) that never fills.
+    const deep = { ...DEFAULT_TUNING, pullback: 0.5 };
+    expect(evaluate(samples, deep).n).toBe(0);
+    const out = learnFromSamples(samples, deep, seeded(5), "Gold");
     expect(out.kept).toBe(true);
     expect(out.next.pullback).toBeLessThanOrEqual(0.4);
     expect(out.after.n).toBe(60);
@@ -122,11 +124,12 @@ describe("learnFromSamples", () => {
       stopRoom: BOUNDS.stopRoom[1],
       scale: [0.95, 0.4, 0.7],
       minConfidence: 80,
-      pullback: 1,
+      // Entries stay close to the price: at most 30% back, 15 minutes to fill.
+      pullback: BOUNDS.pullback[1],
       minVol: 0.8,
       skipBlocks: [1, 3],
       holdFor: 60,
-      fillWithin: 60,
+      fillWithin: 15,
       beAt: 0,
       runner: 0,
       entryStyle: 0,

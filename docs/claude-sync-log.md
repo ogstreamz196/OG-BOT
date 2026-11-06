@@ -265,6 +265,16 @@ merged work, not open work.
 
 ## Log
 
+- **2026-11-06 · partner's Claude · #249 · Entries close to the price.**
+  The Boss: entries too far from the price when posted, and too slow.
+  Data (BTC, 4 days): pullback entries 25/41, −$178.56; market entries
+  27/23, −$42.32. A pullback now waits at most 30% back to the 20 EMA
+  (was halfway) and at most 15 minutes to fill (was 60). The limits are in
+  `BOUNDS` and apply at once through `safeTuning`. No migrations. Still
+  open: average loss ($8.5–10) is bigger than average win (~$7) on both
+  entry types; the exits (gain lock, trailing) are the other Claude's,
+  not changed here.
+
 - **2026-11-06 · partner's Claude · #247 · dev.b055 in every app.**
   - One 4-digit PIN in the hub Vault (`dev_b055_pin`), checked by the hub
     with one lockout for all apps (`supabase/hub/05_dev_pin.sql`, applied
