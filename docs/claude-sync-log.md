@@ -256,6 +256,15 @@ merged work, not open work.
 
 ## Log
 
+- **2026-11-06 · partner's Claude · #247 · dev.b055 in every app.**
+  - One 4-digit PIN in the hub Vault (`dev_b055_pin`), checked by the hub
+    with one lockout for all apps (`supabase/hub/05_dev_pin.sql`, applied
+    as `ogstreamz_dev_pin`).
+  - OG B0T: `dev.b055` + PIN on the normal sign-in signs in the D.EV
+    account. Unlock is in Boss → System → API keys.
+  - OG VAULT, the booking portal and Padel Rival are wired up in their own
+    repos.
+
 - **2026-11-06 · partner's Claude · #246 · Key replace, webhook keeper,
   OpenRouter, bored message.**
   - The API vault can replace a stored key in place.
