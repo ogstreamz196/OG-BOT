@@ -7,6 +7,9 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `dev-pin` (and OG VAULT, og-booking-portal,
+  PADEL-RIVAL-REACT) · dev.b055 sign-in with one PIN in the hub Vault for
+  every app. OG B0T part in welcome.tsx and dev-pin*.ts.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -252,6 +255,15 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **2026-11-06 · partner's Claude · #247 · dev.b055 in every app.**
+  - One 4-digit PIN in the hub Vault (`dev_b055_pin`), checked by the hub
+    with one lockout for all apps (`supabase/hub/05_dev_pin.sql`, applied
+    as `ogstreamz_dev_pin`).
+  - OG B0T: `dev.b055` + PIN on the normal sign-in signs in the D.EV
+    account. Unlock is in Boss → System → API keys.
+  - OG VAULT, the booking portal and Padel Rival are wired up in their own
+    repos.
 
 - **2026-11-06 · partner's Claude · #246 · Key replace, webhook keeper,
   OpenRouter, bored message.**

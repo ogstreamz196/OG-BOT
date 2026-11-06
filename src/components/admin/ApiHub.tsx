@@ -14,6 +14,7 @@ import {
   type HealthReport,
 } from "@/lib/api-health.functions";
 import { ExtraAiKeysPanel } from "./ExtraAiKeysPanel";
+import { DevPinPanel } from "./DevPinPanel";
 import { LedgerlyPanel } from "./LedgerlyPanel";
 import { VaultWebhookPanel } from "./VaultWebhookPanel";
 
@@ -102,6 +103,7 @@ export function ApiHub() {
   return (
     <div className="space-y-6">
       <ExtraAiKeysPanel />
+      <DevPinPanel />
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.16em]">

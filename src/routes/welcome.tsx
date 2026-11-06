@@ -49,6 +49,8 @@ import {
 } from "@/components/welcome/GuestStudio";
 import { useServerFn } from "@tanstack/react-start";
 import { signInWithIdentifier } from "@/lib/identifier-signin.functions";
+import { devPinSignIn } from "@/lib/dev-pin.functions";
+import { isDevPinUser } from "@/lib/dev-pin";
 import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
 import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import type { WizardDraft, WizardResult } from "@/components/library/CreateNowWizard";
@@ -409,6 +411,7 @@ function EmailAuthPanel({
   const [showPassword, setShowPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const signInByName = useServerFn(signInWithIdentifier);
+  const signInDev = useServerFn(devPinSignIn);
   // A mistyped sign-in password must never carry over into a new account.
   useEffect(() => {
     setPassword("");
@@ -435,6 +438,21 @@ function EmailAuthPanel({
       }
       setBusy(true);
       try {
+        // 0) dev.b055 + the dev PIN (the same in every OGSTREAMZ app).
+        if (isDevPinUser(handle)) {
+          const res = await signInDev({ data: { username: handle, pin: password } });
+          if (!res.ok) {
+            toast.error(res.message);
+            return;
+          }
+          const { error } = await supabase.auth.setSession({
+            access_token: res.access_token,
+            refresh_token: res.refresh_token,
+          });
+          if (error) throw error;
+          toast.success("Welcome back, D.EV!");
+          return;
+        }
         // 1) Email, or the username the account was created with.
         const direct = await supabase.auth.signInWithPassword({
           email: toLoginEmail(handle),
