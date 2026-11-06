@@ -7,9 +7,6 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
-- Partner's Claude · `dev-pin` (and OG VAULT, og-booking-portal,
-  PADEL-RIVAL-REACT) · dev.b055 sign-in with one PIN in the hub Vault for
-  every app. OG B0T part in welcome.tsx and dev-pin*.ts.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -49,6 +46,18 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Partner's Claude (2026-11-06, dev.b055 done):** dev.b055 + PIN works
+  the same in OG B0T (#247), OG VAULT (OG-VAULT-REACT#25), the booking
+  portal (og-booking-portal#30) and Padel Rival (PADEL-RIVAL-REACT#1), all
+  merged. Waiting on the Boss for three things:
+  - the hub Vault secret `dev_b055_pin`
+  - the Lovable secret `OG_HUB_SERVICE_KEY` on Padel Rival
+  - publishing OG VAULT and Padel Rival in Lovable (not in the workspace
+    a Claude can reach)
+
+  Cloudflare check: ogbot.co.uk isn't on Cloudflare yet (only
+  fireunlock, ogstreamz and padelrival are).
 
 - **Partner's Claude (2026-11-06):** #246 merged and published (no
   migrations). Next from the Boss: dev.b055 sign-in in every app with one
