@@ -102,6 +102,8 @@ describe("Foul Mouth chat routing", () => {
     const hits: string[] = [];
     stubFetch(
       vi.fn(async (url: string) => {
+        // Reading OpenRouter's model list isn't a chat call.
+        if (url.includes("/api/v1/models")) return new Response("{}", { status: 503 });
         hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
         if (url.includes("openrouter")) throw new DOMException("timed out", "TimeoutError");
         return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
@@ -123,6 +125,8 @@ describe("Foul Mouth chat routing", () => {
     const hits: string[] = [];
     stubFetch(
       vi.fn(async (url: string) => {
+        // Reading OpenRouter's model list isn't a chat call.
+        if (url.includes("/api/v1/models")) return new Response("{}", { status: 503 });
         hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
         if (url.includes("openrouter")) throw new DOMException("timed out", "TimeoutError");
         return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
@@ -141,6 +145,8 @@ describe("Foul Mouth chat routing", () => {
     hits.length = 0;
     stubFetch(
       vi.fn(async (url: string) => {
+        // Reading OpenRouter's model list isn't a chat call.
+        if (url.includes("/api/v1/models")) return new Response("{}", { status: 503 });
         hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
         return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
       }),

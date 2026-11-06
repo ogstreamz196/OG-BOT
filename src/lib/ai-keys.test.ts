@@ -6,6 +6,7 @@ import {
   listAiKeys,
   loadExtraKeys,
   openKey,
+  replaceAiKey,
   sealKey,
 } from "./ai-keys.server";
 import { freeFallbackTargets } from "./ai-endpoint.server";
@@ -69,5 +70,31 @@ describe("extra AI keys", () => {
     process.env.OG_HUB_SERVICE_KEY = "hub-secret";
     vi.stubGlobal("fetch", async () => new Response("nope", { status: 500 }));
     expect(await loadExtraKeys()).toEqual({ pollinations: [], openrouter: [], gemini: [] });
+  });
+
+  it("replaces a key in place: sealed, switched on, test result cleared, never sent back", async () => {
+    process.env.OG_HUB_SERVICE_KEY = "hub-secret";
+    const sent: { url: string; method?: string; body: Record<string, unknown> }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: { method?: string; body?: string }) => {
+      sent.push({ url, method: init.method, body: JSON.parse(init.body ?? "{}") });
+      return new Response(null, { status: 204 });
+    });
+    const id = "11111111-2222-3333-4444-555555555555";
+    await replaceAiKey(id, '  "Bearer new-openrouter-key-987654"  ');
+    expect(sent).toHaveLength(1);
+    expect(sent[0].method).toBe("PATCH");
+    expect(sent[0].url).toContain(`ai_keys?id=eq.${id}`);
+    expect(sent[0].body).toMatchObject({
+      key_hint: "••••7654",
+      enabled: true,
+      last_status: null,
+      last_checked_at: null,
+    });
+    // Stored sealed: the plain key never leaves the server.
+    expect(JSON.stringify(sent[0].body)).not.toContain("new-openrouter-key");
+    expect(await openKey(String(sent[0].body.key_enc), "hub-secret")).toBe(
+      "new-openrouter-key-987654",
+    );
+    await expect(replaceAiKey(id, "short")).rejects.toThrow("doesn't look like a key");
   });
 });

@@ -14,6 +14,7 @@ import { TargetComparePanel } from "@/components/admin/TargetComparePanel";
 import { SignalReportPanel } from "@/components/admin/SignalReportPanel";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
 import { TelegramFleetPanel } from "@/components/admin/TelegramFleetPanel";
+import { WebhookKeeperPanel } from "@/components/admin/WebhookKeeperPanel";
 import { TelegramGroupsPanel } from "@/components/admin/TelegramGroupsPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/signals")({
@@ -79,6 +80,7 @@ function Backtest() {
 function Bots() {
   return (
     <>
+      <WebhookKeeperPanel />
       <TelegramWebhookStatus />
       <TelegramFleetPanel />
       <TelegramGroupsPanel />

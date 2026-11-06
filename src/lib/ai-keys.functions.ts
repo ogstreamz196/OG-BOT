@@ -48,6 +48,22 @@ export const addAiKeyFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Boss: put a new key in place of a stored one (same name and provider). Never sent back. */
+export const replaceAiKeyFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown): { id: string; key: string } => {
+    const o = (d ?? {}) as Record<string, unknown>;
+    if (!isId(o.id)) throw new Error("Bad request");
+    if (typeof o.key !== "string" || !o.key.trim()) throw new Error("Paste the new key.");
+    return { id: o.id, key: o.key };
+  })
+  .handler(async ({ context, data }) => {
+    await assertBoss(context);
+    const k = await import("./ai-keys.server");
+    await k.replaceAiKey(data.id, data.key);
+    return { ok: true };
+  });
+
 /** Boss: switch a key on or off, or remove it. */
 export const updateAiKeyFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -82,14 +98,15 @@ export const testAiKeyFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertBoss(context);
     const k = await import("./ai-keys.server");
-    const { FOUL_CAPABLE_FREE_MODEL } = await import("./ai-endpoint.server");
+    const or = await import("./openrouter-models.server");
+    await or.loadOpenRouterModels();
     const found = await k.revealForTest(data.id);
     if (!found) return { status: "Couldn't read this key. Remove it and add it again." };
     const model =
       found.provider === "pollinations"
         ? "openai-fast"
         : found.provider === "openrouter"
-          ? FOUL_CAPABLE_FREE_MODEL
+          ? or.openRouterFreeModels()[0]
           : process.env.GEMINI_FREE_MODEL || process.env.GEMINI_MODEL || "gemini-3.8-flash";
     let status: string;
     try {
