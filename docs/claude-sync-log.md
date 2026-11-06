@@ -7,6 +7,9 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Partner's Claude · `dev-pin` (and OG VAULT, og-booking-portal,
+  PADEL-RIVAL-REACT) · dev.b055 sign-in with one PIN in the hub Vault for
+  every app. OG B0T part in welcome.tsx and dev-pin*.ts.
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
