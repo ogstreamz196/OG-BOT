@@ -265,7 +265,23 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · TradeTweaker — a new Boss-only tab
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · PIN lock on the TradeTweaker
+  control room (the Boss). The signals tweak section is now a locked control
+  room: a second PIN on top of the Boss login. With no PIN set it's open but
+  nudges you to set one; once set it asks for the PIN once per browser session.
+  Nothing personal is stored — only a salted hash of the PIN in app_settings
+  (`signals_tweaker_pin`). The setter server function is in place, but changing
+  or resetting the PIN is meant to live in the Boss dashboard (to be wired),
+  deliberately kept out of the locked room so the lock means something. This is
+  the first slice of a bigger control-room build the Boss asked for (named,
+  editable strategy cards you can preview on a BTC chart and send to Telegram,
+  plus a data room for every entry and the learning data) — those parts are
+  scoped and waiting on one go-ahead about whether new/edited strategies post
+  live or stay preview-and-manual-send first. Pure helper `tweaker-pin.ts` with
+  tests; server fns `tweaker-pin.functions.ts`; `TweakerPinGate.tsx`. No
+  migrations, no new tables.
+
+- **Boss's Claude · 2026-11-07 · #255** · TradeTweaker — a new Boss-only tab
   under /admin/signals that gathers every signal knob, strategy and the learning
   data in one place, so the signals can be tuned from a screen instead of the
   code. This is step one of the Boss's plan to hand signals tuning to a partner:
