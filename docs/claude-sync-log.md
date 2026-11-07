@@ -265,7 +265,25 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · Data room in the TradeTweaker
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · Editable engine-wide settings (the
+  Boss "do all"). The posting gate and the concurrency limits were fixed
+  constants; they're now editable in the TradeTweaker control room. A new
+  `engine-config.ts` holds the config, its defaults (equal to the old constants
+  — a test asserts it so they can't drift) and safe bounds; stored in
+  app_settings (`signals_engine_config`). The live path reads it through a
+  cached `engineConfig()` that falls back to the defaults on any error:
+  `postDecision` takes the gate config (wired in signal-scan), and the
+  concurrency bar, per-market cap, gaps and cooldown load inside `postOnce` so
+  every poster picks them up. Every existing caller passes nothing and gets the
+  old constants, so an unset config changes nothing. Markets on/off, the exits
+  and the pair checks stay read-only for now (woven through loops and the
+  outcome math — a careful follow-up). Takes effect within a minute, and the
+  copy bot copies every signal, so it drives real trades. Second of the three
+  "do all" items (data room done; the manual send-to-Telegram button is next).
+  `engine-config.{ts,server.ts,functions.ts}` + tests; `EngineConfigEditor.tsx`.
+  No migrations, no new tables.
+
+- **Boss's Claude · 2026-11-07 · #261** · Data room in the TradeTweaker
   control room (the Boss: "do all"). A read-only section showing every recent
   signal entry and the learning data behind the bot: counts (entries in a
   7/30/90-day window, learning samples, shadow trades), each market's learning

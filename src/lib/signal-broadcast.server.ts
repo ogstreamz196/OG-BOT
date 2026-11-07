@@ -21,6 +21,7 @@
  */
 import { signalRequest, type SignalPair, type SignalTimeframe } from "@/lib/telegram-signals";
 import type { CalendarEvent } from "./trade-signal-extras";
+import { DEFAULT_ENGINE_CONFIG, type ConcurrencyConfig } from "./engine-config";
 
 type Admin = any;
 
@@ -199,11 +200,18 @@ export const CONCURRENCY_BAR_MAX = 84;
  * extra adds CONCURRENCY_STEP, capped at CONCURRENCY_BAR_MAX. Offsets the
  * higher concurrency cap so the last slots aren't filled with weak setups. Pure.
  */
-export function concurrencyBar(running: number): number {
+export function concurrencyBar(
+  running: number,
+  cfg: { free: number; step: number; barMax: number } = {
+    free: CONCURRENCY_FREE,
+    step: CONCURRENCY_STEP,
+    barMax: CONCURRENCY_BAR_MAX,
+  },
+): number {
   // No extra floor for the first few (desk/random keep their own lower bars).
-  if (running <= CONCURRENCY_FREE) return 0;
-  const extra = running - CONCURRENCY_FREE;
-  return Math.min(CONCURRENCY_BAR_MAX, BROADCAST_MIN_CONFIDENCE + extra * CONCURRENCY_STEP);
+  if (running <= cfg.free) return 0;
+  const extra = running - cfg.free;
+  return Math.min(cfg.barMax, BROADCAST_MIN_CONFIDENCE + extra * cfg.step);
 }
 
 type TradeState = "running" | "stopped_recently" | "over";
@@ -218,6 +226,7 @@ async function tradeState(
   market: string,
   post: PostRow,
   now: number,
+  afterStopMs: number = AFTER_STOP_MS,
 ): Promise<TradeState> {
   if (!post.message_id) return "running";
   try {
@@ -237,7 +246,7 @@ async function tradeState(
     if (isActive(row.status as never)) return "running";
     if (row.status === "stopped") {
       const closed = Date.parse(row.closed_at ?? "");
-      return Number.isFinite(closed) && now - closed >= AFTER_STOP_MS ? "over" : "stopped_recently";
+      return Number.isFinite(closed) && now - closed >= afterStopMs ? "over" : "stopped_recently";
     }
     return "over";
   } catch {
@@ -259,19 +268,28 @@ async function roomForAnother(
   stop: number | undefined,
   posts: PostRow[],
   now: number,
+  cfg: ConcurrencyConfig = DEFAULT_ENGINE_CONFIG.concurrency,
 ): Promise<boolean> {
-  const states = await Promise.all(posts.map((p) => tradeState(admin, plan.market, p, now)));
+  const afterStopMs = cfg.afterStopMins * 60_000;
+  const states = await Promise.all(
+    posts.map((p) => tradeState(admin, plan.market, p, now, afterStopMs)),
+  );
   const running = posts.filter((_, i) => states[i] === "running");
-  if (running.length >= MAX_RUNNING_PER_MARKET) return false;
+  if (running.length >= cfg.perMarket) return false;
   // The more already running, the surer this one has to be.
-  if (plan.confidencePct < concurrencyBar(running.length)) return false;
+  if (plan.confidencePct < concurrencyBar(running.length, cfg)) return false;
   const same = (p: PostRow) => p.direction === plan.direction;
   if (posts.some((p, i) => same(p) && states[i] === "stopped_recently")) return false;
   const risk = stop != null ? Math.abs(plan.entry - stop) : NaN;
+  const sameSideGapMs = cfg.sameSideGapMins * 60_000;
   for (const p of running.filter(same)) {
     const at = Date.parse(p.created_at ?? "");
-    if (Number.isFinite(at) && now - at < SAME_SIDE_GAP_MS) return false;
-    if (risk > 0 && p.entry != null && Math.abs(Number(p.entry) - plan.entry) < SAME_SETUP_R * risk)
+    if (Number.isFinite(at) && now - at < sameSideGapMs) return false;
+    if (
+      risk > 0 &&
+      p.entry != null &&
+      Math.abs(Number(p.entry) - plan.entry) < cfg.sameSetupR * risk
+    )
       return false;
   }
   return true;
@@ -309,7 +327,12 @@ async function postOnce(
     console.warn("[signals] broadcast check failed", error.message);
     return false;
   }
-  // Several trades can run at once, but not the same setup twice.
+  // Several trades can run at once, but not the same setup twice. The limits
+  // (per-market cap, concurrency bar, gaps, cooldown) come from the Boss's
+  // engine config, falling back to the defaults = the original constants.
+  const engineCfg = await import("./engine-config.server")
+    .then((m) => m.engineConfig())
+    .catch(() => DEFAULT_ENGINE_CONFIG);
   if (
     !(await roomForAnother(
       admin,
@@ -317,6 +340,7 @@ async function postOnce(
       signal.summary?.stop,
       (live ?? []) as PostRow[],
       deps.now(),
+      engineCfg.concurrency,
     ))
   )
     return false;
