@@ -265,6 +265,22 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · Strategies in the TradeTweaker
+  control room (the Boss). The signals section now has named strategy cards,
+  each a saved preset of the engine's knobs with a market and timeframe. You can
+  add your own, edit any of them (the same knob editor as the market tuner),
+  delete them, and "preview on chart": that runs the real engine in the browser
+  on live Bitcoin candles and draws the projected entry, stop and take-profits on
+  a price chart, with a BUY/SELL read. Stored as a JSON list in app_settings
+  (`signals_strategies`), Boss-gated, every value clamped by safeTuning on save,
+  capped at 30, audit-logged. Important: these are presets to tune and preview
+  for now — they do not drive live signals or post to Telegram on their own yet.
+  Whether a strategy goes live, and a manual send-to-Telegram, is the next
+  decision (the control-room "send signals" and "data room for all entries"
+  parts are still to come). New pure module `signal-strategies.ts` with tests;
+  server fns `signal-strategies.functions.ts`; shared `TuningFields.tsx`;
+  `StrategyStudio.tsx` + `StrategyPreview.tsx`. No migrations, no new tables.
+
 - **Boss's Claude · 2026-11-07 · #258** · Universal AI key names in every app
   (the Boss's list in the hub's Edge Function secrets): FREE_GROQ / OPENROUTER /
   POLLINATIONS_API_KEY (+ _2), FREE_GEMINI_API_KEY_1.._4, PAID_GEMINI_F196.
@@ -273,7 +289,7 @@ merged work, not open work.
   breaks before the Lovable secrets are renamed. Padel Rival's padel-api (hub,
   v14) and OG VAULT's Groq calls use the same names. OG STAYZ has no AI keys.
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · PIN lock on the TradeTweaker
+- **Boss's Claude · 2026-11-07 · #257** · PIN lock on the TradeTweaker
   control room (the Boss). The signals tweak section is now a locked control
   room: a second PIN on top of the Boss login. With no PIN set it's open but
   nudges you to set one; once set it asks for the PIN once per browser session.
