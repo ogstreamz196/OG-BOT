@@ -190,16 +190,17 @@ describe("maybeLearn", () => {
     const started = Date.now();
     const out = await maybeLearn(admin, now, fakeBinance());
     const took = Date.now() - started;
-    // Bitcoin only: gold is retired and never studied again.
+    // Both markets are studied, one per run, least-recently-studied first
+    // (gold leads in the config), then the other.
     expect(out).toMatch(
-      /^Bitcoin: (learned a better setting|kept its setting) \(\d+ setups over 14 days, 0 new, \d+ trades\)$/,
+      /^Gold: (learned a better setting|kept its setting) \(\d+ setups over 14 days, 0 new, \d+ trades\)$/,
     );
     const state = parseLearning(admin.rows["signals.learning"]);
-    expect(state.markets.BTCUSD).toMatchObject({ runs: 1, history: [expect.any(Object)] });
-    expect(state.markets.BTCUSD.lesson).toMatch(/^Bitcoin: /);
-    expect(state.markets.XAUUSD).toBeUndefined();
+    expect(state.markets.XAUUSD).toMatchObject({ runs: 1, history: [expect.any(Object)] });
+    expect(state.markets.XAUUSD.lesson).toMatch(/^Gold: /);
+    expect(state.markets.BTCUSD).toBeUndefined();
     expect(await maybeLearn(admin, now + 60_000, fakeBinance())).toBe("not due");
-    // The next study is bitcoin again.
+    // The next study is the other market, bitcoin.
     expect(await maybeLearn(admin, now + 2 * 3600_000, fakeBinance())).toMatch(/^Bitcoin: /);
     // A study stays light enough for the minute watcher.
     expect(took).toBeLessThan(15_000);

@@ -265,6 +265,17 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · Gold is back (the Boss, after
+  the data: gold ran ~68% vs Bitcoin's ~43%, and gold had been retired). Gold
+  and Bitcoin are both scanned, learned, traded, listed and recorded again:
+  SIGNAL_MARKETS = [XAUUSD, BTCUSD], RETIRED_MARKETS empty (signal-markets.ts),
+  BROADCAST_MARKETS = [XAU, BTC], BOARD_MARKETS gains gold. isRetiredMarket is
+  now false, so gold asks build real signals again. Gold's stored trades and
+  learning were never deleted, so it resumes with its history. The signals
+  mechanics (walk-forward tuner, per-setup gating, filter learning, strategy
+  scoreboard, the win-rate gate) all run per market, so gold self-tunes. Tests
+  across the signal suite updated for two markets. No new tables.
+
 - **2026-11-06 · partner's Claude · #249 · Entries close to the price.**
   The Boss: entries too far from the price when posted, and too slow.
   Data (BTC, 4 days): pullback entries 25/41, −$178.56; market entries

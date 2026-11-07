@@ -543,11 +543,9 @@ describe("telegram bot flow", () => {
     await type("₿ BTC · Scalp");
     expect(signalAsks.at(-1)).toBe("BTCUSD signal 5m");
     expect(liveBars()).toHaveLength(1);
-    // Gold is retired: an old gold button gets one line, and no chart is read.
-    const asked = signalAsks.length;
+    // Gold is back: an old gold button now reads the gold chart.
     await type("🥇 Gold · Scalp");
-    expect(lastSent().text).toContain("Gold's off the menu");
-    expect(signalAsks).toHaveLength(asked);
+    expect(signalAsks.at(-1)).toBe("XAUUSD signal 5m");
   });
 
   test("not connected yet: the ⚡ button is on their bar and gets a free signal (no AI)", async () => {

@@ -8,7 +8,10 @@ import type { SignalRecord } from "./signal-record.server";
  * only, the one market the bot posts, learns and is followed on (gold is
  * retired, signal-markets.ts).
  */
-export const BOARD_MARKETS = [{ code: "BTCUSD", ask: "BTCUSD", group: "Crypto" }] as const;
+export const BOARD_MARKETS = [
+  { code: "XAUUSD", ask: "XAUUSD", group: "Metals" },
+  { code: "BTCUSD", ask: "BTCUSD", group: "Crypto" },
+] as const;
 
 export type BoardFrame = "1H" | "15M";
 export type BoardMarket = (typeof BOARD_MARKETS)[number]["code"];
