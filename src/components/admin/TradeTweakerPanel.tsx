@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { AdminSection } from "./AdminSection";
 import { TweakerPinGate } from "./TweakerPinGate";
 import { StrategyStudio } from "./StrategyStudio";
+import { SignalDataRoom } from "./SignalDataRoom";
 
 type Loaded = Awaited<ReturnType<typeof getTweaker>>;
 type MarketRow = Loaded["markets"][number];
@@ -352,6 +353,8 @@ export function TradeTweakerPanel() {
       </AdminSection>
 
       {data ? <StrategyStudio bounds={data.bounds} defaults={data.defaults} /> : null}
+
+      <SignalDataRoom />
 
       {data ? (
         <AdminSection
