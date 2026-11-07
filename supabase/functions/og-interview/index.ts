@@ -4,8 +4,9 @@
 import { handlePreflight, jsonResponse } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/clients.ts";
 import { geminiUsage, logAiUsage } from "../_shared/ai-usage.ts";
+import { envKey } from "../_shared/key-names.ts";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const PAID_GEMINI_F196 = envKey("PAID_GEMINI_F196")!;
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.8-flash";
 
 type Turn = { role: "bot" | "user"; text: string };
@@ -63,7 +64,7 @@ async function callGemini(
   maxTokens: number,
   feature: string,
 ): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${PAID_GEMINI_F196}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
   if (pre) return pre;
 
   try {
-    if (!GEMINI_API_KEY) return jsonResponse({ error: "GEMINI_API_KEY not configured" }, 500);
+    if (!PAID_GEMINI_F196) return jsonResponse({ error: "PAID_GEMINI_F196 not configured" }, 500);
 
     const auth = await requireUser(req);
     if (auth.error) return auth.error;

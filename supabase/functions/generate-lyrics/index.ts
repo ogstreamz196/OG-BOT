@@ -1,4 +1,4 @@
-// Lyrics generation using the user's own Gemini key (GEMINI_API_KEY).
+// Lyrics generation using the user's own Gemini key (PAID_GEMINI_F196).
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { geminiUsage, logAiUsage } from "../_shared/ai-usage.ts";
 import { handlePreflight, jsonResponse } from "../_shared/cors.ts";
@@ -10,8 +10,9 @@ watchKeyFailures();
 import { sanitizeLyrics } from "../_shared/lyrics-sanitize.ts";
 import { languageLyricNotes } from "../_shared/language-guide.ts";
 import { lyricIntensityIssue } from "../_shared/lyric-intensity.ts";
+import { envKey } from "../_shared/key-names.ts";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+const PAID_GEMINI_F196 = envKey("PAID_GEMINI_F196") ?? "";
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.8-flash";
 // Paid emergency key — used once, only after the primary key is exhausted.
 const GEMINI_BACKUP_API_KEY = Deno.env.get("GEMINI_BACKUP_API_KEY") ?? "";
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
   if (pre) return pre;
 
   try {
-    if (!["GEMINI_API_KEY", "GROQ_API_KEY", "GROQ_BACKUP_API_KEY", "POLLINATIONS_API_KEY", "POLLINATIONS_BACKUP_API_KEY", "OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].some((name) => Deno.env.get(name)))
+    if (!["PAID_GEMINI_F196", "FREE_GROQ_API_KEY", "FREE_GROQ_API_KEY_2", "FREE_POLLINATIONS_API_KEY", "FREE_POLLINATIONS_API_KEY_2", "FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].some((name) => envKey(name)))
       return jsonResponse({ error: "No lyrics writer is configured" }, 500);
 
     const auth = await requireUserOrService(req);
@@ -369,7 +370,7 @@ Deno.serve(async (req) => {
         : "") +
       `\nWrite the FULL song now — about ${mmss(targetSec)} of singable material (${aimLow}–${aimHigh} words, ${minLines}–${aimLines} lyric lines, do not exceed that). Do not stop early, do not abbreviate repeated choruses, hit EVERY section in the structure, stay ruthlessly on-theme with the description above, and drop "${subjectName || "the subject"}" as often as the music allows.`;
 
-    const modelUrl = (model: string, key = GEMINI_API_KEY) =>
+    const modelUrl = (model: string, key = PAID_GEMINI_F196) =>
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${key}`;
 
     await updateProgress(40, "Writing verses…");
@@ -395,7 +396,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    const postTo = (model: string, contents: unknown[], key = GEMINI_API_KEY, reserveMs = 45_000) =>
+    const postTo = (model: string, contents: unknown[], key = PAID_GEMINI_F196, reserveMs = 45_000) =>
       timedFetch(
         modelUrl(model, key),
         {
@@ -429,7 +430,7 @@ Deno.serve(async (req) => {
 
     const GEMINI_MODELS = Array.from(new Set([GEMINI_MODEL, "gemini-flash-latest"]));
     const callGemini = async (contents: unknown[]): Promise<Gen> => {
-      if (!GEMINI_API_KEY) {
+      if (!PAID_GEMINI_F196) {
         return { ok: false, status: 503, text: "", detail: "No lyrics model available" };
       }
       let last: Gen = { ok: false, status: 503, text: "", detail: "No response" };
@@ -472,16 +473,16 @@ Deno.serve(async (req) => {
       // the OpenRouter model that swears back is tried before Gemini.
       const tiers: Array<[string, string, string, Record<string, string>]> = foulMouth
         ? [
-            ["OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
-            ["OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["FREE_OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["FREE_OPENROUTER_API_KEY_2", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
           ]
         : [
-            ["GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", {}],
-            ["GROQ_BACKUP_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", {}],
-            ["OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
-            ["OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
-            ["POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast", {}],
-            ["POLLINATIONS_BACKUP_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast", {}],
+            ["FREE_GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", {}],
+            ["FREE_GROQ_API_KEY_2", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", {}],
+            ["FREE_OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["FREE_OPENROUTER_API_KEY_2", "https://openrouter.ai/api/v1/chat/completions", foulModel, or],
+            ["FREE_POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast", {}],
+            ["FREE_POLLINATIONS_API_KEY_2", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast", {}],
           ];
       const messages = [
         { role: "system", content: systemPrompt },
@@ -495,8 +496,8 @@ Deno.serve(async (req) => {
       // slow provider cannot burn the whole time budget.
       const slow = new Set<string>();
       for (const [env, url, model, extra] of tiers) {
-        const key = Deno.env.get(env);
-        const provider = env.split("_")[0];
+        const key = envKey(env);
+        const provider = env.replace(/^FREE_/, "").split("_")[0];
         if (!key || slow.has(provider)) continue;
         const r = await timedFetch(
           url,
@@ -552,8 +553,8 @@ Deno.serve(async (req) => {
 
     // Owner's free Google AI Studio keys: tried before any paid Gemini key.
     const callFreeGemini = async (contents: unknown[]): Promise<Gen | null> => {
-      for (const env of ["GEMINI_FREE_API_KEY", "GEMINI_FREE_BACKUP_API_KEY", "GEMINI_FREE_3_API_KEY", "GEMINI_FREE_4_API_KEY"]) {
-        const key = Deno.env.get(env);
+      for (const env of ["FREE_GEMINI_API_KEY_1", "FREE_GEMINI_API_KEY_2", "FREE_GEMINI_API_KEY_3", "FREE_GEMINI_API_KEY_4"]) {
+        const key = envKey(env);
         if (!key) continue;
         // Lite first: fast and rarely overloaded; Flash as the second try.
         for (const model of ["gemini-flash-lite-latest", "gemini-flash-latest"]) {

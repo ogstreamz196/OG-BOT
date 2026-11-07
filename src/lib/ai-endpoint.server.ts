@@ -13,6 +13,7 @@ import {
   openRouterFreeModels,
   openRouterModelGone,
 } from "./openrouter-models.server";
+import { envKey as readKey } from "@/lib/key-names";
 
 export type AiChatTarget = {
   url: string;
@@ -27,7 +28,7 @@ const GEMINI_OPENAI_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 function geminiTarget(): AiChatTarget | null {
-  const gemini = process.env.GEMINI_API_KEY;
+  const gemini = readKey("PAID_GEMINI_F196");
   if (!gemini) return null;
   return {
     url: GEMINI_OPENAI_URL,
@@ -44,7 +45,7 @@ function keyed(
   model: string,
   extra: Record<string, string> = {},
 ): AiChatTarget | null {
-  const key = process.env[envKey];
+  const key = readKey(envKey);
   if (!key) return null;
   return {
     url,
@@ -113,20 +114,20 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
     ...extra.pollinations.map((k) => own(k, "pollinations", POLL_URL, "openai-fast")),
     ...extraOpenrouter,
   ];
-  const openrouter = ["OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].flatMap((env) =>
+  const openrouter = ["FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].flatMap((env) =>
     orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
   );
   const list = foulMouth
     ? [...extraOpenrouter, ...openrouter]
     : [
         ...extraFirst,
-        keyed("GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
-        keyed("GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
+        keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
+        keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
         // Second Groq account — separate rate-limit budget.
-        keyed("GROQ_BACKUP_API_KEY", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
-        keyed("GROQ_BACKUP_API_KEY", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
-        keyed("POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
-        keyed("POLLINATIONS_BACKUP_API_KEY", "pollinations", POLL_URL, "openai-fast"),
+        keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
+        keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
+        keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
+        keyed("FREE_POLLINATIONS_API_KEY_2", "pollinations", POLL_URL, "openai-fast"),
         ...openrouter,
         // Last resort, free and needs no key at all: Pollinations' open
         // endpoint (rate-limited). Switch off with POLLINATIONS_NO_KEY=off.
@@ -178,7 +179,7 @@ const ROUTER_TIMEOUT_MS = 1_500;
  * Any failure counts as banter, so routing is never worse than before.
  */
 export async function needsThinking(text: string): Promise<boolean> {
-  const key = process.env.GROQ_API_KEY || process.env.GROQ_BACKUP_API_KEY;
+  const key = readKey("FREE_GROQ_API_KEY") || readKey("FREE_GROQ_API_KEY_2");
   if (!key) return false;
   try {
     const res = await fetch(GROQ_URL, {
@@ -716,7 +717,7 @@ type GroundedReply = {
  * Boss's existing Gemini key. Returns null on any failure so chat carries on.
  */
 export async function getLiveResearchContext(query: string): Promise<string | null> {
-  const key = process.env.GEMINI_API_KEY;
+  const key = readKey("PAID_GEMINI_F196");
   if (!key) return null;
   const cleaned = query
     .replace(/^\s*(?:\/research|research:)\s*/i, "")
@@ -802,8 +803,8 @@ Answer in your normal OG B0T voice: same persona, slang and attitude as always (
 
 /** Transcribe audio bytes with the Boss's own Gemini key. */
 export async function transcribeWithGemini(audioBase64: string, mime: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Speech-to-text not configured (GEMINI_API_KEY missing)");
+  const key = readKey("PAID_GEMINI_F196");
+  if (!key) throw new Error("Speech-to-text not configured (PAID_GEMINI_F196 missing)");
   const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
