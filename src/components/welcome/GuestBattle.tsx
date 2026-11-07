@@ -23,6 +23,7 @@ import {
   ArenaRanks,
   ArenaRoastOfDay,
   ArenaTyping,
+  heatTier,
 } from "@/components/battle/Arena";
 
 const GUEST_KEY = "og-guest-id";
@@ -78,6 +79,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
   const [sending, setSending] = useState(false);
   const [showBoard, setShowBoard] = useState(false);
   const [lastEarned, setLastEarned] = useState<number | null>(null);
+  const [coinBurst, setCoinBurst] = useState(0);
   const [clearedAt, setClearedAt] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [showRoast, setShowRoast] = useState(true);
@@ -148,6 +150,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
         const earned = res.award?.earnedTenths ?? 0;
         if (earned > 0) {
           setLastEarned(earned);
+          setCoinBurst((k) => k + 1);
           window.setTimeout(() => setLastEarned(null), 2500);
         }
         if (res.remaining === 0) setTimeout(onNeedAccount, 2500);
@@ -211,6 +214,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
           thinking={sending}
           purse={`${pendingCoins} OG`}
           earned={lastEarned}
+          coinBurstKey={coinBurst}
           ranksOpen={showBoard}
           onToggleRanks={() => setShowBoard((v) => !v)}
           onBank={bank}
@@ -262,6 +266,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
                   vip={!isBot && m.vip}
                   vipId={m.vip_id}
                   scoreTenths={isBot && prev?.role === "user" ? prev.score_tenths : null}
+                  heat={isBot && prev?.role === "user" ? heatTier(prev.score_tenths) : null}
                   menu={
                     !m.mine && !isBot ? (
                       <DropdownMenu>

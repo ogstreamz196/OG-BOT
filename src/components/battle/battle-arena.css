@@ -530,6 +530,99 @@ button.ar-name-vip {
     opacity: 1;
   }
 }
+
+/* ---------- Combat FX ---------- */
+/* Cuss hit shake: a quick horizontal micro-shake with a crimson outline flash,
+   played once when a high-heat clapback lands. Outline (not box-shadow) so it
+   never fights the savage aura's shadow when both run on one bubble. */
+@keyframes ar-hit-shake {
+  0% {
+    transform: translate3d(0, 0, 0);
+    outline-color: transparent;
+  }
+  15% {
+    transform: translate3d(-5px, 0, 0);
+    outline-color: var(--ar-crimson);
+  }
+  30% {
+    transform: translate3d(4px, 0, 0);
+  }
+  45% {
+    transform: translate3d(-3px, 0, 0);
+    outline-color: var(--ar-crimson);
+  }
+  65% {
+    transform: translate3d(2px, 0, 0);
+    outline-color: transparent;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    outline-color: transparent;
+  }
+}
+.ar-hit-shake {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  animation: ar-hit-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  will-change: transform;
+}
+/* Savage diss glow: a slow crimson↔gold heat aura around the top-tier bubble. */
+@keyframes ar-savage-aura {
+  0%,
+  100% {
+    box-shadow: 0 0 18px -6px color-mix(in oklab, var(--ar-crimson) 72%, transparent);
+    border-color: color-mix(in oklab, var(--ar-crimson) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 26px -2px color-mix(in oklab, var(--ar-gold) 65%, transparent);
+    border-color: color-mix(in oklab, var(--ar-gold) 55%, transparent);
+  }
+}
+.ar-bubble--savage {
+  animation: ar-savage-aura 1.8s ease-in-out infinite;
+}
+/* A savage bubble kicks once on arrival (transform/outline), then keeps its
+   aura (box-shadow/border): separate properties, so both animations coexist. */
+.ar-bubble--savage.ar-hit-shake {
+  animation:
+    ar-hit-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both,
+    ar-savage-aura 1.8s ease-in-out 320ms infinite;
+}
+
+/* Win / cash-out sparkles: a micro-burst of golden coins around the purse. */
+.ar-coin-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.ar-coin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--ar-gold) 55%, #9a6a12);
+  box-shadow: 0 0 8px var(--ar-gold);
+  opacity: 0;
+  animation: ar-coin-fly 760ms ease-out forwards;
+}
+@keyframes ar-coin-fly {
+  0% {
+    transform: translate3d(-50%, -50%, 0) scale(0.4);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0) scale(1)
+      rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .og-arena *,
   .og-arena *::after {
