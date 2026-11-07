@@ -11,6 +11,7 @@ import { AdminSection } from "./AdminSection";
 import { TweakerPinGate } from "./TweakerPinGate";
 import { StrategyStudio } from "./StrategyStudio";
 import { SignalDataRoom } from "./SignalDataRoom";
+import { EngineConfigEditor } from "./EngineConfigEditor";
 
 type Loaded = Awaited<ReturnType<typeof getTweaker>>;
 type MarketRow = Loaded["markets"][number];
@@ -246,23 +247,9 @@ function EngineReadout({ engine }: { engine: Loaded["engine"] }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="rounded-xl border border-border bg-background/40 p-4">
-        <p className="mb-2 text-sm font-semibold text-foreground">Markets &amp; gate</p>
+        <p className="mb-2 text-sm font-semibold text-foreground">Markets</p>
         <Row label="Live markets" value={engine.markets.live.join(", ") || "none"} />
         <Row label="Retired" value={engine.markets.retired.join(", ") || "none"} />
-        <Row label="Min confidence to post" value={`${engine.gate.minConfidence}%`} />
-        <Row
-          label="Win-rate gate"
-          value={`${Math.round(engine.gate.minWinRate * 100)}% over ${engine.gate.minWinRateTrades} calls`}
-        />
-        <Row label="Record needed first" value={`${engine.gate.minRecord} filled`} />
-      </div>
-      <div className="rounded-xl border border-border bg-background/40 p-4">
-        <p className="mb-2 text-sm font-semibold text-foreground">Concurrency</p>
-        <Row label="Free (no bar penalty)" value={String(engine.concurrency.free)} />
-        <Row label="Max running per market" value={String(engine.concurrency.perMarket)} />
-        <Row label="Same-side gap" value={`${engine.concurrency.sameSideGapMins} min`} />
-        <Row label="After a stop" value={`${engine.concurrency.afterStopMins} min`} />
-        <Row label="Same-setup spacing" value={`${engine.concurrency.sameSetupR}R`} />
       </div>
       <div className="rounded-xl border border-border bg-background/40 p-4">
         <p className="mb-2 text-sm font-semibold text-foreground">Exits</p>
@@ -356,11 +343,13 @@ export function TradeTweakerPanel() {
 
       <SignalDataRoom />
 
+      <EngineConfigEditor />
+
       {data ? (
         <AdminSection
           icon={<SlidersHorizontal className="h-4 w-4 text-muted-foreground" />}
-          title="Engine-wide settings"
-          subtitle="The rest of the signal machinery, shown so you can see the whole picture. These are set in code for now; tell me which you want to make editable here next."
+          title="Reference · set in code"
+          subtitle="The parts of the machinery still set in code: which markets are live, the exit mechanics and the pair checks. Tell me which to make editable next."
           muted
         >
           <EngineReadout engine={data.engine} />

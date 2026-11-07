@@ -179,6 +179,8 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const pa = await import("@/lib/paper-account.server");
           const rnd = await import("@/lib/signal-random.server");
           const { postDecision } = await import("@/lib/signal-gate");
+          const { engineConfig } = await import("@/lib/engine-config.server");
+          const cfg = await engineConfig();
           const state = await pa.paperState(supabaseAdmin);
           const learned = await pa.lotInputs(
             supabaseAdmin,
@@ -200,15 +202,18 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           const lastAt = Date.parse(
             (lastPost as { created_at?: string }[] | null)?.[0]?.created_at ?? "",
           );
-          const d = postDecision({
-            confidencePct: s.plan.confidencePct,
-            ...learned,
-            minutesSinceLastPost: Number.isFinite(lastAt) ? (Date.now() - lastAt) / 60_000 : null,
-            strategy: stats.strategies[strategy],
-            chart: stats.frames[chart],
-            strategyName: rnd.STRATEGY_NAMES[strategy],
-            chartName: `${s.summary.timeframe} chart`,
-          });
+          const d = postDecision(
+            {
+              confidencePct: s.plan.confidencePct,
+              ...learned,
+              minutesSinceLastPost: Number.isFinite(lastAt) ? (Date.now() - lastAt) / 60_000 : null,
+              strategy: stats.strategies[strategy],
+              chart: stats.frames[chart],
+              strategyName: rnd.STRATEGY_NAMES[strategy],
+              chartName: `${s.summary.timeframe} chart`,
+            },
+            cfg.gate,
+          );
           return d.post ? null : d.why;
         };
         const shadow = (s: Built, why: import("@/lib/signal-shadows.server").ShadowReason) =>
