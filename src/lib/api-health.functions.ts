@@ -80,6 +80,35 @@ async function timed<T>(fn: () => Promise<T>) {
 
 type Partial_ = Omit<HealthCheck, "key" | "label" | "group" | "required">;
 
+/**
+ * The hub's shared free keys (ogstreamz-ai ?check=1: only how many keys each
+ * provider has and whether each was accepted, never a key).
+ */
+async function checkHubFreeKeys(): Promise<Partial_> {
+  if (!process.env.OG_HUB_SERVICE_KEY) return missing("OG_HUB_SERVICE_KEY");
+  const base = (process.env.OG_HUB_URL || "https://zqwngcndkxgxuwqyxihi.supabase.co").replace(/\/+$/, "");
+  try {
+    const { result, latencyMs } = await timed(() =>
+      fetch(`${base}/functions/v1/ogstreamz-ai?check=1`, { signal: AbortSignal.timeout(15_000) }),
+    );
+    if (!result.ok)
+      return { status: "unreachable", detail: `The hub answered HTTP ${result.status}.`, latencyMs };
+    const { keys } = (await result.json()) as { keys?: Record<string, number[]> };
+    const parts = Object.entries(keys ?? {}).map(
+      ([p, list]) => `${p} ${list.filter((c) => c === 200).length}/${list.length}`,
+    );
+    const bad = Object.values(keys ?? {}).some((list) => list.some((c) => c !== 200));
+    return {
+      status: bad ? "degraded" : "ok",
+      detail: `Keys working: ${parts.join(", ") || "none"}. Used when a provider has no key of its own here.`,
+      fix: bad ? "Replace the rejected FREE_* key in the hub's Edge Function secrets." : undefined,
+      latencyMs,
+    };
+  } catch {
+    return { status: "unreachable", detail: "The hub didn't answer." };
+  }
+}
+
 async function checkGemini(): Promise<Partial_> {
   const key = envKey("PAID_GEMINI_F196");
   if (!key) return missing("PAID_GEMINI_F196");
@@ -430,6 +459,8 @@ const SPECS: Spec[] = [
     run: () => checkChatKey("FREE_POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
   { key: "pollinations_backup", label: "Pollinations backup", secret: "FREE_POLLINATIONS_API_KEY_2", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
     run: () => checkChatKey("FREE_POLLINATIONS_API_KEY_2", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
+  { key: "hub_free_keys", label: "Shared free keys (hub, every app)", secret: "OG_HUB_SERVICE_KEY", help: "hub → Edge Functions → Secrets", group: "AI chat & lyrics", required: false,
+    run: checkHubFreeKeys },
   { key: "pollinations_free", label: "Pollinations free (no key needed, last resort)", group: "AI chat & lyrics", required: false,
     run: checkPollinationsNoKey },
   { key: "suno", label: "Suno (song generation)", secret: "SUNO_API_KEY", help: "sunoapi.org", group: "Music", required: true, run: checkSuno },

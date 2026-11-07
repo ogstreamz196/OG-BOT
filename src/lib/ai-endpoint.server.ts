@@ -7,7 +7,7 @@
  */
 
 import { CLEAN_TV_HELP_NOTE, isTvHelpChat } from "./tv-help";
-import { extraKeysNow, loadExtraKeys } from "./ai-keys.server";
+import { extraKeysNow, hubAiEndpoint, loadExtraKeys } from "./ai-keys.server";
 import {
   loadOpenRouterModels,
   openRouterFreeModels,
@@ -114,20 +114,48 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
     ...extra.pollinations.map((k) => own(k, "pollinations", POLL_URL, "openai-fast")),
     ...extraOpenrouter,
   ];
-  const openrouter = ["FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].flatMap((env) =>
-    orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
+  // The hub's shared free keys stand in for a provider only when this app has
+  // no key of its own for it, so nothing changes while the own keys are set.
+  const viaHub = (
+    provider: "groq" | "openrouter" | "pollinations",
+    label: AiChatTarget["provider"],
+    model: string,
+  ): AiChatTarget | null => {
+    const hub = hubAiEndpoint(provider);
+    return hub ? { url: hub.url, headers: hub.headers, model, provider: label, free: true } : null;
+  };
+  const ownGroq = !!(readKey("FREE_GROQ_API_KEY") || readKey("FREE_GROQ_API_KEY_2"));
+  const ownOr = !!(readKey("FREE_OPENROUTER_API_KEY") || readKey("FREE_OPENROUTER_API_KEY_2"));
+  const ownPoll = !!(
+    readKey("FREE_POLLINATIONS_API_KEY") || readKey("FREE_POLLINATIONS_API_KEY_2")
   );
+  const openrouter = ownOr
+    ? ["FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].flatMap((env) =>
+        orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
+      )
+    : orModels.map((m) => viaHub("openrouter", "openrouter", m));
   const list = foulMouth
     ? [...extraOpenrouter, ...openrouter]
     : [
         ...extraFirst,
-        keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
-        keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
-        // Second Groq account — separate rate-limit budget.
-        keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
-        keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
-        keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
-        keyed("FREE_POLLINATIONS_API_KEY_2", "pollinations", POLL_URL, "openai-fast"),
+        ...(ownGroq
+          ? [
+              keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
+              keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
+              // Second Groq account — separate rate-limit budget.
+              keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
+              keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
+            ]
+          : [
+              viaHub("groq", "groq", "qwen/qwen3.8-27b"),
+              viaHub("groq", "groq", "openai/gpt-oss-120b"),
+            ]),
+        ...(ownPoll
+          ? [
+              keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
+              keyed("FREE_POLLINATIONS_API_KEY_2", "pollinations", POLL_URL, "openai-fast"),
+            ]
+          : [viaHub("pollinations", "pollinations", "openai-fast")]),
         ...openrouter,
         // Last resort, free and needs no key at all: Pollinations' open
         // endpoint (rate-limited). Switch off with POLLINATIONS_NO_KEY=off.

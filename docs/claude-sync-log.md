@@ -265,6 +265,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-07 · #260** · Shared free AI keys through the hub:
+  Edge Function `ogstreamz-ai` (live; source in supabase/hub/functions). OG B0T
+  uses it only for a provider with no key of its own (nothing changes while the
+  Lovable secrets are set) and shows its health in Boss → System → API keys.
+  OG VAULT's AI buttons use it first, own key as backup (OG-VAULT-REACT main).
+  At deploy, FREE_GEMINI_API_KEY_3 was rejected by Google (400).
 - **Boss's Claude · 2026-11-07 · #PR_NUM** · Strategies in the TradeTweaker
   control room (the Boss). The signals section now has named strategy cards,
   each a saved preset of the engine's knobs with a market and timeframe. You can

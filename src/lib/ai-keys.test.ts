@@ -98,3 +98,48 @@ describe("extra AI keys", () => {
     await expect(replaceAiKey(id, "short")).rejects.toThrow("doesn't look like a key");
   });
 });
+
+describe("hub's shared free keys", () => {
+  const OWN = [
+    "FREE_GROQ_API_KEY",
+    "FREE_GROQ_API_KEY_2",
+    "GROQ_API_KEY",
+    "GROQ_BACKUP_API_KEY",
+    "FREE_POLLINATIONS_API_KEY",
+    "POLLINATIONS_API_KEY",
+    "FREE_OPENROUTER_API_KEY",
+    "OPENROUTER_API_KEY",
+  ];
+  const saved: Record<string, string | undefined> = {};
+  afterEach(() => {
+    for (const k of OWN) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const clearOwn = () => {
+    for (const k of OWN) {
+      saved[k] = process.env[k];
+      delete process.env[k];
+    }
+  };
+
+  it("stand in only for providers with no key of their own", () => {
+    clearOwn();
+    process.env.OG_HUB_SERVICE_KEY = "sb_secret_hubkey123456";
+    process.env.GROQ_API_KEY = "gsk_own_key_123456";
+    const urls = freeFallbackTargets().map((t) => t.url);
+    expect(urls.some((u) => u.startsWith("https://api.groq.com/"))).toBe(true);
+    expect(urls.some((u) => u.includes("ogstreamz-ai?provider=groq"))).toBe(false);
+    expect(urls.some((u) => u.includes("ogstreamz-ai?provider=pollinations"))).toBe(true);
+    expect(urls.some((u) => u.includes("ogstreamz-ai?provider=openrouter"))).toBe(true);
+    const hub = freeFallbackTargets().find((t) => t.url.includes("ogstreamz-ai"))!;
+    expect(hub.headers.apikey).toBe("sb_secret_hubkey123456");
+    expect(hub.headers.Authorization).toBeUndefined();
+  });
+
+  it("add nothing without the hub key", () => {
+    clearOwn();
+    expect(freeFallbackTargets().some((t) => t.url.includes("ogstreamz-ai"))).toBe(false);
+  });
+});

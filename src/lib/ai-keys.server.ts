@@ -58,6 +58,25 @@ function hubConfig(): { url: string; key: string } | null {
   return { url: (process.env.OG_HUB_URL || DEFAULT_HUB_URL).replace(/\/+$/, ""), key };
 }
 
+/**
+ * The hub's shared free AI keys (the Boss, 2026-11-07: the hub's FREE_* keys
+ * are the free keys for every app): an OpenAI-style chat URL and headers for
+ * the hub Edge Function ogstreamz-ai, which holds the keys and tries each in
+ * turn. Null without OG_HUB_SERVICE_KEY. Never exposes a provider key.
+ */
+export function hubAiEndpoint(
+  provider: "groq" | "openrouter" | "pollinations" | "gemini",
+): { url: string; headers: Record<string, string> } | null {
+  const cfg = hubConfig();
+  if (!cfg) return null;
+  const headers: Record<string, string> = { "Content-Type": "application/json", apikey: cfg.key };
+  if (cfg.key.startsWith("eyJ")) headers.Authorization = `Bearer ${cfg.key}`;
+  return {
+    url: `${cfg.url}/functions/v1/ogstreamz-ai?provider=${provider}&app=og_bot`,
+    headers,
+  };
+}
+
 /** Whether the hub secret is set (the page says what to do when it isn't). */
 export function hubKeySet(): boolean {
   return !!hubConfig();
