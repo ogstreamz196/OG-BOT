@@ -281,6 +281,14 @@ merged work, not open work.
   server fns `signal-strategies.functions.ts`; shared `TuningFields.tsx`;
   `StrategyStudio.tsx` + `StrategyPreview.tsx`. No migrations, no new tables.
 
+- **Boss's Claude · 2026-11-07 · #258** · Universal AI key names in every app
+  (the Boss's list in the hub's Edge Function secrets): FREE_GROQ / OPENROUTER /
+  POLLINATIONS_API_KEY (+ _2), FREE_GEMINI_API_KEY_1.._4, PAID_GEMINI_F196.
+  OG B0T reads every AI key through envKey() (src/lib/key-names.ts, a copy in
+  supabase/functions/_shared), new name first, old name as fallback, so nothing
+  breaks before the Lovable secrets are renamed. Padel Rival's padel-api (hub,
+  v14) and OG VAULT's Groq calls use the same names. OG STAYZ has no AI keys.
+
 - **Boss's Claude · 2026-11-07 · #257** · PIN lock on the TradeTweaker
   control room (the Boss). The signals tweak section is now a locked control
   room: a second PIN on top of the Boss login. With no PIN set it's open but

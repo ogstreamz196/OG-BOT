@@ -90,6 +90,9 @@ sync. Follow this every time.
   be reused by all the Boss's apps: reuse them, don't ask for new ones per
   app. They still only go in secret stores (Supabase Edge Function secrets,
   Cloudflare or Lovable secrets, the API vault), never in chat or code.
+  Their universal names (every app): `FREE_GROQ_API_KEY`, `FREE_OPENROUTER_API_KEY`,
+  `FREE_POLLINATIONS_API_KEY` (each with `_2`), `FREE_GEMINI_API_KEY_1`..`_3`, and the
+  paid `PAID_GEMINI_F196`. Read them through `envKey()` (old names still fall back).
 - **Independent of Lovable (the Boss's aim, 2026-11-07).** Lovable is to be
   the editor only. New server code that needs a secret goes in a Supabase
   Edge Function in the OGSTREAMZ hub (named after the app; the hub's secret

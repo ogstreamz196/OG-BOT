@@ -6,6 +6,7 @@ import {
   usesOwnKey,
   type Connector,
 } from "@/lib/connectors.server";
+import { envKey } from "@/lib/key-names";
 
 async function assertAdmin(context: { supabase: unknown; userId: string }) {
   const supabase = context.supabase as {
@@ -35,7 +36,7 @@ async function timed<T>(fn: () => Promise<T>): Promise<{ result: T; latencyMs: n
 }
 
 function present(name: string): CheckResult | null {
-  return process.env[name]
+  return envKey(name)
     ? null
     : { ok: false, detail: `${name} is not set — paste it in Project Settings → Secrets.` };
 }
@@ -145,7 +146,7 @@ async function runOne(key: string): Promise<CheckResult> {
         }
       );
     case "gemini":
-      return present("GEMINI_API_KEY") ?? { ok: true, detail: "Key present." };
+      return present("PAID_GEMINI_F196") ?? { ok: true, detail: "Key present." };
     case "openai":
       return present("OPENAI_API_KEY") ?? { ok: true, detail: "Key present." };
     case "suno":

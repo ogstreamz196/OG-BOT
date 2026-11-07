@@ -13,6 +13,7 @@
 // Gemini key nor OpenRouter (kept for the group roasts), and any failure
 // falls back to the engine's own card.
 import { freeFallbackTargets, loadAiKeys, type AiChatTarget } from "./ai-endpoint.server";
+import { envKey } from "@/lib/key-names";
 
 export type DeskLean = "BUY" | "SELL" | "WAIT";
 export type DeskFinding = { role: DeskRoleId; lean: DeskLean; conviction: number; finding: string };
@@ -76,12 +77,12 @@ const GEMINI_OPENAI_URL =
 /** Free Google AI Studio keys, for the chief. */
 function freeGeminiTargets(): AiChatTarget[] {
   return [
-    "GEMINI_FREE_API_KEY",
-    "GEMINI_FREE_BACKUP_API_KEY",
-    "GEMINI_FREE_3_API_KEY",
-    "GEMINI_FREE_4_API_KEY",
+    "FREE_GEMINI_API_KEY_1",
+    "FREE_GEMINI_API_KEY_2",
+    "FREE_GEMINI_API_KEY_3",
+    "FREE_GEMINI_API_KEY_4",
   ]
-    .map((env) => process.env[env])
+    .map((env) => envKey(env))
     .filter((k): k is string => !!k)
     .map((key) => ({
       url: GEMINI_OPENAI_URL,
