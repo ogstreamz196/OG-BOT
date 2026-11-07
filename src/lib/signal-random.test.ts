@@ -174,7 +174,7 @@ describe("more signals that win more", () => {
       now: () => Date.parse("2026-11-03T12:00:00Z"),
       rand: () => 0,
     } as never);
-    expect(out).toBe("engine BTC 1m: against the 1h trend");
+    expect(out).toBe("engine XAU 1m: against the 1h trend");
     expect(post).not.toHaveBeenCalled();
   });
 });

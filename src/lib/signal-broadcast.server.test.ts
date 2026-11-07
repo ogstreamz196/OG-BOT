@@ -71,7 +71,7 @@ function deps(
   const sent: string[] = [];
   return {
     sent,
-    build: async (ask) => signals[ask.startsWith("XAU") ? "XAU" : "BTC"],
+    build: async (ask) => signals[ask.startsWith("XAU") ? "XAU" : "BTC"] ?? { reply: "wait" },
     post: async (text) => (sent.push(text), sent.length),
     now: () => now,
   };
@@ -86,7 +86,7 @@ describe("auto-posted scalp signals", () => {
       const { db } = fakeDb();
       const d = deps({ BTC: card("BTCUSD", direction, pct) });
       const result = await scanAndBroadcast(db, d);
-      expect(result).toEqual({ checked: 1, posted: [`BTCUSD ${direction}`] });
+      expect(result).toEqual({ checked: 2, posted: [`BTCUSD ${direction}`] });
       expect(d.sent).toHaveLength(1);
       expect(d.sent[0]).toMatch(new RegExp(`^BTCUSD ${direction} card`));
       expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
@@ -94,21 +94,21 @@ describe("auto-posted scalp signals", () => {
     expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
   });
 
-  test("bitcoin only: gold is retired and never scanned", async () => {
+  test("scans both gold and bitcoin (gold is back)", async () => {
     const { db } = fakeDb();
     const asks: string[] = [];
     const d = deps({ BTC: card("BTCUSD", "BUY", 90) });
     const build = d.build;
     d.build = async (ask) => (asks.push(ask), build(ask));
     await scanAndBroadcast(db, d);
-    expect(asks.length).toBeGreaterThan(0);
-    expect(asks.every((a) => a.startsWith("BTCUSD"))).toBe(true);
+    expect(asks.some((a) => a.startsWith("XAUUSD"))).toBe(true);
+    expect(asks.some((a) => a.startsWith("BTCUSD"))).toBe(true);
   });
 
   test("under 70% isn't posted", async () => {
     const { db } = fakeDb();
     const d = deps({ BTC: card("BTCUSD", "SELL", 69) });
-    expect(await scanAndBroadcast(db, d)).toEqual({ checked: 1, posted: [] });
+    expect(await scanAndBroadcast(db, d)).toEqual({ checked: 2, posted: [] });
   });
 
   test("a 'wait' (no trade) is never posted", async () => {

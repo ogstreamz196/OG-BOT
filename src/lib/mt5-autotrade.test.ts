@@ -148,7 +148,6 @@ describe("placeAutoTrade", () => {
     const { db } = fakeDb({ "mt5.autotrade": "on" });
     expect(await placeAutoTrade(db, btc({ feeds: { bias: true } }))).toBe("skipped: bias call");
     expect(await placeAutoTrade(db, btc({ market: "EURUSD" }))).toBe("skipped: market");
-    expect(await placeAutoTrade(db, btc({ market: "XAUUSD" }))).toBe("skipped: market");
     expect(await placeAutoTrade(db, btc({ confidencePct: 69 }))).toBe("skipped: under 70%");
     expect(calls).toHaveLength(0);
   });

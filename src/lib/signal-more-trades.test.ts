@@ -120,14 +120,20 @@ describe("scanner: 15-minute scalps and the learned bar", () => {
       build: async (ask) => {
         asked.push(ask);
         const tf = ask.endsWith("15m") ? "15M" : "5M";
-        return card("BTCUSD", tf, tf === "15M" ? 66 : 50);
+        return card(ask.startsWith("XAU") ? "XAUUSD" : "BTCUSD", tf, tf === "15M" ? 66 : 50);
       },
-      // Bitcoin's bar has come down to 65 (gold is retired and never scanned).
+      // Bitcoin's bar has come down to 65; gold's stays at 70 (both scanned).
       alertBar: async (m) => (m === "BTCUSD" ? 65 : 70),
       post: async () => 1,
       now: Date.now,
     });
-    expect(asked).toEqual(["BTCUSD signal 5m", "BTCUSD signal 15m"]);
+    expect(asked).toEqual([
+      "XAUUSD signal 5m",
+      "BTCUSD signal 5m",
+      "XAUUSD signal 15m",
+      "BTCUSD signal 15m",
+    ]);
+    // Only bitcoin's 15m (66) clears its lowered 65 bar; gold's 66 is under its 70.
     expect(out.posted).toEqual(["BTCUSD BUY 15M"]);
     expect(d.rows[0]).toMatchObject({ timeframe: "15M" });
   });
@@ -146,6 +152,7 @@ describe("scanner: 15-minute scalps and the learned bar", () => {
     });
     expect(out.posted).toEqual([]);
     expect(posts).toEqual([]);
-    expect(shadows).toEqual(["losing_record"]);
+    // Both markets are scanned, both held back.
+    expect(shadows).toEqual(["losing_record", "losing_record"]);
   });
 });

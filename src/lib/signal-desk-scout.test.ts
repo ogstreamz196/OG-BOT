@@ -126,8 +126,8 @@ describe("maybeDeskScout", () => {
     expect(posted[0]).not.toMatch(/\bAIs?\b|DESK/);
     expect(followed).toEqual([1]);
     expect(out).toContain("BTC: posted BUY");
-    // Gold is retired: never scouted.
-    expect(out).not.toContain("XAU");
+    // Gold is scouted too (it's back); its desk is split here, so it isn't posted.
+    expect(out).toContain("XAU: desk split");
     expect(tables.signal_broadcasts).toHaveLength(1);
     // The slot is claimed: a minute later it doesn't scout again.
     const again = await maybeDeskScout(db, {
@@ -157,12 +157,14 @@ describe("maybeDeskScout", () => {
 
   test("a market already posted the same way isn't repeated", async () => {
     const { db, tables } = fakeDb();
-    tables.signal_broadcasts.push({
-      market: "BTCUSD",
-      direction: "BUY",
-      expires_at: new Date(T0 + 600_000).toISOString(),
-      created_at: new Date(T0 - 60_000).toISOString(),
-    });
+    for (const market of ["BTCUSD", "XAUUSD"]) {
+      tables.signal_broadcasts.push({
+        market,
+        direction: "BUY",
+        expires_at: new Date(T0 + 600_000).toISOString(),
+        created_at: new Date(T0 - 60_000).toISOString(),
+      });
+    }
     const posted: string[] = [];
     const out = await maybeDeskScout(db, {
       read: async (ask) => ({
@@ -173,7 +175,7 @@ describe("maybeDeskScout", () => {
       now: () => T0,
     });
     expect(out).toContain("BTC: already posted");
-    expect(out).not.toContain("XAU");
+    expect(out).toContain("XAU: already posted");
     expect(posted).toHaveLength(0);
   });
 });
@@ -344,15 +346,16 @@ describe("what isn't sent is shadowed, and alerts carry the desk's say", () => {
       summary: { waitReason: "Too quiet: price is barely moving, so targets rarely get reached." },
     } as never;
     const deps = {
-      // Bitcoin only: a wait on one chart, an under-70 setup on the other.
-      build: async (ask: string) => (/15m/i.test(ask) ? signal("BTCUSD", "SELL", 64) : wait),
+      // Gold always waits; bitcoin waits on 5m and gives an under-70 setup on 15m.
+      build: async (ask: string) =>
+        /xau|gold/i.test(ask) ? wait : /15m/i.test(ask) ? signal("BTCUSD", "SELL", 64) : wait,
       frames: ["5m", "15m"] as SignalTimeframe[],
       post: async () => 1,
       shadow: async (_s: unknown, why: string) => void shadows.push(why),
       now: () => T0,
     };
     await scanAndBroadcast(db, deps);
-    expect(shadows).toEqual(["quiet", "below_alert"]);
+    expect(shadows).toEqual(["quiet", "quiet", "quiet", "below_alert"]);
 
     const { db: db2 } = fakeDb();
     const confirm = deskConfirmer(

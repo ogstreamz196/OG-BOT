@@ -28,8 +28,8 @@ type Admin = any;
 export const BROADCAST_MIN_CONFIDENCE = 70;
 /** From here every timeframe agrees: the alert says TOP. */
 const TOP_CONFIDENCE = 90;
-/** Bitcoin only: the Boss retired gold (signal-markets.ts). */
-export const BROADCAST_MARKETS: SignalPair[] = ["BTC"];
+/** Gold and Bitcoin (the Boss brought gold back, 2026-11-07). */
+export const BROADCAST_MARKETS: SignalPair[] = ["XAU", "BTC"];
 const POSTS = "signal_broadcasts";
 
 type Built = {

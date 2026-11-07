@@ -290,20 +290,15 @@ describe("buildTradeSignalContext", () => {
   });
 });
 
-describe("gold is retired (the Boss's call)", () => {
-  it("a gold ask gets one line, no chart, no levels and nothing tracked", async () => {
+describe("gold is back (the Boss, 2026-11-07)", () => {
+  it("a gold ask is no longer blocked: it reaches for the real price feed", async () => {
     const fetchSpy = vi.fn(async () => new Response("unused", { status: 500 }));
     stubFetch(fetchSpy);
-    const { RETIRED_REPLY, RETIRED_BLOCK } = await import("./signal-markets");
-    for (const ask of ["gold signal", "xauusd scalp", "XAU/USD 5m"]) {
-      const signal = await buildTradeSignal(ask);
-      expect(signal.reply).toBe(RETIRED_REPLY);
-      expect(signal.block).toBe(RETIRED_BLOCK);
-      expect(signal.plan).toBeUndefined();
-      expect(signal.expiresAt).toBeNull();
-    }
-    // No price feed was even asked.
-    expect(fetchSpy).not.toHaveBeenCalled();
+    const { RETIRED_REPLY } = await import("./signal-markets");
+    const signal = await buildTradeSignal("gold signal");
+    // Not the retired line any more, and it actually goes for the gold feed.
+    expect(signal.reply).not.toBe(RETIRED_REPLY);
+    expect(fetchSpy).toHaveBeenCalled();
   });
 
   it("an ask naming no market goes to bitcoin", async () => {

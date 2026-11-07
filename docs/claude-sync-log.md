@@ -248,6 +248,17 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · Gold is back (the Boss, after
+  the data: gold ran ~68% vs Bitcoin's ~43%, and gold had been retired). Gold
+  and Bitcoin are both scanned, learned, traded, listed and recorded again:
+  SIGNAL_MARKETS = [XAUUSD, BTCUSD], RETIRED_MARKETS empty (signal-markets.ts),
+  BROADCAST_MARKETS = [XAU, BTC], BOARD_MARKETS gains gold. isRetiredMarket is
+  now false, so gold asks build real signals again. Gold's stored trades and
+  learning were never deleted, so it resumes with its history. The signals
+  mechanics (walk-forward tuner, per-setup gating, filter learning, strategy
+  scoreboard, the win-rate gate) all run per market, so gold self-tunes. Tests
+  across the signal suite updated for two markets. No new tables.
+
 - **Boss's Claude · 2026-11-04 · #244** · Gain-based trailing stop
   (`trade-signal-outcome.ts`): the Boss's refinement of the 30% gain lock. The
   take-profit trail now STARTS the stop at 30% of the gain so far (entry →
