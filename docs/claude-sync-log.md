@@ -265,7 +265,29 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · Special FX pass across the promo
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · TradeTweaker — a new Boss-only tab
+  under /admin/signals that gathers every signal knob, strategy and the learning
+  data in one place, so the signals can be tuned from a screen instead of the
+  code. This is step one of the Boss's plan to hand signals tuning to a partner:
+  the controls live here first, access opens up later. Each market's learned
+  Tuning (confidence floor, liveliness, pullback depth, stop room and padding,
+  the three take-profit sizes, break-even, runner, entry style, hold and fill
+  times, skip blocks) is editable; saving writes into the same learned state the
+  engine already reads (site_content "signals.learning"), merged over the current
+  value and clamped by safeTuning's existing bounds, then clears the 5-minute
+  cache so live signals use it within the minute, and audit-logs it. A saved
+  value is a **seed, not a lock** (the Boss chose this): the self-learning tuner
+  can still move it on its next run. The engine-wide settings (markets on/off,
+  win-rate gate, concurrency, exits, pair checks) are shown read-only for now.
+  Boss-only via the existing admin gate. New pure module `trade-tweaker.ts`
+  (field metadata + a strict input sanitiser) with tests; server fns in
+  `signal-tuning.functions.ts`; panel `TradeTweakerPanel.tsx`. No migrations, no
+  new tables, nothing about the engine, the Telegram bots or the cron changed.
+  Context: this came out of the Boss asking how to split signals into its own
+  repo/domain for a partner; we landed on surfacing all the knobs as data first
+  (the repo/subdomain split is still on the table for later).
+
+- **Boss's Claude · 2026-11-07 · #253** · Special FX pass across the promo
   video and the app. All of it is CSS/GPU-only (transform, scale, filter),
   capped, and switches off under prefers-reduced-motion; no blue text (electric
   blue stays in borders, shadows and glows). Battle Zone: a bot clapback lights
