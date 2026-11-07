@@ -93,3 +93,17 @@ Shared by every OGSTREAMZ app. Applied to the hub on 2026-11-06 as migration
 (`pin_log`), and each app's own schema has `dev_pin_check(p_pin)` and
 `dev_pin_unlock()` (service role only). Not exposed to the data API by
 itself: apps reach it through their own schema.
+
+## Shared Stripe webhook (applied 2026-11-07)
+
+One Stripe webhook for every OGSTREAMZ app. `06_stripe_events.sql` (hub
+migration `ogstreamz_billing_events`) makes `ogstreamz_billing.stripe_events`
+and, in each app's schema, `stripe_events_pending()` and
+`stripe_event_handled()` (service role only). The Edge Function source is
+`functions/ogstreamz-stripe-webhook/index.ts`, deployed to the hub with JWT
+checks off (Stripe signs instead). Endpoint:
+`https://zqwngcndkxgxuwqyxihi.supabase.co/functions/v1/ogstreamz-stripe-webhook`.
+It answers 503 "not configured" until the hub's Edge Function secret
+`STRIPE_WEBHOOK_SECRET` (and optionally `STRIPE_WEBHOOK_SECRET_TEST`) is set.
+Every Stripe object an app makes must carry `metadata.app` (`og_bot`,
+`og_booking`, `padel`); untagged events are kept as `unknown`.
