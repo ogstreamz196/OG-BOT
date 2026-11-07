@@ -104,7 +104,8 @@ describe("learning a time stop", () => {
     const cut = evaluate([s], { ...DEFAULT_TUNING, holdFor: 30 });
     expect(cut.sumR).toBeGreaterThan(whole.sumR);
     expect(cut.sumR).toBeGreaterThan(0);
-    expect(timeLimits(DEFAULT_TUNING, T0)).toEqual({});
+    // A pending entry is called off after 15 minutes by default; no hold limit.
+    expect(timeLimits(DEFAULT_TUNING, T0)).toEqual({ fillBy: T0 + 15 * MIN });
   });
 });
 

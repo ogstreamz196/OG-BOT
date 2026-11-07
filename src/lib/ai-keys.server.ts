@@ -43,7 +43,11 @@ export function keyHint(key: string): string {
 
 /** A pasted key, tidied: no spaces, quotes or "Bearer ". Null when it can't be a key. Pure. */
 export function cleanKey(raw: string): string | null {
-  const unquote = (v: string) => v.trim().replace(/^["']|["']$/g, "").trim();
+  const unquote = (v: string) =>
+    v
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .trim();
   const k = unquote(unquote(raw).replace(/^bearer\s+/i, ""));
   return k.length >= 12 && k.length <= 400 && !/\s/.test(k) ? k : null;
 }
@@ -168,6 +172,30 @@ export async function setAiKey(id: string, patch: { enabled?: boolean; last_stat
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await hubError(res));
+  forgetAiKeys();
+}
+
+/**
+ * Swaps a stored key for a new one in place: same provider, name and spot in
+ * the order, switched on, test result cleared. The old key is overwritten.
+ */
+export async function replaceAiKey(id: string, rawKey: string) {
+  const cfg = hubConfig();
+  if (!cfg) throw new Error("Add OG_HUB_SERVICE_KEY first.");
+  const key = cleanKey(rawKey);
+  if (!key) throw new Error("That doesn't look like a key.");
+  const res = await hub(`${TABLE}?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      key_enc: await sealKey(key, cfg.key),
+      key_hint: keyHint(key),
+      enabled: true,
+      last_status: null,
+      last_checked_at: null,
+    }),
   });
   if (!res.ok) throw new Error(await hubError(res));
   forgetAiKeys();

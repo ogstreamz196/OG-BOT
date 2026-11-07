@@ -398,13 +398,18 @@ type Spec = Pick<HealthCheck, "key" | "label" | "group" | "required" | "secret" 
 };
 
 const OR_HDR = { "HTTP-Referer": "https://ogbot.co.uk", "X-Title": "OG BOT" };
-const FOUL_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+/** OpenRouter's best free model right now (picked from its live list). */
+async function foulModel(): Promise<string> {
+  const or = await import("./openrouter-models.server");
+  await or.loadOpenRouterModels();
+  return or.openRouterFreeModels()[0];
+}
 
 const SPECS: Spec[] = [
   { key: "openrouter", label: "OpenRouter (Foul Mouth model)", secret: "OPENROUTER_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: true,
-    run: () => checkChatKey("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", FOUL_MODEL, OR_HDR) },
+    run: async () => checkChatKey("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
   { key: "openrouter_backup", label: "OpenRouter backup", secret: "OPENROUTER_BACKUP_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", FOUL_MODEL, OR_HDR) },
+    run: async () => checkChatKey("OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
   { key: "gemini", label: "Gemini (main, paid)", secret: "GEMINI_API_KEY", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: true, run: checkGemini },
   { key: "gemini_backup", label: "Gemini emergency backup (lyrics & image edits)", secret: "GEMINI_BACKUP_API_KEY", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: false, run: checkGeminiBackup },
   ...["GEMINI_FREE_API_KEY", "GEMINI_FREE_BACKUP_API_KEY", "GEMINI_FREE_3_API_KEY", "GEMINI_FREE_4_API_KEY"].map((secret, i) => ({

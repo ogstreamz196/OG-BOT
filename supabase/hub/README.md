@@ -84,3 +84,12 @@ requests at once, and the function kept every connection open. For about a
 minute the hub ran out of connections. Vault, Booking and OG B0T were
 checked afterwards and all answered normally. Never send more than 10 at a
 time.
+
+## dev.b055 PIN (05_dev_pin.sql)
+
+Shared by every OGSTREAMZ app. Applied to the hub on 2026-11-06 as migration
+`ogstreamz_dev_pin`. The PIN is the Vault secret `dev_b055_pin`; the
+`ogstreamz_dev` schema holds the shared lockout (`pin_state`) and the log
+(`pin_log`), and each app's own schema has `dev_pin_check(p_pin)` and
+`dev_pin_unlock()` (service role only). Not exposed to the data API by
+itself: apps reach it through their own schema.

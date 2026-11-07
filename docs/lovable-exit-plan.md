@@ -16,8 +16,11 @@ on one of these, and tick it off here once done.
 - [x] ~~Add the hub database secret in GitHub~~: no longer needed. The
       structure was applied through the database connection on 2026-10-31. The
       secret only matters for the workflow's `verify` and `rollback`.
-- [ ] **After the apply:** in the OGSTREAMZ dashboard, go to Settings → API →
-      Exposed schemas and add `og_bot`.
+- [x] ~~**After the apply:** in the OGSTREAMZ dashboard, go to Settings → API →
+      Exposed schemas and add `og_bot`~~: done (checked 2026-11-03).
+- [ ] **dev.b055 PIN:** in the OGSTREAMZ dashboard, open the Vault (Database →
+      Vault, or Integrations → Vault), add a secret named `dev_b055_pin` with
+      the 4-digit PIN. Every app's dev.b055 sign-in checks it there.
 - [x] ~~Decide about the restored OG-BOT database project~~: paused on
       2026-10-31 (the Boss's call). OGSTREAMZ is the only active project.
 
@@ -56,7 +59,7 @@ the dashboard named.
 
 **B. The hub database**
 
-- [ ] **Expose `og_bot`** (the item above).
+- [x] ~~**Expose `og_bot`** (the item above)~~: done.
 - [ ] **Hub secret key**: OGSTREAMZ → Settings → API → secret (service role)
       key, into the Worker secrets.
 - [ ] **A quiet half hour for switch day** (final data copy behind a short
