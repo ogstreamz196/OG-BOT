@@ -85,6 +85,16 @@ sync. Follow this every time.
   can't (a new migration Lovable must apply, a secret only the Boss can
   enter, or no Lovable connector in this session), say so, and remind the
   Boss that clicking Publish → Update in Lovable costs no credits.
+- **Free AI keys are shared across every project (the Boss, 2026-11-07).**
+  Groq, Gemini free tier, OpenRouter free models and Pollinations keys can
+  be reused by all the Boss's apps: reuse them, don't ask for new ones per
+  app. They still only go in secret stores (Supabase Edge Function secrets,
+  Cloudflare or Lovable secrets, the API vault), never in chat or code.
+- **Independent of Lovable (the Boss's aim, 2026-11-07).** Lovable is to be
+  the editor only. New server code that needs a secret goes in a Supabase
+  Edge Function in the OGSTREAMZ hub (named after the app; the hub's secret
+  key is built in), with its secrets in Supabase, so Lovable needs no
+  secrets and hosting can move freely. Padel Rival goes first.
 - **The Copy Trader B0T copies every signal, good or bad (the Boss's rule,
   2026-11-03).** It copies everything the signals bot posts and never picks
   its own trades. So accuracy work goes on the signals bot: what it posts,
