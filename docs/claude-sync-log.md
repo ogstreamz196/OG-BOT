@@ -265,7 +265,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PRNUM** · Shared free AI keys through the hub:
+- **Boss's Claude · 2026-11-07 · #260** · Shared free AI keys through the hub:
   Edge Function `ogstreamz-ai` (live; source in supabase/hub/functions). OG B0T
   uses it only for a provider with no key of its own (nothing changes while the
   Lovable secrets are set) and shows its health in Boss → System → API keys.
