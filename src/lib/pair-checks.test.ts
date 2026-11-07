@@ -7,6 +7,8 @@ import {
   flowRead,
   flowVerdict,
   goldVerdict,
+  roundLevelRead,
+  roundLevelVerdict,
 } from "./pair-checks";
 import { ukSession } from "./trade-signal";
 import { buildReport, type LiveRow } from "./signal-report.server";
@@ -57,6 +59,34 @@ describe("flowRead", () => {
       flowRead([{ t: 0, o: 1, h: 1, l: 1, c: 1, v: 5 }, candle(1, 1), candle(1, 1)]),
     ).toBeNull();
     expect(flowRead([candle(1, 1)])).toBeNull();
+  });
+});
+
+describe("roundLevel (bitcoin)", () => {
+  const STEP = 500;
+  it("a buy jammed just under the next $500 level is a headwind", () => {
+    // Entry 100,420 → next level 100,500 is $80 off, inside 0.1%.
+    const r = roundLevelRead("BUY", 100_420, STEP)!;
+    expect(r.level).toBe(100_500);
+    expect(r.clearPct).toBeLessThan(0.1);
+    expect(r.note).toMatch(/Next round level 100500, 0\.0\d% away \(jammed against it\)/);
+    expect(roundLevelVerdict("BUY", 100_420, STEP)).toBe("against");
+  });
+  it("a sell jammed just above the next level down is a headwind too", () => {
+    expect(roundLevelVerdict("SELL", 100_080, STEP)).toBe("against");
+  });
+  it("clear air before the level is neutral, never a bonus", () => {
+    // Entry 100,250 → next level 100,500 is $250 off, well clear.
+    const r = roundLevelRead("BUY", 100_250, STEP)!;
+    expect(r.note).toMatch(/clear of it/);
+    expect(roundLevelVerdict("BUY", 100_250, STEP)).toBe("flat");
+    expect(roundLevelVerdict("SELL", 100_250, STEP)).toBe("flat");
+  });
+  it("entry sitting on a level looks a full step ahead; no read without a sane entry", () => {
+    expect(roundLevelRead("BUY", 100_000, STEP)!.level).toBe(100_500);
+    expect(roundLevelRead("SELL", 100_000, STEP)!.level).toBe(99_500);
+    expect(roundLevelRead("BUY", 0, STEP)).toBeNull();
+    expect(roundLevelVerdict("BUY", 100_000, 0)).toBe("flat");
   });
 });
 

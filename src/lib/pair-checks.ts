@@ -97,6 +97,48 @@ export function flowVerdict(direction: "BUY" | "SELL", buyShare: number): CheckV
   return "flat";
 }
 
+/**
+ * Within this much of the next round level (% of price) is jammed against it:
+ * 0.1% of a $100k Bitcoin is about $100, well inside a $500 step.
+ */
+export const ROUND_NEAR_PCT = 0.1;
+
+/**
+ * The next round level in the trade's way (bitcoin reacts at every $500, gold
+ * every $10) and how far off the entry sits. A scalp that starts right under
+ * the level it's buying into has little room before price stalls there; one
+ * with clear air can run. Null without a sensible entry and step.
+ */
+export function roundLevelRead(
+  direction: "BUY" | "SELL",
+  entry: number,
+  step: number,
+): { clearPct: number; level: number; note: string } | null {
+  if (!(step > 0) || !(entry > 0)) return null;
+  const toward = direction === "BUY" ? Math.ceil(entry / step) * step : Math.floor(entry / step) * step;
+  // Entry sitting exactly on a level: the one in the way is a step further on.
+  const level =
+    Math.abs(toward - entry) < 1e-9 ? (direction === "BUY" ? entry + step : entry - step) : toward;
+  const clearPct = (Math.abs(level - entry) / entry) * 100;
+  const room = clearPct <= ROUND_NEAR_PCT ? "jammed against" : "clear of";
+  return {
+    clearPct,
+    level,
+    note: `Next round level ${level.toFixed(0)}, ${clearPct.toFixed(2)}% away (${room} it)`,
+  };
+}
+
+/** Jammed against the next round level is a headwind; clear air is neutral. */
+export function roundLevelVerdict(
+  direction: "BUY" | "SELL",
+  entry: number,
+  step: number,
+): CheckVerdict {
+  const r = roundLevelRead(direction, entry, step);
+  if (!r) return "flat";
+  return r.clearPct <= ROUND_NEAR_PCT ? "against" : "flat";
+}
+
 /** The confidence after the checks, kept inside the engine's 0–90 range. */
 export function adjustConfidence(pct: number, verdicts: CheckVerdict[]): number {
   const delta = verdicts.reduce(
