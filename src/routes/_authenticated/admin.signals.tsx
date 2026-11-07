@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bot, FlaskConical, LineChart, SlidersHorizontal, Trophy } from "lucide-react";
+import { Bot, FlaskConical, LineChart, SlidersHorizontal, Trophy, Wrench } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -12,6 +12,7 @@ import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
 import { StrategyBoardPanel } from "@/components/admin/StrategyBoardPanel";
 import { TargetComparePanel } from "@/components/admin/TargetComparePanel";
 import { SignalReportPanel } from "@/components/admin/SignalReportPanel";
+import { TradeTweakerPanel } from "@/components/admin/TradeTweakerPanel";
 import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus";
 import { TelegramFleetPanel } from "@/components/admin/TelegramFleetPanel";
 import { WebhookKeeperPanel } from "@/components/admin/WebhookKeeperPanel";
@@ -95,6 +96,13 @@ const SIGNALS_TABS: readonly BossTab[] = [
     Icon: SlidersHorizontal,
     hint: "The web signals portal, the demo account (start fresh) and MT5 auto-trading.",
     Panel: Controls,
+  },
+  {
+    value: "tweaker",
+    label: "TradeTweaker",
+    Icon: Wrench,
+    hint: "Every signal knob, strategy and the learning data in one place. Edit a market's settings; the tuner can still move them.",
+    Panel: TradeTweakerPanel,
   },
   {
     value: "results",
