@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { envKey } from "@/lib/key-names";
 
 export type ReadinessItem = {
   key: string;
@@ -10,7 +11,7 @@ export type ReadinessItem = {
   fix?: string;
 };
 
-const has = (n: string) => Boolean(process.env[n] && String(process.env[n]).trim());
+const has = (n: string) => Boolean(envKey(n));
 
 /** Transfer-specific checks only (no paid AI calls). API key pings live in the API hub. */
 export const runTransferReadiness = createServerFn({ method: "POST" })
@@ -39,7 +40,7 @@ export const runTransferReadiness = createServerFn({ method: "POST" })
     secret("Music", "SUNO_API_KEY", "Suno song generation");
     secret("Telegram", "OG_BOT_TOKEN", "OG B0T Telegram token");
     secret("Telegram", "TELEGRAM_API_KEY", "Telegram connector (workspace-linked)");
-    secret("AI", "GEMINI_API_KEY", "Paid Gemini fallback and live web search", false);
+    secret("AI", "PAID_GEMINI_F196", "Paid Gemini fallback and live web search", false);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

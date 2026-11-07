@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Connector } from "@/lib/connectors.server";
+import { envKey } from "@/lib/key-names";
 
 /**
  * Automated backend health check.
@@ -80,8 +81,8 @@ async function timed<T>(fn: () => Promise<T>) {
 type Partial_ = Omit<HealthCheck, "key" | "label" | "group" | "required">;
 
 async function checkGemini(): Promise<Partial_> {
-  const key = process.env["GEMINI_API_KEY"];
-  if (!key) return missing("GEMINI_API_KEY");
+  const key = envKey("PAID_GEMINI_F196");
+  if (!key) return missing("PAID_GEMINI_F196");
   try {
     const { result, latencyMs } = await timed(() =>
       fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`),
@@ -90,7 +91,7 @@ async function checkGemini(): Promise<Partial_> {
       return {
         status: "invalid",
         detail: `Gemini rejected the key (HTTP ${result.status}).`,
-        fix: "Generate a fresh key in Google AI Studio and update GEMINI_API_KEY in Secrets.",
+        fix: "Generate a fresh key in Google AI Studio and update PAID_GEMINI_F196 in Secrets.",
         latencyMs,
       };
     }
@@ -281,7 +282,7 @@ async function checkLovable(): Promise<Partial_> {
 
 /** Tiny 1-token chat completion — proves the key works without real cost. */
 async function checkChatKey(env: string, url: string, model: string, extra: Record<string, string> = {}): Promise<Partial_> {
-  const key = process.env[env];
+  const key = envKey(env);
   if (!key) return missing(env);
   try {
     const { result, latencyMs } = await timed(() =>
@@ -406,29 +407,29 @@ async function foulModel(): Promise<string> {
 }
 
 const SPECS: Spec[] = [
-  { key: "openrouter", label: "OpenRouter (Foul Mouth model)", secret: "OPENROUTER_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: true,
-    run: async () => checkChatKey("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
-  { key: "openrouter_backup", label: "OpenRouter backup", secret: "OPENROUTER_BACKUP_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: false,
-    run: async () => checkChatKey("OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
-  { key: "gemini", label: "Gemini (main, paid)", secret: "GEMINI_API_KEY", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: true, run: checkGemini },
+  { key: "openrouter", label: "OpenRouter (Foul Mouth model)", secret: "FREE_OPENROUTER_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: true,
+    run: async () => checkChatKey("FREE_OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
+  { key: "openrouter_backup", label: "OpenRouter backup", secret: "FREE_OPENROUTER_API_KEY_2", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: false,
+    run: async () => checkChatKey("FREE_OPENROUTER_API_KEY_2", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
+  { key: "gemini", label: "Gemini (main, paid)", secret: "PAID_GEMINI_F196", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: true, run: checkGemini },
   { key: "gemini_backup", label: "Gemini emergency backup (lyrics & image edits)", secret: "GEMINI_BACKUP_API_KEY", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: false, run: checkGeminiBackup },
-  ...["GEMINI_FREE_API_KEY", "GEMINI_FREE_BACKUP_API_KEY", "GEMINI_FREE_3_API_KEY", "GEMINI_FREE_4_API_KEY"].map((secret, i) => ({
+  ...["FREE_GEMINI_API_KEY_1", "FREE_GEMINI_API_KEY_2", "FREE_GEMINI_API_KEY_3", "FREE_GEMINI_API_KEY_4"].map((secret, i) => ({
     key: `gemini_free_${i + 1}`, label: `Gemini free key ${i + 1} (lyrics)`, secret, help: "aistudio.google.com/apikey", group: "AI chat & lyrics" as HealthGroup, required: false,
     run: async (): Promise<Partial_> => {
-      const k = process.env[secret];
+      const k = envKey(secret);
       if (!k) return missing(secret);
       const { result, latencyMs } = await timed(() => fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${k}`));
       return result.ok ? { status: "ok", detail: "Key accepted by Google.", latencyMs } : { status: "invalid", detail: `Google rejected the key (HTTP ${result.status}).`, latencyMs };
     },
   })),
-  { key: "groq", label: "Groq (Foul Mouth off only)", secret: "GROQ_API_KEY", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
-  { key: "groq_backup", label: "Groq backup", secret: "GROQ_BACKUP_API_KEY", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("GROQ_BACKUP_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
-  { key: "pollinations", label: "Pollinations (Foul Mouth off only)", secret: "POLLINATIONS_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
-  { key: "pollinations_backup", label: "Pollinations backup", secret: "POLLINATIONS_BACKUP_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("POLLINATIONS_BACKUP_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
+  { key: "groq", label: "Groq (Foul Mouth off only)", secret: "FREE_GROQ_API_KEY", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
+  { key: "groq_backup", label: "Groq backup", secret: "FREE_GROQ_API_KEY_2", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_GROQ_API_KEY_2", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
+  { key: "pollinations", label: "Pollinations (Foul Mouth off only)", secret: "FREE_POLLINATIONS_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
+  { key: "pollinations_backup", label: "Pollinations backup", secret: "FREE_POLLINATIONS_API_KEY_2", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_POLLINATIONS_API_KEY_2", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
   { key: "pollinations_free", label: "Pollinations free (no key needed, last resort)", group: "AI chat & lyrics", required: false,
     run: checkPollinationsNoKey },
   { key: "suno", label: "Suno (song generation)", secret: "SUNO_API_KEY", help: "sunoapi.org", group: "Music", required: true, run: checkSuno },
