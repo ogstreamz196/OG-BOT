@@ -265,7 +265,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PRNUM** · Universal AI key names in every app
+- **Boss's Claude · 2026-11-07 · #258** · Universal AI key names in every app
   (the Boss's list in the hub's Edge Function secrets): FREE_GROQ / OPENROUTER /
   POLLINATIONS_API_KEY (+ _2), FREE_GEMINI_API_KEY_1.._4, PAID_GEMINI_F196.
   OG B0T reads every AI key through envKey() (src/lib/key-names.ts, a copy in
