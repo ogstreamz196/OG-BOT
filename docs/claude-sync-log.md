@@ -265,7 +265,27 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · New Bitcoin edge: round-level
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · Special FX pass across the promo
+  video and the app. All of it is CSS/GPU-only (transform, scale, filter),
+  capped, and switches off under prefers-reduced-motion; no blue text (electric
+  blue stays in borders, shadows and glows). Battle Zone: a bot clapback lights
+  up by how hard the cuss landed (score_tenths → heatTier) — a quick crimson
+  hit-shake on hot ones, a crimson↔gold heat aura on savage ones — and a win or
+  cash-out sprays golden coins around the purse counter. The "cooking" loader is
+  now a spinning vinyl under a laser ring with soundwave ripples (keeping the VU
+  bars). The royalty win popup gets tumbling 3D foil (coins, stars, diamonds)
+  and a golden shockwave. The dodging mascot crackles with a scanline glitch and
+  neon pulse when the cursor gets close. In the Remotion promo: spring-based
+  camera-shake impacts on the beats and Battle Zone punchlines, an RGB-split
+  glitch on the scene transitions, swelling energy rings and beat scanlines in
+  the backdrop, richer EQ bars with peak-hold, and shockwave rings plus rising
+  embers on the Battle Zone drop. Also fixed the one "get roasted" line in the
+  video to "get cussed". No migrations. Note: the Remotion dependency tree isn't
+  available through the sandbox package proxy, so its frames couldn't be
+  rendered here — that part is verified by review; tsc, the full vitest suite
+  and the web build all pass.
+
+- **Boss's Claude · 2026-11-07 · #252** · New Bitcoin edge: round-level
   room. The Boss wanted the odds to actually improve, not just more trades, so
   alongside bringing gold back I added a real market-structure check for
   Bitcoin. Bitcoin reacts hard at round $500 levels, and a scalp that starts

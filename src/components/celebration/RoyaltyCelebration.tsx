@@ -16,20 +16,37 @@ type Notice = {
   metadata: { coins?: number } | null;
 };
 
-const CONFETTI_COLORS = ["#ff2d2d", "#ffd166", "#06d6a0", "#4cc9f0", "#f72585", "#ffffff"];
+const FOIL = [
+  { shape: "coin", color: "#ffd166" },
+  { shape: "coin", color: "#f4c430" },
+  { shape: "star", color: "#ffffff" },
+  { shape: "star", color: "#ffd166" },
+  { shape: "diamond", color: "#06d6a0" },
+  { shape: "diamond", color: "#ff2d2d" },
+] as const;
 
 function Confetti() {
   const pieces = useMemo(
     () =>
-      Array.from({ length: 60 }, (_, i) => ({
-        id: i,
-        left: Math.random() * 100,
-        delay: Math.random() * 1.2,
-        duration: 2.4 + Math.random() * 2,
-        size: 6 + Math.random() * 8,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        rotate: Math.random() * 360,
-      })),
+      Array.from({ length: 64 }, (_, i) => {
+        const f = FOIL[i % FOIL.length];
+        const size = f.shape === "coin" ? 9 + Math.random() * 7 : 8 + Math.random() * 9;
+        return {
+          id: i,
+          shape: f.shape,
+          left: Math.random() * 100,
+          delay: Math.random() * 1.4,
+          duration: 2.6 + Math.random() * 2.2,
+          size,
+          sway: `${(Math.random() * 60 - 30).toFixed(0)}px`,
+          // Coins read as metal discs; stars and diamonds are flat foil.
+          background:
+            f.shape === "coin"
+              ? `radial-gradient(circle at 35% 30%, #fff, ${f.color} 55%, #9a6a12)`
+              : f.color,
+          glow: f.shape === "coin" ? `0 0 6px ${f.color}` : undefined,
+        };
+      }),
     [],
   );
   return (
@@ -37,15 +54,16 @@ function Confetti() {
       {pieces.map((p) => (
         <span
           key={p.id}
-          className="royalty-confetti-piece"
+          className={`royalty-foil royalty-foil--${p.shape}`}
           style={{
             left: `${p.left}%`,
             width: p.size,
-            height: p.size * 0.45,
-            background: p.color,
+            height: p.size,
+            background: p.background,
+            boxShadow: p.glow,
             animationDelay: `${p.delay}s`,
             animationDuration: `${p.duration}s`,
-            transform: `rotate(${p.rotate}deg)`,
+            ["--sway" as string]: p.sway,
           }}
         />
       ))}
@@ -97,6 +115,7 @@ export function RoyaltyCelebration({ userId }: { userId: string }) {
     <Dialog open={!!notice} onOpenChange={(o) => !o && close()}>
       <DialogContent className="max-w-sm overflow-hidden border-primary/50 bg-card text-center shadow-[0_0_80px_-12px_oklch(0.7_0.22_25/0.7)]">
         <Confetti />
+        <span aria-hidden className="royalty-shockwave" />
         <DialogHeader className="relative items-center !text-center">
           <span className="mb-1 grid h-16 w-16 animate-bounce place-items-center rounded-full bg-primary/15 ring-2 ring-primary/60">
             <PartyPopper className="h-8 w-8 text-primary" />

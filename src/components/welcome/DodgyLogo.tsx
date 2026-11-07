@@ -44,6 +44,9 @@ export function DodgyLogo({
   const targetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
   const [isFine, setIsFine] = useState(false);
+  // Electrical glitch while the cursor is inside the dodge radius.
+  const [dodging, setDodging] = useState(false);
+  const dodgingRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -89,7 +92,8 @@ export function DodgyLogo({
       const dx = cx - e.clientX;
       const dy = cy - e.clientY;
       const dist = Math.hypot(dx, dy) || 1;
-      if (dist < dodgeRadius) {
+      const near = dist < dodgeRadius;
+      if (near) {
         const strength = (dodgeRadius - dist) / dodgeRadius; // 0..1
         const push = maxDrift * strength;
         targetRef.current = {
@@ -100,12 +104,19 @@ export function DodgyLogo({
         // ease back home
         targetRef.current = { x: 0, y: 0 };
       }
+      // Only touch React state when the glitch flips on or off.
+      if (near !== dodgingRef.current) {
+        dodgingRef.current = near;
+        setDodging(near);
+      }
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => {
       window.removeEventListener("pointermove", onMove);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      dodgingRef.current = false;
+      setDodging(false);
     };
   }, [isFine, maxDrift, dodgeRadius]);
 
@@ -117,7 +128,12 @@ export function DodgyLogo({
       <div
         ref={wrapRef}
         className={isFine ? "will-change-transform" : "animate-[wcBob_4s_ease-in-out_infinite]"}
-        style={{ width: "100%", height: "100%", transition: isFine ? undefined : "transform 0.3s" }}
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          transition: isFine ? undefined : "transform 0.3s",
+        }}
       >
         <img
           src={src ?? ogBotLogo.large}
@@ -127,8 +143,9 @@ export function DodgyLogo({
           decoding={priority ? "sync" : "async"}
           fetchPriority={priority ? "high" : undefined}
           draggable={false}
-          className={`h-full w-full select-none object-contain ${glow ? "shadow-glow" : ""} ${imageClassName}`}
+          className={`h-full w-full select-none object-contain ${glow ? "shadow-glow" : ""} ${imageClassName} ${dodging ? "dodgy-glitch" : ""}`}
         />
+        {dodging ? <span aria-hidden className={`dodgy-scanline ${imageClassName}`} /> : null}
       </div>
       <style>{`@keyframes wcBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }`}</style>
     </div>

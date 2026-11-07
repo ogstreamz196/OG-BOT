@@ -44,6 +44,7 @@ import {
   ArenaRoastOfDay,
   ArenaTyping,
   ArenaVipPromo,
+  heatTier,
 } from "@/components/battle/Arena";
 
 function formatTime(iso: string) {
@@ -154,6 +155,7 @@ export function CommunityRoom() {
     staleTime: 30_000,
   });
   const [lastEarned, setLastEarned] = useState<number | null>(null);
+  const [coinBurst, setCoinBurst] = useState(0);
   const [showRoast, setShowRoast] = useState(true);
   const [vipPromoOpen, setVipPromoOpen] = useState(false);
   const [capOpen, setCapOpen] = useState(false);
@@ -407,6 +409,7 @@ export function CommunityRoom() {
         }
         if (award.earnedTenths > 0) {
           setLastEarned(award.earnedTenths);
+          setCoinBurst((k) => k + 1);
           window.setTimeout(() => setLastEarned(null), 2500);
           // Show the round's score on OG Bot's reply straight away.
           const sentId = (res as { message?: { id?: string } }).message?.id;
@@ -441,6 +444,7 @@ export function CommunityRoom() {
       qc.invalidateQueries({ queryKey: ["profile"] });
       qc.invalidateQueries({ queryKey: ["coin-balance"] });
       if (res.coins > 0) {
+        setCoinBurst((k) => k + 1);
         toast.success(`Battle over — ${res.coins} OG Coin${res.coins === 1 ? "" : "s"} banked!`, {
           description: `${res.rounds} round${res.rounds === 1 ? "" : "s"} fought. Come back for more.`,
         });
@@ -528,6 +532,7 @@ export function CommunityRoom() {
         thinking={send.isPending}
         purse={`${pendingCoins} OG`}
         earned={lastEarned}
+        coinBurstKey={coinBurst}
         streakDays={tally?.streakDays}
         ranksOpen={showBoard}
         onToggleRanks={() => setShowBoard((v) => !v)}
@@ -637,6 +642,7 @@ export function CommunityRoom() {
                         vip={!isBot && !!m.vip}
                         vipId={m.vip_id}
                         scoreTenths={isBot && prev?.role === "user" ? prev.score_tenths : null}
+                        heat={isBot && prev?.role === "user" ? heatTier(prev.score_tenths) : null}
                         onVipClick={hasVipRole ? undefined : () => setVipPromoOpen(true)}
                         menu={
                           !mine && !isBot && m.user_id ? (

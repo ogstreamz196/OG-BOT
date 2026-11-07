@@ -1,4 +1,10 @@
-import { forwardRef, type ReactNode, type KeyboardEvent, type FormEvent } from "react";
+import {
+  forwardRef,
+  type CSSProperties,
+  type ReactNode,
+  type KeyboardEvent,
+  type FormEvent,
+} from "react";
 import { Link } from "@tanstack/react-router";
 import { Coins, Crown, Flag, Loader2, Send, Trophy } from "lucide-react";
 import { TypingDots } from "@/components/ui/typing-dots";
@@ -15,6 +21,32 @@ export function ArenaFrame({ children, className }: { children: ReactNode; class
   return <div className={`og-arena ${className ?? ""}`}>{children}</div>;
 }
 
+/**
+ * A micro-burst of golden coins, sprayed from the centre of whatever it's
+ * placed in. Give it a `fireKey` that changes on each win; the caller mounts
+ * it with `key={fireKey}` so the burst replays. Pure CSS, GPU transforms only.
+ */
+export function CoinBurst({ fireKey }: { fireKey: number }) {
+  if (!fireKey) return null;
+  const coins = Array.from({ length: 10 }, (_, i) => {
+    const ang = (-90 + (i / 10) * 360) * (Math.PI / 180);
+    const dist = 24 + (i % 3) * 11;
+    return {
+      "--dx": `${(Math.cos(ang) * dist).toFixed(1)}px`,
+      "--dy": `${(Math.sin(ang) * dist - 14).toFixed(1)}px`,
+      "--rot": `${(i % 2 ? 1 : -1) * (120 + i * 26)}deg`,
+      animationDelay: `${(i % 5) * 22}ms`,
+    } as CSSProperties;
+  });
+  return (
+    <span className="ar-coin-burst" aria-hidden>
+      {coins.map((style, i) => (
+        <span key={i} className="ar-coin" style={style} />
+      ))}
+    </span>
+  );
+}
+
 export function ArenaHeader({
   subtitle,
   thinking,
@@ -25,6 +57,7 @@ export function ArenaHeader({
   onToggleRanks,
   onBank,
   bankPending,
+  coinBurstKey,
   menu,
   className,
   compact,
@@ -40,6 +73,8 @@ export function ArenaHeader({
   onToggleRanks: () => void;
   onBank: () => void;
   bankPending?: boolean;
+  /** Bumps on each win/cash-out; a golden coin burst replays around the purse. */
+  coinBurstKey?: number;
   menu?: ReactNode;
   className?: string;
 }) {
@@ -56,15 +91,18 @@ export function ArenaHeader({
         </p>
       </div>
       <div className="col-span-2 flex items-center justify-between gap-1 sm:col-span-1 sm:justify-end sm:gap-2">
-        <span className="ar-chip" aria-live="polite" title="Battle purse">
-          <Coins className="ar-gold h-3.5 w-3.5" aria-hidden />
-          {purse}
-          {earned ? <span className="ar-pop">+{(earned / 10).toFixed(2)}</span> : null}
-          {(streakDays ?? 0) > 1 ? (
-            <span className="ar-gold" title={`${streakDays}-day streak`}>
-              🔥{streakDays}
-            </span>
-          ) : null}
+        <span className="relative">
+          <CoinBurst key={coinBurstKey ?? 0} fireKey={coinBurstKey ?? 0} />
+          <span className="ar-chip" aria-live="polite" title="Battle purse">
+            <Coins className="ar-gold h-3.5 w-3.5" aria-hidden />
+            {purse}
+            {earned ? <span className="ar-pop">+{(earned / 10).toFixed(2)}</span> : null}
+            {(streakDays ?? 0) > 1 ? (
+              <span className="ar-gold" title={`${streakDays}-day streak`}>
+                🔥{streakDays}
+              </span>
+            ) : null}
+          </span>
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -153,6 +191,17 @@ export function ArenaRoastOfDay({ name, content }: { name: string; content: stri
   );
 }
 
+/**
+ * A cuss scores 0–10 tenths of a coin (10 = the daily-capped max). The hottest
+ * clapbacks light up the bot's reply: "savage" at 8+, "hot" at 5+.
+ */
+export function heatTier(scoreTenths: number | null | undefined): "hot" | "savage" | null {
+  const s = scoreTenths ?? 0;
+  if (s >= 8) return "savage";
+  if (s >= 5) return "hot";
+  return null;
+}
+
 function initials(name: string | null | undefined) {
   if (!name) return "OG";
   return (
@@ -174,6 +223,7 @@ export function ArenaMessage({
   vip,
   vipId,
   scoreTenths,
+  heat,
   onVipClick,
   menu,
 }: {
@@ -185,18 +235,26 @@ export function ArenaMessage({
   vip?: boolean;
   vipId?: string | null;
   scoreTenths?: number | null;
+  /** Heat of a bot clapback: "hot" kicks once, "savage" also keeps a heat aura. */
+  heat?: "hot" | "savage" | null;
   onVipClick?: () => void;
   menu?: ReactNode;
 }) {
   const isBot = kind === "bot";
   const shownName = vip && vipId ? vipId : name;
+  const heatClass =
+    isBot && heat === "savage"
+      ? "ar-bubble--savage ar-hit-shake"
+      : isBot && heat === "hot"
+        ? "ar-hit-shake"
+        : "";
   return (
     <div className={`ar-row ${mine ? "ar-row--mine" : ""}`}>
       <span className={`ar-face ${isBot ? "ar-face--bot" : vip ? "ar-face--vip" : ""}`}>
         {isBot ? <img src={ogBotLogo} alt="OG B0T" width={40} height={40} /> : initials(shownName)}
       </span>
       <div
-        className={`ar-bubble ${isBot ? "ar-bubble--bot" : "ar-bubble--user"} ${vip && !isBot ? "ar-bubble--vip" : ""}`}
+        className={`ar-bubble ${isBot ? "ar-bubble--bot" : "ar-bubble--user"} ${vip && !isBot ? "ar-bubble--vip" : ""} ${heatClass}`}
       >
         <p className="ar-meta">
           {vip && !isBot ? (
