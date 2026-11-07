@@ -265,7 +265,22 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · Gold is back (the Boss, after
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · New Bitcoin edge: round-level
+  room. The Boss wanted the odds to actually improve, not just more trades, so
+  alongside bringing gold back I added a real market-structure check for
+  Bitcoin. Bitcoin reacts hard at round $500 levels, and a scalp that starts
+  jammed right under the level it's buying into (or above the one it's selling
+  into) has almost no room before price stalls there. roundLevelRead /
+  roundLevelVerdict (pair-checks.ts) now sit beside the taker-flow and dollar
+  checks: an entry within ROUND_NEAR_PCT (0.1% of price, about $100 on a $100k
+  Bitcoin) of the next round level is "against" (CHECK_PENALTY off the
+  confidence, reason first in the cautions, a wait if it drops under the learned
+  floor), clear air is neutral and never a bonus. It's kept with the trade as
+  feeds.checks.round and the Boss report groups it ("Jammed against the round
+  level" vs "Clear of the round level"), so it earns or loses its place on the
+  numbers like the other trial checks. Pure and tested; no migrations.
+
+- **Boss's Claude · 2026-11-07 · #250** · Gold is back (the Boss, after
   the data: gold ran ~68% vs Bitcoin's ~43%, and gold had been retired). Gold
   and Bitcoin are both scanned, learned, traded, listed and recorded again:
   SIGNAL_MARKETS = [XAUUSD, BTCUSD], RETIRED_MARKETS empty (signal-markets.ts),

@@ -95,7 +95,7 @@ export type LiveRow = {
     bias?: boolean;
     desk?: string;
     setup?: string;
-    checks?: { dollar?: string; flow?: string };
+    checks?: { dollar?: string; flow?: string; round?: string };
     relaxed?: string;
     holdFor?: number;
     timing?: { candleAt?: number; builtAt?: number; postedAt?: number; pricePosted?: number };
@@ -174,6 +174,8 @@ const CHECK_NAMES: Record<string, string> = {
   "flow:with": "Order flow with it",
   "flow:flat": "Order flow even",
   "flow:against": "Order flow against it",
+  "round:flat": "Clear of the round level",
+  "round:against": "Jammed against the round level",
 };
 
 const DESK: Record<string, string> = {

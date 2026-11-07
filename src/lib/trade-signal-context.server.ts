@@ -29,6 +29,8 @@ import {
   flowRead as takerFlow,
   flowVerdict,
   goldVerdict,
+  roundLevelRead,
+  roundLevelVerdict,
   type CheckVerdict,
 } from "./pair-checks";
 import {
@@ -1038,7 +1040,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // dollar and yields; bitcoin against who's hitting the market (taker flow).
   // Each check that agrees adds a little confidence, one against takes more
   // off, and a setup pushed under the floor waits. Kept with the trade.
-  const checks: { dollar?: CheckVerdict; flow?: CheckVerdict } = {};
+  const checks: { dollar?: CheckVerdict; flow?: CheckVerdict; round?: CheckVerdict } = {};
   const checkNotes: string[] = [];
   if (plan.verdict === "trade") {
     const dollarData = await dollarJob;
@@ -1054,15 +1056,24 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         checks.flow = flowVerdict(plan.direction, flowNow.buyShare);
         checkNotes.push(`Order flow check: ${flowNow.note}`);
       }
+      const step = roundStepFor(inst.code);
+      const round = step ? roundLevelRead(plan.direction, plan.entry, step) : null;
+      if (step && round) {
+        checks.round = roundLevelVerdict(plan.direction, plan.entry, step);
+        checkNotes.push(`Round level check: ${round.note}`);
+      }
     }
     const verdicts = Object.values(checks);
     if (verdicts.length) {
       const pct = adjustConfidence(plan.confidencePct, verdicts);
-      const against = checks.dollar === "against" || checks.flow === "against";
+      const against =
+        checks.dollar === "against" || checks.flow === "against" || checks.round === "against";
       const why =
         checks.dollar === "against"
           ? `The US dollar's against it (${plan.direction === "BUY" ? "strengthening" : "weakening"}), and gold usually moves the other way.`
-          : "The order flow's against it: the other side is hitting the market harder.";
+          : checks.flow === "against"
+            ? "The order flow's against it: the other side is hitting the market harder."
+            : "The entry's jammed against the next round number, with little room before price tends to stall.";
       plan = {
         ...plan,
         confidencePct: pct,
