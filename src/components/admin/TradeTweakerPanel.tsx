@@ -8,6 +8,7 @@ import { TWEAK_FIELDS, ENTRY_STYLES, UK_BLOCKS, type TweakField } from "@/lib/tr
 import type { Tuning } from "@/lib/trade-signal";
 import { Button } from "@/components/ui/button";
 import { AdminSection } from "./AdminSection";
+import { TweakerPinGate } from "./TweakerPinGate";
 
 type Loaded = Awaited<ReturnType<typeof getTweaker>>;
 type MarketRow = Loaded["markets"][number];
@@ -304,11 +305,11 @@ export function TradeTweakerPanel() {
   const row = data?.markets.find((m) => m.market === (market ?? data.markets[0]?.market));
 
   return (
-    <>
+    <TweakerPinGate>
       <AdminSection
         icon={<SlidersHorizontal className="h-4 w-4 text-emerald-400" />}
-        title="TradeTweaker"
-        subtitle="Every signal knob, strategy and the learning data in one place. Pick a market, change a value and save it. A saved value seeds the engine straight away; the self-learning tuner can still move it from there."
+        title="TradeTweaker · Signal control room"
+        subtitle="The control room for the signals: every knob, strategy and the learning data in one place, and where signals are sent and reviewed. Pick a market, change a value and save it. A saved value seeds the engine straight away; the self-learning tuner can still move it from there."
         action={
           data ? (
             <div className="flex flex-wrap gap-1">
@@ -359,6 +360,6 @@ export function TradeTweakerPanel() {
           <EngineReadout engine={data.engine} />
         </AdminSection>
       ) : null}
-    </>
+    </TweakerPinGate>
   );
 }
