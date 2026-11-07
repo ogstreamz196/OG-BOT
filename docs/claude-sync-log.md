@@ -265,13 +265,25 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-07 · #PR_NUM** · Data room in the TradeTweaker
+  control room (the Boss: "do all"). A read-only section showing every recent
+  signal entry and the learning data behind the bot: counts (entries in a
+  7/30/90-day window, learning samples, shadow trades), each market's learning
+  readout (win rate, avg R, trades, runs, last lesson), and a table of the
+  latest 80 entries with their outcome. It's a window onto the same tables the
+  engine uses — nothing is written or deleted, and reads stay inside the window
+  (the never-delete rule). Server fn `getDataRoom` (`signal-dataroom.functions.ts`,
+  Boss-gated); panel `SignalDataRoom.tsx`. First of three the Boss asked for in
+  one go (data room, then engine-wide editable settings, then the manual
+  send-to-Telegram button). No migrations, no new tables.
+
 - **Boss's Claude · 2026-11-07 · #260** · Shared free AI keys through the hub:
   Edge Function `ogstreamz-ai` (live; source in supabase/hub/functions). OG B0T
   uses it only for a provider with no key of its own (nothing changes while the
   Lovable secrets are set) and shows its health in Boss → System → API keys.
   OG VAULT's AI buttons use it first, own key as backup (OG-VAULT-REACT main).
   At deploy, FREE_GEMINI_API_KEY_3 was rejected by Google (400).
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · Strategies in the TradeTweaker
+- **Boss's Claude · 2026-11-07 · #259** · Strategies in the TradeTweaker
   control room (the Boss). The signals section now has named strategy cards,
   each a saved preset of the engine's knobs with a market and timeframe. You can
   add your own, edit any of them (the same knob editor as the market tuner),
