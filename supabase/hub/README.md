@@ -107,3 +107,12 @@ It answers 503 "not configured" until the hub's Edge Function secret
 `STRIPE_WEBHOOK_SECRET` (and optionally `STRIPE_WEBHOOK_SECRET_TEST`) is set.
 Every Stripe object an app makes must carry `metadata.app` (`og_bot`,
 `og_booking`, `padel`); untagged events are kept as `unknown`.
+
+## Shared free AI keys (applied 2026-11-07)
+
+`functions/ogstreamz-ai/index.ts` is deployed to the hub (JWT checks off; it
+only serves callers holding the hub's secret key). It holds the hub's free
+keys (`FREE_GROQ_API_KEY`, `FREE_OPENROUTER_API_KEY`, `FREE_POLLINATIONS_API_KEY`,
+each with `_2` …, and `FREE_GEMINI_API_KEY_1` …) and forwards an OpenAI-style
+chat request to `?provider=groq|openrouter|pollinations|gemini`, trying each key
+in turn. `GET ?check=1` shows which keys are accepted. Never the paid key.

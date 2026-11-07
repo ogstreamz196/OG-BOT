@@ -265,6 +265,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-07 · #PRNUM** · Shared free AI keys through the hub:
+  Edge Function `ogstreamz-ai` (live; source in supabase/hub/functions). OG B0T
+  uses it only for a provider with no key of its own (nothing changes while the
+  Lovable secrets are set) and shows its health in Boss → System → API keys.
+  OG VAULT's AI buttons use it first, own key as backup (OG-VAULT-REACT main).
+  At deploy, FREE_GEMINI_API_KEY_3 was rejected by Google (400).
+
 - **Boss's Claude · 2026-11-07 · #258** · Universal AI key names in every app
   (the Boss's list in the hub's Edge Function secrets): FREE_GROQ / OPENROUTER /
   POLLINATIONS_API_KEY (+ _2), FREE_GEMINI_API_KEY_1.._4, PAID_GEMINI_F196.
