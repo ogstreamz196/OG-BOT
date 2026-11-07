@@ -265,7 +265,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · Gold is back (the Boss, after
+- **Boss's Claude · 2026-11-07 · #250** · Gold is back (the Boss, after
   the data: gold ran ~68% vs Bitcoin's ~43%, and gold had been retired). Gold
   and Bitcoin are both scanned, learned, traded, listed and recorded again:
   SIGNAL_MARKETS = [XAUUSD, BTCUSD], RETIRED_MARKETS empty (signal-markets.ts),
