@@ -281,6 +281,15 @@ merged work, not open work.
   tests; server fns `tweaker-pin.functions.ts`; `TweakerPinGate.tsx`. No
   migrations, no new tables.
 
+- **Boss's Claude · 2026-11-07 · #256** · One shared Stripe webhook for every
+  OGSTREAMZ app. The hub Edge Function `ogstreamz-stripe-webhook` and the
+  migration `ogstreamz_billing_events` are live in the hub; their source is now
+  in `supabase/hub/` (see AGENTS.md). It answers 503 until the hub secret
+  `STRIPE_WEBHOOK_SECRET` is set. Next: a session with the Stripe connector
+  creates the Stripe endpoint and saves its signing secret, and each app tags
+  its Stripe objects with `metadata.app` and reads its own events. OG B0T's
+  and OG STAYZ's own Stripe handling is unchanged.
+
 - **Boss's Claude · 2026-11-07 · #255** · TradeTweaker — a new Boss-only tab
   under /admin/signals that gathers every signal knob, strategy and the learning
   data in one place, so the signals can be tuned from a screen instead of the
