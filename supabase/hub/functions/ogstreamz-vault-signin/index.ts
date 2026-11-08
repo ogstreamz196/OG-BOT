@@ -1,9 +1,9 @@
-// OG VAULT -> OG B0T one-login check. Lives in the OGSTREAMZ hub so the shared
-// secret (VAULT_LINK_SECRET) stays in Supabase only; neither app needs it in
-// Lovable. Trusted hub servers (the Vault server fn, the ogbot proxy) call it
-// with the service-role bearer; an HMAC(x-vault-signature) over the raw body
-// with VAULT_LINK_SECRET is also accepted (backwards compatible / external).
-// Deployed to the hub as the Edge Function `ogstreamz-vault-signin` (verify_jwt off).
+// Shared one-login brain. The login accounts live in the OGSTREAMZ hub
+// (a Supabase project), so the hub is the single place users log in and the
+// shared secret (VAULT_LINK_SECRET) stays in Supabase only, never in Lovable.
+// Trusted callers (the Vault server fn, the ogbot Lovable backend) reach it with
+// the hub service-role bearer; an HMAC(x-vault-signature) over the raw body with
+// VAULT_LINK_SECRET is also accepted. verify_jwt is off (we do our own auth).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -86,26 +86,19 @@ Deno.serve(async (req: Request) => {
   if (!email) return json({ ok: false, error: "bad_request" }, 400);
   if (locked(email)) return json({ ok: false, error: "too_many" }, 429);
 
+  // Right password on an existing account -> signed in.
   const anon = createClient(URL, ANON, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: signed } = await anon.auth.signInWithPassword({ email, password });
   if (signed?.user) return json({ ok: true, action: "signed_in" });
 
+  // Otherwise try to make the account. Supabase Auth itself tells us whether the
+  // login already exists, so we don't depend on any app-specific profile columns.
   const admin = createClient(URL, SERVICE, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: existing } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-  if (existing) {
-    fail(email);
-    return json({ ok: false, action: "wrong_password" }, 401);
-  }
-
-  const { data: made, error } = await admin.auth.admin.createUser({
+  const { data: made } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -113,12 +106,12 @@ Deno.serve(async (req: Request) => {
     // through another app. It carries only their own display name.
     user_metadata: { display_name: username },
   });
-  if (error || !made?.user) {
+  if (!made?.user) {
+    // The email is already taken but the password didn't match it.
     fail(email);
     return json({ ok: false, action: "wrong_password" }, 401);
   }
   const linkCode = `t_${crypto.randomUUID().replace(/-/g, "")}`;
-  await admin.from("profiles").update({ telegram_link_token: linkCode }).eq("id", made.user.id);
   return json({
     ok: true,
     action: "created",
