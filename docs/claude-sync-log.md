@@ -292,18 +292,19 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-08 · #PR_NUM** · OG VAULT one-login: secret moved
-  into Supabase (the Boss). The vault-signin secret and the whole check-or-create
-  logic now live only in the OGSTREAMZ hub, not Lovable. New hub Edge Function
-  `ogstreamz-vault-signin` (deployed; source in `supabase/hub/functions/`) holds
-  `VAULT_LINK_SECRET` (a project Edge-Function secret) and does the sign-in /
-  account-creation; it's gated by the service-role bearer (trusted hub servers)
-  or an HMAC of the body with the secret (backwards compatible). ogbot's
-  `/api/public/vault-signin` is now a thin proxy that forwards the body +
-  signature to the function with the public key, so ogbot.co.uk holds no secret.
-  Verified the function rejects every unauthorised call (401, no account made).
-  The Vault side (logo tap → call the function with its hub service auth) is the
-  next commit, in og-vault-react. No migrations.
+- **Boss's Claude · 2026-11-08 · #PR_NUM** · OG VAULT one-login: restored to the
+  Boss's design (hub-proxy detour reverted). `/api/public/vault-signin` is the
+  full endpoint again: it verifies the `X-Vault-Signature` HMAC with
+  `VAULT_LINK_SECRET` (read from ogbot's own env, where the Boss saved it) and
+  signs the member in or creates their account in **ogbot's own database**, not
+  the hub. The hub Edge Function and the thin proxy from the earlier commit are
+  gone (function source removed; the deployed `ogstreamz-vault-signin` on the hub
+  should be deleted — nothing calls it now). Privacy: the created account carries
+  no origin tag (`source: "vault"` dropped) and any `m3u.` prefix is stripped, so
+  nothing on ogbot ties a member to IPTV. Typecheck + `vault-signin.test.ts` (3)
+  pass. No migrations. Vault side (logo tap → HMAC-signed POST to
+  ogbot.co.uk/api/public/vault-signin) ships in og-vault-react; needs
+  `VAULT_LINK_SECRET` added as a Vault secret.
 
 - **Boss's Claude · 2026-11-08 · #PR_NUM** · Manual send-to-Telegram button
   (the last of the Boss's "do all" control-room items). A "Send a signal now"
