@@ -12,6 +12,7 @@ import { TweakerPinGate } from "./TweakerPinGate";
 import { StrategyStudio } from "./StrategyStudio";
 import { SignalDataRoom } from "./SignalDataRoom";
 import { EngineConfigEditor } from "./EngineConfigEditor";
+import { SendSignalPanel } from "./SendSignalPanel";
 
 type Loaded = Awaited<ReturnType<typeof getTweaker>>;
 type MarketRow = Loaded["markets"][number];
@@ -338,6 +339,8 @@ export function TradeTweakerPanel() {
           />
         )}
       </AdminSection>
+
+      <SendSignalPanel />
 
       {data ? <StrategyStudio bounds={data.bounds} defaults={data.defaults} /> : null}
 
