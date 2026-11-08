@@ -19,6 +19,33 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- The Boss's shared to-do list: ideas agreed but not built yet. -->
 
+- **One login across OG VAULT and OG BOT (the Boss, 2026-11-08; waiting on
+  credits).** A Vault member signs in to ogbot.co.uk with the same username +
+  password they use in OG VAULT. OG BOT side (this repo):
+  1. `POST /api/public/vault-signin` (new public route). Body JSON
+     `{ username, password, ts }` + header `X-Vault-Signature` = HMAC-SHA256 of
+     the raw body with shared secret `VAULT_LINK_SECRET`. Reject if the
+     signature is wrong or `ts` > 2 min old. Zod-validate; never log the
+     password. Look up the account by username: exists + password matches →
+     `{ ok:true, action:"signed_in" }`; exists + wrong password →
+     `{ ok:false, action:"wrong_password" }` (never reveal whether a username
+     exists on its own); no account → create one (that username+password,
+     `linked_from="vault"`, `setup_complete=false`) and return
+     `{ ok:true, action:"created", setup_url, link_code }` where `setup_url =`
+     `https://ogbot.co.uk/vault-setup/<one-time token>` (30 min). Rate limit per
+     connection: 5 wrong passwords → 15 min lockout.
+  2. `/vault-setup/<token>` page (phone-friendly): ask for a recovery email,
+     then a "Connect now" button opening `t.me/Ogstreamzbot?start=<link_code>`.
+     The existing Telegram webhook links the chat on `/start <link_code>`, sets
+     `setup_complete=true`, sends the intro message.
+  3. Sign-in screen: a "Sign in with OG VAULT" choice that asks for the Vault
+     username + password and calls the endpoint; on success start a normal
+     ogbot.co.uk session.
+  Save `VAULT_LINK_SECRET` as a project secret (same value as OG VAULT; never in
+  code or chat). OG VAULT side (og-vault-react, the Boss builds once OG BOT is
+  live): the logo tap re-asks for the Vault password (Vault never stores it),
+  calls this endpoint, and shows the setup QR when a new account is created.
+
 - **OG VAULT (repo og-vault-react, branch main, database = the hub's
   `public` schema, so changes can be applied straight to the hub with
   the database tools):**
