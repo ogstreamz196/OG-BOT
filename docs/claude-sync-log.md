@@ -292,6 +292,19 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-08 · #PR_NUM** · OG VAULT one-login: secret moved
+  into Supabase (the Boss). The vault-signin secret and the whole check-or-create
+  logic now live only in the OGSTREAMZ hub, not Lovable. New hub Edge Function
+  `ogstreamz-vault-signin` (deployed; source in `supabase/hub/functions/`) holds
+  `VAULT_LINK_SECRET` (a project Edge-Function secret) and does the sign-in /
+  account-creation; it's gated by the service-role bearer (trusted hub servers)
+  or an HMAC of the body with the secret (backwards compatible). ogbot's
+  `/api/public/vault-signin` is now a thin proxy that forwards the body +
+  signature to the function with the public key, so ogbot.co.uk holds no secret.
+  Verified the function rejects every unauthorised call (401, no account made).
+  The Vault side (logo tap → call the function with its hub service auth) is the
+  next commit, in og-vault-react. No migrations.
+
 - **Boss's Claude · 2026-11-08 · #PR_NUM** · Manual send-to-Telegram button
   (the last of the Boss's "do all" control-room items). A "Send a signal now"
   button in TradeTweaker posts a real signal for a chosen market on demand,
