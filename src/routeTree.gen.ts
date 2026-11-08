@@ -86,6 +86,7 @@ import { Route as ApiPublicSongAudioRouteImport } from './routes/api/public/song
 import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
 import { Route as ApiPublicTradeSignalWatchRouteImport } from './routes/api/public/trade-signal-watch'
+import { Route as ApiPublicVaultSigninRouteImport } from './routes/api/public/vault-signin'
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
 import { Route as ApiPublicCarromRegisterGuestRouteImport } from './routes/api/public/carrom/register-guest'
 import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
@@ -508,6 +509,11 @@ const ApiPublicTradeSignalWatchRoute =
     path: '/api/public/trade-signal-watch',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicVaultSigninRoute = ApiPublicVaultSigninRouteImport.update({
+  id: '/api/public/vault-signin',
+  path: '/api/public/vault-signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminUsersUserIdRoute =
   AuthenticatedAdminUsersUserIdRouteImport.update({
     id: '/$userId',
@@ -648,6 +654,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
+  '/api/public/vault-signin': typeof ApiPublicVaultSigninRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/library/': typeof AuthenticatedLibraryIndexLazyRoute
@@ -737,6 +744,7 @@ export interface FileRoutesByTo {
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
+  '/api/public/vault-signin': typeof ApiPublicVaultSigninRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/buy-coins': typeof AuthenticatedBuyCoinsIndexRoute
   '/library': typeof AuthenticatedLibraryIndexLazyRoute
@@ -828,6 +836,7 @@ export interface FileRoutesById {
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
   '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
+  '/api/public/vault-signin': typeof ApiPublicVaultSigninRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/_authenticated/library/': typeof AuthenticatedLibraryIndexLazyRoute
@@ -919,6 +928,7 @@ export interface FileRouteTypes {
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
+    | '/api/public/vault-signin'
     | '/admin/'
     | '/buy-coins/'
     | '/library/'
@@ -1008,6 +1018,7 @@ export interface FileRouteTypes {
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
+    | '/api/public/vault-signin'
     | '/admin'
     | '/buy-coins'
     | '/library'
@@ -1098,6 +1109,7 @@ export interface FileRouteTypes {
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
     | '/api/public/trade-signal-watch'
+    | '/api/public/vault-signin'
     | '/_authenticated/admin/'
     | '/_authenticated/buy-coins/'
     | '/_authenticated/library/'
@@ -1155,6 +1167,7 @@ export interface RootRouteChildren {
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
   ApiPublicTradeSignalWatchRoute: typeof ApiPublicTradeSignalWatchRoute
+  ApiPublicVaultSigninRoute: typeof ApiPublicVaultSigninRoute
   ApiPublicCarromRegisterGuestRoute: typeof ApiPublicCarromRegisterGuestRoute
   ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -1702,6 +1715,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTradeSignalWatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/vault-signin': {
+      id: '/api/public/vault-signin'
+      path: '/api/public/vault-signin'
+      fullPath: '/api/public/vault-signin'
+      preLoaderRoute: typeof ApiPublicVaultSigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/users/$userId': {
       id: '/_authenticated/admin/users/$userId'
       path: '/$userId'
@@ -1927,6 +1947,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
   ApiPublicTradeSignalWatchRoute: ApiPublicTradeSignalWatchRoute,
+  ApiPublicVaultSigninRoute: ApiPublicVaultSigninRoute,
   ApiPublicCarromRegisterGuestRoute: ApiPublicCarromRegisterGuestRoute,
   ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
