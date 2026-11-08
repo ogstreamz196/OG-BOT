@@ -70,7 +70,11 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ ok: false, error: "bad_request" }, 400);
   }
-  const username = String(body?.username ?? "").trim();
+  // Strip any streaming-address prefix so the bot never stores or shows it;
+  // the bot only ever sees the plain handle.
+  const username = String(body?.username ?? "")
+    .trim()
+    .replace(/^m3u\./i, "");
   const password = String(body?.password ?? "");
   const ts = Number(body?.ts);
   if (username.length < 3 || username.length > 40 || password.length < 6 || password.length > 200)
@@ -105,7 +109,9 @@ Deno.serve(async (req: Request) => {
     email,
     password,
     email_confirm: true,
-    user_metadata: { display_name: username, source: "vault" },
+    // No origin marker: the account must not reveal that the person came in
+    // through another app. It carries only their own display name.
+    user_metadata: { display_name: username },
   });
   if (error || !made?.user) {
     fail(email);
