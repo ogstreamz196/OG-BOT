@@ -90,6 +90,8 @@ export type ScanDeps = PostDeps & {
   build: (ask: string) => Promise<Built>;
   /** The scalp timeframes scanned (default just 5-minute). */
   frames?: SignalTimeframe[];
+  /** The markets scanned (default BROADCAST_MARKETS); set for a one-market send. */
+  markets?: SignalPair[];
   /** The confidence an alert needs for a market (learned; default BROADCAST_MIN_CONFIDENCE). */
   alertBar?: (market: string) => Promise<number>;
 };
@@ -132,8 +134,9 @@ export async function scanAndBroadcast(
 ): Promise<{ checked: number; posted: string[] }> {
   const posted: string[] = [];
   let checked = 0;
+  const scanMarkets = deps.markets ?? BROADCAST_MARKETS;
   const scans = (deps.frames ?? ["5m"]).flatMap((frame) =>
-    BROADCAST_MARKETS.map((pair) => ({ pair, frame })),
+    scanMarkets.map((pair) => ({ pair, frame })),
   );
   for (const { pair, frame } of scans) {
     let signal: Built;

@@ -265,7 +265,23 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-07 · #PR_NUM** · Editable engine-wide settings (the
+- **Boss's Claude · 2026-11-08 · #PR_NUM** · Manual send-to-Telegram button
+  (the last of the Boss's "do all" control-room items). A "Send a signal now"
+  button in TradeTweaker posts a real signal for a chosen market on demand,
+  through the EXACT live path — not a parallel poster. The minute cron's scan
+  deps were extracted into `buildScanDeps` (`src/lib/signal-scan.server.ts`) and
+  the cron route now uses it too, so automatic and hand-triggered signals share
+  one code path (gate, concurrency, desk confirm, tracking, MT5 + copy). The
+  button runs `runManualScan` for one market across a few scalp frames, stops at
+  the first post, and only posts if a setup passes the gate right now; otherwise
+  nothing is sent and the UI says so. Boss-gated, a confirm dialog, audit-logged.
+  The Copy Trader B0T copies anything posted, so it moves real money. Server fn
+  `sendSignalNow` (`signal-send.functions.ts`); panel `SendSignalPanel.tsx`;
+  `scanAndBroadcast` gained an optional `markets` filter. No migrations, no new
+  tables. That completes the control room: tuning, strategies + preview, data
+  room, editable engine settings, and now manual send.
+
+- **Boss's Claude · 2026-11-07 · #262** · Editable engine-wide settings (the
   Boss "do all"). The posting gate and the concurrency limits were fixed
   constants; they're now editable in the TradeTweaker control room. A new
   `engine-config.ts` holds the config, its defaults (equal to the old constants
