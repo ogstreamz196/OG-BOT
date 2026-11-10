@@ -157,7 +157,7 @@ describe("learned entry style", () => {
 
 describe("take profit and stop around real levels", () => {
   // A buy at 100 whose stop hid behind a swing (risk 4 with the 0.25 ATR pad,
-  // ATR 4), with a level in the way at 103.
+  // ATR 4), with a level in the way at 102.
   const s: LearnSample = {
     t: 0,
     direction: "BUY",
@@ -165,7 +165,7 @@ describe("take profit and stop around real levels", () => {
     entryType: "market",
     confidencePct: 70,
     verdict: "trade",
-    raw: { risk: 4, targets: [104, 108, 112], atr: 4, ahead: 103, padded: true },
+    raw: { risk: 4, targets: [104, 108, 112], atr: 4, ahead: 102, padded: true },
     path: [],
     expiresAt: 60 * MIN,
   };
@@ -179,12 +179,12 @@ describe("take profit and stop around real levels", () => {
   });
   it("with a take-profit pad, the target sits just short of the level in the way", async () => {
     const { applyTuning } = await import("./signal-learning.server");
-    // Pulled-in TP1 is about 103.2: past the level at 103.
-    expect(applyTuning(s, DEFAULT_TUNING).targets[0]).toBeGreaterThan(103);
-    expect(applyTuning(s, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeCloseTo(102.6, 6);
+    // Pulled-in TP1 is about 102.4 (tightened, TP1_TIGHTEN): past the level at 102.
+    expect(applyTuning(s, DEFAULT_TUNING).targets[0]).toBeGreaterThan(102);
+    expect(applyTuning(s, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeCloseTo(101.6, 6);
     // Too close to bother (under 0.3 of the risk): left alone.
     const near = { ...s, raw: { ...s.raw, ahead: 100.5 } };
-    expect(applyTuning(near, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeGreaterThan(103);
+    expect(applyTuning(near, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeGreaterThan(102);
   });
   it("round numbers: gold every $10, bitcoin every $500", async () => {
     const { roundStepFor } = await import("./trade-signal");
@@ -195,32 +195,32 @@ describe("take profit and stop around real levels", () => {
 });
 
 describe("runner + gain lock (the Boss, 2026-11-04)", () => {
-  it("leaves a 30% runner: 70% banked at the target", async () => {
+  it("leaves a 50% runner: 50% banked at TP1", async () => {
     const { RUNNER } = await import("./trade-signal-outcome");
-    expect(RUNNER).toEqual({ bank: 0.7, run: 0.3 });
+    expect(RUNNER).toEqual({ bank: 0.5, run: 0.5 });
   });
-  it("locks 30% of the gain made so far, ratcheting up, never below the entry", async () => {
+  it("locks 50% of the gain made so far, ratcheting up, never below the entry", async () => {
     const { gainLockStop } = await import("./trade-signal-outcome");
-    // BUY from 100, best 110: gain 10, lock 30% → stop 103.
-    expect(gainLockStop("BUY", 100, 110)).toBe(103);
+    // BUY from 100, best 110: gain 10, lock 50% → stop 105.
+    expect(gainLockStop("BUY", 100, 110)).toBe(105);
     // Higher best ratchets the lock up.
-    expect(gainLockStop("BUY", 100, 120)).toBe(106);
-    // SELL from 100, best 90: gain 10, lock 30% → stop 97.
-    expect(gainLockStop("SELL", 100, 90)).toBe(97);
+    expect(gainLockStop("BUY", 100, 120)).toBe(110);
+    // SELL from 100, best 90: gain 10, lock 50% → stop 95.
+    expect(gainLockStop("SELL", 100, 90)).toBe(95);
     // No gain yet: the lock stays at the entry (never a loss below it).
     expect(gainLockStop("BUY", 100, 99)).toBe(100);
   });
   it("knows when a trade is super close to its take profit", async () => {
     const { superClose } = await import("./trade-signal-outcome");
-    expect(superClose("BUY", 100, 110, 109)).toBe(true); // 90% of the way
+    expect(superClose("BUY", 100, 110, 105)).toBe(true); // half way
     expect(superClose("BUY", 100, 110, 104)).toBe(false); // only 40%
-    expect(superClose("SELL", 100, 90, 91)).toBe(true); // 90% of the way down
+    expect(superClose("SELL", 100, 90, 95)).toBe(true); // half way down
   });
-  it("the trailing stop never locks less than 30% of the gain", async () => {
+  it("the trailing stop never locks less than 50% of the gain", async () => {
     const { tpTrailArm, gainLockStop } = await import("./trade-signal-outcome");
     const arm = tpTrailArm({ direction: "BUY", entry: 100, tp: 110, best: 109, spread: 0 });
     expect(arm).not.toBeNull();
-    // The stop is at least the 30%-of-gain floor.
+    // The stop is at least the 50%-of-gain floor.
     expect(arm!.stop).toBeGreaterThanOrEqual(gainLockStop("BUY", 100, 109));
   });
 });

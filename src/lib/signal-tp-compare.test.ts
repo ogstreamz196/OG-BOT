@@ -31,8 +31,8 @@ function sample(i: number, high: number): LearnSample {
 describe("take profit what-if", () => {
   it("leaves learning untouched without a ratio, and puts the target at the stop's distance at 1:1", () => {
     const s = [sample(0, 115)];
-    // Today's target: 0.8 of one risk = 108, a win of 0.8R.
-    expect(evaluate(s, DEFAULT_TUNING).sumR).toBeCloseTo(0.8, 6);
+    // Today's target: 0.8 of one risk, tightened ×0.85 = 106.8, a win of 0.68R.
+    expect(evaluate(s, DEFAULT_TUNING).sumR).toBeCloseTo(0.68, 6);
     // 1:1: the stop is 12 away, so the target is 112: a win of 1.2R.
     const one = evaluate(s, DEFAULT_TUNING, 1);
     expect(one).toMatchObject({ n: 1, wins: 1 });
@@ -45,12 +45,12 @@ describe("take profit what-if", () => {
     const samples = Array.from({ length: 30 }, (_, i) => sample(i, 115));
     const c = compareTargets(samples, DEFAULT_TUNING, "BTCUSD", 0.1, 1);
     expect(c.rows.map((r) => r.ratio)).toEqual([null, ...TP_RATIOS]);
-    // Today's target is two thirds of the stop (8 against 12).
-    expect(c.currentRatio).toBeCloseTo(0.67, 2);
+    // Today's target is 6.8 against a 12 stop.
+    expect(c.currentRatio).toBeCloseTo(0.57, 2);
     const one = c.rows.find((r) => r.ratio === 1)!;
     // 30 trades × 1.2R × $10 risk × $1 a lot per $1 × 0.1 lot.
     expect(one.cash).toBeCloseTo(36, 2);
-    expect(c.rows[0].cash).toBeCloseTo(24, 2);
+    expect(c.rows[0].cash).toBeCloseTo(20.4, 2);
     expect(c.best).not.toBeNull();
   });
 

@@ -117,8 +117,8 @@ describe("profit and loss (Standard STP)", () => {
       paperPnl({ ...gold, status: "breakeven", bestTarget: 0, lockStop: 2650.9 }, 0.1, 0.3),
     ).toBe(9);
     const runner = { ...gold, tp2: 2656, tp3: 2656, lockStop: 2650.9 };
-    // 70% at 2653 (3 × 0.7) and the 30% runner at the lock (0.9 × 0.3) on 0.3 lot.
-    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(71.1);
+    // 50% at 2653 (3 × 0.5) and the 50% runner at the lock (0.9 × 0.5) on 0.3 lot.
+    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(58.5);
   });
   it("never filled, or an older breakeven: nothing", () => {
     expect(paperPnl({ ...gold, status: "unfilled", bestTarget: 0, entered: false }, 0.1, 0.3)).toBe(
@@ -126,12 +126,20 @@ describe("profit and loss (Standard STP)", () => {
     );
     expect(paperPnl({ ...gold, status: "breakeven", bestTarget: 0 }, 0.1, 0.3)).toBe(0);
   });
-  it("banks 70% at the first target, runs the 30% runner to the second or the entry", () => {
+  it("banks 50% at the first target, runs the 50% runner to the last or the entry", () => {
     const runner = { ...gold, tp2: 2656, tp3: 2656 };
-    // 70% at 2653 (3 × 0.7) + 30% at 2656 (6 × 0.3) = 3.9, on 0.3 lot = $117.
-    expect(paperPnl({ ...runner, status: "tp3", bestTarget: 3 }, 0.3, 0.3)).toBe(117);
-    // 70% at 2653, the 30% runner back at the entry (no lock) = 2.1, on 0.3 lot = $63.
-    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(63);
+    // 50% at 2653 (3 × 0.5) + 50% at 2656 (6 × 0.5) = 4.5, on 0.3 lot = $135.
+    expect(paperPnl({ ...runner, status: "tp3", bestTarget: 3 }, 0.3, 0.3)).toBe(135);
+    // 50% at 2653, the 50% runner back at the entry (no lock) = 1.5, on 0.3 lot = $45.
+    expect(paperPnl({ ...runner, status: "breakeven", bestTarget: 1 }, 0.3, 0.3)).toBe(45);
+    // A trailing runner closes at market: half a spread off its stop (0.15 × 0.5).
+    expect(
+      paperPnl(
+        { ...runner, status: "breakeven", bestTarget: 1, lockStop: 2650.9, trailExit: true },
+        0.3,
+        0.3,
+      ),
+    ).toBe(56.25);
   });
   it("bitcoin: 0.1 lot is $0.10 a dollar", () => {
     const btc = {

@@ -357,9 +357,9 @@ describe("classic chart patterns", () => {
     expect(find(cs, "fvg_retest")).toBeUndefined();
   });
 
-  it("no chart pattern reaches the 70% posting floor without the bigger trend", async () => {
+  it("no chart pattern reaches the 65% posting floor without the bigger trend", async () => {
     const { BROADCAST_MIN_CONFIDENCE } = await import("./signal-broadcast.server");
-    expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
+    expect(BROADCAST_MIN_CONFIDENCE).toBe(65);
     const cases: [Candle[], string][] = [
       [doubleBottom(98.7, 98.8, bar(79, 100, 101, 99.9, 100.8)), "double_top_bottom"],
       [bullFlag(102.6, bar(81, 103, 104, 102.9, 103.9)), "flag_continuation"],

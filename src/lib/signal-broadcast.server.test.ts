@@ -91,7 +91,7 @@ describe("auto-posted scalp signals", () => {
       expect(d.sent[0]).toMatch(new RegExp(`^BTCUSD ${direction} card`));
       expect(d.sent[0]).toContain("THIS AIN'T FINANCIAL ADVICE");
     }
-    expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
+    expect(BROADCAST_MIN_CONFIDENCE).toBe(65);
   });
 
   test("scans both gold and bitcoin (gold is back)", async () => {
@@ -105,9 +105,9 @@ describe("auto-posted scalp signals", () => {
     expect(asks.some((a) => a.startsWith("BTCUSD"))).toBe(true);
   });
 
-  test("under 70% isn't posted", async () => {
+  test("under 65% isn't posted", async () => {
     const { db } = fakeDb();
-    const d = deps({ BTC: card("BTCUSD", "SELL", 69) });
+    const d = deps({ BTC: card("BTCUSD", "SELL", 64) });
     expect(await scanAndBroadcast(db, d)).toEqual({ checked: 2, posted: [] });
   });
 
@@ -160,8 +160,8 @@ describe("auto-posted scalp signals", () => {
       created_at: new Date().toISOString(),
     };
     tables.trade_signals.push(trade);
-    // Two minutes on, still running: too soon (3-min same-side gap), no repeat.
-    expect((await scanAndBroadcast(db, deps(btc, T0 + 2 * 60_000))).posted).toEqual([]);
+    // One minute on, still running: too soon (90-second same-side gap), no repeat.
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 60_000))).posted).toEqual([]);
     // Take profit hit ten minutes in: the next buy can go straight out.
     Object.assign(trade, { status: "tp3", closed_at: new Date(T0 + 10 * 60_000).toISOString() });
     expect((await scanAndBroadcast(db, deps(btc, T0 + 11 * 60_000))).posted).toEqual([
@@ -169,7 +169,7 @@ describe("auto-posted scalp signals", () => {
     ]);
   });
 
-  test("after a stop loss, the same side waits 5 minutes", async () => {
+  test("after a stop loss, the same side waits 3 minutes", async () => {
     const { db, tables } = fakeDb();
     const btc = { BTC: card("BTCUSD", "BUY", 90, 60) };
     await scanAndBroadcast(db, deps(btc));
@@ -182,12 +182,10 @@ describe("auto-posted scalp signals", () => {
       // Recorded as the alert went out (the fake stamps posts with the real clock).
       created_at: new Date().toISOString(),
     });
-    // Four minutes after the stop (closed at T0+5): still sitting out.
-    expect((await scanAndBroadcast(db, deps(btc, T0 + 9 * 60_000))).posted).toEqual([]);
-    // Six minutes after the stop: the side can post again.
-    expect((await scanAndBroadcast(db, deps(btc, T0 + 11 * 60_000))).posted).toEqual([
-      "BTCUSD BUY",
-    ]);
+    // Two minutes after the stop (closed at T0+5): still sitting out.
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 7 * 60_000))).posted).toEqual([]);
+    // Four minutes after the stop: the side can post again.
+    expect((await scanAndBroadcast(db, deps(btc, T0 + 9 * 60_000))).posted).toEqual(["BTCUSD BUY"]);
   });
 
   test("several trades run at once, up to the cap, any direction", async () => {
@@ -210,10 +208,8 @@ describe("auto-posted scalp signals", () => {
       });
     expect((await scanAndBroadcast(db, deps(at(100) as never))).posted).toEqual(["BTCUSD BUY"]);
     running(1);
-    // Two minutes on, a different buy: too soon after the running one (3-min gap).
-    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 2 * 60_000))).posted).toEqual(
-      [],
-    );
+    // One minute on, a different buy: too soon after the running one (90-second gap).
+    expect((await scanAndBroadcast(db, deps(at(130) as never, T0 + 60_000))).posted).toEqual([]);
     // Four minutes on, the same setup found again (within 0.3 of the risk): no.
     expect((await scanAndBroadcast(db, deps(at(101) as never, T0 + 4 * 60_000))).posted).toEqual(
       [],

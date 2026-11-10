@@ -36,16 +36,18 @@ export const ACTIVE_STATUSES: SignalStatus[] = ["pending", "open", "tp1", "tp2"]
 export const PROFIT_LOCK = { at: 0.7, keep: 0.3 } as const;
 
 /**
- * The Boss's runner and gain lock (2026-11-04), all worked out on the backend
- * and closed with market orders (no stop or take profit on the broker):
- * - RUNNER: when the take profit is reached, bank 70% and leave 30% running.
- * - GAIN_LOCK: once a trade is super close to its take profit (ARM of the way),
- *   the stop moves to lock KEEP of the gain made so far (entry → best price),
+ * The Boss's runner and gain lock, all worked out on the backend and closed
+ * with market orders (no stop or take profit on the broker):
+ * - RUNNER: when TP1 is reached, bank 50% and leave 50% running (the Boss,
+ *   2026-11-10: "50% closed on TP1"; was 70/30).
+ * - GAIN_LOCK: once a trade is ARM of the way to its take profit (50%, the
+ *   Boss 2026-11-10: trailing triggered earlier; was 90%), the stop moves to
+ *   lock KEEP (50%, was 30%) of the gain made so far (entry → best price),
  *   ratcheting up as the best price climbs, never back. So the runner can only
- *   extend or fall back to 30% of its peak gain, never turn into a loss.
+ *   extend or fall back to half its peak gain, never turn into a loss.
  */
-export const RUNNER = { bank: 0.7, run: 0.3 } as const;
-export const GAIN_LOCK = { arm: 0.9, keep: 0.3 } as const;
+export const RUNNER = { bank: 0.5, run: 0.5 } as const;
+export const GAIN_LOCK = { arm: 0.5, keep: 0.5 } as const;
 
 /** The stop that locks `keep` of the gain from entry to the best price. entry if no gain. Pure. */
 export function gainLockStop(
@@ -168,17 +170,16 @@ export function trailsThis(confidencePct: number, direction: "BUY" | "SELL", hig
 }
 
 /**
- * Balance first (the Boss's rule): as the take profit is about to hit
- * (ARM, 90% of the way), the trade isn't closed there any more. It trails
- * instead: the stop goes GAP of the take profit's distance behind the best
- * price (never closer than SPREADS spreads, so bid/ask flicker can't knock it
- * out; the Boss's gain lock): the stop STARTS at 30% of the gain made so far
- * (entry → best) and then follows the best price up, locking 30% of the
- * growing gain, moving up only, never reducing the profit. Only a far cap
- * (CAP times the distance) still closes it. Exits are market closes paying the
+ * Balance first (the Boss's rule): once a trade is half way to its take
+ * profit (ARM, 50%; the Boss 2026-11-10, was 90%), it starts trailing: the
+ * stop STARTS at 50% of the gain made so far (entry → best, GAIN_LOCK.keep)
+ * and then follows the best price up, locking half of the growing gain,
+ * moving up only, never reducing the profit. TP1 stays where it was: there
+ * half the trade is banked (RUNNER) and the other half keeps trailing to a
+ * far cap (CAP times the distance). Exits are market closes paying the
  * spread (no stop or take profit sits on the broker's order book).
  */
-export const TP_TRAIL = { ARM: 0.9, GAP: 0.2, SPREADS: 2, CAP: 3 } as const;
+export const TP_TRAIL = { ARM: 0.5, GAP: 0.2, SPREADS: 2, CAP: 3 } as const;
 
 /** The trailing stop and far cap once a trade is about to hit its take profit, or null. Pure. */
 export function tpTrailArm(o: {
@@ -198,9 +199,9 @@ export function tpTrailArm(o: {
   // Not near yet, or the take profit was already hit (it closed there).
   if (reach < TP_TRAIL.ARM || reach >= 1) return null;
   const gap = Math.max(TP_TRAIL.GAP * d, TP_TRAIL.SPREADS * Math.max(0, o.spread));
-  // The Boss's rule (2026-11-04): the trailing stop starts at 30% of the gain
-  // so far (entry → best) and then follows the best price up, locking 30% of
-  // the growing gain, never back. So it begins with the 30% trail loss.
+  // The Boss's rule: the trailing stop starts at GAIN_LOCK.keep (50%) of the
+  // gain so far (entry → best) and then follows the best price up, locking
+  // that share of the growing gain, never back.
   const stop = gainLockStop(o.direction, o.entry, o.best);
   return { stop, gap, gainKeep: GAIN_LOCK.keep, cap: o.entry + side * d * TP_TRAIL.CAP };
 }
@@ -366,7 +367,9 @@ export function advanceSignal(
     // - else risk-based (TRAIL): a full risk in profit, then GAP risks behind.
     const gk = signal.trail?.gainKeep;
     const r = signal.trail?.risk ?? 0;
-    if ((gk != null || r > 0) && status === "open") {
+    // A take-profit trail keeps trailing the runner after TP1 banks half.
+    const trailing = status === "open" || (gk != null && (status === "tp1" || status === "tp2"));
+    if ((gk != null || r > 0) && trailing) {
       const side = long ? 1 : -1;
       const best = long ? c.h : c.l;
       const gain = (best - signal.entry) * side;

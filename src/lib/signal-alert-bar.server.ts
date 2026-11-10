@@ -15,10 +15,7 @@ import { SPREAD_COST } from "./signal-learning.server";
 type Admin = any;
 
 /** The bands below the default bar, tried top first. */
-export const BAR_BANDS: [number, number][] = [
-  [65, 69],
-  [60, 64],
-];
+export const BAR_BANDS: [number, number][] = [[60, 64]];
 export const BAR_FLOOR = 60;
 export const BAR_MIN_DECIDED = 15;
 export const BAR_MIN_WIN_RATE = 0.55;

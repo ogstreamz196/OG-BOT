@@ -444,10 +444,10 @@ type ClosedTrade = {
  * (a buy) or the ask (a sell), so a take profit or stop pays exactly its
  * level (so does the profit lock's stop); a market entry also pays half the
  * spread; a trade closed on time
- * goes out at the bid/ask, half a spread off the last mid. A runner banks 70%
- * at the first take profit (the Boss's rule, 2026-11-04) and runs the other
- * 30% to the second target, or back at the moved stop (the gain lock, else the
- * entry). Pure, so it can be tested.
+ * goes out at the bid/ask, half a spread off the last mid. A runner banks 50%
+ * at the first take profit (the Boss's rule, 2026-11-10; was 70%) and runs the
+ * other 50% to the last target, or back at the moved stop (the trailing stop /
+ * gain lock, else the entry). Pure, so it can be tested.
  */
 export function paperPnl(t: ClosedTrade, lots: number, spread: number): number {
   const per = usdPerLotMove(t.market, t.entry) ?? 0;
@@ -460,9 +460,15 @@ export function paperPnl(t: ClosedTrade, lots: number, spread: number): number {
   else if (t.bestTarget >= 1) {
     if (single) points = move(t.tp1);
     else {
-      // Bank 70% at TP1; the 30% runner at the second target, or back at the
-      // moved stop (the gain lock, else the entry).
-      const rest = t.bestTarget >= 2 ? move(t.tp3) : t.lockStop != null ? move(t.lockStop) : 0;
+      // Bank RUNNER.bank (50%) at TP1; the runner at the last target, or back
+      // at the moved stop (the trailing stop / gain lock, else the entry). A
+      // trailing exit is a market close, half a spread off the mid.
+      const rest =
+        t.bestTarget >= 2
+          ? move(t.tp3)
+          : t.lockStop != null
+            ? move(t.lockStop) - (t.trailExit ? half : 0)
+            : 0;
       points = move(t.tp1) * RUNNER.bank + rest * RUNNER.run;
     }
   } else if (t.status === "breakeven")

@@ -292,6 +292,18 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-10 · #267** · Signals more often, tighter TP1,
+  trail from half way, 50% banked at TP1 (the Boss's ask). TP_TRAIL.ARM and
+  GAIN_LOCK 0.5/0.5 (were 0.9 and 0.3): the trail arms half way to TP1 and
+  locks half the gain. Arming keeps TP1 (tp2/tp3 to the 3× cap) and a
+  gain-based trail keeps going after TP1; RUNNER 50/50 (was 70/30).
+  TP1_TIGHTEN 0.85 in scaleTargets. Posting floor 65 (MT5 still 70%+),
+  quiet valve 15 min, same-side gap 90 s, after-stop 3 min, random 2–6 min;
+  engine-config defaults match. Files: trade-signal-outcome.ts,
+  trade-signal-tracker.server.ts, paper-account.server.ts, trade-signal.ts,
+  signal-broadcast.server.ts, signal-gate.ts, signal-alert-bar.server.ts,
+  signal-random.server.ts, engine-config.ts and their tests.
+
 - **Boss's Claude · 2026-11-08 · #PR_NUM** · OG VAULT one-login: restored to the
   Boss's design (hub-proxy detour reverted). `/api/public/vault-signin` is the
   full endpoint again: it verifies the `X-Vault-Signature` HMAC with

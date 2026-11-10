@@ -30,20 +30,20 @@ export type EngineConfig = { gate: GateConfig; concurrency: ConcurrencyConfig };
 /** Defaults = the current code constants. Changing these changes live defaults. */
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   gate: {
-    minConfidence: 70,
+    minConfidence: 65,
     minRecord: 8,
     badEdge: -0.3,
     minWinRate: 0.42,
     minWinRateTrades: 12,
-    quietMin: 30,
+    quietMin: 15,
   },
   concurrency: {
     free: 3,
     step: 2,
     barMax: 84,
     perMarket: 10,
-    sameSideGapMins: 3,
-    afterStopMins: 5,
+    sameSideGapMins: 1.5,
+    afterStopMins: 3,
     sameSetupR: 0.3,
   },
 };

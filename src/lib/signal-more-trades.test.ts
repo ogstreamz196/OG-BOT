@@ -19,21 +19,19 @@ const trades = (
 ];
 
 describe("learnedBar", () => {
-  it("stays at 70 until the trades under it win after the spread", () => {
-    expect(BROADCAST_MIN_CONFIDENCE).toBe(70);
-    expect(learnedBar([], 3.5)).toBe(70);
-    // 65–69 winning 12 of 18 and making money: the bar comes down to 65.
-    expect(learnedBar(trades(67, 12, 6), 3.5)).toBe(65);
-    // 60–64 doing well too: 60, never lower.
-    expect(learnedBar([...trades(67, 12, 6), ...trades(62, 12, 5)], 3.5)).toBe(60);
+  it("stays at 65 until the trades under it win after the spread", () => {
+    expect(BROADCAST_MIN_CONFIDENCE).toBe(65);
+    expect(learnedBar([], 3.5)).toBe(65);
+    // 60–64 winning 12 of 17 and making money: the bar comes down to 60, never lower.
+    expect(learnedBar(trades(62, 12, 5), 3.5)).toBe(60);
+    // Trades at 55–59 never bring it under the 60 floor.
+    expect(learnedBar([...trades(62, 12, 5), ...trades(57, 15, 2)], 3.5)).toBe(60);
   });
   it("too few trades, too many losses, or no money after the spread keeps it up", () => {
-    expect(learnedBar(trades(67, BAR_MIN_DECIDED - 6, 5), 3.5)).toBe(70);
-    expect(learnedBar(trades(67, 9, 9), 3.5)).toBe(70);
+    expect(learnedBar(trades(62, BAR_MIN_DECIDED - 6, 5), 3.5)).toBe(65);
+    expect(learnedBar(trades(62, 9, 9), 3.5)).toBe(65);
     // Wins a lot, but each win is smaller than the spread eats.
-    expect(learnedBar(trades(67, 12, 6, 6, -6), 3.5)).toBe(70);
-    // 65–69 losing: 60–64 isn't even looked at.
-    expect(learnedBar([...trades(67, 5, 12), ...trades(62, 15, 2)], 3.5)).toBe(70);
+    expect(learnedBar(trades(62, 12, 6, 6, -6), 3.5)).toBe(65);
   });
 });
 
