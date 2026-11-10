@@ -26,7 +26,7 @@ import { DEFAULT_ENGINE_CONFIG, type ConcurrencyConfig } from "./engine-config";
 type Admin = any;
 
 /** The lowest confidence that gets posted (90% is the engine's top score). */
-export const BROADCAST_MIN_CONFIDENCE = 70;
+export const BROADCAST_MIN_CONFIDENCE = 65;
 /** From here every timeframe agrees: the alert says TOP. */
 const TOP_CONFIDENCE = 90;
 /** Gold and Bitcoin (the Boss brought gold back, 2026-11-07). */
@@ -178,7 +178,7 @@ type PostRow = {
 };
 
 /** After a stop loss, the same side isn't posted again for this long. */
-export const AFTER_STOP_MS = 5 * 60_000;
+export const AFTER_STOP_MS = 3 * 60_000;
 /**
  * Most alerts one market can have running at once (the Boss, 2026-11-03:
  * "increase the frequency, up to 10 trades at the same time, any direction").
@@ -187,7 +187,7 @@ export const AFTER_STOP_MS = 5 * 60_000;
  */
 export const MAX_RUNNING_PER_MARKET = 10;
 /** A second same-side alert waits at least this long after the last running one. */
-export const SAME_SIDE_GAP_MS = 3 * 60_000;
+export const SAME_SIDE_GAP_MS = 90_000;
 /** Entries closer than this share of the risk are the same setup, not a new trade. */
 export const SAME_SETUP_R = 0.3;
 /** This many trades can run on the base bar before the bar starts rising. */

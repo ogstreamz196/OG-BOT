@@ -7,6 +7,7 @@ import {
   detectTradeIntent,
   resolveTradeRequest,
   STOP_ROOM,
+  TP1_TIGHTEN,
   isAnyMarketAsk,
   ema,
   parseInstrument,
@@ -183,11 +184,11 @@ describe("buildPlan", () => {
     expect(plan.targets[0]).toBeGreaterThan(plan.entry!);
     expect(plan.targets[1]).toBeGreaterThan(plan.targets[0]);
     expect(plan.targets[2]).toBeGreaterThanOrEqual(plan.targets[1]);
-    // Quick Scalp sits at 0.8R: 20% closer than the engine's 1R TP1. The
+    // Quick Scalp sits at 0.8R, tightened by TP1_TIGHTEN (0.85): 0.68R. The
     // stop sits 20% further out than that R, and the R:R uses that stop.
     const engineRisk = (plan.entry! - plan.stop!) / STOP_ROOM;
-    expect(plan.targets[0] - plan.entry!).toBeCloseTo(engineRisk * 0.8);
-    expect(plan.rr.startsWith("1:0.7 /")).toBe(true);
+    expect(plan.targets[0] - plan.entry!).toBeCloseTo(engineRisk * 0.8 * TP1_TIGHTEN);
+    expect(plan.rr.startsWith("1:0.6 /")).toBe(true);
   });
 
   it("calls SELL in an aligned downtrend", () => {
@@ -447,16 +448,17 @@ describe("signal expiry tag", () => {
 });
 
 describe("scaleTargets (Quick Scalp, Potentially, Greedy Runner)", () => {
-  it("BUY: 80% of TP1, 60% of the way TP1→TP2, 85% of the way TP2→TP3", () => {
+  it("BUY: 80% of TP1 (tightened ×0.85), 60% of the way TP1→TP2, 85% of the way TP2→TP3", () => {
     const [q, p, g] = scaleTargets("BUY", 100, [110, 120, 140], 0.01);
-    expect(q).toBeCloseTo(108);
+    expect(TP1_TIGHTEN).toBe(0.85);
+    expect(q).toBeCloseTo(106.8);
     expect(p).toBeCloseTo(116);
     expect(g).toBeCloseTo(137);
     expect(100 < q && q < p && p < g).toBe(true);
   });
   it("SELL mirrors it", () => {
     const [q, p, g] = scaleTargets("SELL", 100, [90, 80, 60], 0.01);
-    expect(q).toBeCloseTo(92);
+    expect(q).toBeCloseTo(93.2);
     expect(p).toBeCloseTo(84);
     expect(g).toBeCloseTo(63);
     expect(100 > q && q > p && p > g).toBe(true);

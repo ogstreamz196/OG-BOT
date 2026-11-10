@@ -722,6 +722,13 @@ const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
  * them strictly in order (at least `minStep` apart, past the entry) even when
  * the engine's levels bunch up.
  */
+/**
+ * Tighter take profits (the Boss, 2026-11-10): the first target (TP1) sits
+ * this share of its tuned distance from the entry, so it's reached more often;
+ * the trailing stop and the 50% runner make up the rest.
+ */
+export const TP1_TIGHTEN = 0.85;
+
 export function scaleTargets(
   direction: "BUY" | "SELL",
   entry: number,
@@ -735,7 +742,7 @@ export function scaleTargets(
   const d1 = d(tp1);
   const d2 = d(tp2);
   const d3 = d(tp3);
-  let quick = d1 * q;
+  let quick = d1 * q * TP1_TIGHTEN;
   let potentially = d1 + p * (d2 - d1);
   let runner = d2 + g * (d3 - d2);
   const step = Math.max(minStep, 0);

@@ -220,9 +220,10 @@ export function chatLine(
     case "filled":
       return `✅ In at ${fmt(row.entry)}`;
     case "tp1":
-      return singleTarget(row)
-        ? `🎯 Take profit hit at ${fmt(row.tp1)}`
-        : `🎯 First take profit hit · stop to ${fmt(lock?.stop ?? row.entry)}`;
+      if (singleTarget(row)) return `🎯 Take profit hit at ${fmt(row.tp1)}`;
+      if (trailOf(row) != null)
+        return `🎯 TP1 hit at ${fmt(row.tp1)} · 50% closed · trailing the rest at ${fmt(trailOf(row)!)}`;
+      return `🎯 First take profit hit · stop to ${fmt(lock?.stop ?? row.entry)}`;
     case "tp2":
       return `🎯 Second take profit hit at ${fmt(row.tp2)}`;
     case "tp3":
@@ -263,13 +264,13 @@ export function chatLiveLine(row: Row, price: number, now: number, _lots?: numbe
 /** The signals chat's line when the take profit becomes a trailing stop. */
 export function chatTrailArmLine(row: Row, stop: number): string {
   const { fmt } = formatter(row);
-  return `🏃 Nearly at take profit · trailing my stop at ${fmt(stop)} instead of closing`;
+  return `🏃 Half way to TP1 · trailing my stop at ${fmt(stop)} · 50% closes at ${fmt(row.tp1)}`;
 }
 
 /** Other chats' line when the take profit becomes a trailing stop. */
 export function trailArmLine(row: Row, stop: number): string {
   const { fmt, move } = formatter(row);
-  return `🏃 It's nearly at my take profit, so I'm not closing it yet: my stop's trailing behind at ${fmt(stop)} (${move(row.entry, stop)} locked in). Let's see how far it runs`;
+  return `🏃 It's half way to my take profit, so my stop's trailing behind at ${fmt(stop)} (${move(row.entry, stop)} locked in). I'll close half at ${fmt(row.tp1)} and let the rest run`;
 }
 
 /** The signals chat's short take profit move line. */
@@ -319,6 +320,8 @@ export function eventLine(row: Row, e: OutcomeEvent | { kind: "cancelled"; bias:
       // One take profit (all three levels the same): one hit and it's done.
       if (singleTarget(row))
         return `🎯 Take profit hit (${move(row.entry, row.tp1)}). Job done, I've banked it`;
+      if (trailOf(row) != null)
+        return `🎯 TP1 hit (${move(row.entry, row.tp1)}). I've closed half, you greedy bastard. The other half is trailing with my stop at ${fmt(trailOf(row)!)}`;
       return lock
         ? `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's at ${fmt(lock.stop)}, so the rest is locked in profit`
         : `🎯 Quick Scalp hit (${move(row.entry, row.tp1)}). I've banked some, you greedy bastard. My stop's now at my entry, ${fmt(row.entry)}, so this one can't lose`;
@@ -794,7 +797,9 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             await moveStopToEntry(admin, row, trailedTo).catch(() => undefined);
           }
         }
-        const firstBank = !singleTarget(row) && result.events.some((e) => e.kind === "tp1");
+        // A trailing trade's stop is the trail's (moved above), never pulled back to the lock.
+        const firstBank =
+          !singleTarget(row) && !row.feeds?.trail && result.events.some((e) => e.kind === "tp1");
         if ((guarded || firstBank) && row.sender_worker === "trade") {
           const { moveStopToEntry } = await import("./mt5-autotrade.server");
           await moveStopToEntry(admin, row, lockOf(row)?.stop).catch(() => undefined);
@@ -869,9 +874,10 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         const enteredMs = row.entered_at
           ? Date.parse(row.entered_at)
           : result.events.find((e) => e.kind === "filled")?.at;
-        // Balance first: about to hit the take profit (90% of the way), it
-        // trails instead of closing there (tpTrailArm): the stop 20% of the
-        // distance behind the best price (2 spreads at least), a far cap at 3x.
+        // Balance first: half way to the take profit (TP_TRAIL.ARM, 50%) it
+        // starts trailing (tpTrailArm): the stop locks half the gain so far and
+        // follows the best price up. TP1 stays: half is banked there (RUNNER)
+        // and the rest trails on to a far cap at 3x (TP2/TP3).
         // Said once; the stop then follows quietly and the MT5 trade with it.
         let armed = false;
         if (status === "open" && singleTarget(row) && enteredMs != null && !row.feeds?.trail) {
@@ -896,7 +902,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
             const dp = Math.max(0, Math.min(8, Number(row.decimals) || 2));
             const cap = Number(arm.cap.toFixed(dp));
             const stop = Number(arm.stop.toFixed(dp));
-            update.tp1 = update.tp2 = update.tp3 = cap;
+            update.tp2 = update.tp3 = cap;
+            row.tp2 = row.tp3 = cap;
             row.feeds = {
               ...row.feeds,
               tp0,

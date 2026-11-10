@@ -12,7 +12,7 @@ import { RANDOM_MIN_TRADES, type StrategyStats } from "./signal-random.server";
 import type { GateConfig } from "./engine-config";
 
 /** Alerts under this need a winning record at their confidence to be posted. */
-export const POST_MIN_CONFIDENCE = 70;
+export const POST_MIN_CONFIDENCE = 65;
 /** Settled calls needed before a record (edge, strategy, chart) can rule a trade out. */
 export const POST_MIN_RECORD = 8;
 /**
@@ -36,7 +36,7 @@ export const POST_MIN_WINRATE_TRADES = 12;
  * out whatever its record, so the chat never goes quiet and the records
  * keep getting fresh trades to learn from.
  */
-export const POST_QUIET_MIN = 30;
+export const POST_QUIET_MIN = 15;
 
 export type PostInputs = {
   confidencePct: number;
