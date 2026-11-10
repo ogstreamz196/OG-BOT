@@ -292,6 +292,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-10 · #268** · Copy feed + Python MT5 copier.
+  `GET /api/public/copy-feed` (token: site_content `copy.feedToken`, off when
+  unset) gives the trade bot's signals with the bot's stop now and whether
+  half is banked; `tools/mt5-copier/og_copier.py` copies them into the Boss's
+  own Vantage MT5 on a Windows PC with the free MetaTrader5 package (market
+  opens/closes, half at TP1, no broker stop by default, dry run first).
+  MetaApi auto-trading unchanged. Files: copy-feed.ts (+test), the route,
+  tools/mt5-copier/*, AGENTS.md.
+
 - **Boss's Claude · 2026-11-10 · #267** · Signals more often, tighter TP1,
   trail from half way, 50% banked at TP1 (the Boss's ask). TP_TRAIL.ARM and
   GAIN_LOCK 0.5/0.5 (were 0.9 and 0.3): the trail arms half way to TP1 and
