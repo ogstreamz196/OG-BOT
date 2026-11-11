@@ -81,7 +81,6 @@ import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
 import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
 import { Route as ApiPublicCopyFeedRouteImport } from './routes/api/public/copy-feed'
-import { Route as ApiPublicCopyReportRouteImport } from './routes/api/public/copy-report'
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
 import { Route as ApiPublicSignalScanRouteImport } from './routes/api/public/signal-scan'
 import { Route as ApiPublicSongAudioRouteImport } from './routes/api/public/song-audio'
@@ -484,11 +483,6 @@ const ApiPublicCopyFeedRoute = ApiPublicCopyFeedRouteImport.update({
   path: '/api/public/copy-feed',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCopyReportRoute = ApiPublicCopyReportRouteImport.update({
-  id: '/api/public/copy-report',
-  path: '/api/public/copy-report',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicNewUserAlertRoute = ApiPublicNewUserAlertRouteImport.update({
   id: '/api/public/new-user-alert',
   path: '/api/public/new-user-alert',
@@ -661,7 +655,6 @@ export interface FileRoutesByFullPath {
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
-  '/api/public/copy-report': typeof ApiPublicCopyReportRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
   '/api/public/song-audio': typeof ApiPublicSongAudioRoute
@@ -753,7 +746,6 @@ export interface FileRoutesByTo {
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
-  '/api/public/copy-report': typeof ApiPublicCopyReportRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
   '/api/public/song-audio': typeof ApiPublicSongAudioRoute
@@ -847,7 +839,6 @@ export interface FileRoutesById {
   '/_authenticated/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
-  '/api/public/copy-report': typeof ApiPublicCopyReportRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
   '/api/public/song-audio': typeof ApiPublicSongAudioRoute
@@ -941,7 +932,6 @@ export interface FileRouteTypes {
     | '/buy-coins/return'
     | '/library/$songId'
     | '/api/public/copy-feed'
-    | '/api/public/copy-report'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
     | '/api/public/song-audio'
@@ -1033,7 +1023,6 @@ export interface FileRouteTypes {
     | '/buy-coins/return'
     | '/library/$songId'
     | '/api/public/copy-feed'
-    | '/api/public/copy-report'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
     | '/api/public/song-audio'
@@ -1126,7 +1115,6 @@ export interface FileRouteTypes {
     | '/_authenticated/buy-coins/return'
     | '/_authenticated/library/$songId'
     | '/api/public/copy-feed'
-    | '/api/public/copy-report'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
     | '/api/public/song-audio'
@@ -1186,7 +1174,6 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicCopyFeedRoute: typeof ApiPublicCopyFeedRoute
-  ApiPublicCopyReportRoute: typeof ApiPublicCopyReportRoute
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
   ApiPublicSignalScanRoute: typeof ApiPublicSignalScanRoute
   ApiPublicSongAudioRoute: typeof ApiPublicSongAudioRoute
@@ -1706,13 +1693,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCopyFeedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/copy-report': {
-      id: '/api/public/copy-report'
-      path: '/api/public/copy-report'
-      fullPath: '/api/public/copy-report'
-      preLoaderRoute: typeof ApiPublicCopyReportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/new-user-alert': {
       id: '/api/public/new-user-alert'
       path: '/api/public/new-user-alert'
@@ -1982,7 +1962,6 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicCopyFeedRoute: ApiPublicCopyFeedRoute,
-  ApiPublicCopyReportRoute: ApiPublicCopyReportRoute,
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
   ApiPublicSignalScanRoute: ApiPublicSignalScanRoute,
   ApiPublicSongAudioRoute: ApiPublicSongAudioRoute,

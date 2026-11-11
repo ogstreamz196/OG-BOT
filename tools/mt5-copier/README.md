@@ -53,14 +53,11 @@ safety stop at the broker in case the PC goes off.
 
 ## Settings (`config.ini`)
 
-- `lot`: `bot` (default): the same lot the bot picks for each signal
-  (0.05 to 0.3), sized from **this MT5 account's balance**: the copier
-  reports the balance, equity, currency and server name (no login or
-  password) to the bot every 30 seconds, and the bot's results post shows
-  it instead of the old test account. Or a number (e.g. `0.02`) for a fixed
-  lot; at 0.01 it can't split at TP1. If the copier's been off for 10
-  minutes, the bot goes back to its test account for sizing and the post
-  shows no balance.
+- `lot`: `bot` (default): the same lot the bot's test account takes on
+  each signal (0.05 to 0.3, bigger when it's surer). Or a number (e.g.
+  `0.02`) for a fixed lot; at 0.01 it can't split at TP1. Nothing about
+  your account is sent to the bot: anyone with the token just runs the
+  copier and copies.
 - `max_late_minutes`: don't jump into a signal that filled longer ago.
 - `max_open`: most copied trades open at once.
 - `markets`: `XAUUSD,BTCUSD`, or just one.

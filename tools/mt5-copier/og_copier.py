@@ -38,12 +38,11 @@ if not cfg.read(os.path.join(HERE, "config.ini")):
 c = cfg["copier"]
 FEED_URL = c.get("feed_url", "https://ogbot.co.uk/api/public/copy-feed")
 TOKEN = c.get("token", "").strip()
-# "bot": the lot the bot chose for each signal (sized from this account's
-# balance); a number: that lot on every trade.
+# "bot": the same lot the bot's test account takes on each signal; a number:
+# that lot on every trade.
 LOT_SETTING = c.get("lot", "bot").strip().lower()
 LOT = 0.02 if LOT_SETTING == "bot" else float(LOT_SETTING)
-REPORT_URL = c.get("report_url", FEED_URL.replace("copy-feed", "copy-report"))
-REPORT_SECONDS = 30
+
 DRY_RUN = c.getboolean("dry_run", True)
 USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
 POLL_SECONDS = c.getfloat("poll_seconds", 3)
@@ -135,17 +134,6 @@ def lot_for(sig):
     if LOT_SETTING == "bot" and sig.get("lots"):
         return float(sig["lots"])
     return LOT
-
-
-def report_account():
-    """Tell the bot this account's balance, so it sizes lots from it (no login sent)."""
-    info = mt5.account_info()
-    if info is None:
-        return
-    body = {"balance": info.balance, "equity": info.equity, "currency": info.currency, "server": info.server}
-    r = requests.post(REPORT_URL, json=body, headers={"x-copy-token": TOKEN}, timeout=10)
-    if r.status_code != 200:
-        log(f"account report not saved ({r.status_code})")
 
 
 def open_trade(sig, sym):
@@ -297,12 +285,8 @@ def main():
     state = load_state()
     size = "the bot's lot for each signal" if LOT_SETTING == "bot" else f"{LOT} lots"
     log(f"Copying {', '.join(MARKETS)} at {size}, every {POLL_SECONDS}s. Ctrl+C to stop.")
-    last_report = 0.0
     while True:
         try:
-            if not DRY_RUN and time.time() - last_report >= REPORT_SECONDS:
-                last_report = time.time()
-                report_account()
             step(state)
         except requests.RequestException as e:
             log(f"feed not reachable ({e.__class__.__name__}), trying again")
