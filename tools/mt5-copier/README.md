@@ -42,7 +42,8 @@ safety stop at the broker in case the PC goes off.
 5. **Dry run.** `python og_copier.py`. It should say "Connected to …" and,
    when the bot posts and a signal fills, print "(dry run) would open …".
 6. **Live (demo first).** Set `dry_run = false`, run it again, and watch a
-   few trades copy on the demo. Then log MT5 in to the real account (same
+   few trades copy on the demo. (Dry runs remember their pretend trades in
+   `copier_state_dry.json`, separate from live, so nothing carries over.) Then log MT5 in to the real account (same
    PC) and run it.
 7. **Keep it running.** Leave the window open; Windows sleep off
    (Settings → System → Power → Never). If it stops, start it again: it
