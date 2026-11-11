@@ -22,7 +22,9 @@ export const Route = createFileRoute("/api/public/copy-report")({
           return Response.json({ ok: false, error: "bad body" }, { status: 400 });
         const saved = await acct.saveReport(supabaseAdmin, body as Record<string, unknown>);
         if (!saved) return Response.json({ ok: false, error: "not saved" }, { status: 400 });
-        return Response.json({ ok: true, balance: saved.balance, peak: saved.peak });
+        // The results post follows the balance (and shows it once connected).
+        const results = await acct.syncResultsBalance(supabaseAdmin);
+        return Response.json({ ok: true, balance: saved.balance, peak: saved.peak, results });
       },
     },
   },
