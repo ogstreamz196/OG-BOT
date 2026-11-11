@@ -63,6 +63,23 @@ safety stop at the broker in case the PC goes off.
 - `max_open`: most copied trades open at once.
 - `markets`: `XAUUSD,BTCUSD`, or just one.
 
+## Remote settings
+
+Every copier also follows settings saved on the server (site_content
+`copy.settings`, JSON), read on every check, so they can be changed without
+touching the laptop. Anything set there wins over `config.ini`; anything not
+set keeps `config.ini`. Keys:
+
+- `paused`: `true` stops new trades (open ones are still managed and closed).
+- `lot`: `"bot"` or a fixed lot (0.01 to 5).
+- `markets`: e.g. `["XAUUSD","BTCUSD"]`. A market switched off takes no new
+  trades; its open trades are still managed. Symbol names stay in
+  `config.ini` (`symbol_XAUUSD`, `symbol_BTCUSD`).
+- `maxOpen`, `maxLateMinutes`, `useBrokerStop`.
+
+The token and `dry_run` stay on the laptop only. The copier logs
+"Remote settings: …" each time they change.
+
 ## Safety
 
 - `config.ini` holds the token: don't share it. A new token in

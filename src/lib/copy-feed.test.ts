@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copyFeed, copySignal, testSignal, type CopyFeedRow } from "./copy-feed";
+import { copyFeed, copySettings, copySignal, testSignal, type CopyFeedRow } from "./copy-feed";
 
 const row = (over: Partial<CopyFeedRow> = {}): CopyFeedRow => ({
   id: "a",
@@ -99,5 +99,36 @@ describe("copier test signal", () => {
     expect(testSignal(null, now)).toBeNull();
     expect(testSignal("{oops", now)).toBeNull();
     expect(testSignal(v({ until: now - 1 }), now)).toBeNull();
+  });
+});
+
+describe("copiers' remote settings", () => {
+  it("passes only valid keys, clamped", () => {
+    expect(
+      copySettings(
+        JSON.stringify({
+          paused: true,
+          lot: "bot",
+          markets: ["xauusd", "BTCUSD", "BTCUSD", "bad market!"],
+          maxOpen: 99,
+          maxLateMinutes: 0,
+          useBrokerStop: false,
+          junk: 1,
+        }),
+      ),
+    ).toEqual({
+      paused: true,
+      lot: "bot",
+      markets: ["XAUUSD", "BTCUSD"],
+      maxOpen: 50,
+      maxLateMinutes: 1,
+      useBrokerStop: false,
+    });
+    expect(copySettings(JSON.stringify({ lot: 0.054 }))).toEqual({ lot: 0.05 });
+    expect(copySettings(JSON.stringify({ lot: 9, paused: "yes" }))).toEqual({});
+  });
+  it("nothing set or broken: empty, so each copier keeps its config.ini", () => {
+    expect(copySettings(null)).toEqual({});
+    expect(copySettings("{oops")).toEqual({});
   });
 });

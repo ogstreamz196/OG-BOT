@@ -48,8 +48,13 @@ USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
 POLL_SECONDS = c.getfloat("poll_seconds", 3)
 MAX_LATE_MINUTES = c.getfloat("max_late_minutes", 10)
 MAX_OPEN = c.getint("max_open", 6)
-MARKETS = [m.strip() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
-SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in MARKETS}
+MARKETS = [m.strip().upper() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
+# Symbol names for every market the bot trades (your broker's names), so a
+# market switched on remotely is ready, and one switched off is still managed.
+KNOWN_MARKETS = sorted(set(MARKETS) | {"XAUUSD", "BTCUSD"})
+SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in KNOWN_MARKETS}
+PAUSED = False
+REMOTE = {}
 MT5_PATH = c.get("mt5_path", "").strip() or None
 
 # Dry runs keep their own memory, so pretend trades never reach a live run.
@@ -91,7 +96,8 @@ def connect():
     if not mt5.terminal_info().trade_allowed:
         sys.exit("Turn on Algo Trading in MetaTrader 5 (the button in the toolbar).")
     log(f"Connected to {info.server}, account {info.login}, balance {info.balance} {info.currency}")
-    for m, sym in SYMBOLS.items():
+    for m in MARKETS:
+        sym = SYMBOLS[m]
         if not mt5.symbol_select(sym, True):
             sys.exit(f"Symbol {sym} (for {m}) not found. Set symbol_{m} in config.ini to the name in Market Watch.")
 
@@ -204,12 +210,47 @@ def move_stop(ticket, sym, stop):
 
 
 # ── the loop ───────────────────────────────────────────────────────────────
+def apply_remote(settings):
+    """Settings set on the server (site_content copy.settings) win over config.ini."""
+    global PAUSED, LOT_SETTING, LOT, MARKETS, MAX_OPEN, MAX_LATE_MINUTES, USE_BROKER_STOP, REMOTE
+    settings = settings or {}
+    if settings == REMOTE:
+        return
+    REMOTE = settings
+    PAUSED = bool(settings.get("paused", False))
+    lot = settings.get("lot")
+    if lot == "bot":
+        LOT_SETTING, LOT = "bot", 0.02
+    elif isinstance(lot, (int, float)) and lot > 0:
+        LOT_SETTING, LOT = str(lot), float(lot)
+    if isinstance(settings.get("markets"), list):
+        wanted = [str(m).upper() for m in settings["markets"]]
+        for m in wanted:
+            if m not in SYMBOLS:
+                SYMBOLS[m] = c.get(f"symbol_{m}", m)
+        MARKETS = [m for m in wanted if mt5.symbol_select(SYMBOLS[m], True) or DRY_RUN]
+    if isinstance(settings.get("maxOpen"), int):
+        MAX_OPEN = settings["maxOpen"]
+    if isinstance(settings.get("maxLateMinutes"), (int, float)):
+        MAX_LATE_MINUTES = settings["maxLateMinutes"]
+    if isinstance(settings.get("useBrokerStop"), bool):
+        USE_BROKER_STOP = settings["useBrokerStop"]
+    size = "the bot's lot" if LOT_SETTING == "bot" else f"{LOT} lots"
+    log(
+        f"Remote settings: {'PAUSED (managing open trades only), ' if PAUSED else ''}"
+        f"{', '.join(MARKETS) or 'no markets'} at {size}, max {MAX_OPEN} open, "
+        f"broker stop {'on' if USE_BROKER_STOP else 'off'}"
+    )
+
+
 def fetch():
     r = requests.get(FEED_URL, headers={"x-copy-token": TOKEN}, timeout=10)
     if r.status_code == 403:
         sys.exit("The feed said Forbidden: check the token in config.ini.")
     r.raise_for_status()
-    return r.json()["signals"]
+    body = r.json()
+    apply_remote(body.get("settings"))
+    return body["signals"]
 
 
 def minutes_since(iso):
@@ -234,6 +275,10 @@ def step(state):
         mine = state.get(sig["id"])
         if mine is None:
             if not (sig["active"] and sig["filled"]):
+                continue
+            # Paused, or a market switched off: no new trades (open ones are
+            # still managed below). Not marked, so it's taken if resumed in time.
+            if PAUSED or sig["market"] not in MARKETS:
                 continue
             if sig["halfClosed"] or minutes_since(sig["createdAt"]) > MAX_LATE_MINUTES:
                 state[sig["id"]] = {"skipped": True}
