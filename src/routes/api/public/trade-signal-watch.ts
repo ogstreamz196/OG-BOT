@@ -36,10 +36,6 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // Now and then, the Boss's Vantage invite link in the signals chat.
           const { maybePostPromo } = await import("@/lib/invite-promo.server");
           const promo = await maybePostPromo(supabaseAdmin);
-          // The Boss's MT5 account: the results post hides its balance once
-          // the copier has been offline 10 minutes (and shows it again on return).
-          const { syncResultsBalance } = await import("@/lib/mt5-account.server");
-          const mt5Results = await syncResultsBalance(supabaseAdmin);
           // Vantage's spread, measured each minute (learning, the guard, hits on bid and ask).
           const { recordSpreads } = await import("@/lib/broker-quotes.server");
           const spreads = await recordSpreads(supabaseAdmin);
@@ -61,7 +57,6 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           const filters = events === 0 ? await maybeStudyFilters(supabaseAdmin) : "busy";
           return Response.json({
             ok: true,
-            mt5Results,
             passes: passes.length,
             events,
             active: passes.at(-1)?.active ?? 0,

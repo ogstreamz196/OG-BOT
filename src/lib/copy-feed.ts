@@ -48,7 +48,7 @@ export type CopySignal = {
   tp3: number;
   /** TP1 was banked on a runner: half is closed, the rest runs. */
   halfClosed: boolean;
-  /** The lot the bot chose for this trade (sized from the MT5 balance), or null. */
+  /** The lot the bot's test account took on this trade, or null. */
   lots: number | null;
   confidence: number | null;
   createdAt: string;
