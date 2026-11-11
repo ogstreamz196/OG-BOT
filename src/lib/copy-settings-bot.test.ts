@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applyCommand, settingsCommand, settingsText } from "./copy-settings-bot.server";
+import {
+  applyCommand,
+  asCommand,
+  BOSS_BUTTONS,
+  bossKeyboard,
+  settingsCommand,
+  settingsText,
+} from "./copy-settings-bot.server";
 
 describe("Boss's copier settings in the copy bot", () => {
   it("knows its commands, with or without the bot's @name", () => {
@@ -41,5 +48,24 @@ describe("Boss's copier settings in the copy bot", () => {
     expect(t).toContain("Markets: XAUUSD, BTCUSD");
     expect(t).toContain("/brokerstop on");
     expect(settingsText({ paused: true, markets: ["XAUUSD"], lot: 0.05 })).toContain("⏸ Paused");
+  });
+});
+
+describe("the Boss's tap buttons", () => {
+  it("each button is a working settings command, and /start opens the settings", () => {
+    for (const [button, cmd] of Object.entries(BOSS_BUTTONS)) {
+      expect(asCommand(button)).toBe(cmd);
+      const c = settingsCommand(cmd);
+      expect(c).not.toBeNull();
+      if (c !== "settings") expect(applyCommand({}, cmd).next).not.toBeNull();
+    }
+    expect(asCommand("/start")).toBe("/settings");
+    expect(asCommand("hello")).toBe("hello");
+  });
+  it("the keyboard has every button and keeps the ⚡ signal button", () => {
+    const k = bossKeyboard("⚡ Generate BTC Signal Now");
+    const texts = k.keyboard.flat().map((b) => b.text);
+    for (const b of Object.keys(BOSS_BUTTONS)) expect(texts).toContain(b);
+    expect(texts.at(-1)).toBe("⚡ Generate BTC Signal Now");
   });
 });

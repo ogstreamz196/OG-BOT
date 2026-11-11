@@ -32,6 +32,45 @@ const COMMANDS = [
   "brokerstop",
 ] as const;
 
+/** The Boss's tap buttons in the copy bot and the command each one sends. */
+export const BOSS_BUTTONS: Record<string, string> = {
+  "⚙️ Settings": "/settings",
+  "⏸ Pause": "/pause",
+  "▶️ Resume": "/resume",
+  "📏 Lot: bot": "/lot bot",
+  "📏 Lot 0.02": "/lot 0.02",
+  "📏 Lot 0.05": "/lot 0.05",
+  "📈 Gold + BTC": "/markets all",
+  "🥇 Gold only": "/markets gold",
+  "₿ BTC only": "/markets btc",
+  "🛑 Broker stop on": "/brokerstop on",
+  "🛑 Broker stop off": "/brokerstop off",
+};
+
+/** The Boss's keyboard in the copy bot (the ⚡ signal button kept at the bottom). */
+export function bossKeyboard(generateText: string) {
+  return {
+    keyboard: [
+      [{ text: "⚙️ Settings" }, { text: "⏸ Pause" }, { text: "▶️ Resume" }],
+      [{ text: "📏 Lot: bot" }, { text: "📏 Lot 0.02" }, { text: "📏 Lot 0.05" }],
+      [{ text: "📈 Gold + BTC" }, { text: "🥇 Gold only" }, { text: "₿ BTC only" }],
+      [{ text: "🛑 Broker stop on" }, { text: "🛑 Broker stop off" }],
+      [{ text: generateText }],
+    ],
+    is_persistent: true,
+    resize_keyboard: true,
+    input_field_placeholder: "⚙️ Copier settings, or /lot 0.1, /maxopen 6, /late 10",
+  };
+}
+
+/** A tapped button or /start as the command it stands for, else the text as sent. Pure. */
+export function asCommand(text: string): string {
+  const t = text.trim();
+  if (BOSS_BUTTONS[t]) return BOSS_BUTTONS[t];
+  if (/^\/start(?:@\w+)?(?:\s|$)/i.test(t)) return "/settings";
+  return t;
+}
+
 /** The command word of a settings command ("/lot 0.05" → "lot"), or null. Pure. */
 export function settingsCommand(text: string): string | null {
   const m = /^\/([a-z]+)(?:@\w+)?(?:\s|$)/i.exec(text.trim());
@@ -153,8 +192,10 @@ export async function isBossChat(
 export async function copySettingsReply(
   admin: Admin,
   chatId: number,
-  text: string,
+  sent: string,
 ): Promise<string | null> {
+  // Buttons and /start (Boss only) stand for settings commands.
+  const text = asCommand(sent);
   const cmd = settingsCommand(text);
   if (!cmd) return null;
   const boss = await isBossChat(admin, chatId).catch(

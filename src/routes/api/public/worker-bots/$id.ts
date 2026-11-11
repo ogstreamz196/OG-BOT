@@ -143,10 +143,16 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               () => null,
             );
             if (settings) {
+              const { bossKeyboard } = await import("@/lib/copy-settings-bot.server");
+              const { GENERATE_SIGNAL_TEXT } = await import("@/lib/telegram-signals");
               await f.fleetApi(
                 bot.id,
                 "sendMessage",
-                { chat_id: msg.chat.id, text: settings },
+                {
+                  chat_id: msg.chat.id,
+                  text: settings,
+                  reply_markup: bossKeyboard(GENERATE_SIGNAL_TEXT),
+                },
                 key,
               );
               return Response.json({ ok: true });
