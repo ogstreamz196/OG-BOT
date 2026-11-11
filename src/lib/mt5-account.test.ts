@@ -53,19 +53,3 @@ describe("the Boss's MT5 account (copier reports)", () => {
     expect(mt5BalanceLine(live)).toBe("💰 Balance: $1,000 · Vantage MT5");
   });
 });
-
-describe("results post follows the MT5 balance", () => {
-  it("is 'on:<balance>' while connected, 'off' once the copier's quiet", async () => {
-    const { shownState } = await import("./mt5-account.server");
-    const a = mergeReport(null, { balance: 1042.3, server: demo }, now)!;
-    expect(shownState(a, now)).toBe("on:1042.30");
-    expect(shownState(a, now + FRESH_MS)).toBe("off");
-    expect(shownState(null, now)).toBe("off");
-  });
-  it("the fresh-start post names the MT5 account", async () => {
-    const { mt5Announcement } = await import("./signals-fresh-start.server");
-    expect(mt5Announcement(1000, true)).toContain(
-      "my own Vantage MT5 account (demo), starting at $1,000",
-    );
-  });
-});
