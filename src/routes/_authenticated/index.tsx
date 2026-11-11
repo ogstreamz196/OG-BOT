@@ -339,11 +339,7 @@ function DashboardHome() {
               eyebrow="AI studio"
               badge="Instant"
               title="Make a Track"
-              description={
-                isVip
-                  ? "Your idea. Real vocals. Cover art. Done."
-                  : "Your idea. Real vocals. VIP opens every style."
-              }
+              description="Get OG B0T to create a diss track or song"
               cta="Create a Track"
               onClick={() => navigate({ to: "/library" })}
             />

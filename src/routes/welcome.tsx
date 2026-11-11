@@ -1093,7 +1093,7 @@ function Hero() {
             imageAlt="OG B0T Create a Track badge"
             eyebrow="AI studio"
             title="Make a Track"
-            description="Your idea. Real vocals. Cover art. Done."
+            description="Get OG B0T to create a diss track or song"
             cta="Create a Track"
             onClick={openWizard}
           />
