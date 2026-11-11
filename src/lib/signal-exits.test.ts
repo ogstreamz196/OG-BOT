@@ -173,8 +173,8 @@ describe("take profit and stop around real levels", () => {
     const { applyTuning } = await import("./signal-learning.server");
     const base = applyTuning(s, DEFAULT_TUNING);
     const wider = applyTuning(s, { ...DEFAULT_TUNING, stopPad: 0.5 });
-    // One more ATR of pad: risk 4 → 5, so the stop is 1.2 further down.
-    expect(base.stop - wider.stop).toBeCloseTo(1.2, 6);
+    // One more ATR of pad: risk 4 → 5, so the stop is 1.32 further down (1.2 × 1.1 SL_WIDEN).
+    expect(base.stop - wider.stop).toBeCloseTo(1.32, 6);
     expect(wider.targets[0]).toBeGreaterThan(base.targets[0]);
   });
   it("with a take-profit pad, the target sits just short of the level in the way", async () => {

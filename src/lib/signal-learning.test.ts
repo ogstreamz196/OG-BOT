@@ -43,10 +43,10 @@ function sample(i: number, dipR: number, over: Partial<LearnSample> = {}): Learn
 
 describe("evaluate", () => {
   it("follows each setup with the tracker's rules, in the engine's risk units", () => {
-    // A 1.22R dip: the 1.2× stop is hit, a 1.3× stop survives and every target lands.
-    const s = [sample(0, 1.22)];
+    // A 1.342R dip: the 1.2× stop (×1.1 SL_WIDEN = 1.32) is hit, a 1.3× (1.43) survives and every target lands.
+    const s = [sample(0, 1.342)];
     expect(evaluate(s, DEFAULT_TUNING)).toMatchObject({ n: 1, wins: 0, losses: 1 });
-    expect(evaluate(s, DEFAULT_TUNING).sumR).toBeCloseTo(-1.2, 6);
+    expect(evaluate(s, DEFAULT_TUNING).sumR).toBeCloseTo(-1.32, 6);
     const wider = evaluate(s, { ...DEFAULT_TUNING, stopRoom: 1.3 });
     expect(wider).toMatchObject({ n: 1, wins: 1, losses: 0 });
     expect(wider.sumR).toBeGreaterThan(0);
@@ -65,7 +65,7 @@ describe("evaluate", () => {
 
 describe("learnFromSamples", () => {
   it("learns a wider stop when the market keeps shaking out the old one", () => {
-    const samples = Array.from({ length: 60 }, (_, i) => sample(i, 1.22));
+    const samples = Array.from({ length: 60 }, (_, i) => sample(i, 1.342));
     const out = learnFromSamples(samples, DEFAULT_TUNING, seeded(7), "Gold");
     expect(out.kept).toBe(true);
     expect(out.next.stopRoom).toBeGreaterThan(DEFAULT_TUNING.stopRoom);
@@ -77,7 +77,7 @@ describe("learnFromSamples", () => {
     const clean = Array.from({ length: 60 }, (_, i) => sample(i, 0.1));
     const out = learnFromSamples(clean, DEFAULT_TUNING, seeded(3), "Bitcoin");
     expect(out.after.n).toBeGreaterThanOrEqual(MIN_TRADES);
-    const few = learnFromSamples([sample(0, 1.22)], DEFAULT_TUNING, seeded(3), "Bitcoin");
+    const few = learnFromSamples([sample(0, 1.342)], DEFAULT_TUNING, seeded(3), "Bitcoin");
     expect(few.kept).toBe(false);
     expect(few.lesson).toMatch(/too few to learn from/);
   });
@@ -310,7 +310,7 @@ describe("learnSessions", () => {
     // London (08:00–11:00) keeps getting shaken out of a tight stop; the
     // Asian session is clean; New York has too few trades to judge.
     const samples = [
-      ...Array.from({ length: 60 }, (_, i) => inHour(8 + (i % 3), i, 1.22)),
+      ...Array.from({ length: 60 }, (_, i) => inHour(8 + (i % 3), i, 1.342)),
       ...Array.from({ length: 60 }, (_, i) => inHour(2 + (i % 3), i, 0.1)),
       ...Array.from({ length: 5 }, (_, i) => inHour(13, i, 0.1)),
     ];
@@ -330,11 +330,11 @@ describe("learnSessions", () => {
 
 describe("walk-forward", () => {
   it("a setting that only won in one lucky stretch isn't taken, however good its total", () => {
-    // First quarter: dips of 1.22 risks (a wider stop survives, the usual one
-    // is shaken out). The rest: dips of 1.4 (both stopped; wider loses more).
+    // First quarter: dips of 1.342 risks (a wider stop survives, the usual one
+    // is shaken out). The rest: dips of 1.54 (both stopped; wider loses more).
     const lucky = [
-      ...Array.from({ length: 20 }, (_, i) => sample(i, 1.22)),
-      ...Array.from({ length: 60 }, (_, i) => sample(20 + i, 1.4)),
+      ...Array.from({ length: 20 }, (_, i) => sample(i, 1.342)),
+      ...Array.from({ length: 60 }, (_, i) => sample(20 + i, 1.54)),
     ];
     const wider = { ...DEFAULT_TUNING, stopRoom: 1.3 };
     expect(evaluate(lucky, wider).sumR).toBeGreaterThan(evaluate(lucky, DEFAULT_TUNING).sumR);
@@ -343,7 +343,7 @@ describe("walk-forward", () => {
       DEFAULT_TUNING.stopRoom,
     );
     // Shaken out all the way through: it holds up, and it's learned.
-    const steady = Array.from({ length: 80 }, (_, i) => sample(i, 1.22));
+    const steady = Array.from({ length: 80 }, (_, i) => sample(i, 1.342));
     expect(holdsUp(folds(steady), wider, DEFAULT_TUNING)).toBe(true);
   });
 

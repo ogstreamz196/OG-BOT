@@ -695,7 +695,8 @@ export function fundingAdjust(
   }
   const oi = flow?.oiChange24h;
   const pilingIn = Number.isFinite(oi as number) && (oi as number) >= OI_PILING_IN;
-  if (mag >= EXTREME_FUNDING) return { delta: pilingIn ? -16 : -14, reason: `crowded ${side}, squeeze risk` };
+  if (mag >= EXTREME_FUNDING)
+    return { delta: pilingIn ? -16 : -14, reason: `crowded ${side}, squeeze risk` };
   if (mag >= CROWDED_FUNDING) return { delta: pilingIn ? -9 : -7, reason: `leaning ${side}` };
   return { delta: 0, reason: null };
 }
@@ -723,11 +724,19 @@ const uniqSorted = (xs: number[], asc: boolean, tol: number) => {
  * the engine's levels bunch up.
  */
 /**
- * Tighter take profits (the Boss, 2026-11-10): the first target (TP1) sits
- * this share of its tuned distance from the entry, so it's reached more often;
- * the trailing stop and the 50% runner make up the rest.
+ * TP1's distance from the entry against its tuned distance: tighter by 15%
+ * (the Boss, 2026-11-10: hit more often, the trail and the 50% runner make up
+ * the rest), then 10% wider again (the Boss, 2026-11-11: "make the tp and sl
+ * more wider, not by much, by 10%"): 0.85 × 1.1.
  */
-export const TP1_TIGHTEN = 0.85;
+export const TP1_TIGHTEN = 0.935;
+
+/**
+ * The stop sits this much further from the entry than the tuned stop room
+ * puts it (the Boss, 2026-11-11: 10% wider). Applied wherever a stop is set
+ * from the stop room, live and in the learning replays, so they agree.
+ */
+export const SL_WIDEN = 1.1;
 
 export function scaleTargets(
   direction: "BUY" | "SELL",
@@ -830,7 +839,9 @@ export function buildPlan(
   if (momentumAgainst) pct -= 12;
   if (lightVolume) pct -= 6;
   if (session) pct -= session.penalty;
-  const funding = classic ? { delta: 0, reason: null } : fundingAdjust(opts.flow, long ? "BUY" : "SELL");
+  const funding = classic
+    ? { delta: 0, reason: null }
+    : fundingAdjust(opts.flow, long ? "BUY" : "SELL");
   pct += funding.delta;
   if (funding.reason) reasons.push(`Futures: ${funding.reason}`);
   const confidencePct = Math.round(Math.min(90, Math.max(51, pct)));
@@ -889,7 +900,7 @@ export function buildPlan(
   const padded = structure != null && risk === swingRisk;
   // Members' stop sits 20% further from the entry than the engine's risk, so
   // the trade has room to breathe; the targets keep the engine's R spacing.
-  const stopDistance = classic ? risk : risk * tune.stopRoom;
+  const stopDistance = classic ? risk : risk * tune.stopRoom * SL_WIDEN;
   const stop = long ? entryPx - stopDistance : entryPx + stopDistance;
   const at = (r: number) => (long ? entryPx + risk * r : entryPx - risk * r);
   const t1 = at(1);

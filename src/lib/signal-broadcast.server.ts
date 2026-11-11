@@ -279,9 +279,11 @@ async function roomForAnother(
   );
   const running = posts.filter((_, i) => states[i] === "running");
   if (running.length >= cfg.perMarket) return false;
-  // The more already running, the surer this one has to be.
-  if (plan.confidencePct < concurrencyBar(running.length, cfg)) return false;
   const same = (p: PostRow) => p.direction === plan.direction;
+  // The more already running on its side, the surer this one has to be. A
+  // hedge (the other side) only counts trades on its own side, so it goes out
+  // at the base bar (the Boss, 2026-11-11: "try increase hedging").
+  if (plan.confidencePct < concurrencyBar(running.filter(same).length, cfg)) return false;
   if (posts.some((p, i) => same(p) && states[i] === "stopped_recently")) return false;
   const risk = stop != null ? Math.abs(plan.entry - stop) : NaN;
   const sameSideGapMs = cfg.sameSideGapMins * 60_000;

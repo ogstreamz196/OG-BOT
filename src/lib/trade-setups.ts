@@ -14,6 +14,7 @@ import {
   atr,
   ema,
   scaleTargets,
+  SL_WIDEN,
   type Candle,
   type FrameRead,
   type TradePlan,
@@ -473,9 +474,9 @@ export function setupPlan(
   const shift = entry - hit.entry;
   if (Math.abs(shift) > hit.risk * 0.5) return null;
   const raw = hit.targets.map((t) => t + shift) as [number, number, number];
-  const stop = entry - side * hit.risk * tune.stopRoom;
+  const stop = entry - side * hit.risk * tune.stopRoom * SL_WIDEN;
   const targets = scaleTargets(hit.direction, entry, raw, hit.atr * 0.05, tune.scale);
-  const stopDistance = hit.risk * tune.stopRoom;
+  const stopDistance = hit.risk * tune.stopRoom * SL_WIDEN;
   const r = (t: number) => (Math.abs(t - entry) / stopDistance).toFixed(1).replace(/\.0$/, "");
   const pct = hit.confidencePct;
   return {

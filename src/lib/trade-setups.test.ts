@@ -92,7 +92,8 @@ describe("setupPlan", () => {
       entry: 100.4,
       setup: "Liquidity sweep & reclaim",
     });
-    expect(p.stop).toBeCloseTo(100.4 - 2 * DEFAULT_TUNING.stopRoom, 9);
+    // The members' stop room, then 10% wider (SL_WIDEN).
+    expect(p.stop).toBeCloseTo(100.4 - 2 * DEFAULT_TUNING.stopRoom * 1.1, 9);
     expect(p.targets[0]).toBeGreaterThan(100.4);
     expect(p.cautions).toEqual(["Volume is light"]);
   });
