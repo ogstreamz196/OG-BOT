@@ -31,11 +31,26 @@ export function testModeNote(start: number): string {
   );
 }
 
+/** The fresh-start post when the Boss's MT5 account is attached. Pure. */
+export function mt5Announcement(balance: number, demo: boolean): string {
+  return [
+    "💸 PUTTING MY MONEY WHERE MY MOUTH IS",
+    `Every alert in here now trades my own Vantage MT5 account${demo ? " (demo)" : ""}, starting at ${usd(balance)}. Counter from zero.`,
+    "💰 The balance at the bottom is the real account, live while it's connected.",
+    "Not financial advice.",
+  ].join("\n");
+}
+
 export async function freshStart(
   admin: Admin,
-  start: number,
+  requested: number,
   now = Date.now(),
 ): Promise<Record<string, unknown>> {
+  // The Boss's MT5 account, when the copier's connected (the Boss,
+  // 2026-11-11): the fresh start is at its balance, and it says so.
+  const { mt5Account } = await import("./mt5-account.server");
+  const mt5 = await mt5Account(admin, now);
+  const start = mt5 ? mt5.balance : requested;
   const { signalsChatId } = await import("./signal-chat.server");
   const { workerApi } = await import("./telegram-worker.server");
   const chatId = await signalsChatId();
@@ -111,7 +126,7 @@ export async function freshStart(
   const { telegramApi } = await import("./telegram-api.server");
   const announce = {
     chat_id: chatId,
-    text: demoAnnouncement(start, true),
+    text: mt5 ? mt5Announcement(start, /demo/i.test(mt5.server)) : demoAnnouncement(start, true),
     disable_web_page_preview: true,
   };
   let note = await telegramApi<{ message_id?: number }>("sendMessage", announce);
@@ -127,6 +142,7 @@ export async function freshStart(
     ...(refused ? { deleteRefused: refused } : {}),
     recordResetAt: resetAt,
     testAccount: { start, startedAt: at },
+    mt5: !!mt5,
     vantageMessage: !!intro?.ok,
     testModeMessage: !!note?.ok,
     score,

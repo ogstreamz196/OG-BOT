@@ -130,3 +130,43 @@ export function mt5BalanceLine(a: Mt5Account): string {
     .replace(/\.00$/, "")}`;
   return `💰 Balance: ${money} · Vantage MT5${/demo/i.test(a.server) ? " (demo)" : ""}`;
 }
+
+/** What the results post last showed for the account: "on:<balance>" or "off". */
+export const SHOWN_KEY = "copy.account.shown";
+
+/** The account's state as the results post shows it. Pure. */
+export function shownState(a: Mt5Account | null, now: number): string {
+  return isFresh(a, now) ? `on:${a.balance.toFixed(2)}` : "off";
+}
+
+/**
+ * Keeps the results post matching the MT5 account (the Boss, 2026-11-11:
+ * "match balance all the time and sync only when account is connected"):
+ * when the balance changes, or the copier connects or goes offline, the
+ * results post is refreshed (the balance line shows only while connected).
+ * Called on every copier report and by the minute watcher. Never throws.
+ */
+export async function syncResultsBalance(admin: Admin, now = Date.now()): Promise<string> {
+  try {
+    const raw = await setting(admin, MT5_ACCOUNT_KEY);
+    if (raw == null) return "no account";
+    const state = shownState(parseAccount(raw), now);
+    if ((await setting(admin, SHOWN_KEY)) === state) return "same";
+    const { signalsChatId, refreshScore } = await import("./signal-chat.server");
+    const chatId = await signalsChatId();
+    if (chatId === null) return "no chat";
+    const { forgetCached } = await import("./server-cache");
+    forgetCached("signal-record");
+    const score = await refreshScore(admin, chatId);
+    if (score === "posted")
+      await admin
+        .from("site_content")
+        .upsert(
+          { key: SHOWN_KEY, value: state, updated_at: new Date(now).toISOString() },
+          { onConflict: "key" },
+        );
+    return `${state}: ${score}`;
+  } catch {
+    return "failed";
+  }
+}
