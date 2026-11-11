@@ -138,3 +138,48 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
     closedAt: null,
   };
 }
+
+/** The copiers' remote settings (site_content "copy.settings"), as the feed sends them. */
+export type CopySettings = {
+  /** No new trades; open ones are still managed and closed. */
+  paused?: boolean;
+  /** "bot" (the Copy Trader B0T's lot) or a fixed lot. */
+  lot?: "bot" | number;
+  markets?: string[];
+  maxOpen?: number;
+  maxLateMinutes?: number;
+  useBrokerStop?: boolean;
+};
+
+/**
+ * Remote settings for every copier (the Boss, 2026-11-11: settings editable
+ * without touching the laptop). Only valid keys get through; anything missing
+ * leaves the copier's own config.ini value. Pure.
+ */
+export function copySettings(value: string | null | undefined): CopySettings {
+  if (!value) return {};
+  let t: Record<string, unknown>;
+  try {
+    t = JSON.parse(value);
+  } catch {
+    return {};
+  }
+  if (!t || typeof t !== "object") return {};
+  const out: CopySettings = {};
+  if (typeof t.paused === "boolean") out.paused = t.paused;
+  if (t.lot === "bot") out.lot = "bot";
+  else if (Number(t.lot) >= 0.01 && Number(t.lot) <= 5)
+    out.lot = Math.round(Number(t.lot) * 100) / 100;
+  if (Array.isArray(t.markets)) {
+    const m = t.markets.map((x) => String(x).toUpperCase()).filter((x) => /^[A-Z]{3,10}$/.test(x));
+    out.markets = [...new Set(m)];
+  }
+  const int = (v: unknown, lo: number, hi: number) =>
+    Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : undefined;
+  if (t.maxOpen != null) out.maxOpen = int(t.maxOpen, 0, 50);
+  if (t.maxLateMinutes != null) out.maxLateMinutes = int(t.maxLateMinutes, 1, 120);
+  if (typeof t.useBrokerStop === "boolean") out.useBrokerStop = t.useBrokerStop;
+  for (const k of Object.keys(out) as (keyof CopySettings)[])
+    if (out[k] === undefined) delete out[k];
+  return out;
+}
