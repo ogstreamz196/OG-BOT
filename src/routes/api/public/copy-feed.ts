@@ -9,16 +9,8 @@ export const Route = createFileRoute("/api/public/copy-feed")({
     handlers: {
       GET: async ({ request }) => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { createHash, timingSafeEqual } = await import("crypto");
-        const given = request.headers.get("x-copy-token") ?? "";
-        const { data: setting } = await supabaseAdmin
-          .from("site_content")
-          .select("value")
-          .eq("key", "copy.feedToken")
-          .maybeSingle();
-        const want = String(setting?.value ?? "");
-        const hash = (s: string) => createHash("sha256").update(s).digest();
-        if (want.length < 24 || !given || !timingSafeEqual(hash(given), hash(want)))
+        const { copyTokenOk } = await import("@/lib/mt5-account.server");
+        if (!(await copyTokenOk(supabaseAdmin, request)))
           return new Response("Forbidden", { status: 403 });
         const { signalsChatId } = await import("@/lib/signal-chat.server");
         const chat = await signalsChatId();

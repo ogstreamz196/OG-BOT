@@ -27,6 +27,7 @@ export type CopyFeedRow = {
     protected?: boolean;
     tp0?: number;
     trail?: { stop?: number | null } | null;
+    paper?: { lots?: number } | null;
   } | null;
 };
 
@@ -47,6 +48,8 @@ export type CopySignal = {
   tp3: number;
   /** TP1 was banked on a runner: half is closed, the rest runs. */
   halfClosed: boolean;
+  /** The lot the bot chose for this trade (sized from the MT5 balance), or null. */
+  lots: number | null;
   confidence: number | null;
   createdAt: string;
   closedAt: string | null;
@@ -81,6 +84,7 @@ export function copySignal(row: CopyFeedRow): CopySignal {
     tp1,
     tp3,
     halfClosed: runner && best >= 1,
+    lots: Number(row.feeds?.paper?.lots) > 0 ? Number(row.feeds!.paper!.lots) : null,
     confidence: row.confidence_pct,
     createdAt: row.created_at,
     closedAt: row.closed_at,
@@ -99,7 +103,7 @@ export function copyFeed(rows: CopyFeedRow[]): CopySignal[] {
  * A test signal for the copier only (site_content "copy.testSignal", JSON),
  * so the Boss can check the copier on a demo without anything going to
  * Telegram or the trade records. Shown until `until` (ms). Fields:
- * { id, market, direction, status, halfClosed?, createdAt, until }. The stop
+ * { id, market, direction, status, halfClosed?, lots?, createdAt, until }. The stop
  * is out of reach, so only the status (or the test ending) closes it. Pure.
  */
 export function testSignal(value: string | null | undefined, now: number): CopySignal | null {
@@ -128,6 +132,7 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
     tp1: 0,
     tp3: 0,
     halfClosed: !!t.halfClosed,
+    lots: Number(t.lots) > 0 ? Number(t.lots) : null,
     confidence: null,
     createdAt,
     closedAt: null,

@@ -48,6 +48,10 @@ describe("copy feed", () => {
     );
     expect(s).toMatchObject({ active: true, stopNow: 106, halfClosed: true, tp1: 110, tp3: 130 });
   });
+  it("carries the bot's lot for the trade, else null", () => {
+    expect(copySignal(row({ feeds: { lock: true, paper: { lots: 0.15 } } })).lots).toBe(0.15);
+    expect(copySignal(row()).lots).toBeNull();
+  });
   it("over: not active", () => {
     expect(copySignal(row({ status: "breakeven", closed_at: "2026-11-10T10:30:00Z" })).active).toBe(
       false,
