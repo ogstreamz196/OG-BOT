@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copyFeed, copySignal, type CopyFeedRow } from "./copy-feed";
+import { copyFeed, copySignal, testSignal, type CopyFeedRow } from "./copy-feed";
 
 const row = (over: Partial<CopyFeedRow> = {}): CopyFeedRow => ({
   id: "a",
@@ -60,5 +60,40 @@ describe("copy feed", () => {
       row({ id: "new", created_at: "2026-11-10T11:00:00Z" }),
     ]);
     expect(f.map((s) => s.id)).toEqual(["new", "old"]);
+  });
+});
+
+describe("copier test signal", () => {
+  const now = Date.parse("2026-11-11T20:00:00Z");
+  const v = (o: object) =>
+    JSON.stringify({
+      id: "1",
+      market: "BTCUSD",
+      direction: "BUY",
+      createdAt: "2026-11-11T20:00:00Z",
+      until: now + 60_000,
+      ...o,
+    });
+  it("an open test trade: filled, active, its stop out of reach", () => {
+    expect(testSignal(v({}), now)).toMatchObject({
+      id: "test-1",
+      active: true,
+      filled: true,
+      stopNow: 0,
+      halfClosed: false,
+    });
+    expect(testSignal(v({ direction: "SELL" }), now)!.stopNow).toBeGreaterThan(1e9);
+  });
+  it("half closed, then over", () => {
+    expect(testSignal(v({ status: "tp1", halfClosed: true }), now)).toMatchObject({
+      active: true,
+      halfClosed: true,
+    });
+    expect(testSignal(v({ status: "tp3" }), now)!.active).toBe(false);
+  });
+  it("nothing when unset, broken or past its time", () => {
+    expect(testSignal(null, now)).toBeNull();
+    expect(testSignal("{oops", now)).toBeNull();
+    expect(testSignal(v({ until: now - 1 }), now)).toBeNull();
   });
 });

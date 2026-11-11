@@ -35,9 +35,17 @@ export const Route = createFileRoute("/api/public/copy-feed")({
           .order("created_at", { ascending: false })
           .limit(100);
         if (error) return Response.json({ ok: false, error: "read failed" }, { status: 500 });
-        const { copyFeed } = await import("@/lib/copy-feed");
+        const { copyFeed, testSignal } = await import("@/lib/copy-feed");
+        // A copier-only test signal, when the Boss has one switched on.
+        const { data: test } = await supabaseAdmin
+          .from("site_content")
+          .select("value")
+          .eq("key", "copy.testSignal")
+          .maybeSingle();
+        const extra = testSignal(test?.value, Date.now());
+        const signals = copyFeed((data ?? []) as never);
         return Response.json(
-          { ok: true, now: Date.now(), signals: copyFeed((data ?? []) as never) },
+          { ok: true, now: Date.now(), signals: extra ? [extra, ...signals] : signals },
           { headers: { "cache-control": "no-store" } },
         );
       },
