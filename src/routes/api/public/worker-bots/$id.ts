@@ -31,6 +31,12 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             reply_to_message?: { from?: { id?: number } };
             message_thread_id?: number;
           };
+          callback_query?: {
+            id: string;
+            from: { id: number };
+            data?: string;
+            message?: { message_id: number; chat: { id: number; type: string } };
+          };
           my_chat_member?: {
             chat: { id: number; type: string };
             new_chat_member?: { status?: string };
@@ -38,6 +44,42 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         } | null;
         if (!Number.isSafeInteger(update?.update_id))
           return new Response("Invalid update", { status: 400 });
+        // A tap on the copy bot's settings card (Boss only): edit the card in place.
+        const press = update?.callback_query;
+        if (press) {
+          if (bot.role === "copy" && press.data?.startsWith("cs:") && press.message) {
+            const { error: dup } = await admin
+              .from("telegram_worker_updates")
+              .insert({ worker_id: bot.id, update_id: update?.update_id as number });
+            if (dup) return Response.json({ ok: true });
+            const { copySettingsTap } = await import("@/lib/copy-settings-bot.server");
+            const res = await copySettingsTap(admin, press.from.id, press.data).catch(() => ({
+              toast: "⚠️ Something went wrong. Try again.",
+              panel: null,
+            }));
+            await f.fleetApi(
+              bot.id,
+              "answerCallbackQuery",
+              { callback_query_id: press.id, text: res.toast.slice(0, 190) },
+              key,
+            );
+            if (res.panel)
+              await f.fleetApi(
+                bot.id,
+                "editMessageText",
+                {
+                  chat_id: press.message.chat.id,
+                  message_id: press.message.message_id,
+                  text: res.panel.text,
+                  reply_markup: res.panel.reply_markup,
+                },
+                key,
+              );
+          } else {
+            await f.fleetApi(bot.id, "answerCallbackQuery", { callback_query_id: press.id }, key);
+          }
+          return Response.json({ ok: true });
+        }
         const joined = update?.my_chat_member;
         if (joined && joined.chat.type !== "private") {
           const { managedGroup, WORKER_REFUSAL } = await import("@/lib/telegram-worker.server");
@@ -143,16 +185,26 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               () => null,
             );
             if (settings) {
-              const { bossKeyboard } = await import("@/lib/copy-settings-bot.server");
-              const { GENERATE_SIGNAL_TEXT } = await import("@/lib/telegram-signals");
+              // On /start, the Boss's keyboard first (⚙️ Copier settings
+              // beside the ⚡ signal button), then the settings card.
+              if (/^\/start/i.test(msg.text.trim())) {
+                const { bossKeyboard } = await import("@/lib/copy-settings-bot.server");
+                const { GENERATE_SIGNAL_TEXT } = await import("@/lib/telegram-signals");
+                await f.fleetApi(
+                  bot.id,
+                  "sendMessage",
+                  {
+                    chat_id: msg.chat.id,
+                    text: "👋 Boss controls ready. Tap ⚙️ Copier settings any time.",
+                    reply_markup: bossKeyboard(GENERATE_SIGNAL_TEXT),
+                  },
+                  key,
+                );
+              }
               await f.fleetApi(
                 bot.id,
                 "sendMessage",
-                {
-                  chat_id: msg.chat.id,
-                  text: settings,
-                  reply_markup: bossKeyboard(GENERATE_SIGNAL_TEXT),
-                },
+                { chat_id: msg.chat.id, text: settings.text, reply_markup: settings.reply_markup },
                 key,
               );
               return Response.json({ ok: true });

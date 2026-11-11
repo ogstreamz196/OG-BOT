@@ -131,7 +131,7 @@ export const saveFleetBot = createServerFn({ method: "POST" })
     const webhook = await f.botApi(data.token, "setWebhook", {
       url: `https://ogbot.co.uk/api/public/worker-bots/${saved.id}`,
       secret_token: f.fleetSecret(saved.id, key),
-      allowed_updates: ["message", "my_chat_member"],
+      allowed_updates: ["message", "my_chat_member", "callback_query"],
     });
     await admin
       .from("telegram_worker_bots")
@@ -179,7 +179,7 @@ export const fleetAction = createServerFn({ method: "POST" })
         {
           url: `https://ogbot.co.uk/api/public/worker-bots/${data.id}`,
           secret_token: f.fleetSecret(data.id, key),
-          allowed_updates: ["message", "my_chat_member"],
+          allowed_updates: ["message", "my_chat_member", "callback_query"],
         },
         key,
       );

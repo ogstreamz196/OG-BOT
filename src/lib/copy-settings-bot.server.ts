@@ -1,16 +1,22 @@
 // The Boss's copier settings inside the Copy Trader B0T on Telegram (the
-// Boss, 2026-11-11: "add the settings for boss inside copy bot on telegram so
-// all values can be adjusted directly thru the copy bot"). Text commands in
-// the copy bot's private chat, Boss only (a Telegram chat linked to an account
-// with the admin or boss role); anyone else gets the copy bot's usual reply.
-// They edit site_content "copy.settings", which every Python copier reads on
-// each check (copySettings in copy-feed.ts), and each change is audit-logged.
+// Boss, 2026-11-11: "add the settings for boss inside copy bot … make it so I
+// can press buttons and also make the options make sense"). A settings card
+// with tap buttons (inline keyboard) that edits itself in place, in the copy
+// bot's private chat, Boss only (a Telegram chat linked to an account with the
+// admin or boss role); anyone else gets the copy bot's usual reply. It edits
+// site_content "copy.settings", which every Python copier reads on each check
+// (copySettings in copy-feed.ts); each change is audit-logged. Typed commands
+// (/lot 0.1, /maxopen 6 …) still work for values the buttons don't offer.
 import { copySettings, type CopySettings } from "./copy-feed";
 
 type Admin = any;
 
 export const SETTINGS_KEY = "copy.settings";
 
+/** Defaults a copier uses when a setting isn't set (config.example.ini). */
+const DEFAULTS = { maxOpen: 6, maxLateMinutes: 10 };
+const ALL_MARKETS = ["XAUUSD", "BTCUSD"];
+const MARKET_LABEL: Record<string, string> = { XAUUSD: "Gold", BTCUSD: "Bitcoin" };
 const MARKET_NAMES: Record<string, string> = {
   GOLD: "XAUUSD",
   XAU: "XAUUSD",
@@ -19,6 +25,8 @@ const MARKET_NAMES: Record<string, string> = {
   BITCOIN: "BTCUSD",
   BTCUSD: "BTCUSD",
 };
+export const LOT_CHOICES = [0.01, 0.02, 0.05, 0.1];
+export const OPEN_BUTTON = "⚙️ Copier settings";
 
 const COMMANDS = [
   "settings",
@@ -32,41 +40,157 @@ const COMMANDS = [
   "brokerstop",
 ] as const;
 
-/** The Boss's tap buttons in the copy bot and the command each one sends. */
-export const BOSS_BUTTONS: Record<string, string> = {
-  "⚙️ Settings": "/settings",
-  "⏸ Pause": "/pause",
-  "▶️ Resume": "/resume",
-  "📏 Lot: bot": "/lot bot",
-  "📏 Lot 0.02": "/lot 0.02",
-  "📏 Lot 0.05": "/lot 0.05",
-  "📈 Gold + BTC": "/markets all",
-  "🥇 Gold only": "/markets gold",
-  "₿ BTC only": "/markets btc",
-  "🛑 Broker stop on": "/brokerstop on",
-  "🛑 Broker stop off": "/brokerstop off",
-};
+/* ── reading the settings ──────────────────────────────────────────────── */
 
-/** The Boss's keyboard in the copy bot (the ⚡ signal button kept at the bottom). */
-export function bossKeyboard(generateText: string) {
+const marketsOf = (s: CopySettings) => s.markets ?? ALL_MARKETS;
+const maxOpenOf = (s: CopySettings) => s.maxOpen ?? DEFAULTS.maxOpen;
+const lateOf = (s: CopySettings) => s.maxLateMinutes ?? DEFAULTS.maxLateMinutes;
+const lotIsBot = (s: CopySettings) => s.lot === undefined || s.lot === "bot";
+
+/** The settings card's text: what each setting means, in plain words. Pure. */
+export function panelText(s: CopySettings, note?: string): string {
+  const markets = marketsOf(s);
+  const lot = lotIsBot(s)
+    ? "same as the bot (0.05 to 0.3, bigger when it's surer)"
+    : `${s.lot} on every trade`;
+  return [
+    ...(note ? [note, ""] : []),
+    "⚙️ COPIER SETTINGS",
+    "Every copier using your token follows these within seconds.",
+    "",
+    s.paused
+      ? "⏸ PAUSED: no new trades. Open trades are still managed and closed."
+      : "▶️ COPYING: new trades are copied.",
+    `📏 Lot size: ${lot}`,
+    `📈 Markets: ${markets.length ? markets.map((m) => MARKET_LABEL[m] ?? m).join(" and ") : "none (nothing new is copied)"}`,
+    `🔢 Max trades open at once: ${maxOpenOf(s)}`,
+    `⏱ Joins a trade up to ${lateOf(s)} min after it opens`,
+    s.useBrokerStop
+      ? "🛑 Safety stop on the broker: ON (the bot's stop sits on the broker too, in case the laptop goes off)"
+      : "🛑 Safety stop on the broker: OFF (the copier closes trades itself, so keep it running)",
+    "",
+    "Tap a button to change it.",
+  ].join("\n");
+}
+
+type Button = { text: string; callback_data: string };
+
+/** The card's tap buttons; ✅ marks what's chosen. Pure. */
+export function panelKeyboard(s: CopySettings): { inline_keyboard: Button[][] } {
+  const tick = (on: boolean, label: string) => `${on ? "✅ " : ""}${label}`;
+  const markets = marketsOf(s);
   return {
-    keyboard: [
-      [{ text: "⚙️ Settings" }, { text: "⏸ Pause" }, { text: "▶️ Resume" }],
-      [{ text: "📏 Lot: bot" }, { text: "📏 Lot 0.02" }, { text: "📏 Lot 0.05" }],
-      [{ text: "📈 Gold + BTC" }, { text: "🥇 Gold only" }, { text: "₿ BTC only" }],
-      [{ text: "🛑 Broker stop on" }, { text: "🛑 Broker stop off" }],
-      [{ text: generateText }],
+    inline_keyboard: [
+      [
+        s.paused
+          ? { text: "▶️ Resume copying", callback_data: "cs:resume" }
+          : { text: "⏸ Pause copying", callback_data: "cs:pause" },
+      ],
+      [{ text: tick(lotIsBot(s), "📏 Lot: same as the bot"), callback_data: "cs:lot:bot" }],
+      LOT_CHOICES.map((n) => ({
+        text: tick(!lotIsBot(s) && s.lot === n, `${n} lot`),
+        callback_data: `cs:lot:${n}`,
+      })),
+      [
+        { text: tick(markets.includes("XAUUSD"), "🥇 Gold"), callback_data: "cs:mk:XAUUSD" },
+        { text: tick(markets.includes("BTCUSD"), "₿ Bitcoin"), callback_data: "cs:mk:BTCUSD" },
+      ],
+      [
+        { text: "➖", callback_data: "cs:open:-1" },
+        { text: `🔢 ${maxOpenOf(s)} trades max`, callback_data: "cs:noop" },
+        { text: "➕", callback_data: "cs:open:1" },
+      ],
+      [
+        { text: "➖", callback_data: "cs:late:-5" },
+        { text: `⏱ Join up to ${lateOf(s)} min late`, callback_data: "cs:noop" },
+        { text: "➕", callback_data: "cs:late:5" },
+      ],
+      [
+        {
+          text: s.useBrokerStop
+            ? "🛑 Safety stop: ON · tap to turn off"
+            : "🛑 Safety stop: OFF · tap to turn on",
+          callback_data: s.useBrokerStop ? "cs:stop:off" : "cs:stop:on",
+        },
+      ],
+      [{ text: "🔄 Refresh", callback_data: "cs:refresh" }],
     ],
-    is_persistent: true,
-    resize_keyboard: true,
-    input_field_placeholder: "⚙️ Copier settings, or /lot 0.1, /maxopen 6, /late 10",
   };
 }
 
-/** A tapped button or /start as the command it stands for, else the text as sent. Pure. */
+/**
+ * One button tap on the card: the new settings and the toast Telegram shows,
+ * or next null when nothing changes (refresh, a label, an out-of-range step). Pure.
+ */
+export function applyPanelAction(
+  current: CopySettings,
+  data: string,
+): { next: CopySettings | null; toast: string } {
+  const [, kind, val] = data.split(":");
+  const save = (patch: CopySettings, toast: string) => ({
+    next: copySettings(JSON.stringify({ ...current, ...patch })),
+    toast,
+  });
+  switch (kind) {
+    case "pause":
+      return save({ paused: true }, "⏸ Paused: no new trades");
+    case "resume":
+      return save({ paused: false }, "▶️ Copying new trades again");
+    case "lot": {
+      if (val === "bot") return save({ lot: "bot" }, "📏 Lot: same as the bot");
+      const n = Number(val);
+      if (!LOT_CHOICES.includes(n)) return { next: null, toast: "" };
+      return save({ lot: n }, `📏 ${n} lot on every trade`);
+    }
+    case "mk": {
+      if (!ALL_MARKETS.includes(val)) return { next: null, toast: "" };
+      const now = marketsOf(current);
+      const on = now.includes(val);
+      if (on && now.length === 1)
+        return { next: null, toast: "Keep at least one market (or tap Pause)" };
+      const markets = on
+        ? now.filter((m) => m !== val)
+        : ALL_MARKETS.filter((m) => m === val || now.includes(m));
+      return save({ markets }, `${MARKET_LABEL[val]} ${on ? "off" : "on"}`);
+    }
+    case "open": {
+      const n = maxOpenOf(current) + Number(val);
+      if (!(n >= 1 && n <= 20)) return { next: null, toast: "Between 1 and 20 trades" };
+      return save({ maxOpen: n }, `🔢 Up to ${n} trades open`);
+    }
+    case "late": {
+      const n = lateOf(current) + Number(val);
+      if (!(n >= 5 && n <= 60)) return { next: null, toast: "Between 5 and 60 minutes" };
+      return save({ maxLateMinutes: n }, `⏱ Joins up to ${n} min late`);
+    }
+    case "stop":
+      return save(
+        { useBrokerStop: val === "on" },
+        val === "on" ? "🛑 Safety stop on the broker: ON" : "🛑 Safety stop on the broker: OFF",
+      );
+    case "refresh":
+      return { next: null, toast: "Up to date" };
+    default:
+      return { next: null, toast: "" };
+  }
+}
+
+/* ── typed commands (for values the buttons don't offer) ───────────────── */
+
+/** The Boss's reply-keyboard: the settings button beside the ⚡ signal button. */
+export function bossKeyboard(generateText: string) {
+  return {
+    keyboard: [[{ text: OPEN_BUTTON }], [{ text: generateText }]],
+    is_persistent: true,
+    resize_keyboard: true,
+    input_field_placeholder: "Tap ⚙️ for the copier settings",
+  };
+}
+
+/** The settings button or /start as /settings, else the text as sent. Pure. */
 export function asCommand(text: string): string {
   const t = text.trim();
-  if (BOSS_BUTTONS[t]) return BOSS_BUTTONS[t];
+  if (t === OPEN_BUTTON || /^⚙️?\s*settings$/i.test(t)) return "/settings";
   if (/^\/start(?:@\w+)?(?:\s|$)/i.test(t)) return "/settings";
   return t;
 }
@@ -78,32 +202,9 @@ export function settingsCommand(text: string): string | null {
   return (COMMANDS as readonly string[]).includes(cmd) ? cmd : null;
 }
 
-/** The settings as the Boss reads them, with every command. Pure. */
-export function settingsText(s: CopySettings): string {
-  const lot = s.lot === undefined || s.lot === "bot" ? "bot (same as the copy bot)" : `${s.lot}`;
-  const markets = s.markets ? (s.markets.length ? s.markets.join(", ") : "none") : "XAUUSD, BTCUSD";
-  return [
-    "⚙️ COPIER SETTINGS (every copier follows these)",
-    `${s.paused ? "⏸ Paused: no new trades" : "▶️ Running"}`,
-    `📏 Lot: ${lot}`,
-    `📈 Markets: ${markets}`,
-    `🔢 Max open: ${s.maxOpen ?? 6}`,
-    `⏱ Max late: ${s.maxLateMinutes ?? 10} min`,
-    `🛑 Broker stop: ${s.useBrokerStop ? "on" : "off"}`,
-    "",
-    "Change them:",
-    "/pause · /resume",
-    "/lot bot · /lot 0.05",
-    "/markets gold btc · /markets gold",
-    "/maxopen 6",
-    "/late 10",
-    "/brokerstop on · /brokerstop off",
-  ].join("\n");
-}
-
 /**
- * Applies one command to the settings. Returns the new settings and a short
- * reply, or an error reply with no change. Pure.
+ * Applies one typed command. Returns the new settings and a short note, or
+ * an error note with no change. Pure.
  */
 export function applyCommand(
   current: CopySettings,
@@ -112,62 +213,59 @@ export function applyCommand(
   const cmd = settingsCommand(text);
   const arg = text.trim().split(/\s+/).slice(1).join(" ").trim();
   const words = arg.split(/[\s,]+/).filter(Boolean);
-  const done = (patch: CopySettings, reply: string) => {
-    const next = copySettings(JSON.stringify({ ...current, ...patch }));
-    return { next, reply: `✅ ${reply}` };
-  };
+  const done = (patch: CopySettings, reply: string) => ({
+    next: copySettings(JSON.stringify({ ...current, ...patch })),
+    reply: `✅ ${reply}`,
+  });
   const bad = (reply: string) => ({ next: null, reply: `⚠️ ${reply}` });
   switch (cmd) {
     case "pause":
       return done({ paused: true }, "Paused: no new trades. Open ones are still managed.");
     case "resume":
-      return done({ paused: false }, "Running: copying new trades again.");
+      return done({ paused: false }, "Copying new trades again.");
     case "lot": {
-      if (/^bot$/i.test(arg)) return done({ lot: "bot" }, "Lot: same as the copy bot.");
+      if (/^bot$/i.test(arg)) return done({ lot: "bot" }, "Lot: same as the bot.");
       const n = Number(arg);
-      if (!(n >= 0.01 && n <= 5))
-        return bad("Use /lot bot or a lot from 0.01 to 5, e.g. /lot 0.05");
-      return done(
-        { lot: Math.round(n * 100) / 100 },
-        `Lot: ${Math.round(n * 100) / 100} on every trade.`,
-      );
+      if (!(n >= 0.01 && n <= 5)) return bad("Use /lot bot or a lot from 0.01 to 5, e.g. /lot 0.1");
+      const lot = Math.round(n * 100) / 100;
+      return done({ lot }, `Lot: ${lot} on every trade.`);
     }
     case "markets": {
       const all = /^all$/i.test(arg);
       const mapped = words.map((w) => MARKET_NAMES[w.toUpperCase()]);
       if (!all && (!words.length || mapped.some((m) => !m)))
         return bad("Use /markets gold btc, /markets gold, /markets btc or /markets all");
-      const picked = all ? ["XAUUSD", "BTCUSD"] : [...new Set(mapped as string[])];
-      return done({ markets: picked }, `Markets: ${picked.join(", ")}.`);
+      const picked = all ? ALL_MARKETS : [...new Set(mapped as string[])];
+      return done(
+        { markets: picked },
+        `Markets: ${picked.map((m) => MARKET_LABEL[m]).join(" and ")}.`,
+      );
     }
     case "maxopen": {
       const n = Number(arg);
       if (!(Number.isInteger(n) && n >= 0 && n <= 50))
         return bad("Use /maxopen with 0 to 50, e.g. /maxopen 6");
-      return done({ maxOpen: n }, `Max open trades: ${n}.`);
+      return done({ maxOpen: n }, `Up to ${n} trades open at once.`);
     }
     case "late": {
       const n = Number(arg);
       if (!(Number.isInteger(n) && n >= 1 && n <= 120))
         return bad("Use /late with 1 to 120 minutes, e.g. /late 10");
-      return done({ maxLateMinutes: n }, `Won't jump in more than ${n} min after a fill.`);
+      return done({ maxLateMinutes: n }, `Joins a trade up to ${n} min after it opens.`);
     }
     case "brokerstop": {
       if (!/^(on|off)$/i.test(arg)) return bad("Use /brokerstop on or /brokerstop off");
       const on = /^on$/i.test(arg);
-      return done(
-        { useBrokerStop: on },
-        on
-          ? "Broker stop on: the bot's stop also sits on the broker as a safety net."
-          : "Broker stop off: the copier closes at market (house rule).",
-      );
+      return done({ useBrokerStop: on }, `Safety stop on the broker: ${on ? "ON" : "OFF"}.`);
     }
     default:
       return { next: null, reply: "" };
   }
 }
 
-/** Whether this private Telegram chat is the Boss's (linked account with admin or boss). */
+/* ── the database side ─────────────────────────────────────────────────── */
+
+/** Whether this private Telegram chat (or user id) is the Boss's (admin or boss role). */
 export async function isBossChat(
   admin: Admin,
   chatId: number,
@@ -185,32 +283,21 @@ export async function isBossChat(
   return { ok, userId: profile.id };
 }
 
-/**
- * The copy bot's answer to a settings command from a private chat, or null
- * when it isn't one (or isn't the Boss), so the usual reply goes instead.
- */
-export async function copySettingsReply(
-  admin: Admin,
-  chatId: number,
-  sent: string,
-): Promise<string | null> {
-  // Buttons and /start (Boss only) stand for settings commands.
-  const text = asCommand(sent);
-  const cmd = settingsCommand(text);
-  if (!cmd) return null;
-  const boss = await isBossChat(admin, chatId).catch(
-    () => ({ ok: false }) as { ok: boolean; userId?: string },
-  );
-  if (!boss.ok) return null;
+async function loadSettings(admin: Admin): Promise<CopySettings> {
   const { data } = await admin
     .from("site_content")
     .select("value")
     .eq("key", SETTINGS_KEY)
     .maybeSingle();
-  const current = copySettings((data as { value?: string } | null)?.value);
-  if (cmd === "settings" || cmd === "copysettings") return settingsText(current);
-  const { next, reply } = applyCommand(current, text);
-  if (!next) return reply;
+  return copySettings((data as { value?: string } | null)?.value);
+}
+
+async function saveSettings(
+  admin: Admin,
+  userId: string | undefined,
+  next: CopySettings,
+  what: string,
+): Promise<boolean> {
   const at = new Date().toISOString();
   const { error } = await admin
     .from("site_content")
@@ -218,19 +305,77 @@ export async function copySettingsReply(
       { key: SETTINGS_KEY, value: JSON.stringify(next), updated_at: at },
       { onConflict: "key" },
     );
-  if (error) return "⚠️ Couldn't save that. Try again in a minute.";
+  if (error) return false;
   await admin
     .from("boss_audit_log")
     .insert({
-      actor_id: boss.userId,
+      actor_id: userId,
       action: "copy_settings",
       category: "signals",
-      target_key: cmd,
-      metadata: { text: text.slice(0, 100), settings: next },
+      target_key: what.slice(0, 60),
+      metadata: { settings: next },
     })
     .then(
       () => undefined,
       () => undefined,
     );
-  return `${reply}\n\n${settingsText(next)}`;
+  return true;
+}
+
+export type Panel = { text: string; reply_markup: { inline_keyboard: Button[][] } };
+
+/**
+ * The copy bot's answer to a settings message from a private chat (the
+ * settings card, after applying a typed command), or null when it isn't one
+ * or isn't the Boss, so the usual reply goes instead.
+ */
+export async function copySettingsReply(
+  admin: Admin,
+  chatId: number,
+  sent: string,
+): Promise<Panel | null> {
+  const text = asCommand(sent);
+  const cmd = settingsCommand(text);
+  if (!cmd) return null;
+  const boss = await isBossChat(admin, chatId).catch(
+    () => ({ ok: false }) as { ok: boolean; userId?: string },
+  );
+  if (!boss.ok) return null;
+  const current = await loadSettings(admin);
+  if (cmd === "settings" || cmd === "copysettings")
+    return { text: panelText(current), reply_markup: panelKeyboard(current) };
+  const { next, reply } = applyCommand(current, text);
+  if (!next) return { text: panelText(current, reply), reply_markup: panelKeyboard(current) };
+  const saved = await saveSettings(admin, boss.userId, next, cmd);
+  const shown = saved ? next : current;
+  return {
+    text: panelText(shown, saved ? reply : "⚠️ Couldn't save that. Try again in a minute."),
+    reply_markup: panelKeyboard(shown),
+  };
+}
+
+/**
+ * A tap on the settings card (callback data "cs:…"), Boss only: the toast to
+ * show and the card to put in place of the old one (null when unchanged).
+ */
+export async function copySettingsTap(
+  admin: Admin,
+  fromId: number,
+  data: string,
+): Promise<{ toast: string; panel: Panel | null }> {
+  const boss = await isBossChat(admin, fromId).catch(
+    () => ({ ok: false }) as { ok: boolean; userId?: string },
+  );
+  if (!boss.ok) return { toast: "Only the Boss can change these.", panel: null };
+  const current = await loadSettings(admin);
+  const { next, toast } = applyPanelAction(current, data);
+  if (data === "cs:refresh")
+    return { toast, panel: { text: panelText(current), reply_markup: panelKeyboard(current) } };
+  if (!next) return { toast, panel: null };
+  if (!(await saveSettings(admin, boss.userId, next, data)))
+    return { toast: "⚠️ Couldn't save that. Try again.", panel: null };
+  return {
+    toast: `✅ ${toast}`,
+    panel: { text: panelText(next), reply_markup: panelKeyboard(next) },
+  };
 }
