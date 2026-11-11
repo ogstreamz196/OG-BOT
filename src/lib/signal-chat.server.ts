@@ -165,7 +165,11 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     // balance are the demo's own copied trades, so they always add up.
     const pa = await import("./paper-account.server");
     const state = await pa.paperState(admin).catch(() => null);
-    const tally = state ? await pa.demoResults(admin, state).catch(() => null) : null;
+    // The Boss's MT5 account replaces the test account in the post (the Boss,
+    // 2026-11-11): its balance while the copier reports it, else no balance.
+    // The test account's data is kept, just not shown.
+    const acct = await import("./mt5-account.server");
+    const mt5 = await acct.mt5Account(admin);
     // The Copy Trader B0T keeps the tally when it's set up (the Boss's split):
     // it posts the post, with the trades it's copying right now on top.
     const copier = await copyBot(admin, chatId);
@@ -177,14 +181,12 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     const message = {
       chat_id: chatId,
       reply_markup: GENERATE_SIGNAL_KEYBOARD,
-      text: tally
-        ? resultsAnnouncement(
-            record,
-            pa.demoLine(state!.start, tally.balance),
-            tally.byMarket,
-            copier ? { copying } : null,
-          )
-        : resultsAnnouncement(record, null, null, copier ? { copying } : null),
+      text: resultsAnnouncement(
+        record,
+        mt5 ? acct.mt5BalanceLine(mt5) : null,
+        null,
+        copier ? { copying } : null,
+      ),
       disable_notification: true,
       disable_web_page_preview: true,
     };

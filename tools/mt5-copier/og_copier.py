@@ -38,7 +38,12 @@ if not cfg.read(os.path.join(HERE, "config.ini")):
 c = cfg["copier"]
 FEED_URL = c.get("feed_url", "https://ogbot.co.uk/api/public/copy-feed")
 TOKEN = c.get("token", "").strip()
-LOT = c.getfloat("lot", 0.02)
+# "bot": the lot the bot chose for each signal (sized from this account's
+# balance); a number: that lot on every trade.
+LOT_SETTING = c.get("lot", "bot").strip().lower()
+LOT = 0.02 if LOT_SETTING == "bot" else float(LOT_SETTING)
+REPORT_URL = c.get("report_url", FEED_URL.replace("copy-feed", "copy-report"))
+REPORT_SECONDS = 30
 DRY_RUN = c.getboolean("dry_run", True)
 USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
 POLL_SECONDS = c.getfloat("poll_seconds", 3)
@@ -125,6 +130,24 @@ def send(request, what):
     return True, res
 
 
+def lot_for(sig):
+    """The bot's lot for this signal when lot = bot, else the fixed lot."""
+    if LOT_SETTING == "bot" and sig.get("lots"):
+        return float(sig["lots"])
+    return LOT
+
+
+def report_account():
+    """Tell the bot this account's balance, so it sizes lots from it (no login sent)."""
+    info = mt5.account_info()
+    if info is None:
+        return
+    body = {"balance": info.balance, "equity": info.equity, "currency": info.currency, "server": info.server}
+    r = requests.post(REPORT_URL, json=body, headers={"x-copy-token": TOKEN}, timeout=10)
+    if r.status_code != 200:
+        log(f"account report not saved ({r.status_code})")
+
+
 def open_trade(sig, sym):
     buy = sig["direction"] == "BUY"
     tick = mt5.symbol_info_tick(sym)
@@ -132,7 +155,7 @@ def open_trade(sig, sym):
     req = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": sym,
-        "volume": round_volume(sym, LOT),
+        "volume": round_volume(sym, lot_for(sig)),
         "type": mt5.ORDER_TYPE_BUY if buy else mt5.ORDER_TYPE_SELL,
         "price": price,
         "deviation": 50,
@@ -272,9 +295,14 @@ def step(state):
 def main():
     connect()
     state = load_state()
-    log(f"Copying {', '.join(MARKETS)} at {LOT} lots, every {POLL_SECONDS}s. Ctrl+C to stop.")
+    size = "the bot's lot for each signal" if LOT_SETTING == "bot" else f"{LOT} lots"
+    log(f"Copying {', '.join(MARKETS)} at {size}, every {POLL_SECONDS}s. Ctrl+C to stop.")
+    last_report = 0.0
     while True:
         try:
+            if not DRY_RUN and time.time() - last_report >= REPORT_SECONDS:
+                last_report = time.time()
+                report_account()
             step(state)
         except requests.RequestException as e:
             log(f"feed not reachable ({e.__class__.__name__}), trying again")

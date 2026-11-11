@@ -3,3 +3,4 @@ copier_state.json
 copier_state.json.tmp
 copier_state_dry.json
 copier_state_dry.json.tmp
+__pycache__/

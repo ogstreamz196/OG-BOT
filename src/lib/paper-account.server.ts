@@ -386,17 +386,21 @@ export function demoAnnouncement(
 }
 
 /** The test account's lines on an alert card. */
-export function paperLines(balance: number, lots: number, why?: string): string[] {
+export function paperLines(
+  balance: number,
+  lots: number,
+  why?: string,
+  /** Whose balance it is ("MT5 balance" once the Boss's account is attached). */
+  label = "Test account balance",
+): string[] {
   // No lot (too little left to cover the stop): said plainly.
   if (!(lots > 0))
-    return [
-      `💰 Test account balance: ${usd(balance)} · can't take this one${why ? `: ${why}` : ""}`,
-    ];
+    return [`💰 ${label}: ${usd(balance)} · can't take this one${why ? `: ${why}` : ""}`];
   return [
     ...(lots >= PAPER_MAX_LOT
       ? [`🔥 I'm going hard on this one: ${PAPER_MAX_LOT} lot, my limit`]
       : []),
-    `💰 Test account balance: ${usd(balance)} · this trade ${lots} lot`,
+    `💰 ${label}: ${usd(balance)} · this trade ${lots} lot`,
     ...(why ? [`📏 Why ${lots}: ${why}`] : []),
   ];
 }

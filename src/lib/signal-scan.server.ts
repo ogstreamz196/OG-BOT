@@ -69,13 +69,18 @@ export async function buildScanDeps(
     const pa = await import("./paper-account.server");
     const state = await pa.paperState(admin);
     if (!state || !s.plan || !s.summary) return s;
-    const balance = await pa.paperBalance(admin, state);
+    // The Boss's MT5 account when the copier's reporting it (the Boss,
+    // 2026-11-11: "attach my mt5, copy same lot size"), else the test account.
+    const { mt5Account, drawdownPct } = await import("./mt5-account.server");
+    const mt5 = await mt5Account(admin);
+    const balance = mt5 ? mt5.balance : await pa.paperBalance(admin, state);
     const big = pa.bigOne({
       confidencePct: s.plan.confidencePct,
       timeframe: s.summary.timeframe,
       desk: String(s.plan.feeds?.desk ?? ""),
     });
     const learned = await pa.lotInputs(admin, state, s.plan.market, s.plan.confidencePct);
+    if (mt5) learned.drawdownPct = drawdownPct(mt5);
     const { lots, why } = pa.chooseLot({
       market: s.plan.market,
       entry: s.plan.entry,
@@ -90,7 +95,7 @@ export async function buildScanDeps(
       ...s,
       reply: [
         pa.rescaleCardMoney(s.reply, CARD_LOT, lots),
-        ...pa.paperLines(balance, lots, why),
+        ...pa.paperLines(balance, lots, why, mt5 ? "MT5 balance" : undefined),
       ].join("\n"),
       plan: { ...s.plan, feeds: { ...(s.plan.feeds ?? {}), paper: { lots, balance, why } } },
     };
