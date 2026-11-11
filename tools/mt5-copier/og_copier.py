@@ -29,7 +29,6 @@ import MetaTrader5 as mt5
 import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-STATE_FILE = os.path.join(HERE, "copier_state.json")
 MAGIC = 196196
 
 # ── settings ────────────────────────────────────────────────────────────────
@@ -48,6 +47,9 @@ MAX_OPEN = c.getint("max_open", 6)
 MARKETS = [m.strip() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
 SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in MARKETS}
 MT5_PATH = c.get("mt5_path", "").strip() or None
+
+# Dry runs keep their own memory, so pretend trades never reach a live run.
+STATE_FILE = os.path.join(HERE, "copier_state_dry.json" if DRY_RUN else "copier_state.json")
 
 if len(TOKEN) < 24:
     sys.exit("Put the copy feed token (24+ characters) in config.ini.")
@@ -155,6 +157,8 @@ def open_trade(sig, sym):
 
 
 def close(ticket, sym, volume, why):
+    if ticket <= 0 and not DRY_RUN:
+        return True  # a pretend trade from a dry run: nothing to close
     p = position(ticket) if ticket > 0 else None
     if ticket > 0 and p is None:
         return True  # already gone (closed by hand or by a broker stop)
