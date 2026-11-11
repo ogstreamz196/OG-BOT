@@ -39,7 +39,7 @@ safety stop at the broker in case the PC goes off.
    row with key `copy.feedToken` and copy its value into `token =` in
    `config.ini`. Fix `symbol_XAUUSD` / `symbol_BTCUSD` if your names differ.
    Keep `dry_run = true` for now. Save.
-5. **Dry run.** `python og_copier.py`. It should say "Connected to …" and,
+5. **Dry run.** Double-click `start_copier.bat` (or run `py -3.14 og_copier.py`). It should say "Connected to …" and,
    when the bot posts and a signal fills, print "(dry run) would open …".
 6. **Live (demo first).** Set `dry_run = false`, run it again, and watch a
    few trades copy on the demo. (Dry runs remember their pretend trades in
