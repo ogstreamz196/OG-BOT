@@ -53,8 +53,9 @@ safety stop at the broker in case the PC goes off.
 
 ## Settings (`config.ini`)
 
-- `lot`: `bot` (default): the same lot the bot's test account takes on
-  each signal (0.05 to 0.3, bigger when it's surer). Or a number (e.g.
+- `lot`: `bot` (default): exactly the lot the Copy Trader B0T shows for
+  each signal (0.05 to 0.3, bigger when it's surer); a signal it takes no
+  lot on isn't copied. Or a number (e.g.
   `0.02`) for a fixed lot; at 0.01 it can't split at TP1. Nothing about
   your account is sent to the bot: anyone with the token just runs the
   copier and copies.

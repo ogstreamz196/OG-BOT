@@ -130,8 +130,8 @@ def send(request, what):
 
 
 def lot_for(sig):
-    """The bot's lot for this signal when lot = bot, else the fixed lot."""
-    if LOT_SETTING == "bot" and sig.get("lots"):
+    """The Copy Trader B0T's lot for this signal when lot = bot, else the fixed lot."""
+    if LOT_SETTING == "bot":
         return float(sig["lots"])
     return LOT
 
@@ -237,6 +237,12 @@ def step(state):
                 continue
             if sig["halfClosed"] or minutes_since(sig["createdAt"]) > MAX_LATE_MINUTES:
                 state[sig["id"]] = {"skipped": True}
+                continue
+            # lot = bot copies exactly what the Copy Trader B0T copies: a
+            # signal the bot took no lot on isn't copied here either.
+            if LOT_SETTING == "bot" and not sig.get("lots"):
+                state[sig["id"]] = {"skipped": True}
+                log(f"skip {sig['direction']} {sig['market']}: the bot took no lot on it")
                 continue
             if sum(1 for v in state.values() if v.get("ticket") and not v.get("closed")) >= MAX_OPEN:
                 continue
