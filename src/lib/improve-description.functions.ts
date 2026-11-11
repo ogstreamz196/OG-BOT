@@ -9,7 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  */
 export const improveLyricDescription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { text: string; subjectName?: string }) => {
+  .validator((data: { text: string; subjectName?: string }) => {
     const text = String(data?.text ?? "")
       .trim()
       .slice(0, 2000);
@@ -88,7 +88,7 @@ const DRAFT_PAGE_SIZE = 8;
 /** List the signed-in user's most recent improved briefs for reuse (paginated). */
 export const listSongBriefDrafts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data?: { offset?: number }) => ({
+  .validator((data?: { offset?: number }) => ({
     offset: Math.max(0, Math.floor(Number(data?.offset ?? 0)) || 0),
   }))
   .handler(async ({ data, context }) => {
@@ -112,7 +112,7 @@ export const listSongBriefDrafts = createServerFn({ method: "GET" })
 /** Permanently delete one of the user's saved briefs. */
 export const deleteSongBriefDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id: string }) => {
+  .validator((data: { id: string }) => {
     const id = String(data?.id ?? "").trim();
     if (!id) throw new Error("id required");
     return { id };
@@ -126,7 +126,7 @@ export const deleteSongBriefDraft = createServerFn({ method: "POST" })
 /** Edit an existing saved brief (improved text and/or subject name). */
 export const updateSongBriefDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id: string; improvedText?: string; subjectName?: string | null }) => {
+  .validator((data: { id: string; improvedText?: string; subjectName?: string | null }) => {
     const id = String(data?.id ?? "").trim();
     if (!id) throw new Error("id required");
     const improvedText =

@@ -55,12 +55,25 @@ export function CookingDialog({
           className="pointer-events-none absolute -top-24 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-primary/25 blur-[90px]"
         />
         <DialogHeader className="items-center text-center">
-          <div className="relative mb-2 grid h-20 w-20 place-items-center rounded-full border border-primary/40 bg-primary/10 shadow-glow">
-            <Flame className="h-9 w-9 animate-pulse text-primary" />
+          {/* Retro vinyl spinning under a laser ring, with soundwave ripples. */}
+          <div className="relative mb-2 h-24 w-24">
             <span
               aria-hidden
-              className="absolute inset-0 animate-ping rounded-full border border-primary/30"
+              className="studio-ripple absolute inset-0 rounded-full border border-primary/40"
             />
+            <span
+              aria-hidden
+              className="studio-ripple absolute inset-0 rounded-full border border-primary/30"
+              style={{ animationDelay: "0.9s" }}
+            />
+            <span
+              aria-hidden
+              className="studio-laser-ring absolute -inset-1 rounded-full border-2 border-primary/50 shadow-[0_0_24px_-4px_var(--primary)]"
+            />
+            <span aria-hidden className="studio-vinyl absolute inset-0 block" />
+            <span className="absolute inset-0 grid place-items-center">
+              <Flame className="h-7 w-7 text-primary drop-shadow-[0_0_8px_var(--primary)]" />
+            </span>
           </div>
           <DialogTitle className="font-display text-2xl font-black leading-tight sm:text-3xl">
             It&apos;s cooking 🔥

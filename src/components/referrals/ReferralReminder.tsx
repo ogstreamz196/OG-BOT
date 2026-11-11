@@ -35,7 +35,7 @@ export function ReferralReminder({ className }: { className?: string }) {
 
   const shareUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/r/${code.replace(/^OG-/, "")}`
+      ? `https://ogbot.co.uk/r/${code.replace(/^OG-/, "")}`
       : `/r/${code.replace(/^OG-/, "")}`;
 
   async function copy() {

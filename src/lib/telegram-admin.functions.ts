@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
@@ -19,14 +20,10 @@ async function assertAdmin(context: { supabase: unknown; userId: string }) {
 }
 
 async function sendViaGateway(chatId: number, text: string) {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-  if (!lovableKey || !tgKey) throw new Error("Telegram connector not configured");
-  const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
+  if (!connectorReady("telegram")) throw new Error("Telegram connector not configured");
+  const res = await connectorFetch(`${GATEWAY_URL}/sendMessage`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": tgKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
@@ -41,7 +38,7 @@ async function sendViaGateway(chatId: number, text: string) {
 /** Admin: queue a DM, attempt to send, and persist sent/failed status. */
 export const sendTelegramDm = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string; text: string }) => {
+  .validator((data: { userId: string; text: string }) => {
     if (!data?.userId) throw new Error("userId required");
     const text = (data.text ?? "").trim();
     if (!text) throw new Error("Message is empty");
@@ -111,7 +108,7 @@ export const sendTelegramDm = createServerFn({ method: "POST" })
 /** Admin: retry a previously-failed queued message. */
 export const retryTelegramDm = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { queueId: string }) => {
+  .validator((data: { queueId: string }) => {
     if (!data?.queueId) throw new Error("queueId required");
     return { queueId: data.queueId };
   })
@@ -185,7 +182,7 @@ export type TelegramQueueRow = {
 /** Admin: list queued + recent DM attempts for a user. */
 export const listTelegramDmsForUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => {
+  .validator((data: { userId: string }) => {
     if (!data?.userId) throw new Error("userId required");
     return { userId: data.userId };
   })
@@ -205,7 +202,7 @@ export const listTelegramDmsForUser = createServerFn({ method: "POST" })
 /** Admin: mint a fresh single-use Telegram start-link token for a user. */
 export const rotateTelegramLinkToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => {
+  .validator((data: { userId: string }) => {
     if (!data?.userId) throw new Error("userId required");
     return { userId: data.userId };
   })
@@ -225,7 +222,7 @@ export const rotateTelegramLinkToken = createServerFn({ method: "POST" })
 /** Admin: send a canned verification ping to a linked user. */
 export const sendTelegramTestPing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => {
+  .validator((data: { userId: string }) => {
     if (!data?.userId) throw new Error("userId required");
     return { userId: data.userId };
   })
@@ -239,7 +236,7 @@ export const sendTelegramTestPing = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row?.telegram_chat_id) throw new Error("User hasn't linked Telegram yet");
-    const text = `🛰️ <b>OG Bot test ping</b>\nLink verified at ${new Date().toUTCString()}`;
+    const text = `🛰️ <b>OG B0T test ping</b>\nLink verified at ${new Date().toUTCString()}`;
     const messageId = await sendViaGateway(row.telegram_chat_id, text);
     return { ok: true as const, message_id: messageId ?? null };
   });
@@ -307,18 +304,14 @@ export const getMyTelegramStatus = createServerFn({ method: "GET" })
 
     if (linked) {
       // Live ping: call getChat through the gateway to confirm the connection.
-      const lovableKey = process.env.LOVABLE_API_KEY;
-      const tgKey = process.env.TELEGRAM_API_KEY;
-      if (!lovableKey || !tgKey) {
+      if (!connectorReady("telegram")) {
         state = "failed";
         verifyError = "Telegram connector not configured";
       } else {
         try {
-          const res = await fetch(`${GATEWAY_URL}/getChat`, {
+          const res = await connectorFetch(`${GATEWAY_URL}/getChat`, {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${lovableKey}`,
-              "X-Connection-Api-Key": tgKey,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ chat_id: chatId }),

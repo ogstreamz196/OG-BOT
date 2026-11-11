@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
@@ -20,16 +21,12 @@ export type TelegramSmokeResult = {
 
 async function callGateway(
   path: string,
-  lovableKey: string,
-  tgKey: string,
 ): Promise<{ ok: boolean; status: number; body: any; latencyMs: number }> {
   const start = Date.now();
   try {
-    const res = await fetch(`${GATEWAY_URL}${path}`, {
+    const res = await connectorFetch(`${GATEWAY_URL}${path}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": tgKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({}),
@@ -64,9 +61,7 @@ export const runTelegramSmokeTest = createServerFn({ method: "POST" })
     if (!isAdmin) throw new Error("Forbidden");
 
     const ranAt = new Date().toISOString();
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const tgKey = process.env.TELEGRAM_API_KEY;
-    if (!lovableKey || !tgKey) {
+    if (!connectorReady("telegram")) {
       return {
         ok: false,
         ranAt,
@@ -77,7 +72,7 @@ export const runTelegramSmokeTest = createServerFn({ method: "POST" })
             ok: false,
             latencyMs: 0,
             detail:
-              "Telegram connector not configured (missing LOVABLE_API_KEY or TELEGRAM_API_KEY)",
+              "Telegram not configured (set OG_BOT_TOKEN, or LOVABLE_API_KEY and TELEGRAM_API_KEY)",
             url: null,
           },
         ],
@@ -88,7 +83,7 @@ export const runTelegramSmokeTest = createServerFn({ method: "POST" })
     const steps: TelegramSmokeStep[] = [];
 
     // Step 1 — getMe
-    const me = await callGateway("/getMe", lovableKey, tgKey);
+    const me = await callGateway("/getMe");
     const meOk = me.ok && me.body?.ok === true && !!me.body?.result?.id;
     steps.push({
       name: "Bot identity (getMe)",
@@ -101,7 +96,7 @@ export const runTelegramSmokeTest = createServerFn({ method: "POST" })
     });
 
     // Step 2 — getWebhookInfo
-    const wh = await callGateway("/getWebhookInfo", lovableKey, tgKey);
+    const wh = await callGateway("/getWebhookInfo");
     const whOk = wh.ok && wh.body?.ok === true && !!wh.body?.result;
     const r = wh.body?.result ?? {};
     const hasUrl = !!r.url;

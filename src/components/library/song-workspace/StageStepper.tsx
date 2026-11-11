@@ -44,7 +44,7 @@ export function StageStepper({ current, sampleSeconds }: StageStepperProps) {
               >
                 {s.label}
               </p>
-              <p className="mt-0.5 hidden break-words text-[11px] leading-tight text-muted-foreground min-[380px]:block">
+              <p className="mt-0.5 hidden break-words text-xs leading-tight text-muted-foreground min-[380px]:block">
                 {s.sub}
               </p>
             </div>

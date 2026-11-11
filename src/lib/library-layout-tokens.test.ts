@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Lock the Music Hub (Library) page's structural layout tokens.
+ * Lock the Make a Track (Library) page's structural layout tokens.
  * A companion runtime check lives in scripts/library-layout-check.mjs.
  */
 const SRC = readFileSync(

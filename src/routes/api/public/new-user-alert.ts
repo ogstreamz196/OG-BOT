@@ -21,6 +21,10 @@ export const Route = createFileRoute("/api/public/new-user-alert")({
           .safeParse(await request.json().catch(() => null));
         if (!parsed.success) return new Response("Bad request", { status: 400 });
 
+        // Guest (anonymous) accounts aren't members; no alert for them.
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(parsed.data.user_id);
+        if (authUser?.user?.is_anonymous) return Response.json({ ok: true, skipped: "guest" });
+
         // Atomic claim: only the first call for this user sends an alert.
         const { data: claimed } = await supabaseAdmin
           .from("profiles")
@@ -44,19 +48,23 @@ export const Route = createFileRoute("/api/public/new-user-alert")({
           : { data: [] };
         const chats = [
           ...new Set(
-            (bosses ?? []).map((b: { telegram_chat_id: unknown }) => b.telegram_chat_id).filter(Boolean),
+            (bosses ?? [])
+              .map((b: { telegram_chat_id: unknown }) => b.telegram_chat_id)
+              .filter(Boolean),
           ),
         ];
 
         const name = (claimed as { display_name?: string | null }).display_name || "New member";
         const text =
-          `<b>🎉 New OG BOT user</b>\n` +
+          `<b>🎉 New OG B0T user</b>\n` +
           `Name: <b>${esc(name)}</b>\n` +
           `Joined: ${new Date().toUTCString()}` +
           (count ? `\nTotal members: <b>${count}</b>` : "");
-        const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+        const { telegramApi } = await import("@/lib/telegram-api.server");
         const results = await Promise.all(
-          chats.map((chat_id) => vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" })),
+          chats.map((chat_id) =>
+            telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" }),
+          ),
         );
         const sent = results.filter((r) => (r as { ok?: boolean } | null)?.ok).length;
         if (!sent) {

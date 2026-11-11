@@ -1,9 +1,19 @@
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
+// 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
+import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
 import { Capacitor } from "@capacitor/core";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
-import { Music2, Sparkles, Loader2, Headphones, Wand2, Mic2, Pencil } from "lucide-react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactElement,
+} from "react";
+import { Music2, Sparkles, Loader2, Headphones, Wand2, Pencil, Eye, EyeOff } from "lucide-react";
 import { EditableContent } from "@/components/admin/EditableContent";
 import {
   AdminEditModeProvider,
@@ -14,32 +24,51 @@ import { useRole } from "@/hooks/use-role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 import { lovable } from "@/integrations/lovable";
 import { getDeviceId } from "@/lib/device-id";
 import { checkDeviceAccountAllowed } from "@/lib/device-limit.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
+import { modeArt } from "@/assets/mode-art";
+import masterLogo from "@/assets/og-bot-master-logo.webp";
+import { ModeCard } from "@/components/welcome/ModeCard";
+import { OgPowers } from "@/components/welcome/OgPowers";
+import { SHARE_IMAGE } from "@/lib/seo";
 import { WelcomeBackdrop } from "@/components/layout/WelcomeBackdrop";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CommunityShowcase } from "@/components/welcome/CommunityShowcase";
 import { GuestBattle } from "@/components/welcome/GuestBattle";
-import { DodgyLogo } from "@/components/welcome/DodgyLogo";
 import {
-  CreateNowWizard,
-  GUEST_PENDING_SONG_KEY,
-  type WizardDraft,
-  type WizardResult,
-} from "@/components/library/CreateNowWizard";
+  GuestStudio,
+  guestCreationAvailable,
+  startGuestCreation,
+} from "@/components/welcome/GuestStudio";
+import { useServerFn } from "@tanstack/react-start";
+import { signInWithIdentifier } from "@/lib/identifier-signin.functions";
+import { devPinSignIn } from "@/lib/dev-pin.functions";
+import { isDevPinUser } from "@/lib/dev-pin";
+import { WelcomeSeoFallback } from "@/components/seo/WelcomeSeoFallback";
+import { DodgyLogo } from "@/components/welcome/DodgyLogo";
+import type { WizardDraft, WizardResult } from "@/components/library/CreateNowWizard";
+import { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
+import { useSignalsPortal } from "@/hooks/use-signals-portal";
+import { useCarromLink } from "@/hooks/use-carrom-link";
+import { useSettings } from "@/hooks/use-settings";
+
+// The song wizard is a pop-up: it loads once the page is idle (or on first
+// open), not before the landing page can paint.
+const loadWizard = () => import("@/components/library/CreateNowWizard");
+const CreateNowWizard = lazy(() => loadWizard().then((m) => ({ default: m.CreateNowWizard })));
 
 function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <img
-      src={ogBotAsset.url}
-      alt="OG Bot"
+      src={ogBotLogo.small}
+      alt="OG B0T"
       width={512}
       height={512}
       decoding="async"
@@ -50,32 +79,35 @@ function OgBotLogo({ className = "h-8 w-8" }: { className?: string }) {
 
 export const Route = createFileRoute("/welcome")({
   ssr: false,
+  // Crawlers get the landing copy as HTML; people get the real page on load.
+  pendingComponent: WelcomeSeoFallback,
   component: WelcomePage,
   head: () => ({
     meta: [
-      { title: "OG Studio — Prompt Songs & Album Covers" },
+      { title: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
       {
         name: "description",
         content:
-          "Turn prompts, moods and memories into different song styles with album covers. Sign in with Google or Apple.",
+          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
-      { property: "og:title", content: "OG Studio — Prompt Songs & Album Covers" },
+      { property: "og:title", content: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
       {
         property: "og:description",
-        content: "Prompt rap, pop, drill, afrobeats, heartbreak and party songs with cover art.",
-      },
-      {
-        property: "og:image",
         content:
-          "https://ogstreamz.co.uk/__l5e/assets-v1/c71b8b8a-3ff4-448e-ad15-3446b8fe5e88/ogbot.png",
+          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
-      { property: "og:image:alt", content: "OG Streamz bot" },
+      { property: "og:image", content: SHARE_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "OG B0T Battle Zone badge" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
       {
-        name: "twitter:image",
+        name: "twitter:description",
         content:
-          "https://ogstreamz.co.uk/__l5e/assets-v1/c71b8b8a-3ff4-448e-ad15-3446b8fe5e88/ogbot.png",
+          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
       },
+      { name: "twitter:image", content: SHARE_IMAGE },
     ],
   }),
 });
@@ -89,7 +121,6 @@ function useIsNativeApp() {
   }, []);
   return native;
 }
-
 
 const PENDING_REF_KEY = "og_pending_ref";
 
@@ -135,18 +166,24 @@ function useRedirectIfSignedIn() {
       }
     }
     let cancelled = false;
-    const target = safeRelativeNext() ?? "/";
+    // Read ?next= at sign-in time: cards set it after the page has opened.
+    const go = () => {
+      const target = safeRelativeNext() ?? "/";
+      if (target === "/") navigate({ to: "/", replace: true });
+      else window.location.replace(target);
+    };
+    // Guest (anonymous) sessions belong on this page, so they don't redirect.
     supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled && data.session) {
-        if (target === "/") navigate({ to: "/", replace: true });
-        else window.location.replace(target);
-      }
+      if (!cancelled && data.session && !data.session.user.is_anonymous) go();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
-        if (target === "/") navigate({ to: "/", replace: true });
-        else window.location.replace(target);
+      if (
+        (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+        session &&
+        !session.user.is_anonymous
+      ) {
+        go();
       }
     });
     return () => {
@@ -263,74 +300,78 @@ const PRIMARY_DEVICES: Device[] = [
   },
 ];
 
-function AuthButtons({ size = "lg" }: { size?: "lg" | "xl" }) {
+function AuthButtons({ initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab }) {
   const { signIn, pending } = useOAuthSignIn();
   const native = useIsNativeApp();
-  const compact = size === "lg";
-
-  const renderTile = (d: Device) => {
-    const isPending = pending === d.provider;
-    return (
-      <Button
-        key={d.key}
-        type="button"
-        variant="outline"
-        onClick={() => signIn(d.provider)}
-        disabled={pending !== null}
-        aria-label={d.label}
-        className="h-14 min-w-0 justify-center gap-2.5 rounded-lg border-border/80 bg-secondary/75 px-3 font-auth-body text-base font-semibold text-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary/60 hover:bg-secondary focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        {isPending ? (
-          <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
-        ) : d.provider === "google" ? (
-          <GoogleIcon className="h-6 w-6 shrink-0" />
-        ) : (
-          <AppleIcon className="h-6 w-6 shrink-0 text-foreground" />
-        )}
-        <span className="truncate">{d.provider === "google" ? "Google" : "Apple"}</span>
-      </Button>
-    );
-  };
+  // Separate Sign in and Create account: signing in never creates an account,
+  // so a typo in a username or password can't leave someone with a duplicate.
+  const [tab, setTab] = useState<AuthTab>(initialTab ?? (native ? "signup" : "signin"));
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
+  const [busy, setBusy] = useState(false);
 
   return (
-    <div className={`mx-auto w-full font-auth-body ${compact ? "max-w-md" : "max-w-lg"}`}>
-      <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card/95 px-5 py-6 shadow-[0_24px_70px_-24px_hsl(var(--primary)/0.65)] backdrop-blur-xl sm:px-7 sm:py-7">
-        <div
-          className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-destructive via-primary to-destructive"
-          aria-hidden
-        />
-        <div className="text-center">
-          <p className="font-display text-sm font-black uppercase tracking-[0.3em] text-foreground sm:text-base">
-            OG Streamz Presentz
-          </p>
-          <OgBotLogo className="mx-auto mt-3 h-44 w-44 rounded-3xl shadow-glow sm:h-56 sm:w-56" />
-          <h2 className="mt-3 text-lg font-semibold text-foreground sm:text-xl">
-            {native ? "Create your account" : "Sign in to your account"}
-          </h2>
-          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">
-            {native
-              ? "Choose a username and password to get started."
-              : "Continue with a connected account, or use your username and password."}
-          </p>
-        </div>
-
-        {!native && (
-          <>
-            <div className="mt-6 grid grid-cols-2 gap-3">{PRIMARY_DEVICES.map(renderTile)}</div>
-            <div className="my-5 flex items-center gap-3" aria-hidden>
-              <span className="h-px flex-1 bg-border" />
-              <span className="font-auth-display text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
-                or with username
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
-          </>
-        )}
-
-        <div>
-          <EmailAuthPanel disabled={pending !== null} />
-        </div>
+    <div className="mx-auto w-full max-w-md font-auth-body">
+      <div className="flex items-center gap-3">
+        <OgBotLogo className="h-9 w-9 shrink-0 rounded-xl shadow-glow" />
+        <h2 className="font-auth-display text-2xl uppercase leading-none text-foreground">
+          {tab === "signin" ? "Welcome back" : "Join the crew"}
+        </h2>
       </div>
+
+      {!native && (
+        <>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            {PRIMARY_DEVICES.map((d) => (
+              <Button
+                key={d.key}
+                type="button"
+                variant="outline"
+                onClick={() => signIn(d.provider)}
+                disabled={pending !== null || busy}
+                aria-label={d.label}
+                className="h-11 min-w-0 justify-center gap-2 rounded-lg border-border/80 bg-secondary/75 px-3 text-sm font-semibold text-foreground hover:border-primary/60 hover:bg-secondary"
+              >
+                {pending === d.provider ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : d.provider === "google" ? (
+                  <GoogleIcon className="h-5 w-5 shrink-0" />
+                ) : (
+                  <AppleIcon className="h-5 w-5 shrink-0 text-foreground" />
+                )}
+                <span className="truncate">{d.provider === "google" ? "Google" : "Apple"}</span>
+              </Button>
+            ))}
+          </div>
+          <div className="relative">
+            <Separator className="my-2.5" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              or
+            </span>
+          </div>
+        </>
+      )}
+
+      <EmailAuthPanel
+        tab={tab}
+        disabled={pending !== null}
+        busy={busy}
+        setBusy={setBusy}
+        onSwitch={setTab}
+      />
+
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        {tab === "signin" ? "Don't have an account? " : "Already have an account? "}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setTab(tab === "signin" ? "signup" : "signin")}
+          className="min-h-0 py-1 font-bold text-foreground underline-offset-4 hover:underline"
+        >
+          {tab === "signin" ? "Create one" : "Sign in"}
+        </button>
+      </p>
     </div>
   );
 }
@@ -345,108 +386,152 @@ const normalizeHandle = (v: string) =>
 const toLoginEmail = (v: string) =>
   v.includes("@") ? v.trim() : `${normalizeHandle(v)}@${USERNAME_DOMAIN}`;
 
-function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
+type AuthTab = "signin" | "signup";
+
+const AUTH_INPUT =
+  "h-11 rounded-lg border-2 border-border bg-surface px-3 font-auth-body text-base text-foreground placeholder:text-sm placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35";
+
+function EmailAuthPanel({
+  tab,
+  disabled,
+  busy,
+  setBusy,
+  onSwitch,
+}: {
+  tab: AuthTab;
+  disabled?: boolean;
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  onSwitch: (tab: AuthTab) => void;
+}) {
   const native = useIsNativeApp();
-  // One smart form: tries sign-in first, creates the account when it's new.
-  const [mode, setMode] = useState<"enter" | "reset">("enter");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [busy, setBusy] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
-  const [createProgress, setCreateProgress] = useState(0);
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const isCreating = busy && mode === "enter";
-
+  const signInByName = useServerFn(signInWithIdentifier);
+  const signInDev = useServerFn(devPinSignIn);
+  // A mistyped sign-in password must never carry over into a new account.
   useEffect(() => {
-    if (isCreating) {
-      setCreateProgress(0);
-      progressIntervalRef.current = setInterval(() => {
-        setCreateProgress((prev) => {
-          if (prev >= 88) return prev;
-          return prev + Math.max(1, Math.floor((90 - prev) / 6));
-        });
-      }, 180);
-    } else {
-      setCreateProgress(0);
-    }
-    return () => {
-      if (progressIntervalRef.current !== null) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-    };
-  }, [isCreating]);
+    setPassword("");
+    setConfirm("");
+  }, [tab]);
+  const switchTab = onSwitch;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "reset") {
-      if (!email) {
-        toast.error("Enter the email you signed up with");
+    const handle = email.trim();
+    const isEmail = handle.includes("@");
+    const usernameOff = native
+      ? "Username sign-in is unavailable right now. Please try again shortly."
+      : "Username sign-in is switched off right now — use Google or Apple, or try again shortly.";
+
+    if (tab === "signin") {
+      if (!handle) {
+        toast.error("Enter your username or email");
+        return;
+      }
+      if (!password) {
+        toast.error("Enter your password");
         return;
       }
       setBusy(true);
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
+        // 0) dev.b055 + the dev PIN (the same in every OGSTREAMZ app).
+        if (isDevPinUser(handle)) {
+          const res = await signInDev({ data: { username: handle, pin: password } });
+          if (!res.ok) {
+            toast.error(res.message);
+            return;
+          }
+          const { error } = await supabase.auth.setSession({
+            access_token: res.access_token,
+            refresh_token: res.refresh_token,
+          });
+          if (error) throw error;
+          toast.success("Welcome back, D.EV!");
+          return;
+        }
+        // 1) Email, or the username the account was created with.
+        const direct = await supabase.auth.signInWithPassword({
+          email: toLoginEmail(handle),
+          password,
         });
-        if (error) throw error;
-        setResetSent(true);
-        toast.success("Reset link sent — check your inbox.");
+        if (!direct.error) {
+          toast.success("Welcome back!");
+          return;
+        }
+        const msg = (direct.error.message ?? "").toLowerCase();
+        if (msg.includes("disabled")) {
+          toast.error(usernameOff);
+          return;
+        }
+        const wrong = msg.includes("invalid login credentials") || msg.includes("user not found");
+        if (!wrong) throw direct.error;
+        // 2) A username they changed to, or their VIP ID: looked up on the server.
+        if (!isEmail) {
+          const res = await signInByName({ data: { identifier: handle, password } });
+          if (res.ok) {
+            const { error } = await supabase.auth.setSession({
+              access_token: res.access_token,
+              refresh_token: res.refresh_token,
+            });
+            if (error) throw error;
+            toast.success("Welcome back!");
+            return;
+          }
+          if (res.reason === "too_many") {
+            toast.error("Too many tries. Wait a few minutes, or reset your password.");
+            return;
+          }
+        }
+        toast.error("Wrong username or password. Check them and try again.", {
+          description: "New to OG Streamz? Create an account instead.",
+          action: { label: "Create account", onClick: () => switchTab("signup") },
+        });
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not send the reset email");
+        toast.error(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setBusy(false);
       }
       return;
     }
-    const handle = email.trim();
-    const isEmail = handle.includes("@");
+
+    // Create account.
     if (!isEmail && normalizeHandle(handle).length < 3) {
       toast.error("Pick a username with at least 3 letters or numbers");
       return;
     }
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
-
+      return;
+    }
+    if (password !== confirm) {
+      toast.error("Passwords don't match");
       return;
     }
     const loginEmail = toLoginEmail(handle);
+    const taken = () =>
+      toast.error("That username is already taken.", {
+        description: "If it's yours, sign in instead.",
+        action: { label: "Sign in", onClick: () => switchTab("signin") },
+      });
 
     setBusy(true);
     try {
-      // 1) Existing account? Sign straight in.
-      const signIn = await supabase.auth.signInWithPassword({ email: loginEmail, password });
-      if (!signIn.error) {
-        toast.success("Welcome back!");
-        return;
-      }
-      const msg = (signIn.error.message ?? "").toLowerCase();
-      if (msg.includes("disabled")) {
-        toast.error(
-          native
-            ? "Username sign-up is unavailable right now. Please try again shortly."
-            : "Username sign-up is switched off right now — use Google or Apple, or try again shortly.",
-        );
-        return;
-      }
-      const unknownUser =
-        msg.includes("invalid login credentials") || msg.includes("user not found");
-      if (!unknownUser) throw signIn.error;
-
-      // 2) Device limit: max 2 accounts per device (blocks free-coin farming).
+      // Device limit: max 2 accounts per device (blocks free-coin farming).
       const deviceId = getDeviceId();
       if (deviceId) {
         const check = await checkDeviceAccountAllowed({ data: { deviceId } });
         if (!check.allowed) {
-          toast.error("This device already has 2 accounts — sign in to one of them.");
+          toast.error("This device already has 2 accounts — sign in to one of them.", {
+            action: { label: "Sign in", onClick: () => switchTab("signin") },
+          });
           return;
         }
       }
 
-      // 3) Otherwise create it — unless the name exists with another password.
       const signUp = await supabase.auth.signUp({
         email: loginEmail,
         password,
@@ -458,7 +543,7 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
       if (signUp.error) {
         const upMsg = (signUp.error.message ?? "").toLowerCase();
         if (upMsg.includes("already registered") || upMsg.includes("already been registered")) {
-          toast.error("That username is taken — check your password.");
+          taken();
           return;
         }
         if (upMsg.includes("password should be at least")) {
@@ -466,19 +551,13 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
           return;
         }
         if (upMsg.includes("disabled")) {
-          toast.error(
-            native
-              ? "Username sign-up is unavailable right now. Please try again shortly."
-              : "Username sign-up is switched off right now — use Google or Apple, or try again shortly.",
-          );
+          toast.error(usernameOff);
           return;
         }
-
         throw signUp.error;
       }
-
       if (signUp.data.user?.identities?.length === 0) {
-        toast.error("That username is taken — check your password.");
+        taken();
         return;
       }
       toast.success("Account created — welcome to OG Streamz!");
@@ -491,24 +570,13 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
 
   return (
     <div>
-      <div className="mb-5 text-center">
-        <h3 className="font-auth-display text-3xl uppercase leading-none text-foreground">
-          {mode === "reset" ? "Reset password" : "Create account / Sign in"}
-        </h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {mode === "reset"
-            ? "Enter the email linked to your account."
-            : "New username? We’ll create your account automatically."}
-        </p>
-      </div>
-
-      <form onSubmit={submit} className="space-y-5" id="wc-auth-panel">
-        <div className="space-y-2">
+      <form onSubmit={submit} className="space-y-2.5" id="wc-auth-panel">
+        <div className="space-y-1">
           <Label
             htmlFor="wc-email"
-            className="ml-0.5 block text-left text-sm font-semibold text-foreground"
+            className="block text-left text-sm font-semibold text-foreground"
           >
-            {mode === "reset" ? "Email" : "Username"}
+            {tab === "signin" ? "Username, email or VIP ID" : "Choose a username"}
           </Label>
           <Input
             id="wc-email"
@@ -516,111 +584,95 @@ function EmailAuthPanel({ disabled }: { disabled?: boolean }) {
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder={mode === "reset" ? "you@example.com" : "Enter your username"}
+            placeholder={tab === "signin" ? "e.g. kingbrian or OGKINGBRIAN" : "e.g. kingbrian"}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
+            className={AUTH_INPUT}
             disabled={busy || disabled}
             required
           />
         </div>
-        {mode !== "reset" && (
-          <div className="space-y-2">
-            <Label
-              htmlFor="wc-password"
-              className="ml-0.5 block text-left text-sm font-semibold text-foreground"
-            >
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="wc-password" className="text-sm font-semibold text-foreground">
               Password
             </Label>
-
+            {tab === "signin" && (
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Forgot?
+              </button>
+            )}
+          </div>
+          <div className="relative">
             <Input
               id="wc-password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Create/use existing password, must be 6 characters"
+              type={showPassword ? "text" : "password"}
+              autoComplete={tab === "signin" ? "current-password" : "new-password"}
+              placeholder={tab === "signin" ? "Your password" : "At least 6 characters"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-14 rounded-lg border-2 border-border bg-surface px-4 font-auth-body text-base text-foreground shadow-inner placeholder:text-[13px] placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/35"
+              className={`${AUTH_INPUT} pr-11`}
+              disabled={busy || disabled}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 grid w-11 place-items-center text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+        {tab === "signup" && (
+          <div className="space-y-1">
+            <Label
+              htmlFor="wc-password-confirm"
+              className="block text-left text-sm font-semibold text-foreground"
+            >
+              Confirm password
+            </Label>
+            <Input
+              id="wc-password-confirm"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="Type it again"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={AUTH_INPUT}
               disabled={busy || disabled}
               required
             />
           </div>
         )}
 
-        {mode === "reset" && (
-          <p className="text-sm text-muted-foreground">
-            {resetSent
-              ? "We sent a reset link. Open it on this device to set a new password — it expires shortly."
-              : "We'll email you a secure link to set a new password."}
-          </p>
-        )}
-
-        {isCreating && (
-          <div className="space-y-1.5 rounded-xl border border-primary/40 bg-primary/10 p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-xs font-black uppercase tracking-wider text-primary-foreground">
-                Getting you in
-              </span>
-              <span className="text-xs font-bold tabular-nums text-primary-foreground">
-                {createProgress}%
-              </span>
-            </div>
-            <Progress value={createProgress} className="h-1.5 bg-primary/20" />
-            <p className="text-xs text-muted-foreground">Setting up your OG Studio profile.</p>
-            <div aria-live="polite" className="sr-only">
-              Signing you in, {createProgress} percent complete.
-            </div>
-          </div>
-        )}
-
         <Button
           type="submit"
           disabled={busy || disabled}
-          className="h-14 w-full rounded-lg font-auth-body text-base font-bold shadow-[0_12px_28px_-12px_hsl(var(--primary))] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+          className="h-12 w-full rounded-lg font-auth-body text-base font-black uppercase tracking-wider shadow-[0_12px_28px_-12px_hsl(var(--primary))]"
         >
           {busy ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
-              {mode === "reset" ? "Sending..." : "One sec..."}
+              {tab === "signin" ? "Signing in…" : "Creating your account…"}
             </>
-          ) : mode === "reset" ? (
-            resetSent ? (
-              "Resend reset link"
-            ) : (
-              "Send reset link"
-            )
+          ) : tab === "signin" ? (
+            "Sign in"
           ) : (
-            <>
-              <Sparkles className="mr-2 h-5 w-5" aria-hidden />
-              Sign in or create account
-            </>
+            "Create account"
           )}
         </Button>
+        <div aria-live="polite" className="sr-only">
+          {busy ? "Signing you in" : ""}
+        </div>
       </form>
-
-      {mode !== "reset" && (
-        <button
-          type="button"
-          onClick={() => setForgotOpen(true)}
-          className="mt-4 h-12 w-full rounded-lg border-2 border-border bg-secondary/60 text-center text-base font-semibold text-foreground transition-colors hover:border-primary/60"
-        >
-          Forgot password?
-        </button>
-      )}
       <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
-
-      {mode === "reset" && (
-        <button
-          type="button"
-          onClick={() => {
-            setResetSent(false);
-            setMode("enter");
-          }}
-          className="mt-5 w-full text-center text-sm font-semibold text-foreground/80 underline underline-offset-4 hover:text-foreground"
-        >
-          Back
-        </button>
-      )}
     </div>
   );
 }
@@ -633,18 +685,69 @@ const openAuthFromBattle = () =>
 const openSongAuth = (title: string) =>
   window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { songTitle: title } }));
 const openWizard = () => window.dispatchEvent(new Event(OPEN_WIZARD));
+/** Guest made a track: sign up / in to keep it, then land in the library. */
+const openSaveTrackAuth = (title: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/library");
+  window.history.replaceState(null, "", url.toString());
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH, { detail: { savedTrack: title } }));
+};
 const OPEN_BATTLE = "og:open-guest-battle";
 const openBattle = () => window.dispatchEvent(new Event(OPEN_BATTLE));
+/** Earn page (referrals, daily drop) is for members: sign in, then land on /referrals. */
+const openEarn = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/referrals");
+  window.history.replaceState(null, "", url.toString());
+  openAuth();
+};
+/** Sports Guide is for members: sign in first, then land on /sports. */
+const openSportsGuide = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/sports");
+  window.history.replaceState(null, "", url.toString());
+  openAuth();
+};
+
+const openSignals = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("next", "/signals");
+  window.history.replaceState(null, "", url.toString());
+  openAuth();
+};
 
 /** Signed-out song wizard: nothing generates until the visitor signs in. */
 function GuestWizard() {
   const [open, setOpen] = useState(false);
+  // Stays mounted after the first open so closing still animates.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const on = () => setOpen(true);
+    const on = () => {
+      setMounted(true);
+      setOpen(true);
+    };
     window.addEventListener(OPEN_WIZARD, on);
     return () => window.removeEventListener(OPEN_WIZARD, on);
   }, []);
-  const done = (result: WizardResult, draft: WizardDraft) => {
+  // Fetch the wizard in idle time so it opens instantly when tapped.
+  useEffect(() => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const warm = () => void loadWizard().catch(() => {});
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(warm, { timeout: 5000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(warm, 2500);
+    return () => window.clearTimeout(t);
+  }, []);
+  // Website guests cook straight away (silent guest account + 99p); the phone
+  // apps, or a backend with guest sign-ins off, fall back to signing up first.
+  const guestCook = guestCreationAvailable();
+  const done = async (result: WizardResult, draft: WizardDraft) => {
+    if (guestCook && (await startGuestCreation(result))) return;
     try {
       localStorage.setItem(GUEST_PENDING_SONG_KEY, JSON.stringify({ result, draft }));
     } catch {
@@ -656,25 +759,36 @@ function GuestWizard() {
     window.history.replaceState(null, "", url.toString());
     setTimeout(() => openSongAuth(result.title), 200);
   };
+  if (!mounted) return null;
   return (
-    <CreateNowWizard
-      open={open}
-      onOpenChange={setOpen}
-      onComplete={done}
-      guestMode
-      submitLabel="Create my song"
-    />
+    <Suspense fallback={null}>
+      <CreateNowWizard
+        open={open}
+        onOpenChange={setOpen}
+        onComplete={(result, draft) => void done(result, draft)}
+        guestMode
+        submitLabel={guestCook ? "Cook Master Track" : "Create my song"}
+      />
+    </Suspense>
   );
 }
 
 function AuthModal() {
+  const { data: settings } = useSettings();
+  const welcomeCoins = settings?.signup_credits ?? 20;
+  const trackCoins = settings?.coins_per_full_unlock ?? 5;
+  const freeTracks = trackCoins > 0 ? Math.floor(welcomeCoins / trackCoins) : 0;
   const [open, setOpen] = useState(false);
   const [songTitle, setSongTitle] = useState<string | null>(null);
   const [fromBattle, setFromBattle] = useState(false);
+  const [savedTrack, setSavedTrack] = useState<string | null>(null);
   useEffect(() => {
     const on = (e: Event) => {
-      const d = (e as CustomEvent<{ songTitle?: string; fromBattle?: boolean }>).detail;
+      const d = (
+        e as CustomEvent<{ songTitle?: string; fromBattle?: boolean; savedTrack?: string }>
+      ).detail;
       setSongTitle(d?.songTitle ?? null);
+      setSavedTrack(d?.savedTrack ?? null);
       setFromBattle(!!d?.fromBattle);
       setOpen(true);
     };
@@ -685,6 +799,7 @@ function AuthModal() {
       if (a) {
         e.preventDefault();
         setFromBattle(false);
+        setSavedTrack(null);
         setOpen(true);
       }
     };
@@ -696,18 +811,21 @@ function AuthModal() {
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[92dvh] max-w-md overflow-y-auto bg-card p-5">
         <DialogTitle className="sr-only">Sign in or join OG Streamz</DialogTitle>
         <div id="sign-in">
           {songTitle && (
             <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
               <p className="font-display text-xl font-black">Your track is ready to cook 🎧</p>
               <p className="mt-1 text-sm">
-                <span className="font-bold">"{songTitle}"</span> is saved. Join free and it starts
-                cooking straight away.
+                <span className="font-bold">"{songTitle}"</span> is saved. Join free, grab your{" "}
+                {welcomeCoins} welcome coins and cook it in one tap.
               </p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
-                <li>🪙 Free welcome coins to make it</li>
+                <li>
+                  🪙 {welcomeCoins} free welcome coins
+                  {freeTracks > 1 ? `, enough for ${freeTracks} tracks` : " to cook it"}
+                </li>
                 <li>👑 15 days of VIP — every style unlocked</li>
                 <li>💸 Earn commission when friends join</li>
               </ul>
@@ -716,21 +834,34 @@ function AuthModal() {
               </p>
             </div>
           )}
+          {savedTrack && (
+            <div className="mb-4 rounded-2xl border-2 border-amber-300/60 bg-card p-4 text-card-foreground">
+              <p className="font-display text-xl font-black">Save your track forever 💾</p>
+              <p className="mt-1 text-sm">
+                <span className="font-bold">"{savedTrack}"</span> moves into your library as soon as
+                you're in. New here? Join free below. Already an OG? Sign in.
+              </p>
+              <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
+                <li>🪙 Free welcome coins</li>
+                <li>👑 15 days of VIP on us</li>
+              </ul>
+            </div>
+          )}
           {fromBattle && (
             <div className="mb-4 rounded-2xl border-2 border-primary bg-card p-4 text-card-foreground">
               <p className="font-display text-xl font-black">Don't stop now 🔥</p>
               <p className="mt-1 text-sm">Join free to keep battling — your chat comes with you.</p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
-                <li>🔒 Unlock Private chat — just you &amp; OG Bot, nobody else sees a word</li>
-                <li>🪙 Earn OG Coins for every roast you land</li>
+                <li>🔒 Unlock Private chat — just you &amp; OG B0T, nobody else sees a word</li>
+                <li>🪙 Earn OG Coins for every cuss you land</li>
                 <li>👑 15 days of VIP on us</li>
               </ul>
             </div>
           )}
-          <AuthButtons size="xl" />
-          <p className="mt-3 text-center text-sm font-semibold text-muted-foreground">
-            Free to start — new or returning, one form does both. Your Battle Zone chat comes with you.
-          </p>
+          <AuthButtons
+            size="xl"
+            initialTab={songTitle || savedTrack || fromBattle ? "signup" : "signin"}
+          />
         </div>
       </DialogContent>
     </Dialog>
@@ -748,19 +879,34 @@ function WelcomePage() {
       >
         <WelcomeBackdrop />
         <TopNav />
-        <div className="flex justify-center px-4 pt-6 sm:pt-10">
-          <DodgyLogo size={220} imageClassName="rounded-3xl" />
-        </div>
         <Hero />
         <Superpowers />
-        <HowItWorks />
-        <EarnCoins />
-
-        <ClosingCta />
         <CommunityShowcase />
+        <ClosingCta />
         <Footer />
         <AuthModal />
         <GuestWizard />
+        <GuestStudio
+          onSave={openSaveTrackAuth}
+          onSignUpForCoins={(track) => {
+            // After sign-up the library picks this song up and offers the pay
+            // step, where the welcome coins cover it.
+            if (track.result) {
+              try {
+                localStorage.setItem(
+                  GUEST_PENDING_SONG_KEY,
+                  JSON.stringify({ result: track.result, draft: {} }),
+                );
+              } catch {
+                /* storage blocked */
+              }
+            }
+            const url = new URL(window.location.href);
+            url.searchParams.set("next", "/library");
+            window.history.replaceState(null, "", url.toString());
+            openSongAuth(track.title);
+          }}
+        />
         <BattleModal />
 
         <div className="fixed bottom-4 right-4 z-50">
@@ -798,7 +944,7 @@ function TopNav() {
           className="group flex min-w-0 items-center gap-3"
         >
           <img
-            src={ogStreamzLogo.url}
+            src={ogStreamzLogo}
             alt=""
             aria-hidden
             className="h-12 w-12 shrink-0 rounded-2xl object-cover shadow-glow ring-1 ring-white/15 sm:h-14 sm:w-14"
@@ -807,10 +953,10 @@ function TopNav() {
             <p className="font-display truncate text-lg font-black uppercase tracking-tight sm:text-xl">
               OG Streamz
             </p>
-            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[10px] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-[11px]">
+            <p className="mt-1 hidden items-center gap-1.5 sm:inline-flex text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/85 sm:text-xs">
               <span>Powered by</span>
               <OgBotLogo className="h-6 w-6 sm:h-7 sm:w-7" />
-              <span>OG Bot</span>
+              <span>OG B0T</span>
             </p>
           </div>
         </Link>
@@ -825,64 +971,53 @@ function TopNav() {
   );
 }
 
-/** Tile card matching the welcome superpower cards. */
-function TileCta({
-  emoji,
-  title,
-  body,
-  cta,
-  onClick,
-  className = "",
-}: {
-  emoji: string;
-  title: string;
-  body: string;
-  cta: string;
-  onClick: () => void;
-  className?: string;
-}) {
+/** The original OG Bot logo, centred at the top and fading into the page. */
+function MasterLogo() {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={title}
-      className={`group relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card p-5 text-left shadow-card transition-transform hover:scale-[1.02] hover:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/50 active:scale-[0.98] sm:p-6 ${className}`}
-    >
-      <span className="text-4xl" aria-hidden>
-        {emoji}
-      </span>
-      <span className="font-display mt-3 block text-2xl font-black tracking-tight">{title}</span>
-      <span className="mt-2 block text-sm text-muted-foreground sm:text-base">{body}</span>
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-black uppercase tracking-wide text-primary">
-        {cta} →
-      </span>
-    </button>
+    <div className="relative mx-auto w-full max-w-[13.5rem] sm:max-w-[15rem] lg:max-w-[16rem]">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-[12%] inset-y-[18%] rounded-full bg-glow-primary blur-2xl"
+      />
+      <DodgyLogo
+        src={masterLogo}
+        alt="OG B0T logo: the red TV-headed mascot in sunglasses with blue flames"
+        size={512}
+        aspectRatio="1607 / 1275"
+        glow={false}
+        priority
+        className="relative w-full"
+        imageClassName="[mask-image:radial-gradient(ellipse_at_center,black_42%,transparent_72%)]"
+      />
+      {/* A slow light sweep across the logo (off with reduced motion). */}
+      <span
+        aria-hidden
+        className="og-logo-sweep pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_65%)]"
+      />
+    </div>
   );
 }
 
-function HazardCta({ className = "" }: { className?: string }) {
+/** The two main actions, used in the hero and again at the bottom of the page. */
+function PrimaryActions({ className = "" }: { className?: string }) {
   return (
-    <TileCta
-      emoji="🎤"
-      title="Create a Track Now"
-      body="Your words, real vocals and cover art — cooked in minutes."
-      cta="Start creating"
-      onClick={openWizard}
-      className={className}
-    />
-  );
-}
-
-function DangerZoneCta({ className = "" }: { className?: string }) {
-  return (
-    <TileCta
-      emoji="🤬"
-      title="Enter Battle Zone"
-      body="Everyone vs OG Bot. Throw your best roast and see who wins."
-      cta="Roast the bot"
-      onClick={openBattle}
-      className={className}
-    />
+    <div className={`mx-auto grid w-full max-w-xl gap-3 sm:grid-cols-2 ${className}`}>
+      <Button
+        size="lg"
+        variant="destructive"
+        onClick={openBattle}
+        className="h-14 rounded-2xl text-base font-black uppercase tracking-wide shadow-glow"
+      >
+        Enter Battle Zone
+      </Button>
+      <Button
+        size="lg"
+        onClick={openWizard}
+        className="h-14 rounded-2xl text-base font-black uppercase tracking-wide shadow-glow"
+      >
+        Create a Track
+      </Button>
+    </div>
   );
 }
 
@@ -896,8 +1031,8 @@ function BattleModal() {
   }, []);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl overflow-y-auto p-2 sm:p-4">
-        <DialogTitle className="sr-only">Battle Zone — roast OG Bot</DialogTitle>
+      <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1rem)] max-w-xl flex-col overflow-hidden border-0 bg-transparent p-0 shadow-none">
+        <DialogTitle className="sr-only">Battle Zone — cuss OG B0T</DialogTitle>
         <GuestBattle
           onNeedAccount={() => {
             setOpen(false);
@@ -910,51 +1045,111 @@ function BattleModal() {
 }
 
 function Hero() {
+  const signalsPortal = useSignalsPortal();
+  const carrom = useCarromLink({ guest: true });
   return (
-    <section className="relative mx-auto max-w-5xl px-3 pt-6 pb-10 sm:px-8 sm:py-14">
-      <div className="relative mx-auto w-full max-w-3xl text-center">
-        <div className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/15 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
-          <span>👑 15 days free VIP</span>
-          <span aria-hidden className="text-primary/50">·</span>
-          <span>No card</span>
-        </div>
-
-        <h1 className="font-display mt-5 text-[clamp(2.2rem,10vw,5.5rem)] font-black leading-[0.92] tracking-[-0.045em] [text-wrap:balance]">
-          <span className="wc-pop block">TURN ANY IDEA</span>
-          <span className="wc-pop block" style={{ animationDelay: "0.15s" }}>
-            INTO A{" "}
-            <span className="wc-bounce-soft inline-block italic text-accent">HIT</span>
+    <section className="relative mx-auto max-w-5xl px-3 pt-3 pb-8 sm:px-8 sm:pt-6 sm:pb-14">
+      <MasterLogo />
+      <div className="relative mx-auto -mt-2 w-full max-w-3xl text-center sm:mt-0 md:max-w-5xl">
+        <h1 className="font-display text-[clamp(1.8rem,8vw,2.6rem)] font-black leading-[0.95] tracking-[-0.035em] [text-wrap:balance] md:text-[clamp(2.4rem,4.6vw,3.4rem)]">
+          <span className="wc-pop block md:inline">CUSS THE BOT. </span>
+          <span className="wc-pop block md:inline" style={{ animationDelay: "0.12s" }}>
+            DROP THE{" "}
+            <span className="wc-bounce-soft inline-block italic text-accent">DISS.</span>{" "}
           </span>
-          <span className="wc-pop block" style={{ animationDelay: "0.3s" }}>
-            IN SECONDS.
+          <span className="wc-pop block md:block" style={{ animationDelay: "0.24s" }}>
+            OR COOK A HIT.
           </span>
         </h1>
 
-        <p className="mx-auto mt-4 max-w-xl text-base font-medium text-foreground/85 sm:text-xl">
-          Drill, afrobeats, pop or savage roasts — your words, real vocals, cover art included.
+        <p className="mx-auto mt-3 max-w-xl text-sm font-medium text-foreground/85 sm:mt-4 sm:text-lg md:max-w-2xl">
+          Step into the world of OG B0T. Enter the battle, create your sound and unleash your
+          creativity. Your ideas. Your rules. No limits.
         </p>
+      </div>
 
-        <div className="mx-auto mt-6 grid max-w-3xl gap-3 sm:grid-cols-2 sm:gap-5">
-          <HazardCta className="max-w-none" />
-          <DangerZoneCta className="max-w-none" />
+      <div id="modes" className="mx-auto mt-5 max-w-4xl scroll-mt-24 sm:mt-7">
+        <h2 className="text-center text-xs font-black uppercase tracking-[0.3em] text-foreground/80 sm:text-sm">
+          Choose your mode
+        </h2>
+        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-6">
+          <ModeCard
+            tone="crimson"
+            className="og-rise"
+            image={modeArt.battleZone}
+            imageAlt="OG B0T Battle Zone badge"
+            eyebrow="Live now"
+            live
+            title="Battle Zone"
+            description="Cuss OG B0T. Bank coins for every hit."
+            cta="Enter Battle Zone"
+            onClick={openBattle}
+          />
+          <ModeCard
+            tone="blue"
+            className="og-rise"
+            style={{ animationDelay: "0.1s" }}
+            image={modeArt.createTrack}
+            imageAlt="OG B0T Create a Track badge"
+            eyebrow="AI studio"
+            title="Make a Track"
+            description="Get OG B0T to create a diss track or song"
+            cta="Create a Track"
+            onClick={openWizard}
+          />
+          <ModeCard
+            tone="silver"
+            className="og-rise"
+            style={{ animationDelay: "0.2s" }}
+            image={modeArt.sportsGuide}
+            imageAlt="OG B0T Sports Guide badge"
+            eyebrow="Members only"
+            title="Sports Guide"
+            description="Daily fixtures, fight cards and TV listings."
+            cta="Open Sports Guide"
+            onClick={openSportsGuide}
+          />
+          {signalsPortal.enabled && (
+            <ModeCard
+              tone="emerald"
+              className="og-rise"
+              style={{ animationDelay: "0.3s" }}
+              image={modeArt.signals}
+              imageAlt="OG Signals badge"
+              eyebrow="Members only"
+              title="OG Signals"
+              description="Bitcoin setups, entry, SL and targets, live."
+              cta="Open Signals"
+              onClick={openSignals}
+            />
+          )}
+          <ModeCard
+            onShown={carrom.onShown}
+            tone="gold"
+            className="og-rise"
+            style={{ animationDelay: signalsPortal.enabled ? "0.4s" : "0.3s" }}
+            image={modeArt.carrom}
+            imageAlt="OG Carrom badge"
+            eyebrow="New game"
+            title="OG Carrom"
+            description="Strike. Pocket. Win. Online, vs the computer or with mates."
+            cta="Play OG Carrom"
+            onClick={() => void carrom.open()}
+          />
+          {/* Teaser: OG KEYS, the coming password and API key vault. */}
+          <ModeCard
+            tone="silver"
+            className="og-rise"
+            style={{ animationDelay: signalsPortal.enabled ? "0.5s" : "0.4s" }}
+            image={modeArt.ogKeys}
+            imageAlt="OG KEYS coming soon badge"
+            eyebrow="Coming soon"
+            title="OG Keys"
+            description="Passwords and API keys, locked in one vault."
+            cta="Coming soon"
+            onClick={() => toast("OG KEYS is coming soon. Your own vault for passwords and keys.")}
+          />
         </div>
-
-        <ul className="mx-auto mt-5 flex flex-wrap justify-center gap-2 text-xs font-semibold text-foreground/80 sm:text-sm">
-          {[
-            { i: <Mic2 className="h-3.5 w-3.5" />, t: "Real vocals" },
-            { i: <Sparkles className="h-3.5 w-3.5" />, t: "Album cover" },
-            { i: <span>🤬</span>, t: "Foul Mouth mode" },
-          ].map((c) => (
-            <li
-              key={c.t}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1"
-            >
-              {c.i}
-              {c.t}
-            </li>
-          ))}
-        </ul>
-
       </div>
     </section>
   );
@@ -963,178 +1158,40 @@ function Hero() {
 const PERSONAL_BANNER_KEY = "welcome.personal_banner.dismissed";
 
 function Superpowers() {
-  const items = [
-    {
-      key: "foul",
-      emoji: "🤬",
-      title: "Foul Mouth Mode",
-      body: "Savage roasts, raw bars, no filter. Turn the heat from Mild to Demon.",
-    },
-    {
-      key: "takes",
-      emoji: "🎧",
-      title: "2 tracks for the price of 1",
-      body: "Unlock your first take and the second one is yours free.",
-    },
-    {
-      key: "vip",
-      emoji: "👑",
-      title: "15 days of free VIP",
-      body: "Every style unlocked from signup — drill, bhangra, afrobeats and more.",
-    },
-  ];
   return (
-    <section id="how-it-works" className="relative scroll-mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-          ⚡ Your superpowers
-        </p>
-        <div className="mt-6 grid gap-3 sm:gap-5 md:grid-cols-3">
-          {items.map((it) => (
-            <article
-              key={it.key}
-              className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6"
-            >
-              <CardEditBadge />
-              <span className="text-4xl">{it.emoji}</span>
-              <EditableContent
-                as="h3"
-                contentKey={`welcome.power.${it.key}.title`}
-                defaultValue={it.title}
-                className="font-display mt-3 block text-2xl font-black tracking-tight"
-              />
-              <EditableContent
-                as="p"
-                multiline
-                contentKey={`welcome.power.${it.key}.body`}
-                defaultValue={it.body}
-                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
-              />
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function EarnCoins() {
-  const ways = [
-    {
-      key: "battle",
-      emoji: "⚔️",
-      title: "Battle the bot",
-      body: "Land your best roasts in Battle Zone and earn OG Coins every round.",
-    },
-    {
-      key: "referral",
-      emoji: "🤝",
-      title: "Lifetime referral commission",
-      body: "Share your link — earn coins every time your friends spend, for life.",
-    },
-    {
-      key: "drop",
-      emoji: "🎁",
-      title: "Daily drop",
-      body: "Pop in each day and claim your free coin drop.",
-    },
-  ];
-  return (
-    <section id="earn" className="relative scroll-mt-24 border-t border-border/40">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-primary">
-          🪙 Earn OG Coins free
-        </p>
-        <h2 className="font-display mt-2 text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-          Make tracks without spending a penny
-        </h2>
-        <div className="mt-8 grid gap-3 sm:gap-5 md:grid-cols-3">
-          {ways.map((w) => (
-            <article
-              key={w.key}
-              className="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-5 shadow-card sm:p-6"
-            >
-              <CardEditBadge />
-              <span className="text-4xl">{w.emoji}</span>
-              <EditableContent
-                as="h3"
-                contentKey={`welcome.earn.${w.key}.title`}
-                defaultValue={w.title}
-                className="font-display mt-3 block text-2xl font-black tracking-tight"
-              />
-              <EditableContent
-                as="p"
-                multiline
-                contentKey={`welcome.earn.${w.key}.body`}
-                defaultValue={w.body}
-                className="mt-2 block text-sm leading-snug text-foreground/85 sm:text-base"
-              />
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function HowItWorks() {
-  const steps = [
-    { icon: <Pencil className="h-5 w-5" />, title: "Type your idea", body: "A name, a roast, a memory." },
-    { icon: <Wand2 className="h-5 w-5" />, title: "Pick the vibe", body: "Choose a style and mood." },
-    { icon: <Headphones className="h-5 w-5" />, title: "OG Bot cooks it", body: "Your song + cover, ready to play." },
-  ];
-  return (
-    <section className="relative border-t border-border/40">
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-8 sm:py-16">
-        <h2 className="font-display text-center text-3xl font-black tracking-[-0.03em] sm:text-5xl">
-          3 taps to your first track
-        </h2>
-        <ol className="mt-8 grid gap-3 sm:grid-cols-3 sm:gap-5">
-          {steps.map((s, i) => (
-            <li
-              key={s.title}
-              className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5"
-            >
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-glow">
-                {s.icon}
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
-                  Step {i + 1}
-                </p>
-                <h3 className="font-display text-lg font-black">{s.title}</h3>
-                <p className="text-sm text-foreground/85">{s.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
+    <OgPowers
+      onBattle={openBattle}
+      onCreate={openWizard}
+      onEarn={openEarn}
+      editBadge={<CardEditBadge />}
+    />
   );
 }
 
 function ClosingCta() {
   return (
     <section id="how" className="relative border-t border-border/40">
-      <div className="relative mx-auto max-w-3xl px-4 py-14 text-center sm:px-8 sm:py-20">
-        <CardEditBadge />
-        <EditableContent
-          as="p"
-          contentKey="welcome.closing.eyebrow"
-          defaultValue="Ready?"
-          className="block text-xs font-black uppercase tracking-[0.25em] text-primary sm:text-sm"
-        />
-        <EditableContent
-          as="h2"
-          contentKey="welcome.closing.title"
-          defaultValue="Your next prompt could be a hit."
-          multiline
-          className="font-display mt-4 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
-        />
-        <p className="mx-auto mt-5 max-w-xl text-base text-foreground/85 sm:text-xl">
-          Free account in seconds · 15 days of VIP on us · No card needed.
-        </p>
-        <HazardCta className="mx-auto mt-8" />
+      <div className="relative mx-auto max-w-3xl px-4 py-12 sm:px-8 sm:py-16">
+        <div className="relative overflow-hidden rounded-3xl border border-white/12 bg-card/90 px-5 py-8 text-center shadow-card backdrop-blur-xl sm:px-10 sm:py-12">
+          <CardEditBadge />
+          <EditableContent
+            as="p"
+            contentKey="welcome.closing.eyebrow"
+            defaultValue="Ready?"
+            className="block text-xs font-black uppercase tracking-[0.3em] text-foreground/75 sm:text-sm"
+          />
+          <EditableContent
+            as="h2"
+            contentKey="welcome.closing.title"
+            defaultValue="Your next prompt could be a hit."
+            multiline
+            className="font-display mt-3 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
+          />
+          <p className="mx-auto mt-4 max-w-md text-sm text-foreground/85 sm:text-lg">
+            Free account in seconds. 15 days of VIP on us, no card needed.
+          </p>
+          <PrimaryActions className="mt-7" />
+        </div>
       </div>
     </section>
   );
@@ -1143,12 +1200,11 @@ function ClosingCta() {
 function Footer() {
   return (
     <footer className="border-t border-white/10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-foreground/85 sm:flex-row sm:px-8">
-        <span className="inline-flex items-center gap-2">
-          © {new Date().getFullYear()} OG Studio · Prompt songs powered by{" "}
-          <OgBotLogo className="h-5 w-5" />
-        </span>
-        <div className="flex items-center gap-6">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-5 py-8 text-center text-sm text-foreground/80 sm:flex-row sm:justify-between sm:px-8 sm:text-left">
+        <nav
+          aria-label="Footer"
+          className="flex flex-wrap items-center justify-center gap-x-1 sm:order-2"
+        >
           <Link
             to="/policy"
             className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -1162,12 +1218,28 @@ function Footer() {
             Terms
           </Link>
           <Link
+            to="/trust"
+            className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Trust
+          </Link>
+          <Link
+            to="/styles/rap"
+            className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            AI rap generator
+          </Link>
+          <Link
             to="/auth"
             className="inline-flex min-h-11 items-center rounded-md px-3 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Sign in
           </Link>
-        </div>
+        </nav>
+        <p className="inline-flex items-center gap-2 sm:order-1">
+          <OgBotLogo className="h-5 w-5" />© {new Date().getFullYear()} OG Studio · Powered by OG
+          Bot
+        </p>
       </div>
     </footer>
   );

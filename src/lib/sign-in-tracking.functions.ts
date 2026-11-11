@@ -1,5 +1,7 @@
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_TG = "https://connector-gateway.lovable.dev/telegram";
 
@@ -8,9 +10,7 @@ async function sendTelegramDirect(
   text: string,
   targetUserId?: string,
 ): Promise<{ ok: boolean; error?: string; stale?: boolean; attempts?: number }> {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-  if (!lovableKey || !tgKey) return { ok: false, error: "missing_keys" };
+  if (!connectorReady("telegram")) return { ok: false, error: "missing_keys" };
 
   // Exponential backoff: retry transient failures (network errors, 5xx, 429, 408)
   // up to MAX_ATTEMPTS times. Permanent errors (chat not found, blocked, other
@@ -23,11 +23,9 @@ async function sendTelegramDirect(
     let status = 0;
     let desc = "";
     try {
-      const res = await fetch(`${GATEWAY_TG}/sendMessage`, {
+      const res = await connectorFetch(`${GATEWAY_TG}/sendMessage`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
@@ -95,7 +93,7 @@ async function sendTelegramDirect(
 
 export const recordSignIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(() => ({}))
+  .validator(() => ({}))
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prof } = await supabaseAdmin
@@ -235,19 +233,21 @@ export const getBossNotifPrefs = createServerFn({ method: "GET" })
 
 export const updateBossNotifPrefs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (
-      d: Partial<{
-        notify_on_signup: boolean;
-        notify_every_signin: boolean;
-        notify_new_device: boolean;
-        notify_new_country: boolean;
-        notify_suspicious: boolean;
-        sheets_sync_enabled: boolean;
-        quiet_hours_start: number | null;
-        quiet_hours_end: number | null;
-      }>,
-    ) => d ?? {},
+  // Only these columns, nothing else (e.g. never user_id).
+  .validator((d) =>
+    z
+      .object({
+        notify_on_signup: z.boolean().optional(),
+        notify_every_signin: z.boolean().optional(),
+        notify_new_device: z.boolean().optional(),
+        notify_new_country: z.boolean().optional(),
+        notify_suspicious: z.boolean().optional(),
+        sheets_sync_enabled: z.boolean().optional(),
+        quiet_hours_start: z.number().int().min(0).max(23).nullable().optional(),
+        quiet_hours_end: z.number().int().min(0).max(23).nullable().optional(),
+      })
+      .strict()
+      .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as any;
@@ -275,7 +275,7 @@ export const updateBossNotifPrefs = createServerFn({ method: "POST" })
 
 export const getUserSignInHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; limit?: number }) => ({
+  .validator((d: { userId: string; limit?: number }) => ({
     userId: d.userId,
     limit: Math.min(Math.max(d.limit ?? 20, 1), 100),
   }))
@@ -310,7 +310,7 @@ export const getUserSignInHistory = createServerFn({ method: "GET" })
 
 export const listUsersPro = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string }) => ({ search: (d?.search ?? "").trim().slice(0, 100) }))
+  .validator((d: { search?: string }) => ({ search: (d?.search ?? "").trim().slice(0, 100) }))
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as any;
     const { data: ok } = await supabase.rpc("has_role", {

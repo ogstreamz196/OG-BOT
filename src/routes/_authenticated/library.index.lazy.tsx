@@ -1,4 +1,6 @@
+import { useUserSongsRealtime } from "@/hooks/user-songs-realtime";
 import { runQueuedSong } from "@/lib/song-queue.functions";
+import { prepayTrack } from "@/lib/track-unlock.functions";
 import { startAttempt, updateAttempt, describeError } from "@/lib/generation-attempts";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -49,8 +51,24 @@ import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettings } from "@/hooks/use-settings";
+import { PayChoiceDialog } from "@/components/library/PayChoiceDialog";
+import { isNasheedStyle, trackCardLabel, trackCoinCost } from "@/lib/nasheed";
+import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
+import {
+  guestCreationAvailable as cardCheckoutAvailable,
+  startGuestTrackSafely,
+} from "@/components/welcome/GuestStudio";
+import type { GuestActiveTrack } from "@/components/welcome/guest-session";
+import { createGuestTrackCheckout as createCardTrackCheckout } from "@/lib/guest-track.functions";
+import { reconcileTrackUnlock } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { buildTrackPlan } from "@/lib/track-plan";
+
+/** A member's £0.99 track waiting on checkout (survives the Stripe redirect). */
+const PAID_TRACK_PENDING_KEY = "ogbot.paidTrackPending.v1";
+
 import { readInvokeError } from "@/lib/invoke-error";
-import { announceSampleCharge, confirmGenerationAllowed } from "@/lib/generation-terms";
+import { announceSampleCharge } from "@/lib/generation-terms";
 import { cn } from "@/lib/utils";
 import { SongCard, type Song } from "@/components/SongCard";
 import { SongCardSkeleton } from "@/components/library/SongCardSkeleton";
@@ -138,6 +156,19 @@ export const Route = createLazyFileRoute("/_authenticated/library/")({
 });
 
 /** Playlist context wraps the page so rows and the media bar share one queue. */
+
+/**
+ * The freshly polled newest page first, then the rest of the catalogue
+ * without repeats (offset paging shifts as songs are added, and the newest
+ * copy of a row wins).
+ */
+function mergeCommunityPages(head: Song[] | undefined, pages: Song[][] | undefined): Song[] {
+  const all = pages?.flat() ?? [];
+  if (!head?.length) return all;
+  const seen = new Set(head.map((s) => s.id));
+  return [...head, ...all.filter((s) => !seen.has(s.id))];
+}
+
 function LibraryRoute() {
   return (
     <PlaylistProvider>
@@ -163,7 +194,6 @@ function LibraryPage() {
   const [autoUnlockPrompt, setAutoUnlockPrompt] = useState(false);
   // download cost is configured via settings.coins_per_full_unlock when needed
   const balance = profile?.coin_balance ?? 0;
-
 
   const firstName = useMemo(() => {
     if (dev.isDev) return "Developer";
@@ -284,6 +314,7 @@ function LibraryPage() {
   const [personalDetails, setPersonalDetails] = useState("");
   const [improving, setImproving] = useState(false);
   const [improveError, setImproveError] = useState<string | null>(null);
+  const prepayTrackFn = useServerFn(prepayTrack);
   const improveDescription = useServerFn(improveLyricDescription);
   const listDrafts = useServerFn(listSongBriefDrafts);
   const deleteDraft = useServerFn(deleteSongBriefDraft);
@@ -518,8 +549,21 @@ function LibraryPage() {
       toast.error(`Need ${audioCost} coins to generate a song`);
       return;
     }
-    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
-    if (!(await confirmGenerationAllowed())) return;
+    // Pay upfront: 5 coins (or the 99p pack) unlocks the full track + free Take 2.
+    if (balance < 5) {
+      toast.error("Each track costs 5 OG Coins — grab the 5-coin pack for 99p", {
+        action: { label: "Buy 99p", onClick: () => void navigate({ to: "/buy-coins" }) },
+        duration: 10_000,
+      });
+      return;
+    }
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        `Cook this track for 5 OG Coins? You get the full track + a free Take 2.\nBalance after: ${balance - 5} coins.`,
+      )
+    )
+      return;
     generateLockRef.current = true;
     setGenSong(true);
     try {
@@ -576,7 +620,7 @@ function LibraryPage() {
         return;
       }
       announceSampleCharge(genData);
-      toast.success("OG Bot is creating your song");
+      toast.success("OG B0T is creating your song");
       navigate({ to: "/library/$songId", params: { songId: row.id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not generate song");
@@ -658,7 +702,9 @@ function LibraryPage() {
   useEffect(() => {
     if (pipeline.stage === "idle" || pipeline.stage === "error") return;
     setPipelineNow(Date.now());
-    const id = window.setInterval(() => setPipelineNow(Date.now()), 250);
+    // The countdown and percentage only show whole seconds, so tick once a
+    // second (this re-renders the whole page).
+    const id = window.setInterval(() => setPipelineNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [pipeline.stage, pipeline.stageStartedAt]);
 
@@ -760,10 +806,12 @@ function LibraryPage() {
     } else if (!canRunPipeline) {
       return;
     }
-    // Free to create, but needs 5 coins; 2 coins per sample after 3 unpaid tracks.
-    if (!(await confirmGenerationAllowed())) return;
+    // Paid up front (coins via prepay_track, or the £0.99 card path above).
+    // No sample-fee pre-check: every track is paid before it cooks (pay step),
+    // so prepay_track/the card unlock cover it and start_generation_charge
+    // never charges a sample fee for it.
 
-    let songTitle = (override?.title ?? title).trim();
+    const songTitle = (override?.title ?? title).trim();
     const songSubject = (override?.subjectName ?? subjectName).trim();
     const songStyle = (override?.style ?? styleText).trim();
     const songLanguage = (override?.language ?? selections.language ?? "English").trim();
@@ -815,7 +863,7 @@ function LibraryPage() {
 
     // Stage the job in the database before any provider call so a failure
     // anywhere below always leaves a traceable record.
-    let attemptStage = "lyrics";
+    const attemptStage = "lyrics";
     let attemptSongId: string | null = null;
     let savedDraft: WizardDraft | null = null;
     try {
@@ -861,9 +909,16 @@ function LibraryPage() {
       // the background worker finishes the song from these exact answers.
       const earlyStyle = [songStyle, songVocal, ...vocalsOnlyTags].filter(Boolean).join(", ");
       const earlyPrompt =
-        ([songTitle, songSubject ? `For: ${songSubject}` : null, earlyStyle ? `Style: ${earlyStyle}` : null, songLanguage ? `Language: ${songLanguage}` : null]
+        ([
+          songTitle,
+          songSubject ? `For: ${songSubject}` : null,
+          earlyStyle ? `Style: ${earlyStyle}` : null,
+          songLanguage ? `Language: ${songLanguage}` : null,
+        ]
           .filter(Boolean)
-          .join(" — ") || songTitle || "Untitled") + (songDetails ? `\n— Idea: ${songDetails}` : "");
+          .join(" — ") ||
+          songTitle ||
+          "Untitled") + (songDetails ? `\n— Idea: ${songDetails}` : "");
       const sunoBase = {
         prompt: earlyPrompt,
         title: songTitle || null,
@@ -899,6 +954,12 @@ function LibraryPage() {
       const stagedId = (staged as { id: string }).id;
       attemptSongId = stagedId;
       void updateAttempt(attemptId, { song_id: stagedId });
+      try {
+        await prepayTrackFn({ data: { songId: stagedId } });
+      } catch (payErr) {
+        await supabase.from("songs").delete().eq("id", stagedId).eq("status", "draft");
+        throw payErr;
+      }
       // Hand the whole job to the server queue. The phone just watches the
       // row; closing the app or losing signal can't stop the song now.
       void runQueuedSong({ data: { songId: stagedId } }).catch(() => {
@@ -911,10 +972,19 @@ function LibraryPage() {
           if (!t) return;
           setTitle(t);
           const fp =
-            [t, songSubject ? `For: ${songSubject}` : null, earlyStyle ? `Style: ${earlyStyle}` : null, songLanguage ? `Language: ${songLanguage}` : null]
+            [
+              t,
+              songSubject ? `For: ${songSubject}` : null,
+              earlyStyle ? `Style: ${earlyStyle}` : null,
+              songLanguage ? `Language: ${songLanguage}` : null,
+            ]
               .filter(Boolean)
               .join(" — ") + (songDetails ? `\n— Idea: ${songDetails}` : "");
-          void supabase.from("songs").update({ title: t, prompt: fp } as never).eq("id", stagedId).eq("status", "draft");
+          void supabase
+            .from("songs")
+            .update({ title: t, prompt: fp } as never)
+            .eq("id", stagedId)
+            .eq("status", "draft");
         });
       }
       const row = { id: stagedId };
@@ -922,7 +992,9 @@ function LibraryPage() {
       // status indicator until the track is ready (or fails).
       void updateAttempt(attemptId, { stage: "queued", status: "succeeded", song_id: row.id });
       library.refetch();
-      toast.success("OG Bot is cooking your track — you can close the app, it'll be in your Library");
+      toast.success(
+        "OG B0T is cooking your track — you can close the app, it'll be in your Library",
+      );
       try {
         window.localStorage.removeItem(WIZARD_DRAFT_KEY);
       } catch {
@@ -1131,54 +1203,66 @@ function LibraryPage() {
   }, [activeJobs]);
 
   const COMMUNITY_PAGE_SIZE = 50;
+  const fetchCommunityPage = async (page: number): Promise<Song[]> => {
+    const offset = page * COMMUNITY_PAGE_SIZE;
+    // Uses a SECURITY DEFINER RPC that returns only safe public fields
+    // (no prompts, lyrics, or generation metadata).
+    const { data, error } = await supabase.rpc("list_community_songs", {
+      p_offset: offset,
+      p_limit: COMMUNITY_PAGE_SIZE,
+    });
+    if (error) throw error;
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const ids = rows.map((s) => String(s.id));
+    const unlockedIds = new Set<string>();
+    if (ids.length > 0) {
+      const { data: unlocks, error: unlockError } = await supabase
+        .from("unlocked_songs")
+        .select("song_id")
+        .in("song_id", ids);
+      if (unlockError) throw unlockError;
+      for (const unlock of unlocks ?? []) unlockedIds.add(unlock.song_id);
+    }
+    // Merge the listener's unlock ledger into the safe public track fields.
+    // artistUnlocked mirrors the creator's unlock: once the artist unlocks a
+    // track, everyone can listen free — only download/share still costs coins.
+    return rows.map((s) => ({
+      prompt: "",
+      ...s,
+      artistUnlocked: !!s.unlocked,
+      // Your own Community tracks follow your own unlock state.
+      unlocked: unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
+    })) as unknown as Song[];
+  };
+  // The whole catalogue, page by page (the player queues all of it). It
+  // refreshes when the app comes back into view; refetching an infinite
+  // query reloads every page, so it is not polled.
   const community = useInfiniteQuery({
     queryKey: ["library-community", user?.id],
     enabled: !!user,
     initialPageParam: 0,
-    queryFn: async ({ pageParam }): Promise<Song[]> => {
-      const offset = (pageParam as number) * COMMUNITY_PAGE_SIZE;
-      // Uses a SECURITY DEFINER RPC that returns only safe public fields
-      // (no prompts, lyrics, or generation metadata).
-      const { data, error } = await supabase.rpc("list_community_songs", {
-        p_offset: offset,
-        p_limit: COMMUNITY_PAGE_SIZE,
-      });
-      if (error) throw error;
-      const rows = (data ?? []) as Record<string, unknown>[];
-      const ids = rows.map((s) => String(s.id));
-      const unlockedIds = new Set<string>();
-      if (ids.length > 0) {
-        const { data: unlocks, error: unlockError } = await supabase
-          .from("unlocked_songs")
-          .select("song_id")
-          .in("song_id", ids);
-        if (unlockError) throw unlockError;
-        for (const unlock of unlocks ?? []) unlockedIds.add(unlock.song_id);
-      }
-      // Merge the listener's unlock ledger into the safe public track fields.
-      // artistUnlocked mirrors the creator's unlock: once the artist unlocks a
-      // track, everyone can listen free — only download/share still costs coins.
-      return rows.map((s) => ({
-        prompt: "",
-        ...s,
-        artistUnlocked: !!s.unlocked,
-        // Your own Community tracks follow your own unlock state.
-        unlocked:
-          unlockedIds.has(String(s.id)) || (s.user_id === user?.id && !!s.unlocked),
-      })) as unknown as Song[];
-    },
+    queryFn: ({ pageParam }) => fetchCommunityPage(pageParam as number),
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length < COMMUNITY_PAGE_SIZE ? undefined : allPages.length,
-    // Keep the global feed in sync for every user on web, Android and iOS:
-    // other users' songs can't stream via realtime (private rows), so poll
-    // and refresh whenever the app/tab comes back into view.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+  // Keep the global feed in sync for every user on web, Android and iOS:
+  // other users' songs can't stream via realtime (private rows), so poll just
+  // the newest page and show it ahead of the rest.
+  const communityHead = useQuery({
+    queryKey: ["library-community-head", user?.id],
+    enabled: !!user && !!community.data,
+    queryFn: () => fetchCommunityPage(0),
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchOnMount: "always",
   });
-  const communityTracks = useMemo(() => community.data?.pages.flat() ?? [], [community.data]);
+  const communityTracks = useMemo(
+    () => mergeCommunityPages(communityHead.data, community.data?.pages),
+    [communityHead.data, community.data],
+  );
   const communityStyles = useMemo(
     () =>
       POOLS.genre.filter((genre) =>
@@ -1202,27 +1286,16 @@ function LibraryPage() {
     }
   }, [community.hasNextPage, community.isFetchingNextPage, community.data?.pages.length]);
 
-  useEffect(() => {
-    if (!user) return;
-    const ch = supabase
-      .channel("songs-library")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "songs", filter: `user_id=eq.${user.id}` },
-        () => library.refetch(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  useUserSongsRealtime(user?.id, () => {
+    void library.refetch();
+  });
 
   /* ------------------------------------------------------------------
    * Realtime generation status: watch the song we just submitted and flip
    * the indicator the instant the backend marks it completed or failed.
    * Falls back to a slow poll in case a realtime event is missed.
    * ------------------------------------------------------------------ */
+  const settleTrackedRef = useRef<((row: Song) => void) | null>(null);
   useEffect(() => {
     if (!trackedSongId) return;
     let cancelled = false;
@@ -1238,7 +1311,8 @@ function LibraryPage() {
         return;
       }
       if (row.status === "processing" || row.status === "pending") {
-        if (pipelineStageRef.current !== "rendering" && pipelineStageRef.current !== "idle") advanceStage("rendering");
+        if (pipelineStageRef.current !== "rendering" && pipelineStageRef.current !== "idle")
+          advanceStage("rendering");
         return;
       }
       if (row.status === "completed") {
@@ -1278,16 +1352,12 @@ function LibraryPage() {
       }
     };
 
-    const ch = supabase
-      .channel(`song-status-${trackedSongId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${trackedSongId}` },
-        (payload) => settle(payload.new as Song),
-      )
-      .subscribe();
+    // Realtime arrives through the member's shared songs channel (below).
+    settleTrackedRef.current = settle;
 
     const poll = window.setInterval(async () => {
+      // A hidden tab catches up through realtime or the next visible tick.
+      if (document.visibilityState === "hidden") return;
       const { data } = await supabase
         .from("songs")
         .select("*")
@@ -1299,10 +1369,16 @@ function LibraryPage() {
     return () => {
       cancelled = true;
       window.clearInterval(poll);
-      supabase.removeChannel(ch);
+      if (settleTrackedRef.current === settle) settleTrackedRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedSongId]);
+  useUserSongsRealtime(user?.id, (change) => {
+    const row = change.new as Song | undefined;
+    if (change.eventType === "UPDATE" && row?.id && row.id === trackedSongId) {
+      settleTrackedRef.current?.(row);
+    }
+  });
 
   // Detect songs that just finished (pending → completed) and surface the
   // "Track completed" toast + the inline finished-track card.
@@ -1351,7 +1427,133 @@ function LibraryPage() {
     }
   }
 
+  // Pay step before cooking: coins (existing prepay path) or £0.99 by card.
+  const [payChoice, setPayChoice] = useState<{ v: WizardResult; draft: WizardDraft } | null>(null);
+  const [payBusy, setPayBusy] = useState<"coins" | "card" | null>(null);
+  const [cardSecret, setCardSecret] = useState<string | null>(null);
+  const cardSongRef = useRef<string | null>(null);
+  const coinCost = settings?.coins_per_full_unlock ?? 5;
+  const cardAvailable = cardCheckoutAvailable();
+  // Nasheed costs double (pure-vocal isolation runs the music engine twice).
+  const payNasheed = !!payChoice && (payChoice.v.isNasheed || isNasheedStyle(payChoice.v.style));
+
   function startFromWizard(v: WizardResult, draft: WizardDraft) {
+    setPayChoice({ v, draft });
+  }
+
+  function clearGuestPending() {
+    try {
+      window.localStorage.removeItem(GUEST_PENDING_SONG_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function cookWithCard(v: WizardResult) {
+    if (!user) return;
+    setPayBusy("card");
+    let songId: string | null = null;
+    try {
+      const { row, plan } = buildTrackPlan(v);
+      const { data: staged, error } = await supabase
+        .from("songs")
+        .insert({ ...row, user_id: user.id, status: "draft" } as never)
+        .select("id")
+        .single();
+      if (error || !staged) throw new Error(error?.message || "Couldn't save your song");
+      songId = (staged as { id: string }).id;
+      window.localStorage.setItem(
+        PAID_TRACK_PENDING_KEY,
+        JSON.stringify({ songId, title: v.title, plan }),
+      );
+      const res = await createCardTrackCheckout({
+        data: {
+          songId,
+          returnUrl: `${window.location.origin}/library?paid_track=1&session_id={CHECKOUT_SESSION_ID}`,
+          environment: getStripeEnvironment(),
+        },
+      });
+      if ("error" in res) throw new Error(res.error);
+      cardSongRef.current = songId;
+      setPayChoice(null);
+      clearGuestPending();
+      setCardSecret(res.clientSecret);
+    } catch (e) {
+      if (songId) await discardUnpaidDraft(songId);
+      toast.error(e instanceof Error ? e.message : "Checkout couldn't start");
+    } finally {
+      setPayBusy(null);
+    }
+  }
+
+  /** Checkout closed without paying: remove the staged draft. */
+  async function discardUnpaidDraft(songId: string) {
+    const { data: paid } = await supabase
+      .from("unlocked_songs")
+      .select("id")
+      .eq("song_id", songId)
+      .limit(1);
+    if (paid && paid.length > 0) return;
+    await supabase.from("songs").delete().eq("id", songId).eq("status", "draft");
+    try {
+      window.localStorage.removeItem(PAID_TRACK_PENDING_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Back from the £0.99 checkout: confirm payment, then start cooking.
+  const cardReturnRef = useRef(false);
+  useEffect(() => {
+    if (cardReturnRef.current || !user) return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (params.get("paid_track") !== "1" || !sessionId) return;
+    cardReturnRef.current = true;
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("paid_track");
+    clean.searchParams.delete("session_id");
+    window.history.replaceState(null, "", clean.toString());
+    let pending: { songId: string; title: string; plan: GuestActiveTrack["plan"] } | null = null;
+    try {
+      const raw = window.localStorage.getItem(PAID_TRACK_PENDING_KEY);
+      pending = raw ? JSON.parse(raw) : null;
+    } catch {
+      pending = null;
+    }
+    if (!pending) return;
+    const track = pending;
+    setCooking({ open: true, title: track.title });
+    void (async () => {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        try {
+          const r = await reconcileTrackUnlock({
+            data: { sessionId, environment: getStripeEnvironment() },
+          });
+          if ("status" in r && r.status === "unlocked") {
+            if (await startGuestTrackSafely(track)) {
+              setTrackedSongId(track.songId);
+              void library.refetch();
+              toast.success("Paid — OG B0T is cooking your track 🔥");
+            }
+            try {
+              window.localStorage.removeItem(PAID_TRACK_PENDING_KEY);
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+          if ("error" in r) throw new Error(r.error);
+        } catch (e) {
+          if (attempt === 7) toast.error(e instanceof Error ? e.message : "Payment check failed");
+        }
+        await new Promise((res) => setTimeout(res, 2500));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  function cookWithCoins(v: WizardResult, draft: WizardDraft) {
     setWizardDraft(draft);
     setTitle(v.title);
     setSubjectName(v.subjectName);
@@ -1383,11 +1585,8 @@ function LibraryPage() {
     }
     if (!pending?.result || !pending?.draft) return;
     guestPickupRef.current = true;
-    try {
-      window.localStorage.removeItem(GUEST_PENDING_SONG_KEY);
-    } catch {
-      /* ignore */
-    }
+    // The key is cleared once the member picks how to pay (or closes the pay
+    // step), so a remount during sign-in doesn't lose the song.
     const draft = { ...EMPTY_DRAFT, ...pending.draft };
     if (balance >= totalCost) {
       toast.success(`Welcome! Cooking "${pending.result.title}" now 🔥`);
@@ -1423,7 +1622,7 @@ function LibraryPage() {
         <div aria-hidden className="studio-rail -mx-4 mb-3 h-[3px] opacity-60 sm:-mx-5" />
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.34em] text-primary/80">
+            <p className="text-[0.7rem] font-black uppercase tracking-[0.34em] text-primary/80">
               OG Studio · Live desk
             </p>
             <h1 className="truncate font-display text-2xl font-black leading-[1.1] tracking-[-0.02em] sm:text-4xl">
@@ -1439,7 +1638,7 @@ function LibraryPage() {
             <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary/25 bg-background/50 px-3.5 py-2 backdrop-blur">
               <Coins className="h-4 w-4 text-primary" aria-hidden="true" />
               <span className="text-base font-black tabular-nums sm:text-lg">{balance}</span>
-              <span className="hidden text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:inline">
+              <span className="hidden text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:inline">
                 coins
               </span>
             </div>
@@ -1488,15 +1687,16 @@ function LibraryPage() {
       {!pipelineActive && (
         <section aria-label="Create a track" className="studio-panel px-4 pb-6 pt-4 sm:px-6">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.28em] text-primary">
+            <h2 className="text-xs font-black uppercase tracking-[0.28em] text-primary">
               Control room
             </h2>
             <StudioMeter active={false} bars={5} className="h-4" />
           </div>
 
           {/* Track length now lives in step 1 of the wizard — keep this clean. */}
-          <p className="text-center text-[11px] font-semibold text-muted-foreground">
-            Free to create · {targetMinutes} min
+          <p className="text-center text-xs font-semibold text-muted-foreground">
+            {cardAvailable ? `${coinCost} coins or £0.99` : `${coinCost} coins`} · {targetMinutes}{" "}
+            min
           </p>
 
           {/* Hazard robotic CREATE button — a big 3D push-button on a base plate */}
@@ -1567,7 +1767,7 @@ function LibraryPage() {
               onClick={() =>
                 libraryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
-              className="h-8 gap-1.5 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+              className="h-8 gap-1.5 px-3 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
             >
               <Disc3 className="h-4 w-4" />
               Library
@@ -1596,8 +1796,41 @@ function LibraryPage() {
         open={wizardOpen}
         onOpenChange={setWizardOpen}
         initialDraft={wizardDraft}
-        submitLabel="Create now"
+        submitLabel="Cook Master Track"
         onComplete={startFromWizard}
+      />
+
+      <PayChoiceDialog
+        open={!!payChoice}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPayChoice(null);
+            clearGuestPending();
+          }
+        }}
+        title={payChoice?.v.title ?? ""}
+        coinCost={trackCoinCost(coinCost, payNasheed)}
+        cardPriceLabel={trackCardLabel(payNasheed)}
+        nasheed={payNasheed}
+        balance={balance}
+        cardAvailable={cardAvailable}
+        busy={payBusy}
+        onCoins={() => {
+          if (!payChoice) return;
+          const { v, draft } = payChoice;
+          setPayChoice(null);
+          clearGuestPending();
+          cookWithCoins(v, draft);
+        }}
+        onCard={() => payChoice && void cookWithCard(payChoice.v)}
+      />
+      <StripeCheckoutDialog
+        clientSecret={cardSecret}
+        onClose={() => {
+          setCardSecret(null);
+          if (cardSongRef.current) void discardUnpaidDraft(cardSongRef.current);
+          cardSongRef.current = null;
+        }}
       />
 
       <CookingDialog
@@ -1629,7 +1862,7 @@ function LibraryPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                   {pipeline.stage === "error"
                     ? "Stopped"
                     : `Step ${Math.max(1, currentIdx + 1)} of ${PIPELINE_ORDER.length}`}
@@ -1665,7 +1898,7 @@ function LibraryPage() {
 
           {/* Collapsed past/future — a tight strip of dots + one label per side */}
           {pipeline.stage !== "error" && (
-            <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="flex items-center justify-between gap-3 text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Check className="h-3 w-3 text-primary" />
                 {currentIdx === 0 ? "Just started" : `${currentIdx} done`}
@@ -1759,9 +1992,6 @@ function LibraryPage() {
           key={freshTrack.id}
           song={freshTrack}
           sampleSeconds={sampleSeconds}
-          unlockCost={unlockCost}
-          balance={profile?.coin_balance ?? 0}
-          autoUnlockPrompt={autoUnlockPrompt}
           onDismiss={() => {
             setFreshTrack(null);
             setAutoUnlockPrompt(false);
@@ -1849,7 +2079,7 @@ function LibraryPage() {
             >
               <Crown className="h-4 w-4 shrink-0 text-primary group-data-[state=active]:text-primary-foreground" />
               <span>My Songs</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-primary-foreground">
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.7rem] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-primary-foreground">
                 {completedTracks.length}
               </span>
             </TabsTrigger>
@@ -1859,7 +2089,7 @@ function LibraryPage() {
             >
               <Users className="h-4 w-4 shrink-0 text-fuchsia-300 group-data-[state=active]:text-white" />
               <span>Community</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-white">
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.7rem] font-black tabular-nums text-foreground/90 group-data-[state=active]:bg-black/25 group-data-[state=active]:text-white">
                 {communityTracks.length}
               </span>
             </TabsTrigger>
@@ -1991,9 +2221,7 @@ function LibraryPage() {
               unlockedCount={
                 communityTracks.filter((s) => !!s.unlocked || !!s.artistUnlocked).length
               }
-              lockedCount={
-                communityTracks.filter((s) => !s.unlocked && !s.artistUnlocked).length
-              }
+              lockedCount={communityTracks.filter((s) => !s.unlocked && !s.artistUnlocked).length}
               hideAll
             />
             {communityTracks.length > 3 && (
@@ -2007,7 +2235,7 @@ function LibraryPage() {
                 />
               </div>
             )}
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
               <span>Made by other creators</span>
               <span aria-hidden className="text-primary/60">
                 •

@@ -45,7 +45,7 @@ export function TelegramSmokeTest() {
   return (
     <section
       aria-label="Telegram webhook smoke test"
-      className="rounded-2xl border-2 border-border/40 bg-card/60 p-4 backdrop-blur-md"
+      className="og-panel rounded-2xl border-2 border-border/40 bg-card/60 p-4 backdrop-blur-md"
     >
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary">
@@ -99,19 +99,19 @@ export function TelegramSmokeTest() {
                 <p className="font-medium">{s.name}</p>
                 <p className="break-words text-muted-foreground">{s.detail}</p>
                 {s.url ? (
-                  <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+                  <p className="mt-0.5 truncate font-mono text-[0.7rem] text-muted-foreground">
                     {s.url}
                   </p>
                 ) : null}
               </div>
               {s.latencyMs > 0 ? (
-                <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <span className="shrink-0 text-[0.7rem] uppercase tracking-wider text-muted-foreground">
                   {s.latencyMs}ms
                 </span>
               ) : null}
             </div>
           ))}
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">
             Ran {new Date(data.ranAt).toLocaleTimeString()} · {data.totalMs}ms total
           </p>
         </div>

@@ -1,6 +1,9 @@
 // Tells Boss/admin on Telegram that a member is online. Uses only the account
 // name and the kind of activity (app opened / Battle Zone) — no pages, location
-// or device data. A database cooldown stops repeat alerts.
+// or device data. A database cooldown stops repeat alerts. Members never get
+// these: Battle Zone alerts to every linked member were too noisy.
+import { cached } from "@/lib/server-cache";
+
 const COOLDOWN_MIN = { app: 24 * 60, battle: 30 } as const;
 
 function esc(s: string) {
@@ -10,11 +13,15 @@ function esc(s: string) {
 export async function alertBossPresence(userId: string, kind: "app" | "battle") {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roleRows } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .in("role", ["admin", "boss"] as never);
-    const bossIds = [...new Set((roleRows ?? []).map((r: { user_id: string }) => r.user_id))];
+    // Who the bosses are changes rarely; this runs on every battle post.
+    const bossIds = await cached("boss-user-ids", 5 * 60_000, async () => {
+      const { data: roleRows, error } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["admin", "boss"] as never);
+      if (error) throw new Error(error.message);
+      return [...new Set((roleRows ?? []).map((r: { user_id: string }) => r.user_id))];
+    });
     if (!bossIds.length || bossIds.includes(userId)) return; // don't alert about yourself
 
     const { data: claimed } = await supabaseAdmin.rpc(
@@ -32,30 +39,15 @@ export async function alertBossPresence(userId: string, kind: "app" | "battle") 
       supabaseAdmin.from("profiles").select("telegram_chat_id").in("id", bossIds),
     ]);
     const name = esc(who?.display_name || "An OG member");
-    const { vipAckTelegram } = await import("@/lib/vip-ack.server");
+    const { telegramApi } = await import("@/lib/telegram-api.server");
 
-    if (kind === "battle") {
-      // Battle Zone alerts go to every Telegram-linked member (not just Boss),
-      // with a link straight into the Battle Zone so they can jump in.
-      const text = `<b>⚔️ ${name} is in Battle Zone</b>\n<a href="https://www.ogbot.co.uk/messenger">Jump in and have some fun!</a>`;
-      const { data: linked } = await supabaseAdmin
-        .from("profiles")
-        .select("telegram_chat_id")
-        .not("telegram_chat_id", "is", null)
-        .neq("id", userId);
-      const chats = [...new Set((linked ?? []).map((p) => p.telegram_chat_id).filter(Boolean))];
-      await Promise.all(
-        chats.map((chat_id) =>
-          vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" }),
-        ),
-      );
-      return;
-    }
-
-    const text = `<b>🟢 ${name} just opened OG BOT</b>`;
+    const text =
+      kind === "battle"
+        ? `<b>⚔️ ${name} is in Battle Zone</b>\n<a href="https://www.ogbot.co.uk/messenger">Jump in and have some fun!</a>`
+        : `<b>🟢 ${name} just opened OG B0T</b>`;
     const chats = [...new Set((bosses ?? []).map((b) => b.telegram_chat_id).filter(Boolean))];
     await Promise.all(
-      chats.map((chat_id) => vipAckTelegram("sendMessage", { chat_id, text, parse_mode: "HTML" })),
+      chats.map((chat_id) => telegramApi("sendMessage", { chat_id, text, parse_mode: "HTML" })),
     );
   } catch (e) {
     console.error("presence alert failed", e);

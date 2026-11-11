@@ -6,6 +6,15 @@
  * Lovable AI is never used as a fallback.
  */
 
+import { CLEAN_TV_HELP_NOTE, isTvHelpChat } from "./tv-help";
+import { extraKeysNow, hubAiEndpoint, loadExtraKeys } from "./ai-keys.server";
+import {
+  loadOpenRouterModels,
+  openRouterFreeModels,
+  openRouterModelGone,
+} from "./openrouter-models.server";
+import { envKey as readKey } from "@/lib/key-names";
+
 export type AiChatTarget = {
   url: string;
   headers: Record<string, string>;
@@ -19,7 +28,7 @@ const GEMINI_OPENAI_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 function geminiTarget(): AiChatTarget | null {
-  const gemini = process.env.GEMINI_API_KEY;
+  const gemini = readKey("PAID_GEMINI_F196");
   if (!gemini) return null;
   return {
     url: GEMINI_OPENAI_URL,
@@ -36,7 +45,7 @@ function keyed(
   model: string,
   extra: Record<string, string> = {},
 ): AiChatTarget | null {
-  const key = process.env[envKey];
+  const key = readKey(envKey);
   if (!key) return null;
   return {
     url,
@@ -51,8 +60,23 @@ const OR_HEADERS = { "HTTP-Referer": "https://ogbot.co.uk", "X-Title": "OG BOT" 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const POLL_URL = "https://gen.pollinations.ai/v1/chat/completions";
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
-/** Passed the live Foul Mouth test (swears back reliably and fast). */
-export const FOUL_CAPABLE_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+/** Pollinations' open, keyless chat endpoint (free, rate-limited). */
+export const POLL_NO_KEY_URL = "https://text.pollinations.ai/openai";
+const POLL_NO_KEY_TARGET: AiChatTarget = {
+  url: POLL_NO_KEY_URL,
+  headers: { "Content-Type": "application/json" },
+  model: "openai",
+  provider: "pollinations",
+  free: true,
+};
+/**
+ * OpenRouter's free models, best first, then its free router: picked from
+ * OpenRouter's live list (openrouter-models.server.ts), because OpenRouter
+ * retires free models often and a fixed one stops answering.
+ */
+export function foulFreeModels(): string[] {
+  return openRouterFreeModels();
+}
 
 /**
  * Free tiers — answer ordinary chat first. Keyed tiers are skipped when their
@@ -63,22 +87,89 @@ export const FOUL_CAPABLE_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
  * the OpenRouter model that actually swears is used, then Gemini.
  */
 export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
-  const openrouter = ["OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY"].map((env) =>
-    keyed(env, "openrouter", OR_URL, FOUL_CAPABLE_FREE_MODEL, OR_HEADERS),
+  // The Boss's extra keys (Boss → System → API keys, kept in the hub) go
+  // first; the keys set as secrets are the fallback. Loaded by loadAiKeys().
+  const extra = extraKeysNow();
+  const own = (
+    key: string,
+    provider: AiChatTarget["provider"],
+    url: string,
+    model: string,
+    more: Record<string, string> = {},
+  ): AiChatTarget => ({
+    url,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...more },
+    model,
+    provider,
+    free: true,
+  });
+  const orModels = foulFreeModels();
+  const extraOpenrouter = extra.openrouter.flatMap((k) =>
+    orModels.map((m) => own(k, "openrouter", OR_URL, m, OR_HEADERS)),
   );
+  const freeGeminiModel =
+    process.env.GEMINI_FREE_MODEL || process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const extraFirst = [
+    ...extra.gemini.map((k) => own(k, "gemini", GEMINI_OPENAI_URL, freeGeminiModel)),
+    ...extra.pollinations.map((k) => own(k, "pollinations", POLL_URL, "openai-fast")),
+    ...extraOpenrouter,
+  ];
+  // The hub's shared free keys stand in for a provider only when this app has
+  // no key of its own for it, so nothing changes while the own keys are set.
+  const viaHub = (
+    provider: "groq" | "openrouter" | "pollinations",
+    label: AiChatTarget["provider"],
+    model: string,
+  ): AiChatTarget | null => {
+    const hub = hubAiEndpoint(provider);
+    return hub ? { url: hub.url, headers: hub.headers, model, provider: label, free: true } : null;
+  };
+  const ownGroq = !!(readKey("FREE_GROQ_API_KEY") || readKey("FREE_GROQ_API_KEY_2"));
+  const ownOr = !!(readKey("FREE_OPENROUTER_API_KEY") || readKey("FREE_OPENROUTER_API_KEY_2"));
+  const ownPoll = !!(
+    readKey("FREE_POLLINATIONS_API_KEY") || readKey("FREE_POLLINATIONS_API_KEY_2")
+  );
+  const openrouter = ownOr
+    ? ["FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].flatMap((env) =>
+        orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
+      )
+    : orModels.map((m) => viaHub("openrouter", "openrouter", m));
   const list = foulMouth
-    ? openrouter
+    ? [...extraOpenrouter, ...openrouter]
     : [
-        keyed("GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
-        keyed("GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
-        // Second Groq account — separate rate-limit budget.
-        keyed("GROQ_BACKUP_API_KEY", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
-        keyed("GROQ_BACKUP_API_KEY", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
-        keyed("POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
-        keyed("POLLINATIONS_BACKUP_API_KEY", "pollinations", POLL_URL, "openai-fast"),
+        ...extraFirst,
+        ...(ownGroq
+          ? [
+              keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
+              keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
+              // Second Groq account — separate rate-limit budget.
+              keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
+              keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
+            ]
+          : [
+              viaHub("groq", "groq", "qwen/qwen3.8-27b"),
+              viaHub("groq", "groq", "openai/gpt-oss-120b"),
+            ]),
+        ...(ownPoll
+          ? [
+              keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
+              keyed("FREE_POLLINATIONS_API_KEY_2", "pollinations", POLL_URL, "openai-fast"),
+            ]
+          : [viaHub("pollinations", "pollinations", "openai-fast")]),
         ...openrouter,
+        // Last resort, free and needs no key at all: Pollinations' open
+        // endpoint (rate-limited). Switch off with POLLINATIONS_NO_KEY=off.
+        ...(process.env.POLLINATIONS_NO_KEY === "off" ? [] : [POLL_NO_KEY_TARGET]),
       ];
   return list.filter((t): t is AiChatTarget => t !== null);
+}
+
+/** Loads the Boss's extra keys (cached a minute) before a target list is built. Never throws. */
+export async function loadAiKeys(): Promise<void> {
+  await Promise.all([
+    loadExtraKeys().catch(() => undefined),
+    loadOpenRouterModels().catch(() => undefined),
+  ]);
 }
 
 type ProMsg = { role: string; content: unknown };
@@ -93,6 +184,61 @@ export function needsProAnswer(body: Record<string, unknown>): boolean {
   );
 }
 
+export type MessageTier = "banter" | "complex" | "unsure";
+
+/** Fast first read of the latest message: obvious banter, clearly hard, or unsure. */
+export function messageTier(text: string): MessageTier {
+  const t = text.trim();
+  if (needsProAnswer({ messages: [{ role: "user", content: t }] })) return "complex";
+  if (t.length > 400 || /```|\n.*\n.*\n/.test(t) || (t.match(/\?/g) ?? []).length >= 3)
+    return "complex";
+  const asks =
+    /\?|^(how|why|what|which|should|could|would|can|is|are|do|does|explain|help|tell me)\b/i.test(
+      t,
+    );
+  if (asks && t.length >= 25) return "unsure";
+  return "banter";
+}
+
+const ROUTER_TIMEOUT_MS = 1_500;
+
+/**
+ * For messages that might need real thinking, ask a tiny free model to judge.
+ * Any failure counts as banter, so routing is never worse than before.
+ */
+export async function needsThinking(text: string): Promise<boolean> {
+  const key = readKey("FREE_GROQ_API_KEY") || readKey("FREE_GROQ_API_KEY_2");
+  if (!key) return false;
+  try {
+    const res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant",
+        temperature: 0,
+        max_tokens: 3,
+        messages: [
+          {
+            role: "user",
+            content: `Route this chat message. Reply with one word only.
+BANTER = chit-chat, jokes, disses, greetings, opinions, or a simple one-line fact.
+THINK = needs reasoning or care: explanations, advice, maths, planning, comparisons, writing something long, money, health, legal or technical help.
+
+Message: """${text.slice(0, 1200)}"""`,
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(ROUTER_TIMEOUT_MS),
+    });
+    if (!res.ok) return false;
+    const j = (await res.json().catch(() => ({}))) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return /THINK/i.test(j.choices?.[0]?.message?.content ?? "");
+  } catch {
+    return false;
+  }
+}
 
 // OpenAI removed from the system by owner request — Gemini is the only paid tier.
 export function aiChatTargets(_affinity = "default"): AiChatTarget[] {
@@ -133,6 +279,22 @@ function shouldFallThrough(status: number): boolean {
   return status === 429 || status === 402 || status === 401 || status === 403 || status >= 500;
 }
 
+/** The latest user message as plain text (the wrapped live-facts form keeps the question at the end). */
+function lastUserText(body: Record<string, unknown>): string {
+  const messages = Array.isArray(body.messages) ? (body.messages as Msg[]) : [];
+  const last = [...messages].reverse().find((m) => m.role === "user");
+  if (!last) return "";
+  const text =
+    typeof last.content === "string"
+      ? last.content
+      : Array.isArray(last.content)
+        ? (last.content as { type?: string; text?: string }[])
+            .map((p) => (p.type === "text" ? (p.text ?? "") : ""))
+            .join(" ")
+        : "";
+  const q = text.match(/USER QUESTION:\n([\s\S]*?)\n\n/);
+  return (q?.[1] ?? text).trim();
+}
 
 function hasMedia(body: Record<string, unknown>): boolean {
   const messages = Array.isArray(body.messages) ? (body.messages as Msg[]) : [];
@@ -168,39 +330,98 @@ export function logAiUsage(entry: {
   })();
 }
 
-export async function fetchAiChat(
+const FREE_TIMEOUT_MS = 15_000;
+export const FOUL_FREE_TIMEOUT_MS = 10_000;
+/**
+ * Foul Mouth: if the swearing model hasn't answered by now, Gemini starts as
+ * a backup and whichever lands first is used. The voice is the same prompt
+ * either way; this only cuts the long waits.
+ */
+export const aiTiming = { foulHedgeMs: 5_000 };
+
+export type AiChatOpts = {
+  foulMouth?: boolean;
+  /** OG Bot chat: judge how hard the latest message is before picking a model. */
+  smart?: boolean;
+  /** Background jobs (memory notes): free tiers first, whatever the length. */
+  cheap?: boolean;
+  /** Never the paid tier (Telegram group roasts): free models or nothing. */
+  freeOnly?: boolean;
+};
+
+/** Which models to try, in order, and whether the paid tier goes first. */
+async function chatPlan(
   body: Record<string, unknown>,
-  affinity = "default",
-  opts: { foulMouth?: boolean } = {},
-): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
+  affinity: string,
+  opts: AiChatOpts,
+): Promise<{ free: AiChatTarget[]; paid: AiChatTarget[]; pro: boolean }> {
   // Free AIs answer ordinary chat; paid Gemini goes first only for media or
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
+  await loadAiKeys();
   const free = freeFallbackTargets(!!opts.foulMouth);
-  const pro = hasMedia(body) || needsProAnswer(body);
-  const targets = pro
-    ? [...aiChatTargets(affinity), ...free]
-    : [...free, ...aiChatTargets(affinity)];
-  let last: { response: Response; provider: AiChatTarget["provider"] } | null = null;
+  if (opts.freeOnly) {
+    // Free or nothing, so try every free model before giving up: for Foul
+    // Mouth the tested swearing model first, then the other free ones (the
+    // caller tops up the swearing if they come out soft).
+    if (!opts.foulMouth) return { free, paid: [], pro: false };
+    const key = (t: AiChatTarget) => `${t.url}|${t.model}|${JSON.stringify(t.headers)}`;
+    const seen = new Set(free.map(key));
+    const more = freeFallbackTargets(false).filter((t) => !seen.has(key(t)));
+    return { free: [...free, ...more], paid: [], pro: false };
+  }
+  let pro = !opts.cheap && (hasMedia(body) || needsProAnswer(body));
+  // Foul Mouth keeps its tested routing (the swearing model first) so OG Bot's
+  // voice never softens; smart routing only re-routes clean chat.
+  if (!pro && opts.smart && !opts.foulMouth) {
+    const text = lastUserText(body);
+    const tier = messageTier(text);
+    pro = tier === "complex" || (tier === "unsure" && (await needsThinking(text)));
+  }
+  return { free, paid: aiChatTargets(affinity), pro };
+}
 
+type Attempt = { response: Response; provider: AiChatTarget["provider"]; ok: boolean };
+
+/** Tries each target in turn; the last one is returned even when it fails. */
+async function tryTargets(
+  list: AiChatTarget[],
+  body: Record<string, unknown>,
+  freeTimeout: number,
+  outer?: AbortSignal,
+): Promise<Attempt | null> {
+  const targets = [...list];
+  let last: Attempt | null = null;
   for (let index = 0; index < targets.length; index += 1) {
+    if (outer?.aborted) return last;
     const target = targets[index];
     let response: Response;
     try {
+      const timeout = AbortSignal.timeout(target.free ? freeTimeout : 45_000);
       response = await fetch(target.url, {
         method: "POST",
         headers: target.headers,
         body: JSON.stringify({ ...(target.free ? freeBody(body) : body), model: target.model }),
-        signal: AbortSignal.timeout(target.free ? 15_000 : 45_000),
+        signal: outer ? AbortSignal.any([timeout, outer]) : timeout,
       });
     } catch (e) {
+      if (outer?.aborted) return last;
       console.warn(`AI ${target.provider}/${target.model} network error`, e);
+      // A free model that timed out on one key is just as slow on the next.
+      if (target.free) {
+        for (let j = index + 1; j < targets.length; j += 1) {
+          if (targets[j].free && targets[j].model === target.model) targets.splice(j--, 1);
+        }
+      }
       continue;
     }
+    // OpenRouter retired this free model: drop it at once (the next one is tried now).
+    if (target.provider === "openrouter" && (response.status === 404 || response.status === 400))
+      openRouterModelGone(target.model);
     let fallThrough = target.free ? !response.ok : shouldFallThrough(response.status);
     // Free tiers sometimes return 200 with an empty/refused body — treat as a failure
     // so the next free provider gets a go instead of the user seeing "…".
-    if (!fallThrough && target.free && !body.stream && index < targets.length - 1) {
+    if (!fallThrough && target.free && !body.stream) {
       try {
         const text = await response.clone().text();
         const j = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
@@ -209,67 +430,409 @@ export async function fetchAiChat(
         fallThrough = true;
       }
     }
-    if (!fallThrough || index === targets.length - 1) {
+    if (!fallThrough) {
       // Chat responses are streamed back to the caller, so token counts aren't
       // available here — log the call itself (provider + model) instead.
       logAiUsage({ feature: "chat", provider: target.provider, model: target.model });
-      return { response, provider: target.provider };
+      return { response, provider: target.provider, ok: true };
     }
+    last = { response, provider: target.provider, ok: false };
+    if (index === targets.length - 1) break;
     console.warn(`AI ${target.provider}/${target.model} returned ${response.status}, falling back`);
-    // Don't hammer the same provider: skip its other models after a 429.
+    // Don't hammer the same provider: skip its other models after a 429, and
+    // give it a breath. Other failures move on straight away.
     if (response.status === 429) {
       for (let j = index + 1; j < targets.length; j += 1) {
         if (targets[j].provider === target.provider && targets[j].free) targets.splice(j--, 1);
       }
+      await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 200)));
     }
-    last = { response, provider: target.provider };
-    await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 200)));
   }
+  return last;
+}
 
-  if (last) return last;
+/** Runs `primary`; if it hasn't succeeded within `ms`, starts `backup` too. First success wins. */
+async function hedged(
+  primary: (signal: AbortSignal) => Promise<Attempt | null>,
+  backup: (signal: AbortSignal) => Promise<Attempt | null>,
+  ms: number,
+): Promise<Attempt | null> {
+  const a = new AbortController();
+  const b = new AbortController();
+  let backupRun: Promise<Attempt | null> | null = null;
+  const startBackup = () => (backupRun ??= backup(b.signal));
+  const p = primary(a.signal);
+  const timer = new Promise<"hedge">((resolve) => setTimeout(() => resolve("hedge"), ms));
+  const first = await Promise.race([p, timer]);
+  if (first !== "hedge" && first?.ok) return first;
+  const bRun = startBackup();
+  const pOk = p.then((r) => (r?.ok ? { r, loser: b } : Promise.reject(r)));
+  const bOk = bRun.then((r) => (r?.ok ? { r, loser: a } : Promise.reject(r)));
+  try {
+    const win = await Promise.any([pOk, bOk]);
+    win.loser.abort();
+    return win.r;
+  } catch {
+    // Neither worked: hand back the backup's answer (the paid tier's error), else the primary's.
+    return (await bRun) ?? (await p);
+  }
+}
+
+/** A chat message's text, whether it's a plain string or text-and-image parts. */
+function messageText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content))
+    return content
+      .map((c) =>
+        c && typeof c === "object" && "text" in c ? String((c as { text: unknown }).text) : "",
+      )
+      .join(" ");
+  return "";
+}
+
+/**
+ * TV and app help is always answered clean, whoever asks and whichever bot
+ * answers (tv-help.ts): the foul mouth is switched off for the reply and the
+ * system prompt gets the clean-answer note. Every chat reply passes through
+ * here, so this covers the website, Telegram, groups and the worker bots.
+ */
+export function cleanForTvHelp(
+  body: Record<string, unknown>,
+  opts: AiChatOpts,
+): { body: Record<string, unknown>; opts: AiChatOpts; tvHelp: boolean } {
+  const messages = Array.isArray(body.messages)
+    ? (body.messages as { role?: string; content?: unknown }[])
+    : [];
+  const userTexts = messages.filter((m) => m.role === "user").map((m) => messageText(m.content));
+  if (!isTvHelpChat(userTexts)) return { body, opts, tvHelp: false };
+  const first = messages[0];
+  const withNote =
+    first?.role === "system" && typeof first.content === "string"
+      ? [{ ...first, content: `${first.content}\n\n${CLEAN_TV_HELP_NOTE}` }, ...messages.slice(1)]
+      : [{ role: "system", content: CLEAN_TV_HELP_NOTE }, ...messages];
+  return {
+    body: { ...body, messages: withNote },
+    opts: { ...opts, foulMouth: false },
+    tvHelp: true,
+  };
+}
+
+export async function fetchAiChat(
+  body: Record<string, unknown>,
+  affinity = "default",
+  opts: AiChatOpts = {},
+): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
+  ({ body, opts } = cleanForTvHelp(body, opts));
+  const { free, paid, pro } = await chatPlan(body, affinity, opts);
+  // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
+  // tier never leaves the user hanging.
+  const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
+  let result: Attempt | null;
+  if (opts.foulMouth && !pro && free.length && paid.length && !body.stream) {
+    result = await hedged(
+      (signal) => tryTargets(free, body, freeTimeout, signal),
+      (signal) => tryTargets(paid, body, freeTimeout, signal),
+      aiTiming.foulHedgeMs,
+    );
+  } else {
+    result = await tryTargets(pro ? [...paid, ...free] : [...free, ...paid], body, freeTimeout);
+  }
+  if (result) return { response: result.response, provider: result.provider };
+  throw new Error("All AI providers are busy — try again in a moment.");
+}
+
+type StreamRun = {
+  provider: AiChatTarget["provider"];
+  model: string;
+  /** Resolves true once the first words arrive, false if it fails first. */
+  first: Promise<boolean>;
+  /** The full text when the stream ends ("" on failure), and the HTTP status. */
+  done: Promise<{ text: string; status: number }>;
+  /** Start forwarding words (including any already received). */
+  attach: (fn: (delta: string) => void) => void;
+  abort: () => void;
+};
+
+/** Opens one streamed reply. Times out only while waiting for the first words. */
+function openStream(
+  target: AiChatTarget,
+  body: Record<string, unknown>,
+  firstWordsMs: number,
+): StreamRun {
+  const ctrl = new AbortController();
+  const firstTimer = setTimeout(() => ctrl.abort(), firstWordsMs);
+  // Hard stop for a stream that stalls halfway.
+  const capTimer = setTimeout(() => ctrl.abort(), 120_000);
+  const sink: { fn: ((d: string) => void) | null } = { fn: null };
+  const buffered: string[] = [];
+  let text = "";
+  let markFirst!: (v: boolean) => void;
+  const first = new Promise<boolean>((resolve) => (markFirst = resolve));
+  const done = (async () => {
+    let status = 0;
+    try {
+      const res = await fetch(target.url, {
+        method: "POST",
+        headers: target.headers,
+        body: JSON.stringify({
+          ...(target.free ? freeBody(body) : body),
+          model: target.model,
+          stream: true,
+        }),
+        signal: ctrl.signal,
+      });
+      status = res.status;
+      if (!res.ok || !res.body) return { text: "", status };
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done: end } = await reader.read();
+        if (end) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let delta = "";
+          try {
+            const j = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+            delta = j.choices?.[0]?.delta?.content ?? "";
+          } catch {
+            continue;
+          }
+          if (!delta) continue;
+          if (!text) {
+            clearTimeout(firstTimer);
+            markFirst(true);
+          }
+          text += delta;
+          if (sink.fn) sink.fn(delta);
+          else buffered.push(delta);
+        }
+      }
+      return { text, status };
+    } catch {
+      return { text, status };
+    } finally {
+      clearTimeout(firstTimer);
+      clearTimeout(capTimer);
+      markFirst(!!text);
+    }
+  })();
+  return {
+    provider: target.provider,
+    model: target.model,
+    first,
+    done,
+    attach: (fn) => {
+      for (const d of buffered) fn(d);
+      buffered.length = 0;
+      sink.fn = fn;
+    },
+    abort: () => ctrl.abort(),
+  };
+}
+
+/**
+ * Same routing as fetchAiChat, but streams the reply: `onDelta` gets each new
+ * piece of text as it's written. Falls over to the next model only before the
+ * first words arrive. Returns the full text.
+ */
+export async function streamAiChat(
+  body: Record<string, unknown>,
+  affinity: string,
+  opts: AiChatOpts,
+  onDelta: (delta: string) => void,
+): Promise<{ text: string; provider: AiChatTarget["provider"] }> {
+  ({ body, opts } = cleanForTvHelp(body, opts));
+  const { free, paid, pro } = await chatPlan(body, affinity, opts);
+  const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
+  const targets = pro ? [...paid, ...free] : [...free, ...paid];
+  const waitFor = (t: AiChatTarget) => (t.free ? freeTimeout : 45_000);
+  let lastStatus = 0;
+
+  const finish = async (run: StreamRun) => {
+    run.attach(onDelta);
+    const { text } = await run.done;
+    logAiUsage({ feature: "chat", provider: run.provider, model: run.model });
+    return { text, provider: run.provider };
+  };
+
+  for (let i = 0; i < targets.length; i += 1) {
+    const target = targets[i];
+    const run = openStream(target, body, waitFor(target));
+    // Foul Mouth: a slow swearing model gets Gemini running alongside it.
+    const hedgeTarget =
+      opts.foulMouth && target.free && !pro ? targets.slice(i + 1).find((t) => !t.free) : undefined;
+    if (hedgeTarget) {
+      const hedge = await Promise.race([
+        run.first.then((ok) => (ok ? "primary" : "primary-failed")),
+        new Promise<"hedge">((resolve) => setTimeout(() => resolve("hedge"), aiTiming.foulHedgeMs)),
+      ]);
+      if (hedge === "primary") return finish(run);
+      if (hedge === "hedge") {
+        const backup = openStream(hedgeTarget, body, waitFor(hedgeTarget));
+        const winner = await Promise.any([
+          run.first.then((ok) => (ok ? run : Promise.reject())),
+          backup.first.then((ok) => (ok ? backup : Promise.reject())),
+        ]).catch(() => null);
+        if (winner) {
+          (winner === run ? backup : run).abort();
+          return finish(winner);
+        }
+        lastStatus = (await backup.done).status || lastStatus;
+        // Both failed: carry on with whatever is left after the backup.
+        const rest = targets.filter((t, j) => j > i && t !== hedgeTarget);
+        targets.splice(i + 1, targets.length, ...rest);
+        continue;
+      }
+    } else if (await run.first) {
+      return finish(run);
+    }
+    const { status } = await run.done;
+    lastStatus = status || lastStatus;
+    console.warn(`AI stream ${target.provider}/${target.model} failed (${status}), falling back`);
+    if (status === 429) {
+      for (let j = i + 1; j < targets.length; j += 1) {
+        if (targets[j].provider === target.provider && targets[j].free) targets.splice(j--, 1);
+      }
+    }
+  }
+  if (lastStatus === 429 || lastStatus === 402)
+    throw new Error("OG B0T is rate-limited, try again soon.");
   throw new Error("All AI providers are busy — try again in a moment.");
 }
 
 export function needsLiveResearch(text: string): boolean {
-  return /(?:^\s*(?:\/research|research:)|\b(?:search the web|look (?:it|this|that) up|latest|today'?s|current news|breaking news|live score|current price|right now)\b)/i.test(
-    text,
+  // Clear asks for fresh facts on their own...
+  if (
+    /(?:^\s*(?:\/research|research:)|\b(?:search the web|google (?:it|this|that)|look (?:it|this|that) up|latest|current news|breaking news|live scores?|final score|who won|who scored|current price|right now)\b)/i.test(
+      text,
+    )
+  )
+    return true;
+  // ...or a time word next to something that changes day to day. Plain
+  // "how are you today" stays offline, so the paid search isn't wasted.
+  return (
+    /\b(?:today|tonight|yesterday|this (?:week|weekend|morning|season))'?s?\b/i.test(text) &&
+    /\b(?:match|game|fixture|score|result|won|win|beat|lost|lose|draw|news|price|weather|race|fight|election|transfer|happened|kick[- ]?off|odds)\w*\b/i.test(
+      text,
+    )
   );
 }
 
+const SEARCH_TIMEOUT_MS = 8_000;
+
+type GroundedReply = {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+    groundingMetadata?: { groundingChunks?: { web?: { uri?: string; title?: string } }[] };
+  }[];
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+};
+
+/**
+ * Live facts for OG Bot: Gemini answers with Google Search grounding turned on
+ * and we hand its summary (plus the sites it read) to the chat model. Uses the
+ * Boss's existing Gemini key. Returns null on any failure so chat carries on.
+ */
 export async function getLiveResearchContext(query: string): Promise<string | null> {
-  const key = process.env.PERPLEXITY_API_KEY;
+  const key = readKey("PAID_GEMINI_F196");
   if (!key) return null;
   const cleaned = query
     .replace(/^\s*(?:\/research|research:)\s*/i, "")
     .trim()
     .slice(0, 500);
   if (!cleaned) return null;
-  const response = await fetch("https://api.perplexity.ai/search", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: cleaned, max_results: 5 }),
+  const model = process.env.GEMINI_SEARCH_MODEL || process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const today = new Date().toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
-  if (!response.ok) {
-    console.warn("Perplexity search failed", response.status);
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Today is ${today} (UK time). Search the web and give concise factual bullet points (scores, prices, dates, names) for: ${cleaned}`,
+                },
+              ],
+            },
+          ],
+          tools: [{ googleSearch: {} }],
+          generationConfig: { temperature: 0 },
+        }),
+        signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      },
+    );
+  } catch (e) {
+    console.warn("Live search failed", (e as Error).message);
     return null;
   }
-  const json = (await response.json().catch(() => ({}))) as {
-    results?: { title?: string; url?: string; snippet?: string; date?: string }[];
-  };
-  const results = json.results ?? [];
-  if (!results.length) return null;
-  return results
-    .map(
-      (item, index) =>
-        `${index + 1}. ${item.title ?? "Source"}${item.date ? ` (${item.date})` : ""}\n${item.snippet ?? ""}\n${item.url ?? ""}`,
-    )
-    .join("\n\n");
+  if (!res.ok) {
+    console.warn("Live search failed", res.status);
+    return null;
+  }
+  const json = (await res.json().catch(() => ({}))) as GroundedReply;
+  logAiUsage({
+    feature: "live_search",
+    provider: "gemini",
+    model,
+    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+    completionTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+  });
+  const cand = json.candidates?.[0];
+  const summary = (cand?.content?.parts ?? [])
+    .map((p) => p?.text ?? "")
+    .join("")
+    .trim();
+  if (!summary) return null;
+  const seen = new Set<string>();
+  const sources = (cand?.groundingMetadata?.groundingChunks ?? [])
+    .map((c) => c.web?.title?.trim())
+    .filter((t): t is string => !!t && !seen.has(t) && !!seen.add(t))
+    .slice(0, 5);
+  return sources.length ? `${summary}\n\nSources: ${sources.join(", ")}` : summary;
+}
+
+/**
+ * Wraps the user's question with live facts. OG Bot keeps its full persona
+ * (same voice, slang and Foul Mouth setting); only the facts are pinned down.
+ */
+export function liveFactsMessage(research: string, question: string): string {
+  return `CURRENT WEB SOURCES (live Google search, ${new Date().toISOString().slice(0, 10)}):
+${research}
+
+USER QUESTION:
+${question}
+
+Answer in your normal OG B0T voice: same persona, slang and attitude as always (have a laugh at the losing team or the coin that dumped). Use only the relevant facts above and keep every score, price, date and name exactly as given. Mention a source by name if it helps. If the sources don't answer the question, say so instead of guessing.`;
 }
 
 /** Transcribe audio bytes with the Boss's own Gemini key. */
 export async function transcribeWithGemini(audioBase64: string, mime: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Speech-to-text not configured (GEMINI_API_KEY missing)");
+  const key = readKey("PAID_GEMINI_F196");
+  if (!key) throw new Error("Speech-to-text not configured (PAID_GEMINI_F196 missing)");
   const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(

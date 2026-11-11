@@ -1,17 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
 async function sendTg(chatId: number, text: string) {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const tgKey = process.env.TELEGRAM_API_KEY;
-  if (!lovableKey || !tgKey) return;
-  await fetch(`${GATEWAY_URL}/sendMessage`, {
+  if (!connectorReady("telegram")) return;
+  await connectorFetch(`${GATEWAY_URL}/sendMessage`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": tgKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

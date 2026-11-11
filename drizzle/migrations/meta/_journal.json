@@ -134,6 +134,188 @@
       "when": 1791845711959,
       "tag": "0018_vip_username_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792097762752,
+      "tag": "0019_prepay_track_upfront",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792196937581,
+      "tag": "0020_guest_battle_reward_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792279184467,
+      "tag": "0021_trade_hold_catchphrases",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792279209689,
+      "tag": "0022_nasheed_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792374861439,
+      "tag": "0023_og_memories",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792629678256,
+      "tag": "0024_perf_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792807155323,
+      "tag": "0025_trade_signals",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792855323883,
+      "tag": "0026_telegram_screen_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792858002719,
+      "tag": "0027_carrom_guest_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792858017566,
+      "tag": "0028_telegram_screen_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792869474718,
+      "tag": "0029_telegram_screen_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792869490332,
+      "tag": "0030_telegram_screen_signal",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792900786851,
+      "tag": "0031_telegram_group_lines",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792902657829,
+      "tag": "0032_telegram_connect",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792921583196,
+      "tag": "0033_telegram_group_lines_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792942546942,
+      "tag": "0034_signal_broadcasts",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793073359135,
+      "tag": "0035_telegram_managed_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793073400214,
+      "tag": "0036_telegram_website_workers",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793073474451,
+      "tag": "0037_atomic_telegram_worker_assignment",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793099990566,
+      "tag": "0038_signal_results",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793099999770,
+      "tag": "0039_signal_chat_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793242229121,
+      "tag": "0040_mt5_autotrade",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793316899961,
+      "tag": "0041_welcome_bonus_20",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793333397287,
+      "tag": "0042_signal_learn_samples",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793371531033,
+      "tag": "0043_signal_shadows",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793398290867,
+      "tag": "0044_og_bonds",
+      "breakpoints": true
     }
   ]
 }

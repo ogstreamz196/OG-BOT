@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Capacitor } from "@capacitor/core";
-import { CoinStore } from "./buy-coins.index";
+import { CoinStore } from "@/components/store/CoinStore";
 import { Paywall } from "@/components/revenuecat/Paywall";
 
 export const Route = createFileRoute("/_authenticated/store")({
@@ -11,17 +11,17 @@ export const Route = createFileRoute("/_authenticated/store")({
   component: StorePage,
   head: () => ({
     meta: [
-      { title: "OG Store — Coins, VIP & Loot" },
+      { title: "OG Store — Coins, VIP & Loot | AI Songs & Diss Tracks" },
       {
         name: "description",
         content:
-          "Shop limited items, buy OG Coins, unlock VIP perks, and review purchases in the OG BOT Store.",
+          "Shop limited items, buy OG Coins, unlock VIP perks, and review purchases in the OG B0T Store.",
       },
-      { property: "og:title", content: "OG Store — Items, Coins & VIP" },
+      { property: "og:title", content: "OG Store — Coins, VIP & Loot | AI Songs & Diss Tracks" },
       {
         property: "og:description",
         content:
-          "Shop limited items, buy OG Coins, unlock VIP perks, and review purchases in the OG BOT Store.",
+          "Shop limited items, buy OG Coins, unlock VIP perks, and review purchases in the OG B0T Store.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -31,22 +31,13 @@ export const Route = createFileRoute("/_authenticated/store")({
 
 function StorePage() {
   const search = Route.useSearch();
-  // The phone app must offer subscriptions through Google Play billing, so the
-  // RevenueCat paywall is shown at the top of the Store there. The website keeps
-  // its own card checkout untouched.
+  // The phone app must offer subscriptions through Google Play / App Store
+  // billing, so the RevenueCat paywall replaces the card plans inside the VIP
+  // section there. The website keeps its own card checkout untouched.
   const [native, setNative] = useState(false);
   useEffect(() => {
     setNative(Capacitor.isNativePlatform());
   }, []);
 
-  return (
-    <>
-      {native && (
-        <div className="px-4 pt-4 sm:px-6">
-          <Paywall />
-        </div>
-      )}
-      <CoinStore editMode={search.edit} />
-    </>
-  );
+  return <CoinStore editMode={search.edit} nativePaywall={native ? <Paywall /> : undefined} />;
 }

@@ -103,7 +103,7 @@ export function BindReferrerCard() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-emerald-300">
               Locked to your OG Leader
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider">
                 Permanent
               </span>
             </div>
@@ -114,7 +114,7 @@ export function BindReferrerCard() {
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {code && (
                 <div className="rounded-lg border border-white/10 bg-background/60 p-2.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     OG Leader code
                   </div>
                   <div className="mt-0.5 font-mono text-sm">{code}</div>
@@ -122,7 +122,7 @@ export function BindReferrerCard() {
               )}
               {mineQ.data.bound_at && (
                 <div className="rounded-lg border border-white/10 bg-background/60 p-2.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Bound on
                   </div>
                   <div className="mt-0.5 text-sm">{formatBound(mineQ.data.bound_at)}</div>
@@ -131,14 +131,14 @@ export function BindReferrerCard() {
               {id && (
                 <div className="rounded-lg border border-white/10 bg-background/60 p-2.5 sm:col-span-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Leader ID
                     </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-6 gap-1 px-1.5 text-[10px]"
+                      className="h-6 gap-1 px-1.5 text-[0.7rem]"
                       onClick={() => {
                         navigator.clipboard?.writeText(id);
                         toast.success("Leader ID copied");

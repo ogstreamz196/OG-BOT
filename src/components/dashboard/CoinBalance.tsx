@@ -71,7 +71,7 @@ export function CoinBalance({ className }: { className?: string }) {
         <span className="sm:hidden">{compact}</span>
         <span className="hidden sm:inline">{full}</span>
       </span>
-      <span className="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-coin/80 sm:inline">
+      <span className="hidden text-[0.7rem] font-bold uppercase tracking-[0.14em] text-coin/80 sm:inline">
         OG&nbsp;coins
       </span>
       <span

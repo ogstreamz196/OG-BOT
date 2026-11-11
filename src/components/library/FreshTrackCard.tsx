@@ -1,17 +1,15 @@
-import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
-import { useServerFn } from "@tanstack/react-start";
+import { useUserSongsRealtime } from "@/hooks/user-songs-realtime";
+import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Download, Loader2, Lock, Pause, Play, Share2, Sparkles } from "lucide-react";
+import { Download, Loader2, Pause, Play, Share2, Sparkles } from "lucide-react";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { requestFullTrackPlay } from "@/lib/full-track-autoplay";
+import { claimAudio } from "@/lib/audio-focus";
 import { downloadFile } from "@/lib/download-file";
 import { shareTrack } from "@/lib/share-track";
 import { Button } from "@/components/ui/button";
-import { UnlockConfirmDialog } from "@/components/library/UnlockConfirmDialog";
-import { cn } from "@/lib/utils";
 import type { Song } from "@/components/SongCard";
 
 function fmt(seconds: number) {
@@ -21,47 +19,41 @@ function fmt(seconds: number) {
 }
 
 /**
- * The last step of the creation flow: the freshly finished sample plays
- * automatically, and unlocking the full track happens right here — no detour
- * to another page.
+ * The last step of the creation flow. Every track is paid for before it cooks,
+ * so the finished master plays straight away and downloads in one tap.
  */
 export function FreshTrackCard({
   song,
   sampleSeconds,
-  unlockCost,
-  balance,
   onDismiss,
-  autoUnlockPrompt,
 }: {
   song: Song;
   sampleSeconds: number;
-  unlockCost: number;
-  balance: number;
   onDismiss: () => void;
-  /** Open the unlock sheet as soon as the card appears (from the toast CTA). */
-  autoUnlockPrompt?: boolean;
 }) {
-  const qc = useQueryClient();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [unlockOpen, setUnlockOpen] = useState(!!autoUnlockPrompt);
-  useEffect(() => {
-    if (autoUnlockPrompt) setUnlockOpen(true);
-  }, [autoUnlockPrompt]);
   const [busy, setBusy] = useState(false);
   const propUnlocked = !!(song as { unlocked?: boolean | null }).unlocked;
   const [unlocked, setUnlocked] = useState(propUnlocked);
   useEffect(() => {
     if (propUnlocked) setUnlocked(true);
   }, [propUnlocked]);
-  // The card may hold a stale snapshot — re-check paid status from the database
-  // on mount, on window focus, and every few seconds until unlocked.
+  // The card may hold a stale snapshot: the member's songs feed flips it the
+  // moment the track is paid for; as a fallback re-check on mount, on window
+  // focus, and every 15s while visible until unlocked.
+  const { user } = useAuth();
+  useUserSongsRealtime(unlocked ? null : user?.id, (change) => {
+    const row = change.new as { id?: string; unlocked?: boolean | null } | undefined;
+    if (row?.id === song.id && row.unlocked) setUnlocked(true);
+  });
   useEffect(() => {
     if (unlocked) return;
     let cancelled = false;
     const check = async () => {
+      if (document.visibilityState === "hidden") return;
       const [{ data: s }, { data: u }] = await Promise.all([
         supabase.from("songs").select("unlocked").eq("id", song.id).maybeSingle(),
         supabase.from("unlocked_songs").select("id").eq("song_id", song.id).limit(1),
@@ -69,7 +61,7 @@ export function FreshTrackCard({
       if (!cancelled && (s?.unlocked || (u && u.length > 0))) setUnlocked(true);
     };
     void check();
-    const t = setInterval(check, 5000);
+    const t = setInterval(check, 15_000);
     window.addEventListener("focus", check);
     return () => {
       cancelled = true;
@@ -80,7 +72,10 @@ export function FreshTrackCard({
   const title = song.title || "Your track";
   // Never offer a download until the finished master exists.
   const fullReady = song.status === "completed" && !!song.audio_path;
-  const cap = Math.max(5, sampleSeconds);
+  // Paid tracks (upfront coins or card) play the full master, uncapped.
+  const playFull = unlocked && fullReady;
+  const [duration, setDuration] = useState(0);
+  const cap = playFull ? duration || Infinity : Math.max(5, sampleSeconds);
 
   // Fetch the preview URL and start playing straight away.
   useEffect(() => {
@@ -88,7 +83,7 @@ export function FreshTrackCard({
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("song-url", {
-          body: { song_id: song.id, mode: "preview" },
+          body: { song_id: song.id, mode: playFull ? "full" : "preview" },
         });
         if (error) throw error;
         if (cancelled) return;
@@ -97,6 +92,7 @@ export function FreshTrackCard({
         el.src = data.url as string;
         el.load();
         try {
+          claimAudio(el);
           await el.play();
           setPlaying(true);
         } catch {
@@ -112,7 +108,7 @@ export function FreshTrackCard({
       cancelled = true;
       audioRef.current?.pause();
     };
-  }, [song.id]);
+  }, [song.id, playFull]);
 
   // Keep the preview capped to the configured sample length.
   useEffect(() => {
@@ -120,7 +116,7 @@ export function FreshTrackCard({
     if (!el) return;
     const onTime = () => {
       setProgress(el.currentTime);
-      if (el.currentTime >= cap) {
+      if (!playFull && el.currentTime >= cap) {
         el.pause();
         el.currentTime = 0;
         setPlaying(false);
@@ -137,33 +133,22 @@ export function FreshTrackCard({
       el.pause();
       setPlaying(false);
     } else {
+      claimAudio(el);
       await el.play().catch(() => {});
       setPlaying(true);
     }
   }
 
-  const buyOwnerTrack = useServerFn(purchaseOwnerTrack);
-  async function confirmUnlock() {
+  async function downloadNow() {
     setBusy(true);
     try {
-      const unlockData = await buyOwnerTrack({ data: { songId: song.id } });
-      setUnlocked(true);
-      audioRef.current?.pause();
-      requestFullTrackPlay(song.id);
-      await qc.invalidateQueries({ queryKey: ["profile"] });
-      await qc.invalidateQueries({ queryKey: ["library"] });
-      if (!unlockData?.already) {
-        toast.success(`Full track unlocked + Take 2 free · -${unlockData?.cost ?? unlockCost} coins`);
-      }
       const { data, error } = await supabase.functions.invoke("song-url", {
         body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
       });
-      if (error) throw new Error(error.message || "Download failed");
-      const blob = await downloadFile(data.url as string, `${title}.mp3`);
-      setUnlockOpen(false);
-      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
+      if (error || !data?.url) throw new Error("Download failed");
+      await downloadFile(data.url as string, `${title}.mp3`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Unlock failed");
+      toast.error(e instanceof Error ? e.message : "Download failed");
     } finally {
       setBusy(false);
     }
@@ -173,12 +158,7 @@ export function FreshTrackCard({
   async function shareNow() {
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("song-url", {
-        body: { song_id: song.id, mode: "full", purpose: "download", filename: `${title}.mp3` },
-      });
-      if (error || !data?.url) throw new Error("Could not prepare the track");
-      const blob = await downloadFile(data.url as string, `${title}.mp3`);
-      await shareTrack({ title, blob, filename: `${title}.mp3`, songId: song.id });
+      await shareTrack({ title, songId: song.id });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Share failed");
     } finally {
@@ -186,7 +166,7 @@ export function FreshTrackCard({
     }
   }
 
-  const pct = Math.min(100, (progress / cap) * 100);
+  const pct = Number.isFinite(cap) && cap > 0 ? Math.min(100, (progress / cap) * 100) : 0;
 
   return (
     <section
@@ -195,7 +175,7 @@ export function FreshTrackCard({
     >
       {/* Status strip */}
       <div className="flex items-center justify-between gap-3 border-b border-emerald-400/20 bg-emerald-500/10 px-4 py-2">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">
+        <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
           <span className="grid h-2 w-2 place-items-center rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(16,185,129,0.8)]" />
           Track completed
         </span>
@@ -204,7 +184,7 @@ export function FreshTrackCard({
           size="sm"
           variant="ghost"
           onClick={onDismiss}
-          className="-mr-2 h-7 px-2 text-[11px] font-bold uppercase tracking-wider"
+          className="-mr-2 h-7 px-2 text-xs font-bold uppercase tracking-wider"
         >
           Hide
         </Button>
@@ -241,8 +221,8 @@ export function FreshTrackCard({
             <h3 className="truncate font-display text-xl font-black leading-tight sm:text-2xl">
               {title}
             </h3>
-            <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300/90">
-              {unlocked ? "Full version unlocked" : `${sampleSeconds}s free preview`}
+            <p className="mt-0.5 truncate text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300/90">
+              {playFull ? "Full Master Ready" : "Finalising audio…"}
             </p>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
               <div
@@ -250,8 +230,8 @@ export function FreshTrackCard({
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
-              {fmt(progress)} / {fmt(cap)}
+            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+              {fmt(progress)} / {Number.isFinite(cap) ? fmt(cap) : "--:--"}
             </p>
           </div>
         </div>
@@ -260,39 +240,33 @@ export function FreshTrackCard({
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
             type="button"
-            onClick={() => setUnlockOpen(true)}
-            disabled={busy || (unlocked && !fullReady)}
+            onClick={downloadNow}
+            disabled={busy || !playFull}
             className="min-h-12 w-full gap-2 rounded-2xl bg-gradient-brand font-black uppercase tracking-[0.12em] text-primary-foreground shadow-glow sm:col-span-2"
           >
-            {busy || (unlocked && !fullReady) ? (
+            {busy || !playFull ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : unlocked ? (
-              <Download className="h-4 w-4" />
             ) : (
-              <Lock className="h-4 w-4" />
+              <Download className="h-4 w-4" />
             )}
-            {unlocked
-              ? fullReady
-                ? "Download full track"
-                : "Download pending…"
-              : `Unlock full version · ${unlockCost} coins`}
+            {playFull ? "Download full track" : "Finalising audio…"}
           </Button>
-          {unlocked && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={shareNow}
-              disabled={busy}
-              className="min-h-12 w-full gap-2 rounded-2xl border-emerald-400/40 bg-emerald-500/10 font-bold text-emerald-200"
-            >
-              <Share2 className="h-4 w-4" /> Share track
-            </Button>
-          )}
-          <Link
-            to="/library/$songId"
-            params={{ songId: song.id }}
-            className={cn("w-full", !unlocked && "sm:col-span-2")}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={shareNow}
+            disabled={busy || !playFull}
+            className="min-h-12 w-full gap-2 rounded-2xl border-emerald-400/40 bg-emerald-500/10 font-bold text-emerald-200"
           >
+            <Share2 className="h-4 w-4" /> Share track
+          </Button>
+          <SendToTelegramButton
+            songId={song.id}
+            title={title}
+            disabled={busy || !playFull}
+            className="min-h-12 w-full rounded-2xl"
+          />
+          <Link to="/library/$songId" params={{ songId: song.id }} className="w-full">
             <Button
               type="button"
               variant="outline"
@@ -310,20 +284,8 @@ export function FreshTrackCard({
         onEnded={() => setPlaying(false)}
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
         className="hidden"
-      />
-
-      <UnlockConfirmDialog
-        open={unlockOpen}
-        onOpenChange={setUnlockOpen}
-        onConfirm={confirmUnlock}
-        busy={busy}
-        cost={unlockCost}
-        royalty={0}
-        balance={balance}
-        songTitle={title}
-        songId={song.id}
-        includesSecondTake
       />
     </section>
   );

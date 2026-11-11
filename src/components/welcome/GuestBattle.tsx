@@ -1,17 +1,34 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Loader2, Send, Swords, Users } from "lucide-react";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Eraser, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  getGuestBattleExtras,
   listGuestBattleMessages,
   postGuestBattleMessage,
 } from "@/lib/community.functions";
+import {
+  ArenaComposer,
+  ArenaEmpty,
+  ArenaFrame,
+  ArenaHeader,
+  ArenaMessage,
+  ArenaRanks,
+  ArenaRoastOfDay,
+  ArenaTyping,
+  heatTier,
+} from "@/components/battle/Arena";
 
 const GUEST_KEY = "og-guest-id";
+const CLEARED_KEY = "og-guest-cleared-at";
+const HIDDEN_KEY = "og-bz-hidden";
 
 function useGuestId() {
   const [id, setId] = useState<string | null>(null);
@@ -30,28 +47,84 @@ function useGuestId() {
   return id;
 }
 
-/** Guest Battle Zone: 5 roasts before sign-up, history only from their first line. */
+function readLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* private mode */
+  }
+}
+
+/**
+ * Guest Battle Zone: the same room members get (purse, ranks, bank, roast of
+ * the day, clear my history), minus the Go Private toggle. Guests get 5
+ * roasts before sign-up, see history only from their first line, and their
+ * winnings follow them into their new account.
+ */
 export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
   const guestId = useGuestId();
   const qc = useQueryClient();
   const listFn = useServerFn(listGuestBattleMessages);
   const postFn = useServerFn(postGuestBattleMessage);
+  const extrasFn = useServerFn(getGuestBattleExtras);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showBoard, setShowBoard] = useState(false);
+  const [lastEarned, setLastEarned] = useState<number | null>(null);
+  const [coinBurst, setCoinBurst] = useState(0);
+  const [clearedAt, setClearedAt] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [showRoast, setShowRoast] = useState(true);
   const scroller = useRef<HTMLDivElement | null>(null);
 
-  const { data } = useQuery({
+  useEffect(() => {
+    setClearedAt(readLocal(CLEARED_KEY));
+    try {
+      const raw = readLocal(HIDDEN_KEY);
+      if (raw) setHiddenIds(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const { data, isLoading } = useQuery({
     queryKey: ["guest-battle", guestId],
     queryFn: () => listFn({ data: { guestId: guestId! } }),
     enabled: !!guestId,
     refetchInterval: 8000,
   });
-  const remaining = data?.remaining ?? 1;
-  const messages = data?.messages ?? [];
+  const { data: extras, isLoading: extrasLoading } = useQuery({
+    queryKey: ["guest-battle-extras"],
+    queryFn: () => extrasFn(),
+    staleTime: 60_000,
+  });
 
+  const remaining = data?.remaining ?? 1;
+  const myName = data?.myName ?? "";
+  const pendingCoins = ((data?.pendingTenths ?? 0) / 10).toFixed(2);
+  const messages = useMemo(
+    () =>
+      (data?.messages ?? []).filter(
+        (m) => !hiddenIds.has(m.id) && (!clearedAt || m.created_at > clearedAt),
+      ),
+    [data?.messages, hiddenIds, clearedAt],
+  );
+
+  // Follow new lines only while the guest is at the bottom (or just sent one),
+  // so scrolling up to read older roasts isn't yanked back down.
+  const atBottom = useRef(true);
   useEffect(() => {
+    if (!atBottom.current && !sending) return;
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
-  }, [messages.length]);
+  }, [messages.length, sending]);
 
   // Automatically prompt sign-in once the guest limit is reached,
   // after a short beat so the bot's last comeback is seen.
@@ -64,16 +137,22 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!guestId || !text.trim()) return;
+    if (!guestId || !text.trim() || sending) return;
     if (remaining <= 0) return onNeedAccount();
     setSending(true);
     try {
       const res = await postFn({ data: { guestId, content: text.trim() } });
       if (!res.ok) {
         if (res.reason === "limit") onNeedAccount();
-        else toast("OG Bot's swamped — try again in a minute.");
+        else toast("OG B0T's swamped — try again in a minute.");
       } else {
         setText("");
+        const earned = res.award?.earnedTenths ?? 0;
+        if (earned > 0) {
+          setLastEarned(earned);
+          setCoinBurst((k) => k + 1);
+          window.setTimeout(() => setLastEarned(null), 2500);
+        }
         if (res.remaining === 0) setTimeout(onNeedAccount, 2500);
       }
       await qc.invalidateQueries({ queryKey: ["guest-battle", guestId] });
@@ -84,106 +163,157 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
     }
   }
 
+  function bank() {
+    if ((data?.pendingTenths ?? 0) > 0) {
+      toast(`Join free to bank your ${pendingCoins} OG`, {
+        description: "Your winnings and your chat come with you.",
+      });
+    } else {
+      toast("Nothing to bank yet", { description: "Land harder disses to build up a reward." });
+    }
+    onNeedAccount();
+  }
+
+  function clearMine() {
+    if (
+      !window.confirm(
+        "Clear your Battle Zone history? Only your view is cleared — nobody else is affected.",
+      )
+    ) {
+      return;
+    }
+    const now = new Date().toISOString();
+    writeLocal(CLEARED_KEY, now);
+    setClearedAt(now);
+    toast.success("Your chat history is cleared — only for you.");
+  }
+
+  function hideMsg(id: string) {
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      writeLocal(HIDDEN_KEY, JSON.stringify([...next].slice(-500)));
+      return next;
+    });
+    toast.success("Message hidden from your view.");
+  }
+
+  const roast = extras?.roast ?? null;
+  const rows = extras?.rows ?? [];
+
   return (
-    <section id="battle" className="flex h-[min(80dvh,44rem)] min-h-0 flex-col gap-1.5 font-sans">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5 pr-9">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Swords className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-          <span className="truncate text-xs font-black uppercase sm:text-sm">OG Battle Zone</span>
-        </div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] font-black uppercase text-destructive">
-          🤬 Foul mouth · Live
-        </span>
-      </div>
+    <section
+      id="battle"
+      className="flex h-[min(86dvh,46rem)] min-h-0 flex-col overflow-hidden rounded-xl font-sans"
+    >
+      {/* Same arena as the members' Battle Zone, without the Go Private toggle. */}
+      <ArenaFrame>
+        <ArenaHeader
+          className="pr-10"
+          subtitle={myName ? `Live battle · you're ${myName}` : "Live battle · everyone can see"}
+          thinking={sending}
+          purse={`${pendingCoins} OG`}
+          earned={lastEarned}
+          coinBurstKey={coinBurst}
+          ranksOpen={showBoard}
+          onToggleRanks={() => setShowBoard((v) => !v)}
+          onBank={bank}
+          menu={
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="Battle options" className="ar-icon-btn">
+                <MoreVertical className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {roast ? (
+                  <DropdownMenuItem onSelect={() => setShowRoast((v) => !v)}>
+                    {showRoast ? "Hide cuss of the day" : "Show cuss of the day"}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onSelect={clearMine}>
+                  <Eraser className="mr-2 h-4 w-4" /> Clear my history (only for me)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
+        />
+        {roast && showRoast ? (
+          <ArenaRoastOfDay name={roast.displayName} content={roast.content} />
+        ) : null}
+        {showBoard ? <ArenaRanks loading={extrasLoading} rows={rows} /> : null}
 
-      <div
-        ref={scroller}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl border border-border/40 bg-background/75 p-1.5 backdrop-blur-md sm:p-2.5"
-      >
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
-            <Users className="h-8 w-8 opacity-50" />
-            <p className="text-sm">Be the first to throw a bar at OG Bot.</p>
-          </div>
-        ) : (
-          messages.map((m) => {
-            const isBot = m.role === "bot";
-            const mine = m.mine;
-            return (
-              <div key={m.id} className={`flex items-end gap-1.5 py-1 ${mine ? "flex-row-reverse" : "flex-row"}`}>
-                <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full text-[8px] font-bold uppercase ${
-                    isBot ? "bg-primary/20 ring-1 ring-primary/40" : mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-                  }`}
-                >
-                  {isBot ? (
-                    <img src={ogBotAsset.url} alt="OG Bot" className="h-full w-full object-cover" />
-                  ) : (
-                    initials(mine ? "You" : m.display_name)
-                  )}
-                </span>
-                <div
-                  className={`min-w-0 max-w-[82%] rounded-xl px-2.5 py-1.5 text-[13px] leading-[1.35] shadow-sm ${
-                    isBot ? "border border-primary/30 bg-primary/10 text-foreground" : mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-                  }`}
-                >
-                  <p className={`mb-0.5 text-[8px] font-bold uppercase ${mine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                    {isBot ? "OG Bot" : mine ? "You" : m.display_name || "OG member"}
-                    {m.created_at ? ` · ${time(m.created_at)}` : ""}
-                  </p>
-                  <p className="whitespace-pre-wrap break-words leading-snug">{m.content}</p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {sending && (
-        <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" /> OG Bot is cooking a comeback…
-        </div>
-      )}
-
-      {remaining > 0 ? (
-        <form
-          onSubmit={submit}
-          className="flex items-end gap-2 rounded-xl border border-border/60 bg-card/95 p-2 shadow-lg backdrop-blur-md"
+        <div
+          ref={scroller}
+          className="ar-feed"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+          }}
         >
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void submit(e as unknown as FormEvent);
-              }
-            }}
-            maxLength={400}
-            rows={2}
-            placeholder="Roast OG Bot…"
-            disabled={sending || !guestId}
-            className="min-h-14 max-h-36 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-5 shadow-none focus-visible:ring-0"
-          />
-          <Button type="submit" disabled={sending || !text.trim()} className="mb-1 h-11 w-11 shrink-0 rounded-xl p-0">
-            <Send className="h-5 w-5" />
-            <span className="sr-only">Send</span>
-          </Button>
-        </form>
-      ) : (
-        <div className="rounded-xl border border-border/60 bg-card p-3 text-center">
-          <p className="text-sm font-semibold">Join free to keep battling — your chat comes with you.</p>
-          <Button className="mt-2 h-11 w-full" onClick={onNeedAccount}>
-            🔥 Join to continue
-          </Button>
+          {isLoading || !guestId || messages.length === 0 ? (
+            <ArenaEmpty loading={isLoading || !guestId} />
+          ) : (
+            messages.map((m, i) => {
+              const isBot = m.role === "bot";
+              const prev = messages[i - 1];
+              return (
+                <ArenaMessage
+                  key={m.id}
+                  kind={isBot ? "bot" : "user"}
+                  mine={m.mine}
+                  name={isBot ? "OG B0T" : m.display_name || "OG member"}
+                  time={m.created_at ? time(m.created_at) : ""}
+                  content={m.content}
+                  vip={!isBot && m.vip}
+                  vipId={m.vip_id}
+                  scoreTenths={isBot && prev?.role === "user" ? prev.score_tenths : null}
+                  heat={isBot && prev?.role === "user" ? heatTier(prev.score_tenths) : null}
+                  menu={
+                    !m.mine && !isBot ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label="Message options"
+                          className="ar-bubble-menu"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onSelect={() => hideMsg(m.id)}>
+                            Hide message
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null
+                  }
+                />
+              );
+            })
+          )}
         </div>
-      )}
+
+        {sending ? <ArenaTyping label="OG B0T is cooking a comeback…" /> : null}
+
+        {remaining > 0 ? (
+          <ArenaComposer
+            value={text}
+            onChange={setText}
+            onSubmit={submit}
+            pending={sending}
+            disabled={!guestId}
+            maxLength={400}
+          />
+        ) : (
+          <div className="ar-console flex-col items-stretch text-center">
+            <p className="ar-white text-sm font-bold">
+              Join free to keep battling — your chat and your winnings come with you.
+            </p>
+            <button type="button" className="ar-vip-cta mt-2" onClick={onNeedAccount}>
+              🔥 Join to continue
+            </button>
+          </div>
+        )}
+      </ArenaFrame>
     </section>
   );
-}
-
-function initials(name?: string | null) {
-  return (name ?? "OG").trim().slice(0, 2) || "OG";
 }
 
 function time(iso: string) {

@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // accounts are protected so a stolen session can't wipe the owner.
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ confirm: z.literal("DELETE") }).parse(data))
+  .validator((data) => z.object({ confirm: z.literal("DELETE") }).parse(data))
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: roles, error: roleErr } = await supabaseAdmin

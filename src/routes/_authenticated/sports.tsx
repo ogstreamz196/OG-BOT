@@ -8,16 +8,18 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import sportsGuideLogo from "@/assets/og-bot-sports-guide.png.asset.json";
+// WebP copies of the 2.7MB sports guide logo: the locked-screen card and the icon.
+import sportsGuideLogo from "@/assets/og-bot-sports-guide-900.webp";
+import sportsGuideIcon from "@/assets/og-bot-sports-guide-160.webp";
 import { getSportsGuideHub, syncSportsGuide, type SportsGuidePost } from "@/lib/sports-guide.functions";
 import { purchaseSportsGuideAccess } from "@/lib/store.functions";
 
 export const Route = createFileRoute("/_authenticated/sports")({
   head: () => ({
     meta: [
-      { title: "Sports Guide · OG BOT" },
+      { title: "Sports Guide | OG B0T — AI Songs & Diss Tracks" },
       { name: "description", content: "Live daily fixtures, fight cards and TV listings — search any team instantly." },
-      { property: "og:title", content: "Sports Guide · OG BOT" },
+      { property: "og:title", content: "Sports Guide | OG B0T — AI Songs & Diss Tracks" },
       { property: "og:description", content: "Live daily fixtures, fight cards and TV listings from OG Sports Guide." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -130,7 +132,7 @@ function SportsGuidePage() {
       <div className="mx-auto max-w-xl space-y-5 px-4 pb-24 pt-4">
         <div className="overflow-hidden rounded-3xl border-2 border-primary/40 bg-card shadow-glow">
           <div className="relative">
-            <img src={sportsGuideLogo.url} alt="OG Sports Guide" className="aspect-[4/3] w-full object-cover" />
+            <img src={sportsGuideLogo} alt="OG Sports Guide" className="aspect-[4/3] w-full object-cover" />
             <div className="absolute inset-0 grid place-items-center bg-background/55 backdrop-blur-[2px]">
               <div className="grid h-16 w-16 place-items-center rounded-full border-2 border-primary bg-background/80">
                 <Lock className="h-8 w-8 text-primary" />
@@ -143,7 +145,7 @@ function SportsGuidePage() {
               <li>⚽ Every daily fixture, fight card & race — updated live</li>
               <li>🔎 Type any team or fighter and find their event instantly</li>
               <li>⭐ Pin your teams so they're always at the top</li>
-              <li>🔔 Telegram kick-off reminders from OG Bot</li>
+              <li>🔔 Telegram kick-off reminders from OG B0T</li>
             </ul>
             <div className="flex items-center justify-between rounded-xl border border-border bg-background/60 px-4 py-3 text-sm">
               <span className="text-muted-foreground">Your balance: {balance} coins</span>
@@ -165,7 +167,7 @@ function SportsGuidePage() {
                 Unlock Sports Guide
               </Button>
             )}
-            <p className="text-center text-[11px] text-muted-foreground">One-time unlock · yours to keep</p>
+            <p className="text-center text-xs text-muted-foreground">One-time unlock · yours to keep</p>
             <Link
               to="/buy-coins"
               className="block rounded-xl border border-coin/40 bg-coin/10 px-4 py-3 text-center text-xs font-bold text-coin"
@@ -192,9 +194,9 @@ function SportsGuidePage() {
         />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/50 to-background/90" />
         <div className="relative flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-          <img src={sportsGuideLogo.url} alt="" className="h-16 w-16 shrink-0 rounded-2xl border-2 border-coin object-cover shadow-lg sm:h-20 sm:w-20" />
+          <img src={sportsGuideIcon} alt="" className="h-16 w-16 shrink-0 rounded-2xl border-2 border-coin object-cover shadow-lg sm:h-20 sm:w-20" />
           <div className="min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-destructive-foreground shadow">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-0.5 text-[0.7rem] font-black uppercase tracking-widest text-destructive-foreground shadow">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive-foreground" /> Live
             </span>
             <h1 className="mt-1 truncate font-display text-3xl font-black uppercase italic leading-none tracking-tight drop-shadow sm:text-4xl">
@@ -264,7 +266,7 @@ function SportsGuidePage() {
                       className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-card px-3 py-2 text-left text-sm font-bold hover:bg-coin hover:text-coin-foreground"
                     >
                       <span className="truncate">{t}</span>
-                      <span className="shrink-0 text-[10px] font-black text-muted-foreground">{n}</span>
+                      <span className="shrink-0 text-[0.7rem] font-black text-muted-foreground">{n}</span>
                     </button>
                   ))}
                 </div>
@@ -307,7 +309,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border-r border-border/60 py-2">
       <div className="font-display text-lg font-black text-foreground">{value}</div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -354,25 +356,25 @@ function FixtureRow({ f, terms }: { f: Fixture; terms: string[] }) {
         {f.at ? (
           <>
             <span className="font-mono text-sm font-black text-coin">{fmtTime(f.at)}</span>
-            <span className={live ? "text-[9px] font-black uppercase text-destructive" : "text-[9px] font-bold uppercase text-muted-foreground"}>
+            <span className={live ? "text-[0.7rem] font-black uppercase text-destructive" : "text-[0.7rem] font-bold uppercase text-muted-foreground"}>
               {live ? "● Live" : fmtDay(f.at)}
             </span>
           </>
         ) : (
-          <span className="text-[10px] text-muted-foreground">TBC</span>
+          <span className="text-[0.7rem] text-muted-foreground">TBC</span>
         )}
       </div>
       <div className="min-w-0 flex-1">
         {teams ? (
           <>
             {teams.tag && (
-              <div className="truncate text-[10px] font-bold uppercase tracking-wider text-primary">
+              <div className="truncate text-[0.7rem] font-bold uppercase tracking-wider text-primary">
                 <Highlight text={teams.tag} terms={terms} />
               </div>
             )}
             <div className="text-sm font-bold leading-snug">
               <Highlight text={teams.home} terms={terms} />
-              <span className="mx-1.5 text-[10px] font-black text-muted-foreground">{teams.sep}</span>
+              <span className="mx-1.5 text-[0.7rem] font-black text-muted-foreground">{teams.sep}</span>
               <Highlight text={teams.away} terms={terms} />
             </div>
           </>
@@ -381,7 +383,7 @@ function FixtureRow({ f, terms }: { f: Fixture; terms: string[] }) {
             <Highlight text={f.event} terms={terms} />
           </div>
         )}
-        <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-coin/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-coin">
+        <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-coin/15 px-1.5 py-0.5 text-[0.7rem] font-black uppercase tracking-wide text-coin">
           <Tv className="h-3 w-3" /> <Highlight text={f.channel} terms={terms} />
         </div>
       </div>
@@ -403,7 +405,7 @@ function ListingCard({ listing: l, terms }: { listing: Listing; terms: string[] 
         <h2 className="min-w-0 flex-1 truncate font-display text-base font-black uppercase tracking-wide">
           {l.title ? <Highlight text={l.title} terms={terms} /> : "OG Sports Guide"}
         </h2>
-        <span className="shrink-0 text-[10px] font-bold uppercase text-muted-foreground">
+        <span className="shrink-0 text-[0.7rem] font-bold uppercase text-muted-foreground">
           {l.fixtures.length ? `${l.fixtures.length} ${l.fixtures.length === 1 ? "fixture" : "fixtures"}` : fmtDay(new Date(l.postedAt))}
         </span>
       </div>

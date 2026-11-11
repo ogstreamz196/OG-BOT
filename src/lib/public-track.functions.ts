@@ -6,33 +6,48 @@ export type PublicSharedTrack = {
   title: string;
   lyrics: string | null;
   audioUrl: string;
+  /** The track's cover art, when it has one. */
+  coverUrl?: string | null;
+  /** Being remade after an edit: no audio yet, the page checks back. */
+  pending?: boolean;
 };
 
 export const getPublicSharedTrack = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ songId: z.string().uuid() }).parse(data))
+  .validator((data) => z.object({ songId: z.string().uuid() }).parse(data))
   .handler(async ({ data }): Promise<PublicSharedTrack | null> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: song, error } = await supabaseAdmin
       .from("songs")
-      .select("id,title,lyrics,audio_path,status,is_public,revealed")
+      .select("id,title,lyrics,audio_path,drive_audio_id,status,is_public,revealed,cover_url")
       .eq("id", data.songId)
-      .eq("status", "completed")
       .eq("is_public", true)
       .neq("revealed", false)
       .maybeSingle();
 
-    if (error || !song?.audio_path) return null;
+    if (error || !song) return null;
+    // An edit re-makes the track in place: the link works again in a minute or two.
+    if (song.status === "pending" || song.status === "processing") {
+      return {
+        id: song.id,
+        title: song.title || "OG B0T track",
+        lyrics: null,
+        audioUrl: "",
+        pending: true,
+      };
+    }
+    if (song.status !== "completed" || !song.audio_path) return null;
 
-    const { data: signed, error: signError } = await supabaseAdmin.storage
-      .from("song-files")
-      .createSignedUrl(song.audio_path, 60 * 60);
-    if (signError || !signed?.signedUrl) return null;
+    // From the Boss's Drive when the song is kept there (song-audio.server.ts).
+    const { fullSongUrl } = await import("@/lib/song-audio.server");
+    const audioUrl = await fullSongUrl(supabaseAdmin, song, 60 * 60);
+    if (!audioUrl) return null;
 
     return {
       id: song.id,
-      title: song.title || "OG BOT track",
+      title: song.title || "OG B0T track",
       lyrics: song.lyrics,
-      audioUrl: signed.signedUrl,
+      audioUrl,
+      coverUrl: /^https:\/\//.test(song.cover_url ?? "") ? song.cover_url : null,
     };
   });
 
@@ -50,7 +65,7 @@ export const listPublicCommunityTracks = createServerFn({ method: "GET" }).handl
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: songs } = await supabaseAdmin
       .from("songs")
-      .select("id,title,style,cover_url,audio_path")
+      .select("id,title,style,cover_url,audio_path,drive_audio_id")
       .eq("status", "completed")
       .eq("is_public", true)
       .neq("revealed", false)
@@ -59,17 +74,15 @@ export const listPublicCommunityTracks = createServerFn({ method: "GET" }).handl
       .limit(30);
     const rows = (songs ?? []).filter((s) => s.audio_path);
     if (rows.length === 0) return [];
-    const { data: signed } = await supabaseAdmin.storage
-      .from("song-files")
-      .createSignedUrls(rows.map((r) => r.audio_path as string), 60 * 60);
-    const urlBy = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+    const { fullSongUrls } = await import("@/lib/song-audio.server");
+    const urlBy = await fullSongUrls(supabaseAdmin, rows, 60 * 60);
     return rows
       .map((r) => ({
         id: r.id,
-        title: r.title || "OG BOT track",
+        title: r.title || "OG B0T track",
         style: r.style,
         coverUrl: r.cover_url,
-        audioUrl: urlBy.get(r.audio_path as string) ?? "",
+        audioUrl: urlBy.get(r.id) ?? "",
       }))
       .filter((r) => r.audioUrl);
   },

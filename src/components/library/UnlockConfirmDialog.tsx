@@ -225,7 +225,7 @@ export function UnlockConfirmDialog({
                 {cardAvailable ? (
                   <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <span className="text-[0.7rem] uppercase tracking-wide text-muted-foreground">
                     Unavailable
                   </span>
                 )}

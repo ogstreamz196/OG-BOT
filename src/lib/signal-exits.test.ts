@@ -1,0 +1,253 @@
+import { describe, expect, it } from "vitest";
+import { advanceSignal, brokerLevels } from "./trade-signal-outcome";
+import { DEFAULT_TUNING } from "./trade-signal";
+import { evaluate, exitTargets, safeTuning } from "./signal-learning.server";
+import type { LearnSample } from "./trade-signal-backtest";
+
+// Learned exits: a breakeven (stop to entry once far enough in profit) and a
+// runner (a third banked at the take profit, the rest run further).
+
+const MIN = 60_000;
+const bar = (i: number, l: number, h: number) => ({
+  t: i * MIN,
+  o: (l + h) / 2,
+  h,
+  l,
+  c: (l + h) / 2,
+});
+const buy = {
+  direction: "BUY" as const,
+  entry: 100,
+  stop: 95,
+  targets: [104, 104, 104] as [number, number, number],
+  status: "open" as const,
+  expiresAt: 60 * MIN,
+};
+
+describe("breakeven", () => {
+  it("once the trigger trades, the stop sits at the entry: a pullback there is breakeven, not a loss", () => {
+    // Up to 102.5 (the trigger), then all the way down through the old stop.
+    const path = [bar(0, 99.5, 102.6), bar(1, 94, 101)];
+    expect(advanceSignal(buy, path, 2 * MIN).status).toBe("stopped");
+    const r = advanceSignal({ ...buy, beTrigger: 102.5 }, path, 2 * MIN);
+    expect(r.events.map((e) => e.kind)).toEqual(["protected", "breakeven"]);
+    expect(r.status).toBe("breakeven");
+    // Already protected (from an earlier pass): straight to breakeven.
+    expect(
+      advanceSignal({ ...buy, beTrigger: 102.5, isProtected: true }, [bar(0, 94, 101)], MIN).status,
+    ).toBe("breakeven");
+  });
+
+  it("at the broker, the stop at entry is hit on the bid like any stop", () => {
+    const at = brokerLevels({ ...buy, beTrigger: 102.5 }, 0.25);
+    expect(at).toMatchObject({ beStop: 100.25, beTrigger: 102.75, entry: 99.75 });
+  });
+});
+
+describe("profit lock (70% of the way: stop to 30% of the way)", () => {
+  it("works out the levels either way, none for a take profit on the wrong side", async () => {
+    const { profitLock } = await import("./trade-signal-outcome");
+    expect(profitLock("BUY", 100, 110)).toEqual({ trigger: 107, stop: 103 });
+    expect(profitLock("SELL", 100, 90)).toEqual({ trigger: 93, stop: 97 });
+    expect(profitLock("BUY", 100, 95)).toBeNull();
+  });
+  it("once 70% of the way, a pullback closes at the locked profit, not the old stop", () => {
+    const path = [bar(0, 99.5, 102.9), bar(1, 94, 101)];
+    const r = advanceSignal({ ...buy, beTrigger: 102.8, beStop: 101.2 }, path, 2 * MIN);
+    expect(r.events.map((e) => [e.kind, e.price])).toEqual([
+      ["protected", 102.8],
+      ["breakeven", 101.2],
+    ]);
+  });
+  it("short of 70%, the stop stays where it was", () => {
+    const path = [bar(0, 99.5, 102.5), bar(1, 94, 101)];
+    expect(advanceSignal({ ...buy, beTrigger: 102.8, beStop: 101.2 }, path, 2 * MIN).status).toBe(
+      "stopped",
+    );
+  });
+});
+
+describe("runner", () => {
+  it("a third at the take profit, the rest further on", () => {
+    expect(exitTargets(100, 104, 0)).toEqual([104, 104, 104]);
+    expect(exitTargets(100, 104, 2)).toEqual([104, 108, 108]);
+    expect(exitTargets(100, 96, 2)).toEqual([96, 92, 92]);
+  });
+});
+
+describe("learning exits", () => {
+  const sample = (path: ReturnType<typeof bar>[]): LearnSample => ({
+    t: 0,
+    direction: "BUY",
+    entry: 100,
+    entryType: "market",
+    confidencePct: 70,
+    verdict: "trade",
+    raw: { risk: 5 / 1.2, targets: [105, 110, 115], atr: 4 },
+    path,
+    expiresAt: 60 * MIN,
+  });
+  it("the profit lock: a trade 70% of the way that turns banks a bit instead of losing", () => {
+    const short = evaluate([sample([bar(0, 99.8, 102), bar(1, 94, 101)])], DEFAULT_TUNING);
+    expect(short.losses).toBe(1);
+    const turns = evaluate([sample([bar(0, 99.8, 103.6), bar(1, 94, 101)])], DEFAULT_TUNING);
+    expect(turns.losses).toBe(0);
+    expect(turns.sumR).toBeGreaterThan(0);
+  });
+  it("a runner pays more when the move keeps going", () => {
+    const runs = sample([bar(0, 99.8, 101), bar(1, 101, 112), bar(2, 111, 113)]);
+    const one = evaluate([runs], DEFAULT_TUNING);
+    const runner = evaluate([runs], { ...DEFAULT_TUNING, runner: 2 });
+    expect(runner.wins).toBe(1);
+    expect(runner.sumR).toBeGreaterThan(one.sumR);
+  });
+  it("a runner only inside its range; the old learned breakeven is retired", () => {
+    expect(safeTuning({ ...DEFAULT_TUNING, beAt: 0.2, runner: 1 })).toMatchObject({
+      beAt: 0,
+      runner: 0,
+    });
+    expect(safeTuning({ ...DEFAULT_TUNING, beAt: 0.45, runner: 1.3 })).toMatchObject({
+      beAt: 0,
+      runner: 1.5,
+    });
+    expect(safeTuning({ ...DEFAULT_TUNING, beAt: 9, runner: 9 })).toMatchObject({
+      beAt: 0,
+      runner: 3,
+    });
+  });
+});
+
+describe("learned entry style", () => {
+  // A buy found at 100 with the 20 EMA at 98 and the break level at 101: the
+  // engine went in at the price now.
+  const s: LearnSample = {
+    t: 0,
+    direction: "BUY",
+    entry: 100,
+    entryType: "market",
+    confidencePct: 70,
+    verdict: "trade",
+    raw: {
+      risk: 4,
+      targets: [104, 108, 112],
+      atr: 4,
+      alt: { price: 100, mean: 98, breakAt: 101 },
+    },
+    path: [],
+    expiresAt: 60 * MIN,
+  };
+  it("tries the same setup on a pullback, on a break, or now; the stop and targets move with it", async () => {
+    const { applyTuning } = await import("./signal-learning.server");
+    const at = (entryStyle: number) => applyTuning(s, { ...DEFAULT_TUNING, entryStyle });
+    expect(at(0)).toMatchObject({ entry: 100, type: "market" });
+    // A pullback waits only 20% of the way back to the mean (98): close to the price.
+    expect(at(1)).toMatchObject({ entry: 99.6, type: "limit" });
+    expect(at(2)).toMatchObject({ entry: 101, type: "stop" });
+    expect(at(3)).toMatchObject({ entry: 100, type: "market" });
+    expect(at(2).stop - at(0).stop).toBeCloseTo(1, 6);
+    // A setup saved before entry styles existed only ever uses the engine's.
+    expect(
+      applyTuning(
+        { ...s, raw: { ...s.raw, alt: undefined } },
+        { ...DEFAULT_TUNING, entryStyle: 2 },
+      ),
+    ).toMatchObject({ entry: 100, type: "market" });
+  });
+});
+
+describe("take profit and stop around real levels", () => {
+  // A buy at 100 whose stop hid behind a swing (risk 4 with the 0.25 ATR pad,
+  // ATR 4), with a level in the way at 102.
+  const s: LearnSample = {
+    t: 0,
+    direction: "BUY",
+    entry: 100,
+    entryType: "market",
+    confidencePct: 70,
+    verdict: "trade",
+    raw: { risk: 4, targets: [104, 108, 112], atr: 4, ahead: 102, padded: true },
+    path: [],
+    expiresAt: 60 * MIN,
+  };
+  it("the stop pad moves the stop (and the first target with the risk)", async () => {
+    const { applyTuning } = await import("./signal-learning.server");
+    const base = applyTuning(s, DEFAULT_TUNING);
+    const wider = applyTuning(s, { ...DEFAULT_TUNING, stopPad: 0.5 });
+    // One more ATR of pad: risk 4 → 5, so the stop is 1.2 further down.
+    expect(base.stop - wider.stop).toBeCloseTo(1.2, 6);
+    expect(wider.targets[0]).toBeGreaterThan(base.targets[0]);
+  });
+  it("with a take-profit pad, the target sits just short of the level in the way", async () => {
+    const { applyTuning } = await import("./signal-learning.server");
+    // Pulled-in TP1 is about 102.4 (tightened, TP1_TIGHTEN): past the level at 102.
+    expect(applyTuning(s, DEFAULT_TUNING).targets[0]).toBeGreaterThan(102);
+    expect(applyTuning(s, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeCloseTo(101.6, 6);
+    // Too close to bother (under 0.3 of the risk): left alone.
+    const near = { ...s, raw: { ...s.raw, ahead: 100.5 } };
+    expect(applyTuning(near, { ...DEFAULT_TUNING, tpPad: 0.1 }).targets[0]).toBeGreaterThan(102);
+  });
+  it("round numbers: gold every $10, bitcoin every $500", async () => {
+    const { roundStepFor } = await import("./trade-signal");
+    expect(roundStepFor("XAUUSD")).toBe(10);
+    expect(roundStepFor("BTCUSD")).toBe(500);
+    expect(roundStepFor("EURUSD")).toBeUndefined();
+  });
+});
+
+describe("runner + gain lock (the Boss, 2026-11-04)", () => {
+  it("leaves a 50% runner: 50% banked at TP1", async () => {
+    const { RUNNER } = await import("./trade-signal-outcome");
+    expect(RUNNER).toEqual({ bank: 0.5, run: 0.5 });
+  });
+  it("locks 50% of the gain made so far, ratcheting up, never below the entry", async () => {
+    const { gainLockStop } = await import("./trade-signal-outcome");
+    // BUY from 100, best 110: gain 10, lock 50% → stop 105.
+    expect(gainLockStop("BUY", 100, 110)).toBe(105);
+    // Higher best ratchets the lock up.
+    expect(gainLockStop("BUY", 100, 120)).toBe(110);
+    // SELL from 100, best 90: gain 10, lock 50% → stop 95.
+    expect(gainLockStop("SELL", 100, 90)).toBe(95);
+    // No gain yet: the lock stays at the entry (never a loss below it).
+    expect(gainLockStop("BUY", 100, 99)).toBe(100);
+  });
+  it("knows when a trade is super close to its take profit", async () => {
+    const { superClose } = await import("./trade-signal-outcome");
+    expect(superClose("BUY", 100, 110, 105)).toBe(true); // half way
+    expect(superClose("BUY", 100, 110, 104)).toBe(false); // only 40%
+    expect(superClose("SELL", 100, 90, 95)).toBe(true); // half way down
+  });
+  it("the trailing stop never locks less than 50% of the gain", async () => {
+    const { tpTrailArm, gainLockStop } = await import("./trade-signal-outcome");
+    const arm = tpTrailArm({ direction: "BUY", entry: 100, tp: 110, best: 109, spread: 0 });
+    expect(arm).not.toBeNull();
+    // The stop is at least the 50%-of-gain floor.
+    expect(arm!.stop).toBeGreaterThanOrEqual(gainLockStop("BUY", 100, 109));
+  });
+});
+
+describe("gain-based trail (the Boss, 2026-11-04): start at 30%, follow up, never reduce", () => {
+  const MIN = 60_000;
+  const bar = (i: number, l: number, h: number) => ({ t: i * MIN, o: (l + h) / 2, h, l, c: (l + h) / 2 });
+  it("locks 30% of the gain, moving the stop up with new highs, never back", async () => {
+    const { advanceSignal } = await import("./trade-signal-outcome");
+    const armed = {
+      direction: "BUY" as const,
+      entry: 100,
+      stop: 95,
+      targets: [200, 200, 200] as [number, number, number],
+      status: "open" as const,
+      expiresAt: 100 * MIN,
+      trail: { risk: 2, stop: 100, gainKeep: 0.3 },
+    };
+    // Best 110 → lock 103; best 120 → lock 106 (up); a lower high (118) → no move down.
+    const r = advanceSignal(
+      armed,
+      [bar(0, 108, 110), bar(1, 112, 120), bar(2, 116, 118), bar(3, 95, 97)],
+      4 * MIN,
+    );
+    const trails = r.events.filter((e) => e.kind === "trailed").map((e) => e.price);
+    expect(trails).toEqual([103, 106]); // up only, never a lower lock
+    // It exits when price falls back to the locked stop (106), banking profit.
+    expect(r.events.at(-1)).toMatchObject({ kind: "breakeven", price: 106 });
+  });
+});

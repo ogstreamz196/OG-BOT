@@ -6,8 +6,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 type Admin = SupabaseClient<Database>;
 
+// Only clear sports words: everyday ones (play, game, watch, card, what time)
+// used to hijack normal chat into Sports Guide listings.
 const SPORTS_INTENT_RE =
-  /\b(sports?|fixtures?|match(es)?|games?|kick[\s-]?off|ko|fight(s|ing)?|fight night|card|bout|race|grand prix|f1|ufc|boxing|mma|wwe|darts|tennis|cricket|nba|nfl|football|soccer|premier league|champions league|ucl|epl|la ?liga|serie a|bundesliga|vs\.?|versus|play|plays|playing|next match|next game|against|on tonight|on today|on tv|channel|channels|sky sports|tnt|dazn|bt sport|amazon prime|what time|when is|where can i watch|watch)\b/i;
+  /\b(sports? guide|fixtures?|kick[\s-]?off|fight night|grand prix|f1|ufc|boxing|mma|wwe|darts|tennis|cricket|nba|nfl|football|soccer|premier league|champions league|ucl|epl|la ?liga|serie a|bundesliga|sky sports|tnt sports|dazn|bt sport|where can i watch|what channel)\b/i;
 
 const STOP = new Set(
   "the a an and or of to in on at for is are was be what when where which who how time today tonight tomorrow game match fixture fixtures channel channels watch playing play sport sports show showing can i me my you u it its any there this that with vs versus kick off live tv on bro mate pls please".split(
@@ -42,36 +44,52 @@ const fmtDay = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
-const SPORTS_LOCKED_PROMPT = `SPORTS GUIDE LOCKED — HARD RULE: This user has NOT unlocked the OG Sports Guide and is not VIP. Do NOT give ANY fixtures, kick-off times, dates, channels, broadcasters or Telegram links — not from the guide, not from memory, not from web sources. Do not mention or link any Telegram channel/group. Instead, in full OG Bot voice (cheeky British banter, roast them for being tight), tell them:
+const SPORTS_LOCKED_PROMPT = `SPORTS GUIDE LOCKED — HARD RULE: This user has NOT unlocked the OG Sports Guide and is not VIP. Do NOT give ANY fixtures, kick-off times, dates, channels, broadcasters or Telegram links — not from the guide, not from memory, not from web sources. Do not mention or link any Telegram channel/group. Instead, in full OG B0T voice (cheeky British banter, roast them for being tight), tell them:
 1. The OG Sports Guide is locked — unlock it in the Store for just 10 OG Coins, or go VIP and it's included free (VIP includes it during the 15-day free trial too).
 2. No coins? Earn them with the app's earn methods (referrals/inviting mates via their OG code, Battle Zone rewards, the Earn page), or stop being tight and just buy some — 5 coins is only 99p at https://www.ogbot.co.uk/buy-coins.
 3. Once unlocked, the full live match centre is at https://www.ogbot.co.uk/sports and you'll answer every fixture question.
 Keep it short and punchy.`;
 
 // Warm per-instance caches so repeat questions skip the DB parse / web search.
-type Fixture = ReturnType<typeof import("./sports-listing").parseListing>["fixtures"][number];
-let fixtureCache: { at: number; value: Fixture[] } | null = null;
-let fixtureInflight: Promise<Fixture[]> | null = null;
+type Listing = ReturnType<typeof import("./sports-listing").parseListing>;
+type Fixture = Listing["fixtures"][number];
+let listingCache: { at: number; value: Listing[] } | null = null;
+let listingInflight: Promise<Listing[]> | null = null;
 const webCache = new Map<string, { value: string; exp: number }>();
 
-async function loadFixturesCached(admin: Admin): Promise<Fixture[]> {
-  if (fixtureCache && Date.now() - fixtureCache.at < 60_000) return fixtureCache.value;
-  if (fixtureInflight) return fixtureInflight;
-  fixtureInflight = (async () => {
+// The feed posts around 100 listings a day (one per broadcaster, long ones
+// split over several posts), so read by days, not a fixed number of posts:
+// a count cut off the EPL/EFL posts a day or two after they went up.
+const FEED_DAYS = 3;
+const FEED_MAX_POSTS = 600;
+
+async function loadListingsCached(admin: Admin): Promise<Listing[]> {
+  if (listingCache && Date.now() - listingCache.at < 60_000) return listingCache.value;
+  if (listingInflight) return listingInflight;
+  listingInflight = (async () => {
     const { parseListing, dedupe } = await import("./sports-listing");
     const { data } = await admin
       .from("sports_guide_posts")
       .select("id, raw_text, posted_at, telegram_message_id")
-      .gte("posted_at", new Date(Date.now() - 10 * 86_400_000).toISOString())
+      .gte("posted_at", new Date(Date.now() - FEED_DAYS * 86_400_000).toISOString())
       .order("posted_at", { ascending: false })
-      .limit(120);
-    const fixtures = dedupe(data ?? []).map(parseListing).flatMap((l) => l.fixtures);
-    const seen = new Set<string>();
-    const uniq = fixtures.filter((f) => !seen.has(f.raw) && seen.add(f.raw));
-    fixtureCache = { at: Date.now(), value: uniq };
-    return uniq;
-  })().finally(() => { fixtureInflight = null; });
-  return fixtureInflight;
+      .limit(FEED_MAX_POSTS);
+    const value = dedupe(data ?? []).map(parseListing);
+    listingCache = { at: Date.now(), value };
+    return value;
+  })().finally(() => {
+    listingInflight = null;
+  });
+  return listingInflight;
+}
+
+/** Each fixture once, dropping ones that started over 3 hours ago (undated ones stay). */
+function currentFixtures(fixtures: Fixture[]): Fixture[] {
+  const cutoff = Date.now() - 3 * 3_600_000;
+  const seen = new Set<string>();
+  return fixtures.filter(
+    (f) => (!f.at || f.at.getTime() > cutoff) && !seen.has(f.raw) && !!seen.add(f.raw),
+  );
 }
 
 /** Returns a prompt block, or "" when the message isn't about sport.
@@ -82,7 +100,7 @@ export async function buildSportsGuideContext(admin: Admin, userId: string, text
   const words = keywords(text);
   if (!detectSportsIntent(text) && !words.length) return "";
 
-  const uniq = await loadFixturesCached(admin);
+  const uniq = currentFixtures((await loadListingsCached(admin)).flatMap((l) => l.fixtures));
 
   const score = (f: (typeof uniq)[number]) => {
     const hay = `${f.event} ${f.channel}`.toLowerCase();
@@ -101,10 +119,9 @@ export async function buildSportsGuideContext(admin: Admin, userId: string, text
   if (!access) return SPORTS_LOCKED_PROMPT;
 
   const now = fmtDay(new Date().toISOString());
-  const cutoff = Date.now() - 3 * 3_600_000;
   const pool = hits.length
     ? hits
-    : uniq.filter((f) => f.at && f.at.getTime() > cutoff).sort((a, b) => a.at!.getTime() - b.at!.getTime());
+    : uniq.filter((f) => f.at).sort((a, b) => a.at!.getTime() - b.at!.getTime());
   const list = pool
     .slice(0, 40)
     .map((f) => `• ${f.at ? fmtDay(f.at.toISOString()) + " UK" : "time not listed"} — ${f.event} — 📺 ${f.channel}`);
@@ -150,17 +167,11 @@ export async function quickSportsReply(admin: Admin, userId: string, query: stri
   const { data: access } = await admin.rpc("has_sports_guide_access", { _user: userId });
   if (!access)
     return "🔒 Oi, nice try! The <b>OG Sports Guide</b> is locked, mate.\n\n🏆 Unlock it in the Store for just <b>10 OG Coins</b> — or go <b>VIP</b> and it's included free.\n\n💸 Skint? Earn coins by inviting your mates with your OG code or smashing Battle Zone. Or stop being tight and just buy some — <b>5 coins is only 99p</b>.\n\n👉 https://www.ogbot.co.uk/buy-coins";
-  const { parseListing, dedupe, searchListing } = await import("./sports-listing");
-  const { data } = await admin
-    .from("sports_guide_posts")
-    .select("id, raw_text, posted_at, telegram_message_id")
-    .gte("posted_at", new Date(Date.now() - 7 * 86_400_000).toISOString())
-    .order("posted_at", { ascending: false })
-    .limit(80);
+  const { searchListing } = await import("./sports-listing");
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const listings = dedupe(data ?? []).map(parseListing);
+  const listings = await loadListingsCached(admin);
   const hits = listings.map((l) => searchListing(l, words)).filter((l): l is NonNullable<typeof l> => !!l);
-  const fixtures = hits.flatMap((l) => l.fixtures);
+  const fixtures = currentFixtures(hits.flatMap((l) => l.fixtures));
   if (!words.length) {
     const upcoming = fixtures.filter((f) => f.at && f.at.getTime() > Date.now() - 2 * 3_600_000)
       .sort((a, b) => a.at!.getTime() - b.at!.getTime()).slice(0, 15);
@@ -168,8 +179,7 @@ export async function quickSportsReply(admin: Admin, userId: string, query: stri
     return "⚽ <b>Next up</b>\n" + upcoming.map((f) => `• ${fmtKo(f.at!)} — ${esc(f.event)}\n   📺 ${esc(f.channel)}`).join("\n");
   }
   if (!fixtures.length) return `⚽ No fixtures found for "<b>${esc(query)}</b>".`;
-  const seen = new Set<string>();
-  const uniq = fixtures.filter((f) => !seen.has(f.raw) && seen.add(f.raw))
+  const uniq = [...fixtures]
     .sort((a, b) => (a.at?.getTime() ?? 0) - (b.at?.getTime() ?? 0)).slice(0, 20);
   return `⚽ <b>${uniq.length} match${uniq.length === 1 ? "" : "es"}</b> for "${esc(query)}"\n` +
     uniq.map((f) => `• ${f.at ? fmtKo(f.at) : ""} — ${esc(f.event)}\n   📺 ${esc(f.channel)}`).join("\n");

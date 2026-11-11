@@ -5,10 +5,10 @@ import {
   CheckCircle2,
   ChevronRight,
   FlaskConical,
-  Gift,
   Hourglass,
   Loader2,
   Sparkles,
+  ToggleRight,
   UserSearch,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BOSS_AREAS, BossNav } from "@/components/admin/BossNav";
 import { BossKpiStrip, ProviderPulse } from "@/components/admin/BossOverview";
+import { BossCommandBar } from "@/components/admin/BossCommandBar";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
@@ -42,23 +43,25 @@ function AdminDashboard() {
         <BossNav />
 
         <div className="space-y-6">
+          {/* What needs you comes first; it's a single calm line when all is well. */}
+          <NeedsAttention />
+
           <section className="space-y-3">
             <SectionHeading title="Today" desc="Live numbers, refreshed every minute" />
             <BossKpiStrip />
             <ProviderPulse />
+            <BossCommandBar />
           </section>
-
-          <NeedsAttention />
 
           <section className="space-y-3">
             <SectionHeading title="Quick actions" desc="The things you do most" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <QuickAction to="/admin/users" Icon={UserSearch} label="Find a user" />
-              <QuickAction to="/admin/coins" tab="grant" Icon={Gift} label="Grant coins" />
-              <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG Bot persona" />
+              <QuickAction to="/admin/users" Icon={UserSearch} label="Find a member" />
+              <QuickAction to="/admin/system" tab="access" Icon={ToggleRight} label="Free access" />
+              <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG B0T persona" />
               <QuickAction
                 to="/admin/system"
-                tab="tests"
+                tab="tools"
                 Icon={FlaskConical}
                 label="Run diagnostics"
               />
@@ -66,7 +69,7 @@ function AdminDashboard() {
           </section>
 
           <section className="space-y-3">
-            <SectionHeading title="Everything else" desc="Every Boss area in one place" />
+            <SectionHeading title="All Boss areas" desc="Each one has tabs inside" />
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {BOSS_AREAS.filter((a) => a.to !== "/admin").map(
                 ({ to, label, desc, icon: Icon }) => (
@@ -109,9 +112,9 @@ function QuickAction({
   Icon,
   label,
 }: {
-  to: "/admin/users" | "/admin/coins" | "/admin/bot" | "/admin/system";
+  to: "/admin/users" | "/admin/coins" | "/admin/signals" | "/admin/bot" | "/admin/system";
   tab?: string;
-  Icon: typeof Gift;
+  Icon: typeof ToggleRight;
   label: string;
 }) {
   return (

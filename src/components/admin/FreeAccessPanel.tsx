@@ -64,14 +64,14 @@ export function FreeAccessPanel() {
   };
 
   return (
-    <section className="mb-6 rounded-2xl border border-primary/30 bg-primary/[0.05] p-5 shadow-card">
+    <section className="og-panel mb-6 rounded-2xl border border-primary/30 bg-primary/[0.05] p-5 shadow-card">
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <div className="min-w-0">
             <h3 className="font-semibold">Free access for all users</h3>
             <p className="text-sm text-muted-foreground">
-              Limited-time promo: every signed-in user gets VIP-only features, including OG Bot
+              Limited-time promo: every signed-in user gets VIP-only features, including OG B0T
               foul-mouth mode. Turn off to restore VIP-only access.
             </p>
             <p className="mt-1 text-xs text-muted-foreground">

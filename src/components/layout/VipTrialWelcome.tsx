@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRole } from "@/hooks/use-role";
 
 const PERKS = [
-  ["🤬", "Foul Mouth OG Bot", "Unfiltered roasts & UK slang — amp it up to Demon level"],
+  ["🤬", "Foul Mouth OG B0T", "Unfiltered cussing & UK slang — amp it up to Demon level"],
   ["🌍", "Any language", "Chat in 29 languages (free for everyone, forever)"],
   ["⚡", "Priority AI", "Fast-lane replies and song writing"],
   ["🪙", "Daily safety net", "10 free coins a day if you run low"],
@@ -79,7 +79,7 @@ export function VipTrialWelcome() {
             Your upgraded membership is live. Here's everything unlocked:
           </DialogDescription>
           <div className="mt-3 rounded-xl border border-coin/40 bg-coin/10 px-4 py-2">
-            <div className="text-[10px] font-black uppercase tracking-widest text-coin">
+            <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">
               VIP time left
             </div>
             <div className="font-mono text-2xl font-black tabular-nums">{fmt(ms)}</div>

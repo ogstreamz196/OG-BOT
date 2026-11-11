@@ -1,10 +1,12 @@
 // Server-only helpers for syncing user profiles to a Google Sheet.
-// Uses the Lovable connector gateway (google_sheets connection) so no OAuth
-// flow is needed once the Google Sheets connector is connected.
+// Uses the Boss's own Google keys when set, otherwise the Lovable connector
+// gateway (google_sheets connection); see connectors.server.ts.
 //
 // Setup (boss): create a Sheet, copy its ID, then save it via
 //   admin/boss notifications panel ("Sheets spreadsheet ID").
 // We then upsert one row per user (key = user_id in column A).
+
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 const GW = "https://connector-gateway.lovable.dev/google_sheets";
 const TAB = "Users";
@@ -61,15 +63,10 @@ function rowFrom(p: ProfileRow): (string | number | null)[] {
   ];
 }
 
+// The gateway's (or Google's own) auth is added by connectorFetch.
 function gwHeaders() {
-  const lovable = process.env.LOVABLE_API_KEY;
-  const key = process.env.GOOGLE_SHEETS_API_KEY;
-  if (!lovable || !key) return null;
-  return {
-    Authorization: `Bearer ${lovable}`,
-    "X-Connection-Api-Key": key,
-    "Content-Type": "application/json",
-  } as Record<string, string>;
+  if (!connectorReady("google_sheets")) return null;
+  return { "Content-Type": "application/json" } as Record<string, string>;
 }
 
 async function getSheetId(): Promise<string | null> {
@@ -86,7 +83,7 @@ async function getSheetId(): Promise<string | null> {
 async function ensureHeader(spreadsheetId: string, headers: Record<string, string>) {
   // Read header row
   const url = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${TAB}!1:1`)}`;
-  const res = await fetch(url, { headers });
+  const res = await connectorFetch(url, { headers });
   if (!res.ok) {
     // try create tab? best-effort: ignore — boss must create tab named "Users"
     return false;
@@ -97,7 +94,7 @@ async function ensureHeader(spreadsheetId: string, headers: Record<string, strin
   const updateUrl = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
     `${TAB}!A1`,
   )}?valueInputOption=RAW`;
-  await fetch(updateUrl, {
+  await connectorFetch(updateUrl, {
     method: "PUT",
     headers,
     body: JSON.stringify({ range: `${TAB}!A1`, majorDimension: "ROWS", values: [HEADERS] }),
@@ -111,7 +108,7 @@ async function findRowIndex(
   headers: Record<string, string>,
 ): Promise<number | null> {
   const url = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${TAB}!A:A`)}`;
-  const res = await fetch(url, { headers });
+  const res = await connectorFetch(url, { headers });
   if (!res.ok) return null;
   const j: { values?: string[][] } = await res.json().catch(() => ({}));
   const rows = j.values ?? [];
@@ -149,7 +146,7 @@ export async function upsertProfileRowToSheet(
     const url = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
       range,
     )}?valueInputOption=RAW`;
-    const res = await fetch(url, {
+    const res = await connectorFetch(url, {
       method: "PUT",
       headers,
       body: JSON.stringify({ range, majorDimension: "ROWS", values: [row] }),
@@ -160,7 +157,7 @@ export async function upsertProfileRowToSheet(
   const url = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
     `${TAB}!A:A`,
   )}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
-  const res = await fetch(url, {
+  const res = await connectorFetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify({ values: [row] }),
@@ -190,7 +187,7 @@ export async function resyncAllProfilesToSheet(): Promise<{
 
   // Clear & write
   const clearUrl = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${TAB}!A:Z`)}:clear`;
-  await fetch(clearUrl, { method: "POST", headers }).catch(() => null);
+  await connectorFetch(clearUrl, { method: "POST", headers }).catch(() => null);
 
   const values: (string | number | null)[][] = [
     HEADERS,
@@ -199,7 +196,7 @@ export async function resyncAllProfilesToSheet(): Promise<{
   const writeUrl = `${GW}/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
     `${TAB}!A1`,
   )}?valueInputOption=RAW`;
-  const res = await fetch(writeUrl, {
+  const res = await connectorFetch(writeUrl, {
     method: "PUT",
     headers,
     body: JSON.stringify({ range: `${TAB}!A1`, majorDimension: "ROWS", values }),

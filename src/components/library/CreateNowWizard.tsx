@@ -14,8 +14,8 @@ import {
   X,
 } from "lucide-react";
 
-import ratingPgImg from "@/assets/rating-pg.png";
-import rating18Img from "@/assets/rating-18.png";
+import ratingPgImg from "@/assets/rating-pg.webp";
+import rating18Img from "@/assets/rating-18.webp";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +39,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { POOLS, isFreeStyle } from "@/lib/library-utils";
 import { useRole } from "@/hooks/use-role";
+import { useSettings } from "@/hooks/use-settings";
+import { trackCardLabel, trackCoinCost } from "@/lib/nasheed";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -51,10 +53,13 @@ import {
 } from "@/hooks/use-foul-mouth";
 import { Slider } from "@/components/ui/slider";
 import { useServerFn } from "@tanstack/react-start";
-import { suggestTrackTitle, fallbackTitle as localFallbackTitle } from "@/lib/track-title.functions";
+import {
+  suggestTrackTitle,
+  fallbackTitle as localFallbackTitle,
+} from "@/lib/track-title.functions";
 
 /** Song designed on the welcome page before sign-up, picked up after login. */
-export const GUEST_PENDING_SONG_KEY = "ogbot.guestPendingSong.v1";
+export { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
 
 export type WizardResult = {
   title: string;
@@ -73,6 +78,8 @@ export type WizardResult = {
   targetMinutes: number;
   /** Whether the finished track should appear in the global player. */
   isPublic: boolean;
+  /** Nasheed mode: vocals separated from the mix, pure acapella delivered (double price). */
+  isNasheed: boolean;
   /** Exact per-track lyric rating selected in this wizard run. */
   foulMouth: boolean;
   foulIntensity: number;
@@ -93,6 +100,8 @@ export type WizardDraft = {
   beatName: string;
   targetMinutes: number;
   isPublic: boolean;
+  /** Lyrics rating chosen last time (0 = PG); kept so a retry never resets it. */
+  foulIntensity?: number;
 };
 
 export const EMPTY_DRAFT: WizardDraft = {
@@ -114,7 +123,7 @@ const GENDERS = ["Mix voice", "Female vocal", "Male vocal", "Duo"];
 const TOTAL_STEPS = 3;
 
 /** Four exact lyric-rating levels: 0 is fully clean, 3 is maximum profanity. */
-const INTENSITY_LABELS = ["Clean", "Mild", "Strong", "Savage"] as const;
+const INTENSITY_LABELS = ["Clean", "Mild", "Spicy", "Savage"] as const;
 
 /** Track length options. Creation and rendering are free. */
 export const MIN_LENGTH = 3;
@@ -178,7 +187,9 @@ export function CreateNowWizard({
   const setFoulIntensity = useSetFoulIntensity();
   const [intensityLocal, setIntensityLocal] = useState<number | null>(null);
   const intensity = intensityLocal ?? (guestMode ? 0 : savedIntensity);
-  const foulMouth = guestMode ? intensity > 0 : savedFoulMouth;
+  // The 18+ button always mirrors the slider so they can never disagree.
+  const foulMouth = intensity > 0;
+  void savedFoulMouth;
   const isNasheed = styles.includes("Nasheed");
   const [beatPath, setBeatPath] = useState("");
   const [beatName, setBeatName] = useState("");
@@ -233,6 +244,7 @@ export function CreateNowWizard({
     setBeatName(d.beatName ?? "");
     setTargetMinutes(d.targetMinutes || 3);
     setIsPublic(d.isPublic ?? true);
+    setIntensityLocal(typeof d.foulIntensity === "number" ? d.foulIntensity : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -326,17 +338,18 @@ export function CreateNowWizard({
     const typedTitle = title.trim();
     const fallbackTitle = localFallbackTitle(subjectName, description);
     const finalTitle = typedTitle || fallbackTitle;
-    const titlePromise: Promise<string> | undefined = typedTitle || guestMode
-      ? undefined
-      : suggestTitle({
-          data: {
-            subjectName: subjectName.trim(),
-            description: description.trim(),
-            style: styles.filter(Boolean).join(", "),
-          },
-        })
-          .then((res) => (res?.title ?? "").trim() || fallbackTitle)
-          .catch(() => fallbackTitle);
+    const titlePromise: Promise<string> | undefined =
+      typedTitle || guestMode
+        ? undefined
+        : suggestTitle({
+            data: {
+              subjectName: subjectName.trim(),
+              description: description.trim(),
+              style: styles.filter(Boolean).join(", "),
+            },
+          })
+            .then((res) => (res?.title ?? "").trim() || fallbackTitle)
+            .catch(() => fallbackTitle);
 
     onComplete(
       {
@@ -351,6 +364,7 @@ export function CreateNowWizard({
         beatPath: isNasheed ? "" : vocalsOnly ? beatPath : "",
         targetMinutes,
         isPublic,
+        isNasheed,
         foulMouth: !isNasheed && intensity > 0,
         foulIntensity: isNasheed ? 0 : intensity,
       },
@@ -366,6 +380,7 @@ export function CreateNowWizard({
         beatName: isNasheed ? "" : beatName,
         targetMinutes,
         isPublic,
+        foulIntensity: isNasheed ? 0 : intensity,
       },
     );
     onOpenChange(false);
@@ -418,7 +433,7 @@ export function CreateNowWizard({
         </button>
         <div className="min-w-0 flex-1 text-center">
           <p className="text-xl font-bold tabular-nums leading-none">{targetMinutes} min</p>
-          <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+          <p className="mt-1 text-xs font-medium text-muted-foreground">
             {targetMinutes > MIN_LENGTH
               ? `+${targetMinutes - MIN_LENGTH} coin${targetMinutes - MIN_LENGTH === 1 ? "" : "s"}`
               : "Included"}
@@ -426,7 +441,7 @@ export function CreateNowWizard({
         </div>
         <button
           type="button"
-          aria-label="Longer track (1 extra coin)"
+          aria-label="Longer track"
           disabled={targetMinutes >= MAX_LENGTH}
           onClick={() => setTargetMinutes((m) => Math.min(MAX_LENGTH, m + 1))}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/40 bg-primary/15 text-lg font-bold text-primary transition hover:bg-primary/25 disabled:opacity-40"
@@ -434,8 +449,8 @@ export function CreateNowWizard({
           +
         </button>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        Every length is free to create. Pay only when you download the full track.
+      <p className="text-xs text-muted-foreground">
+        Same price for every length. Your full track comes unlocked, ready to download.
       </p>
     </div>
   );
@@ -452,7 +467,7 @@ export function CreateNowWizard({
       >
         <DialogHeader className="shrink-0 space-y-2 pb-3 text-left sm:pb-0">
           <div className="flex items-center justify-between gap-3 pr-8">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-primary">
               <Sparkles className="h-3 w-3" />
               Create now
             </span>
@@ -479,7 +494,7 @@ export function CreateNowWizard({
             {step === 3 && "Final touches"}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            {step === 1 && "A name and a little story is all OG Bot needs."}
+            {step === 1 && "A name and a little story is all OG B0T needs."}
             {step === 2 && "Mix styles if you like, then choose who sings."}
             {step === 3 && "Language, length and rating — then create."}
           </DialogDescription>
@@ -530,7 +545,7 @@ export function CreateNowWizard({
                     placeholder="Vibes, memories, inside jokes, the moment you want in the lyrics…"
                     className="min-h-[110px] resize-y rounded-lg border border-border bg-background text-sm leading-relaxed"
                   />
-                  <p className="text-[11px] tabular-nums text-muted-foreground">
+                  <p className="text-xs tabular-nums text-muted-foreground">
                     {description.trim().length}/2000
                   </p>
                 </div>
@@ -558,8 +573,12 @@ export function CreateNowWizard({
                         onClick={() => {
                           if (locked) {
                             toast(`👑 ${s} is an OG VIP style`, {
-                              description: "Unlock all 50+ styles & moods, plus custom style and language requests.",
-                              action: { label: "Get VIP", onClick: () => void navigateVip({ to: "/buy-coins" }) },
+                              description:
+                                "Unlock all 50+ styles & moods, plus custom style and language requests.",
+                              action: {
+                                label: "Get VIP",
+                                onClick: () => void navigateVip({ to: "/buy-coins" }),
+                              },
                             });
                             return;
                           }
@@ -588,8 +607,13 @@ export function CreateNowWizard({
                         )}
                       >
                         {locked && (
-                          <span aria-label="VIP only" className="mr-1 inline-flex items-end text-[11px]">
-                            <span className="relative">🔒<span className="absolute -top-2 left-0.5 text-[9px]">👑</span></span>
+                          <span
+                            aria-label="VIP only"
+                            className="mr-1 inline-flex items-end text-xs"
+                          >
+                            <span className="relative">
+                              🔒<span className="absolute -top-2 left-0.5 text-[0.7rem]">👑</span>
+                            </span>
                           </span>
                         )}
                         {s}
@@ -597,6 +621,7 @@ export function CreateNowWizard({
                     );
                   })}
                 </div>
+                {isNasheed ? <NasheedNotice /> : null}
                 <button
                   type="button"
                   onClick={() => setShowAllStyles((v) => !v)}
@@ -612,7 +637,7 @@ export function CreateNowWizard({
                     <>
                       <Music4 className="h-4 w-4" />
                       More styles
-                      <span className="rounded-full bg-primary/25 px-2 py-0.5 text-[11px] font-black tabular-nums">
+                      <span className="rounded-full bg-primary/25 px-2 py-0.5 text-xs font-black tabular-nums">
                         +{STYLES.length - 12}
                       </span>
                       <ChevronDown className="h-4 w-4" />
@@ -621,7 +646,7 @@ export function CreateNowWizard({
                 </button>
 
                 <div>
-                  <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Artist voice
                   </p>
                   <div
@@ -657,7 +682,7 @@ export function CreateNowWizard({
               <div className="space-y-5">
                 {/* Content rating — replaces the old foul mouth toggle. */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Lyrics rating
                   </p>
                   <div role="group" aria-label="Lyrics rating" className="grid grid-cols-2 gap-2">
@@ -685,7 +710,7 @@ export function CreateNowWizard({
                         )}
                       />
                       <span className="text-sm font-bold">PG rated</span>
-                      <span className="text-[11px] text-muted-foreground">Clean, family safe</span>
+                      <span className="text-xs text-muted-foreground">Clean, family safe</span>
                     </button>
                     <button
                       type="button"
@@ -711,7 +736,7 @@ export function CreateNowWizard({
                         )}
                       />
                       <span className="text-sm font-bold">18+ rated</span>
-                      <span className="text-[11px] text-muted-foreground">Explicit, no filter</span>
+                      <span className="text-xs text-muted-foreground">Explicit, no filter</span>
                     </button>
                   </div>
 
@@ -720,11 +745,11 @@ export function CreateNowWizard({
                       <div className="flex items-baseline justify-between gap-2">
                         <label
                           htmlFor="foul-intensity"
-                          className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground"
+                          className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground"
                         >
                           Swearing intensity
                         </label>
-                        <span className="text-[11px] font-bold text-destructive">
+                        <span className="text-xs font-bold text-destructive">
                           {INTENSITY_LABELS[intensity]}
                         </span>
                       </div>
@@ -738,7 +763,7 @@ export function CreateNowWizard({
                         onValueChange={(v) => changeIntensity(v[0] ?? 3)}
                         onValueCommit={(v) => saveIntensity(v[0] ?? 3)}
                       />
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <div className="flex justify-between text-[0.7rem] text-muted-foreground">
                         <span>Clean</span>
                         <span>Mild</span>
                         <span>Strong</span>
@@ -750,10 +775,10 @@ export function CreateNowWizard({
 
                 <div className="space-y-2">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                       Language
                     </p>
-                    <p className="text-[11px] font-semibold text-muted-foreground">
+                    <p className="text-xs font-semibold text-muted-foreground">
                       {languages.length ? `${languages.length} selected` : "English by default"}
                     </p>
                   </div>
@@ -802,7 +827,7 @@ export function CreateNowWizard({
                         <>
                           <Globe2 className="h-4 w-4" />
                           More languages
-                          <span className="rounded-full bg-primary/25 px-2 py-0.5 text-[11px] font-black tabular-nums">
+                          <span className="rounded-full bg-primary/25 px-2 py-0.5 text-xs font-black tabular-nums">
                             +{POOLS.language.length - 8}
                           </span>
                           <ChevronDown className="h-4 w-4" />
@@ -816,7 +841,7 @@ export function CreateNowWizard({
 
                 {/* Voice setup: vocals-only and, when on, the beat it rides. */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                     Voice setup
                   </p>
                   <button
@@ -846,7 +871,7 @@ export function CreateNowWizard({
                     </span>
                     <span
                       className={cn(
-                        "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider",
+                        "shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-black uppercase tracking-wider",
                         vocalsOnly
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted text-muted-foreground",
@@ -911,15 +936,14 @@ export function CreateNowWizard({
                   )}
                 </div>
 
-
                 {/* Compact track recipe so nothing is a surprise before creating. */}
                 <div className="rounded-xl border border-border bg-background/60 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="min-w-0 truncate text-sm font-bold text-foreground">
                       {title.trim() ||
-                        `For ${subjectName.trim().slice(0, 24) || "you"} · OG Bot names it`}
+                        `For ${subjectName.trim().slice(0, 24) || "you"} · OG B0T names it`}
                     </p>
-                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
                       {isPublic ? (
                         <Globe2 className="h-3.5 w-3.5 text-primary" />
                       ) : (
@@ -949,7 +973,7 @@ export function CreateNowWizard({
                     ].map((chip) => (
                       <span
                         key={chip}
-                        className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
+                        className="rounded-full border border-white/10 bg-card/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground"
                       >
                         {chip}
                       </span>
@@ -1033,7 +1057,7 @@ export function CreateNowWizard({
                   {isPublic ? <Globe2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                   {isPublic ? "Global" : "Private"}
                 </span>
-                <span className="text-[9px] font-semibold normal-case text-muted-foreground">
+                <span className="text-[0.7rem] font-semibold normal-case text-muted-foreground">
                   Tap to change
                 </span>
               </Button>
@@ -1073,8 +1097,27 @@ export function CreateNowWizard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-
     </Dialog>
+  );
+}
+
+/** Shown under the styles when Nasheed is picked, before any payment. */
+function NasheedNotice() {
+  const { data: settings } = useSettings();
+  const coins = trackCoinCost(settings?.coins_per_full_unlock ?? 5, true);
+  return (
+    <div
+      role="note"
+      className="rounded-xl border border-primary/50 bg-background/90 p-3 text-sm text-foreground shadow-glow"
+    >
+      <p className="font-black">🎙️ Nasheed: pure vocals</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        <span className="font-black text-foreground">NO INSTRUMENTS or MUSIC.</span> Only the pure
+        vocals will be delivered.
+      </p>
+      <p className="mt-2 text-xs font-black uppercase tracking-wide text-coin">
+        Cost: {coins} OG Coins or {trackCardLabel(true)}
+      </p>
+    </div>
   );
 }

@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Connector } from "@/lib/connectors.server";
+import { envKey } from "@/lib/key-names";
 
 /**
  * Automated backend health check.
@@ -78,9 +80,38 @@ async function timed<T>(fn: () => Promise<T>) {
 
 type Partial_ = Omit<HealthCheck, "key" | "label" | "group" | "required">;
 
+/**
+ * The hub's shared free keys (ogstreamz-ai ?check=1: only how many keys each
+ * provider has and whether each was accepted, never a key).
+ */
+async function checkHubFreeKeys(): Promise<Partial_> {
+  if (!process.env.OG_HUB_SERVICE_KEY) return missing("OG_HUB_SERVICE_KEY");
+  const base = (process.env.OG_HUB_URL || "https://zqwngcndkxgxuwqyxihi.supabase.co").replace(/\/+$/, "");
+  try {
+    const { result, latencyMs } = await timed(() =>
+      fetch(`${base}/functions/v1/ogstreamz-ai?check=1`, { signal: AbortSignal.timeout(15_000) }),
+    );
+    if (!result.ok)
+      return { status: "unreachable", detail: `The hub answered HTTP ${result.status}.`, latencyMs };
+    const { keys } = (await result.json()) as { keys?: Record<string, number[]> };
+    const parts = Object.entries(keys ?? {}).map(
+      ([p, list]) => `${p} ${list.filter((c) => c === 200).length}/${list.length}`,
+    );
+    const bad = Object.values(keys ?? {}).some((list) => list.some((c) => c !== 200));
+    return {
+      status: bad ? "degraded" : "ok",
+      detail: `Keys working: ${parts.join(", ") || "none"}. Used when a provider has no key of its own here.`,
+      fix: bad ? "Replace the rejected FREE_* key in the hub's Edge Function secrets." : undefined,
+      latencyMs,
+    };
+  } catch {
+    return { status: "unreachable", detail: "The hub didn't answer." };
+  }
+}
+
 async function checkGemini(): Promise<Partial_> {
-  const key = process.env["GEMINI_API_KEY"];
-  if (!key) return missing("GEMINI_API_KEY");
+  const key = envKey("PAID_GEMINI_F196");
+  if (!key) return missing("PAID_GEMINI_F196");
   try {
     const { result, latencyMs } = await timed(() =>
       fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`),
@@ -89,7 +120,7 @@ async function checkGemini(): Promise<Partial_> {
       return {
         status: "invalid",
         detail: `Gemini rejected the key (HTTP ${result.status}).`,
-        fix: "Generate a fresh key in Google AI Studio and update GEMINI_API_KEY in Secrets.",
+        fix: "Generate a fresh key in Google AI Studio and update PAID_GEMINI_F196 in Secrets.",
         latencyMs,
       };
     }
@@ -173,56 +204,6 @@ async function checkSuno(): Promise<Partial_> {
       status: "unreachable",
       detail: `Could not reach Suno: ${e instanceof Error ? e.message : "network error"}`,
       fix: "Retry shortly — the Suno API host may be down.",
-    };
-  }
-}
-
-async function checkPerplexity(): Promise<Partial_> {
-  const key = process.env["PERPLEXITY_API_KEY"];
-  if (!key) return missing("PERPLEXITY_API_KEY");
-  try {
-    const { result, latencyMs } = await timed(() =>
-      fetch("https://api.perplexity.ai/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "sonar",
-          max_tokens: 1,
-          messages: [{ role: "user", content: "ping" }],
-        }),
-      }),
-    );
-    if (result.status === 401 || result.status === 403) {
-      return {
-        status: "invalid",
-        detail: `Perplexity rejected the key (HTTP ${result.status}).`,
-        fix: "Issue a new key at perplexity.ai/settings/api and update PERPLEXITY_API_KEY.",
-        latencyMs,
-      };
-    }
-    if (result.status === 429) {
-      return {
-        status: "degraded",
-        detail: "Key valid but currently rate-limited (HTTP 429).",
-        fix: "Wait for the limit window to reset or raise the plan limit.",
-        latencyMs,
-      };
-    }
-    if (!result.ok) {
-      const text = await result.text().catch(() => "");
-      return {
-        status: "unreachable",
-        detail: `Perplexity returned HTTP ${result.status}: ${text.slice(0, 120)}`,
-        fix: "Retry shortly; if it persists check the Perplexity status page.",
-        latencyMs,
-      };
-    }
-    return { status: "ok", detail: "Key valid · completions endpoint responding.", latencyMs };
-  } catch (e) {
-    return {
-      status: "unreachable",
-      detail: `Could not reach Perplexity: ${e instanceof Error ? e.message : "network error"}`,
-      fix: "Retry shortly — network or provider outage.",
     };
   }
 }
@@ -317,15 +298,20 @@ function checkMintSecret(): Partial_ {
   return { status: "ok", detail: "Signing secret present and long enough." };
 }
 
-function checkLovable(): Partial_ {
-  return process.env["LOVABLE_API_KEY"]
-    ? { status: "ok", detail: "Connected-service gateway key present; not used for AI." }
+async function checkLovable(): Promise<Partial_> {
+  if (process.env["LOVABLE_API_KEY"])
+    return { status: "ok", detail: "Connected-service gateway key present; not used for AI." };
+  // Not needed once Telegram, Drive, Sheets and Stripe all have their own keys.
+  const { usesOwnKey } = await import("@/lib/connectors.server");
+  const all = (["telegram", "google_drive", "google_sheets", "stripe"] as const).every(usesOwnKey);
+  return all
+    ? { status: "ok", detail: "Not needed: every connected service uses its own key." }
     : missing("LOVABLE_API_KEY", "Reconnect the affected payment or service connection.");
 }
 
 /** Tiny 1-token chat completion — proves the key works without real cost. */
 async function checkChatKey(env: string, url: string, model: string, extra: Record<string, string> = {}): Promise<Partial_> {
-  const key = process.env[env];
+  const key = envKey(env);
   if (!key) return missing(env);
   try {
     const { result, latencyMs } = await timed(() =>
@@ -350,6 +336,30 @@ async function checkChatKey(env: string, url: string, model: string, extra: Reco
   }
 }
 
+/** Pollinations' open endpoint answers without any key (the router's last free resort). */
+async function checkPollinationsNoKey(): Promise<Partial_> {
+  try {
+    const { result, latencyMs } = await timed(() =>
+      fetch("https://text.pollinations.ai/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "openai", messages: [{ role: "user", content: "Reply PONG" }] }),
+        signal: AbortSignal.timeout(20_000),
+      }),
+    );
+    if (result.status === 429)
+      return { status: "degraded", detail: "Answering, but busy right now (HTTP 429).", fix: "It's shared and free; try again shortly.", latencyMs };
+    if (!result.ok)
+      return { status: "unreachable", detail: `HTTP ${result.status}. The open endpoint may need a key now.`, fix: "Add a free Pollinations key in the API vault above.", latencyMs };
+    const j = (await result.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
+    return (j.choices?.[0]?.message?.content ?? "").trim()
+      ? { status: "ok", detail: "Answered with no key.", latencyMs }
+      : { status: "degraded", detail: "Answered with an empty reply.", latencyMs };
+  } catch (e) {
+    return { status: "unreachable", detail: `No response: ${e instanceof Error ? e.message : "network error"}`, fix: "Retry shortly." };
+  }
+}
+
 async function checkStripe(): Promise<Partial_> {
   const key = process.env["STRIPE_SECRET_KEY"];
   if (!key) return missing("STRIPE_SECRET_KEY");
@@ -367,20 +377,23 @@ async function checkStripe(): Promise<Partial_> {
 }
 
 async function checkGateway(env: string, base: string, path: string, label: string): Promise<Partial_> {
-  const key = process.env[env];
-  const lk = process.env["LOVABLE_API_KEY"];
-  if (!key) return missing(env, `Reconnect ${label} in Connectors.`);
-  if (!lk) return missing("LOVABLE_API_KEY");
+  // Own key (connectors.server.ts) first; otherwise Lovable's gateway.
+  const { connectorFetch, usesOwnKey } = await import("@/lib/connectors.server");
+  const c = base as Connector;
+  const own = usesOwnKey(c);
+  if (!own) {
+    if (!process.env[env]) return missing(env, `Reconnect ${label} in Connectors, or set its own key.`);
+    if (!process.env["LOVABLE_API_KEY"]) return missing("LOVABLE_API_KEY");
+  }
+  const via = own ? "own key" : "gateway";
   try {
     const { result, latencyMs } = await timed(() =>
-      fetch(`https://connector-gateway.lovable.dev/${base}${path}`, {
-        headers: { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": key },
-      }),
+      connectorFetch(`https://connector-gateway.lovable.dev/${base}${path}`, {}, env),
     );
     if (result.status === 401 || result.status === 403)
-      return { status: "invalid", detail: `${label} connection rejected (HTTP ${result.status}).`, fix: `Reconnect ${label}.`, latencyMs };
-    if (result.status >= 500) return { status: "unreachable", detail: `${label} HTTP ${result.status}.`, latencyMs };
-    return { status: "ok", detail: `${label} connected (HTTP ${result.status}).`, latencyMs };
+      return { status: "invalid", detail: `${label} rejected (HTTP ${result.status}, ${via}).`, fix: own ? `Check ${label}'s own key.` : `Reconnect ${label}.`, latencyMs };
+    if (result.status >= 500) return { status: "unreachable", detail: `${label} HTTP ${result.status} (${via}).`, latencyMs };
+    return { status: "ok", detail: `${label} connected (HTTP ${result.status}, ${via}).`, latencyMs };
   } catch (e) {
     return { status: "unreachable", detail: `Could not reach ${label}: ${e instanceof Error ? e.message : "network error"}` };
   }
@@ -415,46 +428,54 @@ type Spec = Pick<HealthCheck, "key" | "label" | "group" | "required" | "secret" 
 };
 
 const OR_HDR = { "HTTP-Referer": "https://ogbot.co.uk", "X-Title": "OG BOT" };
-const FOUL_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+/** OpenRouter's best free model right now (picked from its live list). */
+async function foulModel(): Promise<string> {
+  const or = await import("./openrouter-models.server");
+  await or.loadOpenRouterModels();
+  return or.openRouterFreeModels()[0];
+}
 
 const SPECS: Spec[] = [
-  { key: "openrouter", label: "OpenRouter (Foul Mouth model)", secret: "OPENROUTER_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: true,
-    run: () => checkChatKey("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", FOUL_MODEL, OR_HDR) },
-  { key: "openrouter_backup", label: "OpenRouter backup", secret: "OPENROUTER_BACKUP_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("OPENROUTER_BACKUP_API_KEY", "https://openrouter.ai/api/v1/chat/completions", FOUL_MODEL, OR_HDR) },
-  { key: "gemini", label: "Gemini (main, paid)", secret: "GEMINI_API_KEY", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: true, run: checkGemini },
+  { key: "openrouter", label: "OpenRouter (Foul Mouth model)", secret: "FREE_OPENROUTER_API_KEY", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: true,
+    run: async () => checkChatKey("FREE_OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
+  { key: "openrouter_backup", label: "OpenRouter backup", secret: "FREE_OPENROUTER_API_KEY_2", help: "openrouter.ai/keys", group: "AI chat & lyrics", required: false,
+    run: async () => checkChatKey("FREE_OPENROUTER_API_KEY_2", "https://openrouter.ai/api/v1/chat/completions", await foulModel(), OR_HDR) },
+  { key: "gemini", label: "Gemini (main, paid)", secret: "PAID_GEMINI_F196", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: true, run: checkGemini },
   { key: "gemini_backup", label: "Gemini emergency backup (lyrics & image edits)", secret: "GEMINI_BACKUP_API_KEY", help: "aistudio.google.com/apikey", group: "AI chat & lyrics", required: false, run: checkGeminiBackup },
-  ...["GEMINI_FREE_API_KEY", "GEMINI_FREE_BACKUP_API_KEY", "GEMINI_FREE_3_API_KEY", "GEMINI_FREE_4_API_KEY"].map((secret, i) => ({
+  ...["FREE_GEMINI_API_KEY_1", "FREE_GEMINI_API_KEY_2", "FREE_GEMINI_API_KEY_3", "FREE_GEMINI_API_KEY_4"].map((secret, i) => ({
     key: `gemini_free_${i + 1}`, label: `Gemini free key ${i + 1} (lyrics)`, secret, help: "aistudio.google.com/apikey", group: "AI chat & lyrics" as HealthGroup, required: false,
     run: async (): Promise<Partial_> => {
-      const k = process.env[secret];
+      const k = envKey(secret);
       if (!k) return missing(secret);
       const { result, latencyMs } = await timed(() => fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${k}`));
       return result.ok ? { status: "ok", detail: "Key accepted by Google.", latencyMs } : { status: "invalid", detail: `Google rejected the key (HTTP ${result.status}).`, latencyMs };
     },
   })),
-  { key: "groq", label: "Groq (Foul Mouth off only)", secret: "GROQ_API_KEY", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
-  { key: "groq_backup", label: "Groq backup", secret: "GROQ_BACKUP_API_KEY", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("GROQ_BACKUP_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
-  { key: "pollinations", label: "Pollinations (Foul Mouth off only)", secret: "POLLINATIONS_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
-  { key: "pollinations_backup", label: "Pollinations backup", secret: "POLLINATIONS_BACKUP_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
-    run: () => checkChatKey("POLLINATIONS_BACKUP_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
-  { key: "perplexity", label: "Perplexity (live web & sports search)", secret: "PERPLEXITY_API_KEY", help: "perplexity.ai/settings/api", group: "AI chat & lyrics", required: true, run: checkPerplexity },
+  { key: "groq", label: "Groq (Foul Mouth off only)", secret: "FREE_GROQ_API_KEY", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
+  { key: "groq_backup", label: "Groq backup", secret: "FREE_GROQ_API_KEY_2", help: "console.groq.com/keys", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_GROQ_API_KEY_2", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b") },
+  { key: "pollinations", label: "Pollinations (Foul Mouth off only)", secret: "FREE_POLLINATIONS_API_KEY", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_POLLINATIONS_API_KEY", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
+  { key: "pollinations_backup", label: "Pollinations backup", secret: "FREE_POLLINATIONS_API_KEY_2", help: "enter.pollinations.ai", group: "AI chat & lyrics", required: false,
+    run: () => checkChatKey("FREE_POLLINATIONS_API_KEY_2", "https://gen.pollinations.ai/v1/chat/completions", "openai-fast") },
+  { key: "hub_free_keys", label: "Shared free keys (hub, every app)", secret: "OG_HUB_SERVICE_KEY", help: "hub → Edge Functions → Secrets", group: "AI chat & lyrics", required: false,
+    run: checkHubFreeKeys },
+  { key: "pollinations_free", label: "Pollinations free (no key needed, last resort)", group: "AI chat & lyrics", required: false,
+    run: checkPollinationsNoKey },
   { key: "suno", label: "Suno (song generation)", secret: "SUNO_API_KEY", help: "sunoapi.org", group: "Music", required: true, run: checkSuno },
   { key: "stripe", label: "Stripe (card checkout)", secret: "STRIPE_SECRET_KEY", help: "dashboard.stripe.com/apikeys", group: "Payments", required: true, run: checkStripe },
   { key: "ledgerly", label: "Ledgerly bookkeeping", group: "Payments", required: false, run: checkLedgerly },
-  { key: "og_bot_token", label: "OG Bot token (@BotFather)", secret: "OG_BOT_TOKEN", help: "t.me/BotFather", group: "Telegram", required: true, run: checkOgBotToken },
-  { key: "telegram", label: "Telegram connection", secret: "TELEGRAM_API_KEY", group: "Telegram", required: true,
+  { key: "og_bot_token", label: "OG B0T token (@BotFather)", secret: "OG_BOT_TOKEN", help: "t.me/BotFather", group: "Telegram", required: true, run: checkOgBotToken },
+  { key: "telegram", label: "Telegram connection", secret: "TELEGRAM_API_KEY", group: "Telegram", required: false,
     run: () => checkGateway("TELEGRAM_API_KEY", "telegram", "/getMe", "Telegram") },
   { key: "drive", label: "Google Drive (purchase review & backups)", secret: "GOOGLE_DRIVE_API_KEY", group: "Google", required: false,
     run: () => checkGateway("GOOGLE_DRIVE_API_KEY", "google_drive", "/drive/v3/about?fields=user", "Google Drive") },
   { key: "sheets", label: "Google Sheets (sync)", secret: "GOOGLE_SHEETS_API_KEY", group: "Google", required: false,
     run: () => checkGateway("GOOGLE_SHEETS_API_KEY", "google_sheets", "/v4/spreadsheets/ping", "Google Sheets") },
   { key: "lovable_ai", label: "Connected-services gateway", group: "Core", required: true, run: checkLovable },
-  { key: "og_bot_host", label: "OG_BOT_HOST", secret: "OG_BOT_HOST", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_HOST", "OG Bot host") },
-  { key: "og_bot_mothership", label: "OG_BOT_MOTHERSHIP_URL", secret: "OG_BOT_MOTHERSHIP_URL", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_MOTHERSHIP_URL", "OG Bot mothership") },
+  { key: "og_bot_host", label: "OG_BOT_HOST", secret: "OG_BOT_HOST", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_HOST", "OG B0T host") },
+  { key: "og_bot_mothership", label: "OG_BOT_MOTHERSHIP_URL", secret: "OG_BOT_MOTHERSHIP_URL", group: "Bot hosting", required: true, run: () => checkUrlSecret("OG_BOT_MOTHERSHIP_URL", "OG B0T mothership") },
   { key: "og_bot_mint_secret", label: "OG_BOT_REMOTE_MINT_SECRET", secret: "OG_BOT_REMOTE_MINT_SECRET", group: "Bot hosting", required: true, run: () => checkMintSecret() },
 ];
 
@@ -485,7 +506,7 @@ export const runApiHealthCheck = createServerFn({ method: "POST" })
 /** Ping one key on demand. */
 export const pingApiKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { key: string }) => ({ key: String(d?.key ?? "").slice(0, 60) }))
+  .validator((d: { key: string }) => ({ key: String(d?.key ?? "").slice(0, 60) }))
   .handler(async ({ data, context }): Promise<HealthCheck> => {
     await assertAdmin(context);
     const spec = SPECS.find((s) => s.key === data.key);

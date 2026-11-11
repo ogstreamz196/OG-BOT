@@ -23,6 +23,6 @@ export function useReferralUrl(): string {
       return (data?.referral_code as string | null) ?? null;
     },
   });
-  const origin = typeof window !== "undefined" ? window.location.origin : SITE;
+  const origin = SITE;
   return code ? `${origin}/r/${code.replace(/^OG-/, "")}` : origin;
 }

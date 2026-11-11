@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -17,7 +18,20 @@ import {
 } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { chatOgBot, type OgChatMessage } from "@/lib/og-messenger.functions";
+import { StreamUnavailable, streamOgChat } from "@/lib/og-chat-stream";
+import { getTradeHoldLine } from "@/lib/trade-hold.functions";
+import {
+  cleanTradeHistory,
+  detectTradeIntent,
+  holdingMessage,
+  isHoldingMessage,
+  signalExpiry,
+  stripSignalTag,
+  tagSignalExpiry,
+} from "@/lib/trade-signal";
 import { ogErrorMessage } from "@/lib/og-error-message";
+import { DISS_DONE, DISS_MARKER, stripMarker } from "@/lib/diss-ambush";
+import { DissAmbushCard } from "@/components/messenger/DissAmbushCard";
 import { transcribeOgAudio } from "@/lib/og-transcribe.functions";
 import { postCommunityMessage } from "@/lib/community.functions";
 import { QUICK_STARTS } from "@/lib/og-persona-public";
@@ -28,10 +42,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import { useProfile } from "@/hooks/use-profile";
 import { useRole } from "@/hooks/use-role";
-import {
-  useFoulMouth,
-  useSetFoulMouth,
-} from "@/hooks/use-foul-mouth";
+import { useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
 // useShareLive intentionally removed — Loner/Community is page-level now.
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,13 +58,13 @@ const TELEGRAM_FONT_STYLE: React.CSSProperties = {
   WebkitFontSmoothing: "antialiased",
   MozOsxFontSmoothing: "grayscale",
 };
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 function OgAvatar({ size = 36, className = "" }: { size?: number; className?: string }) {
   return (
     <img
-      src={ogBotAsset.url}
-      alt="OG Bot"
+      src={size > 48 ? ogBotLogo.large : ogBotLogo.small}
+      alt="OG B0T"
       width={size}
       height={size}
       className={cn(
@@ -82,6 +93,8 @@ const OG_LANGUAGES = [
   "Swahili",
   "Patois",
   "Yoruba",
+  "Igbo",
+  "Hausa",
   "German",
   "Italian",
   "Romanian",
@@ -157,6 +170,7 @@ export function OgChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const selfSyncRef = useRef(false);
   const chat = useServerFn(chatOgBot);
+  const holdLine = useServerFn(getTradeHoldLine);
   const qc = useQueryClient();
   const { data: profile } = useProfile();
   const { foulMouth } = useFoulMouth();
@@ -205,8 +219,7 @@ export function OgChat({
     composer.style.height = `${Math.min(Math.max(composer.scrollHeight, 40), 128)}px`;
   }, [input]);
 
-  // Anti-flicker skeleton: stays visible at least 600ms once shown so quick
-  // replies don't pop in and out (matches Suno-style "cooking" feel).
+  // "Cooking" skeleton while OG Bot is replying (drives the auto-scroll below).
   const [showSkeleton, setShowSkeleton] = useState(false);
 
   useEffect(() => {
@@ -346,19 +359,46 @@ export function OgChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSkeleton]);
 
+  // Re-render when the next live trade signal expires, so it collapses on time.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const upcoming = messages
+      .map((mm) => signalExpiry(mm.content)?.getTime() ?? 0)
+      .filter((t) => t > now);
+    if (!upcoming.length) return;
+    const wait = Math.min(Math.min(...upcoming) - Date.now() + 500, 2_000_000_000);
+    const t = setTimeout(() => setNow(Date.now()), Math.max(1000, wait));
+    return () => clearTimeout(t);
+  }, [messages, now]);
+
+  // The reply as it's being written (streamed); replaced by the final reply.
+  const [draft, setDraft] = useState("");
   const m = useMutation({
-    mutationFn: async (args: { history: OgChatMessage[]; attachmentDataUrl?: string }) =>
-      chat({
-        data: {
-          messages: args.history,
-          mode,
-          attachmentDataUrl: args.attachmentDataUrl,
-          language,
-        },
-      }),
+    mutationFn: async (args: { history: OgChatMessage[]; attachmentDataUrl?: string }) => {
+      const input = {
+        messages: args.history,
+        mode: mode as "og" | "safe",
+        attachmentDataUrl: args.attachmentDataUrl,
+        language,
+        // The phone apps never give trading signals (store rules).
+        nativeApp: Capacitor.isNativePlatform(),
+      };
+      setDraft("");
+      try {
+        return await streamOgChat(input, (d) => setDraft((cur) => cur + d));
+      } catch (e) {
+        // No stream (older server, flaky network): fall back to the normal call.
+        if (!(e instanceof StreamUnavailable)) throw e;
+        return chat({ data: input });
+      }
+    },
+    onSettled: () => setDraft(""),
     onSuccess: (res) => {
       setMessages((cur) => {
-        const next = [...cur, { role: "assistant" as const, content: res.reply || "…" }];
+        const base = (res.reply || "…") + (res.ambush ? `\n\n${DISS_MARKER}` : "");
+        // Trade signals carry a hidden expiry so the chat can retire them on time.
+        const content = res.signal_expires_at ? tagSignalExpiry(base, res.signal_expires_at) : base;
+        const next = [...cur, { role: "assistant" as const, content }];
         selfSyncRef.current = true;
         window.dispatchEvent(new Event(SYNC_EVENT));
         return next;
@@ -372,24 +412,17 @@ export function OgChat({
     },
   });
 
-  // Skeleton stays visible at least 600ms once shown — kills flicker on
-  // very fast replies and gives a Suno-style "still cooking" feel.
+  // The skeleton shows only while the reply is on its way: a fast answer
+  // appears the moment it lands, with no minimum wait.
   useEffect(() => {
-    if (m.isPending) {
-      setShowSkeleton(true);
-      return;
-    }
-    if (!showSkeleton) return;
-    const t = setTimeout(() => setShowSkeleton(false), 600);
-    return () => clearTimeout(t);
-  }, [m.isPending, showSkeleton]);
-
+    setShowSkeleton(m.isPending);
+  }, [m.isPending]);
 
   function sendText(text: string, opts?: { forcePrivate?: boolean }) {
     const t = text.trim();
     const att = attachment;
     if (m.isPending) return;
-    if (!user) return toast.error("Sign in to chat with OG Bot.");
+    if (!user) return toast.error("Sign in to chat with OG B0T.");
 
     // OG Bot Loner Mode is ALWAYS private. The page-level Loner ↔ Community
     // toggle (in /messenger) is the single source of truth — when OgChat is
@@ -426,12 +459,49 @@ export function OgChat({
     // private — free, no coin check. Images are read and discussed, never edited.
     const visibleText = t || (att ? `📎 ${att.name}` : "");
     const next = [...messages, { role: "user" as const, content: visibleText }];
+    // Trade signal: an instant "hold on" line in OG Bot's voice, so the user
+    // knows the next message is the analysis. It never goes into the history.
+    // No signal "hold on" line in the phone apps: they never give signals.
+    const market = att || Capacitor.isNativePlatform() ? null : detectTradeIntent(t);
     setMessages(next);
+    if (market) {
+      // A line from the shared bank this member hasn't seen before; slotted in
+      // straight after their message even if the analysis lands first.
+      const tone = foulMouth ? "foul" : "safe";
+      const at = next.length;
+      void holdLine({ data: { text: t, tone } })
+        .then((r) => r.line)
+        .catch(() => null)
+        .then((line) =>
+          setMessages((cur) => {
+            const msg = {
+              role: "assistant" as const,
+              content: line ?? holdingMessage(market, tone),
+            };
+            return [...cur.slice(0, at), msg, ...cur.slice(at)];
+          }),
+        );
+    }
     selfSyncRef.current = true;
     window.dispatchEvent(new Event(SYNC_EVENT));
     setInput("");
     setAttachment(null);
-    m.mutate({ history: next, attachmentDataUrl: att?.dataUrl });
+    m.mutate({
+      history: cleanTradeHistory(next),
+      attachmentDataUrl: att?.dataUrl,
+    });
+  }
+
+  function resolveAmbush(index: number, botLine: string) {
+    setMessages((cur) => {
+      const next = cur.map((mm, j) =>
+        j === index ? { ...mm, content: mm.content.split(DISS_MARKER).join(DISS_DONE) } : mm,
+      );
+      next.push({ role: "assistant", content: botLine });
+      selfSyncRef.current = true;
+      window.dispatchEvent(new Event(SYNC_EVENT));
+      return next;
+    });
   }
 
   function clearChat() {
@@ -580,7 +650,7 @@ export function OgChat({
               <span className="flex min-w-0 flex-col leading-tight">
                 <span
                   className={cn(
-                    "truncate text-[10px] font-bold uppercase sm:text-xs",
+                    "truncate text-[0.7rem] font-bold uppercase sm:text-xs",
                     foulActive ? "text-destructive" : "text-foreground",
                   )}
                 >
@@ -617,7 +687,7 @@ export function OgChat({
               </span>
             </span>
             {/* OG/Safe mode toggle removed — Foul Mouth is the single tone control. */}
-            <label className="relative inline-flex h-8 items-center rounded-lg border border-amber-400/50 bg-amber-400/10 px-2 text-[10px] font-bold text-amber-600 dark:text-amber-300 sm:hidden">
+            <label className="relative inline-flex h-8 items-center rounded-lg border border-amber-400/50 bg-amber-400/10 px-2 text-[0.7rem] font-bold text-amber-600 dark:text-amber-300 sm:hidden">
               🌐 {language.slice(0, 2).toUpperCase()}
               <select
                 value={language}
@@ -635,7 +705,7 @@ export function OgChat({
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="hidden h-8 max-w-[88px] rounded-lg border border-amber-400/50 bg-amber-400/10 px-1.5 text-[10px] font-bold text-amber-600 transition hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 dark:text-amber-300 sm:block sm:h-auto sm:max-w-none sm:border-2 sm:px-3 sm:py-1.5 sm:text-[12px]"
+              className="hidden h-8 max-w-[88px] rounded-lg border border-amber-400/50 bg-amber-400/10 px-1.5 text-[0.7rem] font-bold text-amber-600 transition hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 dark:text-amber-300 sm:block sm:h-auto sm:max-w-none sm:border-2 sm:px-3 sm:py-1.5 sm:text-[12px]"
               title="Reply language"
               aria-label="Reply language"
             >
@@ -681,14 +751,14 @@ export function OgChat({
                     }}
                   />
                   <img
-                    src={ogBotAsset.url}
-                    alt="OG Bot"
+                    src={ogBotLogo.large}
+                    alt="OG B0T"
                     className="relative h-full w-full rounded-full object-cover ring-4 ring-primary/40 shadow-[0_0_60px_-10px_hsl(var(--primary)/0.9)] animate-[bob_3s_ease-in-out_infinite]"
                   />
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-lg font-extrabold sm:text-2xl">
-                    Message <span className="text-gradient-brand">OG Bot</span>
+                    Message <span className="text-gradient-brand">OG B0T</span>
                   </h2>
                   <p className="text-xs text-muted-foreground sm:text-base">
                     Ask anything. Private chat is free.
@@ -700,11 +770,11 @@ export function OgChat({
                 {showQuickStarts && (
                   <div className="flex flex-col items-center gap-2 pt-2">
                     <div
-                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary"
-                      title="Private chat — only you and OG Bot can see this"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary"
+                      title="Private chat — only you and OG B0T can see this"
                     >
                       <ShieldCheck className="h-3 w-3" />
-                      Private · OG Bot Loner Mode
+                      Private · OG B0T Loner Mode
                     </div>
                     <div className="flex flex-wrap justify-center gap-2">
                       {QUICK_STARTS.map((q) => (
@@ -728,6 +798,13 @@ export function OgChat({
           )}
           {messages.map((msg, i) => {
             const isUser = msg.role === "user";
+            const expiry = msg.role === "assistant" ? signalExpiry(msg.content) : null;
+            const expired = !!expiry && expiry.getTime() <= now;
+            // The "hold on" line goes once its signal has expired.
+            if (isHoldingMessage(msg.content)) {
+              const nextExp = signalExpiry(messages[i + 1]?.content);
+              if (nextExp && nextExp.getTime() <= now) return null;
+            }
             const initial = dev.isDev
               ? "D"
               : (profile?.display_name || user?.email || "Y").trim().charAt(0).toUpperCase();
@@ -742,7 +819,7 @@ export function OgChat({
                 {isUser ? (
                   <div
                     className={cn(
-                      "relative grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-brand text-[10px] font-black text-primary-foreground shadow-glow sm:h-8 sm:w-8",
+                      "relative grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-brand text-[0.7rem] font-black text-primary-foreground shadow-glow sm:h-8 sm:w-8",
                       isVip &&
                         "ring-2 ring-amber-300 ring-offset-2 ring-offset-background shadow-[0_0_18px_rgba(251,191,36,0.55)]",
                     )}
@@ -767,11 +844,11 @@ export function OgChat({
                 >
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 px-1.5 text-[8px] font-bold uppercase",
+                      "inline-flex items-center gap-1 px-1.5 text-[0.7rem] font-bold uppercase",
                       isUser ? (isVip ? "text-amber-400" : "text-primary") : "text-foreground/70",
                     )}
                   >
-                    {isUser ? "You" : "OG Bot"}
+                    {isUser ? "You" : "OG B0T"}
                     {isUser && isVip && (
                       <>
                         <Crown className="h-3 w-3 fill-amber-300 text-amber-500" />
@@ -789,35 +866,73 @@ export function OgChat({
                         : "w-full bg-transparent p-0 text-foreground shadow-none",
                     )}
                   >
-                    {msg.role === "assistant" ? (
+                    {expired ? (
+                      <ExpiredSignal
+                        at={expiry!}
+                        disabled={m.isPending}
+                        onFresh={() => {
+                          const ask = [...messages.slice(0, i)]
+                            .reverse()
+                            .find((mm) => mm.role === "user")?.content;
+                          if (ask) sendText(ask);
+                        }}
+                      />
+                    ) : msg.role === "assistant" ? (
                       <MessageResponse className="prose-sm max-w-none prose-p:my-0.5 prose-p:leading-snug prose-ul:my-0.5 prose-ol:my-0.5 prose-headings:my-0.5 prose-code:text-primary">
-                        {msg.content}
+                        {stripMarker(stripSignalTag(msg.content))}
                       </MessageResponse>
                     ) : (
                       msg.content
                     )}
                   </MessageContent>
+                  {msg.role === "assistant" && msg.content.includes(DISS_MARKER) && user && (
+                    <DissAmbushCard
+                      balance={balance}
+                      history={messages.slice(0, i)}
+                      userId={user.id}
+                      displayName={profile?.display_name ?? null}
+                      onResolve={(line) => resolveAmbush(i, line)}
+                    />
+                  )}
                 </Message>
               </div>
             );
           })}
-          {(showSkeleton || m.isPending) && (
+          {m.isPending && draft && (
+            <div className="flex items-end gap-1.5 sm:gap-2" aria-live="polite">
+              <OgAvatar size={28} className="shrink-0 sm:h-8 sm:w-8" />
+              <Message
+                from="assistant"
+                className="min-w-0 flex-1 max-w-[calc(100%-2rem)] items-start gap-0.5 sm:max-w-[82%] lg:max-w-[74%]"
+              >
+                <span className="inline-flex items-center gap-1 px-1.5 text-[0.7rem] font-bold uppercase text-foreground/70">
+                  OG B0T
+                </span>
+                <MessageContent className="w-full break-words bg-transparent p-0 text-[13px] leading-[1.38] text-foreground shadow-none sm:text-sm">
+                  <MessageResponse className="prose-sm max-w-none prose-p:my-0.5 prose-p:leading-snug prose-ul:my-0.5 prose-ol:my-0.5 prose-headings:my-0.5 prose-code:text-primary">
+                    {draft}
+                  </MessageResponse>
+                </MessageContent>
+              </Message>
+            </div>
+          )}
+          {m.isPending && !draft && (
             <div
               className="flex items-end gap-3"
               role="status"
               aria-live="polite"
-              aria-label="OG Bot is typing"
+              aria-label="OG B0T is typing"
             >
               <OgAvatar size={40} className="shrink-0 animate-pulse" />
               <div className="flex flex-col gap-1.5 min-w-[60%] max-w-[78%]">
-                <span className="px-2 text-[10px] font-black uppercase tracking-[0.18em] text-foreground/70 inline-flex items-center gap-1.5">
-                  OG Bot
+                <span className="px-2 text-[0.7rem] font-black uppercase tracking-[0.18em] text-foreground/70 inline-flex items-center gap-1.5">
+                  OG B0T
                   <span className="font-bold normal-case tracking-normal text-muted-foreground/80">
                     is typing<span className="inline-block animate-pulse">…</span>
                   </span>
                 </span>
                 <div className="rounded-2xl rounded-bl-sm bg-card border-2 border-border px-4 py-3 inline-flex items-center">
-                  <TypingDots aria-label="OG Bot is typing" />
+                  <TypingDots aria-label="OG B0T is typing" />
                 </div>
                 {/* Shimmering bubble skeletons — Suno-style "still cooking" placeholders */}
                 <div className="space-y-1.5">
@@ -825,7 +940,7 @@ export function OgChat({
                   <div className="h-3 w-[70%] rounded-md bg-gradient-to-r from-muted via-muted/40 to-muted bg-[length:200%_100%] animate-[shimmer_1.6s_linear_infinite]" />
                   <div className="h-3 w-[55%] rounded-md bg-gradient-to-r from-muted via-muted/40 to-muted bg-[length:200%_100%] animate-[shimmer_1.6s_linear_infinite]" />
                 </div>
-                <span className="sr-only">OG Bot is generating a response</span>
+                <span className="sr-only">OG B0T is generating a response</span>
               </div>
             </div>
           )}
@@ -863,6 +978,29 @@ export function OgChat({
           </Link>
         </div>
       )}
+      {user && messages.length >= 2 && !messages.some((mm) => mm.content.includes(DISS_MARKER)) && (
+        <button
+          type="button"
+          data-testid="diss-trigger"
+          onClick={() =>
+            setMessages((cur) => {
+              const next = [
+                ...cur,
+                {
+                  role: "assistant" as const,
+                  content: `Oh, you want smoke? I've been taking notes. 😈\n\n${DISS_MARKER}`,
+                },
+              ];
+              selfSyncRef.current = true;
+              window.dispatchEvent(new Event(SYNC_EVENT));
+              return next;
+            })
+          }
+          className="mx-3 mb-1 flex items-center justify-center gap-1.5 rounded-full border border-destructive/50 bg-destructive/10 px-3 py-1.5 text-xs font-bold text-foreground transition hover:bg-destructive/20"
+        >
+          ⚡ OG B0T is taking notes — turn this chat into a diss track (5 coins)
+        </button>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -876,7 +1014,7 @@ export function OgChat({
             <div className="flex items-center gap-2">
               <img src={attachment.dataUrl} alt="" className="h-10 w-10 rounded-md object-cover" />
               <span className="flex-1 truncate text-xs text-muted-foreground">
-                {attachment.name} · ask OG Bot anything about it
+                {attachment.name} · ask OG B0T anything about it
               </span>
               <button
                 type="button"
@@ -959,13 +1097,13 @@ export function OgChat({
                     ? "Out of coins — top up to chat"
                     : attachment
                       ? "Ask about this image…"
-                      : "Message OG Bot…"
+                      : "Message OG B0T…"
             }
             disabled={m.isPending || isOut || !user || transcribing}
             maxLength={2000}
             inputMode="text"
             enterKeyHint="send"
-            aria-label="Message OG Bot in Loner Mode"
+            aria-label="Message OG B0T in Loner Mode"
             data-testid="og-loner-composer"
             style={{ touchAction: "manipulation" }}
             className="min-h-10 max-h-32 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-base leading-5 placeholder:text-muted-foreground/70 focus:outline-none disabled:cursor-not-allowed sm:px-2.5 sm:text-[15px]"
@@ -978,11 +1116,15 @@ export function OgChat({
             data-testid="og-loner-send"
             className="mb-1 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-brand text-primary-foreground shadow-[0_8px_22px_-6px_hsl(var(--primary)/0.6)] ring-1 ring-primary/40 transition hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:ring-0"
           >
-            {m.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {m.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </button>
         </div>
         <p
-          className="mt-1 flex items-center justify-between gap-2 px-1 text-[10px] font-medium text-muted-foreground/80 sm:mt-2.5 sm:flex-wrap sm:justify-start sm:px-2 sm:text-xs"
+          className="mt-1 flex items-center justify-between gap-2 px-1 text-[0.7rem] font-medium text-muted-foreground/80 sm:mt-2.5 sm:flex-wrap sm:justify-start sm:px-2 sm:text-xs"
           aria-live="polite"
         >
           {m.isPending ? (
@@ -1030,10 +1172,10 @@ function VipFoulPromo({
         </div>
         <h3 className="mt-2 font-display text-lg font-black">Unlock Foul Mouth</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          OG Bot goes unfiltered — savage roasts, UK street slang, no holding back.
+          OG B0T goes unfiltered — savage cussing, UK street slang, no holding back.
         </p>
         <ul className="mt-3 space-y-1 text-left text-xs text-foreground/90">
-          <li>🔥 Unfiltered OG Bot persona</li>
+          <li>🔥 Unfiltered OG B0T persona</li>
           <li>👑 Your own OG VIP ID and gold badge</li>
           <li>⚡ Priority replies + daily 10-coin safety net</li>
         </ul>
@@ -1053,6 +1195,38 @@ function VipFoulPromo({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** What an app-chat trade signal turns into once its valid-until time passes. */
+function ExpiredSignal({
+  at,
+  disabled,
+  onFresh,
+}: {
+  at: Date;
+  disabled: boolean;
+  onFresh: () => void;
+}) {
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(at);
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+      <span className="min-w-0 flex-1">
+        ⌛ This signal expired at {time} UK time. Prices have moved, so it's been cleared.
+      </span>
+      <button
+        type="button"
+        onClick={onFresh}
+        disabled={disabled}
+        className="shrink-0 rounded-full border border-primary/50 px-3 py-1 font-bold text-foreground transition hover:bg-primary/15 disabled:opacity-50"
+      >
+        Get a fresh signal
+      </button>
     </div>
   );
 }

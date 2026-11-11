@@ -14,6 +14,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AppReturnRouteImport } from './routes/app-return'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CarromConnectRouteImport } from './routes/carrom-connect'
+import { Route as CarromReturnRouteImport } from './routes/carrom-return'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as HomeRouteImport } from './routes/home'
@@ -25,8 +27,11 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInReturnRouteImport } from './routes/sign-in-return'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SitemapTracksDotxmlRouteImport } from './routes/sitemap-tracks[.]xml'
 import { Route as SportsGuideRouteImport } from './routes/sports-guide'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TgRouteImport } from './routes/tg'
+import { Route as TgConnectRouteImport } from './routes/tg-connect'
 import { Route as TrustRouteImport } from './routes/trust'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -41,11 +46,14 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPurchaseHistoryRouteImport } from './routes/_authenticated/purchase-history'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
 import { Route as AuthenticatedSportsRouteImport } from './routes/_authenticated/sports'
 import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
+import { Route as ApiOgChatRouteImport } from './routes/api/og-chat'
 import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as PortalSlugRouteImport } from './routes/portal.$slug'
 import { Route as RCodeRouteImport } from './routes/r.$code'
+import { Route as StylesRapRouteImport } from './routes/styles.rap'
 import { Route as TrackSongIdRouteImport } from './routes/track.$songId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -62,6 +70,7 @@ import { Route as AuthenticatedAdminOgPersonaRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminOnboardingRouteImport } from './routes/_authenticated/admin.onboarding'
 import { Route as AuthenticatedAdminReferralsAuditRouteImport } from './routes/_authenticated/admin.referrals-audit'
 import { Route as AuthenticatedAdminRouteMapRouteImport } from './routes/_authenticated/admin.route-map'
+import { Route as AuthenticatedAdminSignalsRouteImport } from './routes/_authenticated/admin.signals'
 import { Route as AuthenticatedAdminStoreRouteImport } from './routes/_authenticated/admin.store'
 import { Route as AuthenticatedAdminSystemRouteImport } from './routes/_authenticated/admin.system'
 import { Route as AuthenticatedAdminUserSettingsRouteImport } from './routes/_authenticated/admin.user-settings'
@@ -71,12 +80,21 @@ import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authen
 import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authenticated/buy-coins.index'
 import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
 import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
+import { Route as ApiPublicCopyFeedRouteImport } from './routes/api/public/copy-feed'
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
+import { Route as ApiPublicSignalScanRouteImport } from './routes/api/public/signal-scan'
+import { Route as ApiPublicSongAudioRouteImport } from './routes/api/public/song-audio'
 import { Route as ApiPublicSportsGuideRemindersRouteImport } from './routes/api/public/sports-guide-reminders'
 import { Route as ApiPublicSunoRetryRouteImport } from './routes/api/public/suno-retry'
+import { Route as ApiPublicTradeSignalWatchRouteImport } from './routes/api/public/trade-signal-watch'
+import { Route as ApiPublicVaultSigninRouteImport } from './routes/api/public/vault-signin'
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
+import { Route as ApiPublicCarromRegisterGuestRouteImport } from './routes/api/public/carrom/register-guest'
+import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicTradeBotWebhookRouteImport } from './routes/api/public/trade-bot/webhook'
+import { Route as ApiPublicWorkerBotsIdRouteImport } from './routes/api/public/worker-bots/$id'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as ApiPublicV1VaultCredentialsRouteImport } from './routes/api/public/v1/vault/credentials'
@@ -99,6 +117,16 @@ const AppReturnRoute = AppReturnRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarromConnectRoute = CarromConnectRouteImport.update({
+  id: '/carrom-connect',
+  path: '/carrom-connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarromReturnRoute = CarromReturnRouteImport.update({
+  id: '/carrom-return',
+  path: '/carrom-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -156,6 +184,11 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitemapTracksDotxmlRoute = SitemapTracksDotxmlRouteImport.update({
+  id: '/sitemap-tracks.xml',
+  path: '/sitemap-tracks.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SportsGuideRoute = SportsGuideRouteImport.update({
   id: '/sports-guide',
   path: '/sports-guide',
@@ -164,6 +197,16 @@ const SportsGuideRoute = SportsGuideRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TgRoute = TgRouteImport.update({
+  id: '/tg',
+  path: '/tg',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TgConnectRoute = TgConnectRouteImport.update({
+  id: '/tg-connect',
+  path: '/tg-connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrustRoute = TrustRouteImport.update({
@@ -240,6 +283,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
+  id: '/signals',
+  path: '/signals',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSportsRoute = AuthenticatedSportsRouteImport.update({
   id: '/sports',
   path: '/sports',
@@ -249,6 +297,11 @@ const AuthenticatedStoreRoute = AuthenticatedStoreRouteImport.update({
   id: '/store',
   path: '/store',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiOgChatRoute = ApiOgChatRouteImport.update({
+  id: '/api/og-chat',
+  path: '/api/og-chat',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth_/callback',
@@ -263,6 +316,11 @@ const PortalSlugRoute = PortalSlugRouteImport.update({
 const RCodeRoute = RCodeRouteImport.update({
   id: '/r/$code',
   path: '/r/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StylesRapRoute = StylesRapRouteImport.update({
+  id: '/styles/rap',
+  path: '/styles/rap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackSongIdRoute = TrackSongIdRouteImport.update({
@@ -354,6 +412,12 @@ const AuthenticatedAdminRouteMapRoute =
     path: '/admin/route-map',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminSignalsRoute =
+  AuthenticatedAdminSignalsRouteImport.update({
+    id: '/admin/signals',
+    path: '/admin/signals',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminStoreRoute = AuthenticatedAdminStoreRouteImport.update({
   id: '/admin/store',
   path: '/admin/store',
@@ -414,9 +478,24 @@ const AuthenticatedLibrarySongIdRoute =
     path: '/library/$songId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCopyFeedRoute = ApiPublicCopyFeedRouteImport.update({
+  id: '/api/public/copy-feed',
+  path: '/api/public/copy-feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicNewUserAlertRoute = ApiPublicNewUserAlertRouteImport.update({
   id: '/api/public/new-user-alert',
   path: '/api/public/new-user-alert',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSignalScanRoute = ApiPublicSignalScanRouteImport.update({
+  id: '/api/public/signal-scan',
+  path: '/api/public/signal-scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSongAudioRoute = ApiPublicSongAudioRouteImport.update({
+  id: '/api/public/song-audio',
+  path: '/api/public/song-audio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSportsGuideRemindersRoute =
@@ -430,12 +509,34 @@ const ApiPublicSunoRetryRoute = ApiPublicSunoRetryRouteImport.update({
   path: '/api/public/suno-retry',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTradeSignalWatchRoute =
+  ApiPublicTradeSignalWatchRouteImport.update({
+    id: '/api/public/trade-signal-watch',
+    path: '/api/public/trade-signal-watch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicVaultSigninRoute = ApiPublicVaultSigninRouteImport.update({
+  id: '/api/public/vault-signin',
+  path: '/api/public/vault-signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminUsersUserIdRoute =
   AuthenticatedAdminUsersUserIdRouteImport.update({
     id: '/$userId',
     path: '/$userId',
     getParentRoute: () => AuthenticatedAdminUsersRoute,
   } as any)
+const ApiPublicCarromRegisterGuestRoute =
+  ApiPublicCarromRegisterGuestRouteImport.update({
+    id: '/api/public/carrom/register-guest',
+    path: '/api/public/carrom/register-guest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCarromVerifyRoute = ApiPublicCarromVerifyRouteImport.update({
+  id: '/api/public/carrom/verify',
+  path: '/api/public/carrom/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -448,6 +549,17 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicTradeBotWebhookRoute =
+  ApiPublicTradeBotWebhookRouteImport.update({
+    id: '/api/public/trade-bot/webhook',
+    path: '/api/public/trade-bot/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWorkerBotsIdRoute = ApiPublicWorkerBotsIdRouteImport.update({
+  id: '/api/public/worker-bots/$id',
+  path: '/api/public/worker-bots/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   id: '/lovable/email/auth/preview',
   path: '/lovable/email/auth/preview',
@@ -479,6 +591,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/carrom-connect': typeof CarromConnectRoute
+  '/carrom-return': typeof CarromReturnRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -490,8 +604,11 @@ export interface FileRoutesByFullPath {
   '/sign-in-return': typeof SignInReturnRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
+  '/tg-connect': typeof TgConnectRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -505,11 +622,14 @@ export interface FileRoutesByFullPath {
   '/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/signals': typeof AuthenticatedSignalsRoute
   '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
+  '/api/og-chat': typeof ApiOgChatRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/styles/rap': typeof StylesRapRoute
   '/track/$songId': typeof TrackSongIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -525,6 +645,7 @@ export interface FileRoutesByFullPath {
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
   '/admin/route-map': typeof AuthenticatedAdminRouteMapRoute
+  '/admin/signals': typeof AuthenticatedAdminSignalsRoute
   '/admin/store': typeof AuthenticatedAdminStoreRoute
   '/admin/system': typeof AuthenticatedAdminSystemRoute
   '/admin/user-settings': typeof AuthenticatedAdminUserSettingsRoute
@@ -533,15 +654,24 @@ export interface FileRoutesByFullPath {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
+  '/api/public/song-audio': typeof ApiPublicSongAudioRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
+  '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
+  '/api/public/vault-signin': typeof ApiPublicVaultSigninRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/library/': typeof AuthenticatedLibraryIndexLazyRoute
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
+  '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
+  '/api/public/worker-bots/$id': typeof ApiPublicWorkerBotsIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
@@ -551,6 +681,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/carrom-connect': typeof CarromConnectRoute
+  '/carrom-return': typeof CarromReturnRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -562,8 +694,11 @@ export interface FileRoutesByTo {
   '/sign-in-return': typeof SignInReturnRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
+  '/tg-connect': typeof TgConnectRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -577,11 +712,14 @@ export interface FileRoutesByTo {
   '/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/signals': typeof AuthenticatedSignalsRoute
   '/sports': typeof AuthenticatedSportsRoute
   '/store': typeof AuthenticatedStoreRoute
+  '/api/og-chat': typeof ApiOgChatRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/styles/rap': typeof StylesRapRoute
   '/track/$songId': typeof TrackSongIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -598,6 +736,7 @@ export interface FileRoutesByTo {
   '/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
   '/admin/route-map': typeof AuthenticatedAdminRouteMapRoute
+  '/admin/signals': typeof AuthenticatedAdminSignalsRoute
   '/admin/store': typeof AuthenticatedAdminStoreRoute
   '/admin/system': typeof AuthenticatedAdminSystemRoute
   '/admin/user-settings': typeof AuthenticatedAdminUserSettingsRoute
@@ -606,15 +745,24 @@ export interface FileRoutesByTo {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
+  '/api/public/song-audio': typeof ApiPublicSongAudioRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
+  '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
+  '/api/public/vault-signin': typeof ApiPublicVaultSigninRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/buy-coins': typeof AuthenticatedBuyCoinsIndexRoute
   '/library': typeof AuthenticatedLibraryIndexLazyRoute
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
+  '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
+  '/api/public/worker-bots/$id': typeof ApiPublicWorkerBotsIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
@@ -626,6 +774,8 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app-return': typeof AppReturnRoute
   '/auth': typeof AuthRoute
+  '/carrom-connect': typeof CarromConnectRoute
+  '/carrom-return': typeof CarromReturnRoute
   '/dashboard': typeof DashboardRoute
   '/delete-account': typeof DeleteAccountRoute
   '/home': typeof HomeRoute
@@ -637,8 +787,11 @@ export interface FileRoutesById {
   '/sign-in-return': typeof SignInReturnRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/sitemap-tracks.xml': typeof SitemapTracksDotxmlRoute
   '/sports-guide': typeof SportsGuideRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
+  '/tg-connect': typeof TgConnectRoute
   '/trust': typeof TrustRoute
   '/welcome': typeof WelcomeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -652,11 +805,14 @@ export interface FileRoutesById {
   '/_authenticated/purchase-history': typeof AuthenticatedPurchaseHistoryRoute
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/signals': typeof AuthenticatedSignalsRoute
   '/_authenticated/sports': typeof AuthenticatedSportsRoute
   '/_authenticated/store': typeof AuthenticatedStoreRoute
+  '/api/og-chat': typeof ApiOgChatRoute
   '/auth_/callback': typeof AuthCallbackRoute
   '/portal/$slug': typeof PortalSlugRoute
   '/r/$code': typeof RCodeRoute
+  '/styles/rap': typeof StylesRapRoute
   '/track/$songId': typeof TrackSongIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -673,6 +829,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/onboarding': typeof AuthenticatedAdminOnboardingRoute
   '/_authenticated/admin/referrals-audit': typeof AuthenticatedAdminReferralsAuditRoute
   '/_authenticated/admin/route-map': typeof AuthenticatedAdminRouteMapRoute
+  '/_authenticated/admin/signals': typeof AuthenticatedAdminSignalsRoute
   '/_authenticated/admin/store': typeof AuthenticatedAdminStoreRoute
   '/_authenticated/admin/system': typeof AuthenticatedAdminSystemRoute
   '/_authenticated/admin/user-settings': typeof AuthenticatedAdminUserSettingsRoute
@@ -681,15 +838,24 @@ export interface FileRoutesById {
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
+  '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
+  '/api/public/song-audio': typeof ApiPublicSongAudioRoute
   '/api/public/sports-guide-reminders': typeof ApiPublicSportsGuideRemindersRoute
   '/api/public/suno-retry': typeof ApiPublicSunoRetryRoute
+  '/api/public/trade-signal-watch': typeof ApiPublicTradeSignalWatchRoute
+  '/api/public/vault-signin': typeof ApiPublicVaultSigninRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/buy-coins/': typeof AuthenticatedBuyCoinsIndexRoute
   '/_authenticated/library/': typeof AuthenticatedLibraryIndexLazyRoute
   '/_authenticated/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
+  '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
+  '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
+  '/api/public/worker-bots/$id': typeof ApiPublicWorkerBotsIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/api/public/v1/vault/credentials': typeof ApiPublicV1VaultCredentialsRoute
@@ -702,6 +868,8 @@ export interface FileRouteTypes {
     | '/'
     | '/app-return'
     | '/auth'
+    | '/carrom-connect'
+    | '/carrom-return'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -713,8 +881,11 @@ export interface FileRouteTypes {
     | '/sign-in-return'
     | '/signin'
     | '/signup'
+    | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
+    | '/tg'
+    | '/tg-connect'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -728,11 +899,14 @@ export interface FileRouteTypes {
     | '/purchase-history'
     | '/referrals'
     | '/settings'
+    | '/signals'
     | '/sports'
     | '/store'
+    | '/api/og-chat'
     | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/styles/rap'
     | '/track/$songId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -748,6 +922,7 @@ export interface FileRouteTypes {
     | '/admin/onboarding'
     | '/admin/referrals-audit'
     | '/admin/route-map'
+    | '/admin/signals'
     | '/admin/store'
     | '/admin/system'
     | '/admin/user-settings'
@@ -756,15 +931,24 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
+    | '/api/public/signal-scan'
+    | '/api/public/song-audio'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
+    | '/api/public/trade-signal-watch'
+    | '/api/public/vault-signin'
     | '/admin/'
     | '/buy-coins/'
     | '/library/'
     | '/admin/users/$userId'
+    | '/api/public/carrom/register-guest'
+    | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
+    | '/api/public/trade-bot/webhook'
+    | '/api/public/worker-bots/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/api/public/v1/vault/credentials'
@@ -774,6 +958,8 @@ export interface FileRouteTypes {
   to:
     | '/app-return'
     | '/auth'
+    | '/carrom-connect'
+    | '/carrom-return'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -785,8 +971,11 @@ export interface FileRouteTypes {
     | '/sign-in-return'
     | '/signin'
     | '/signup'
+    | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
+    | '/tg'
+    | '/tg-connect'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -800,11 +989,14 @@ export interface FileRouteTypes {
     | '/purchase-history'
     | '/referrals'
     | '/settings'
+    | '/signals'
     | '/sports'
     | '/store'
+    | '/api/og-chat'
     | '/auth/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/styles/rap'
     | '/track/$songId'
     | '/'
     | '/.lovable/oauth/consent'
@@ -821,6 +1013,7 @@ export interface FileRouteTypes {
     | '/admin/onboarding'
     | '/admin/referrals-audit'
     | '/admin/route-map'
+    | '/admin/signals'
     | '/admin/store'
     | '/admin/system'
     | '/admin/user-settings'
@@ -829,15 +1022,24 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
+    | '/api/public/signal-scan'
+    | '/api/public/song-audio'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
+    | '/api/public/trade-signal-watch'
+    | '/api/public/vault-signin'
     | '/admin'
     | '/buy-coins'
     | '/library'
     | '/admin/users/$userId'
+    | '/api/public/carrom/register-guest'
+    | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
+    | '/api/public/trade-bot/webhook'
+    | '/api/public/worker-bots/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/api/public/v1/vault/credentials'
@@ -848,6 +1050,8 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/app-return'
     | '/auth'
+    | '/carrom-connect'
+    | '/carrom-return'
     | '/dashboard'
     | '/delete-account'
     | '/home'
@@ -859,8 +1063,11 @@ export interface FileRouteTypes {
     | '/sign-in-return'
     | '/signin'
     | '/signup'
+    | '/sitemap-tracks.xml'
     | '/sports-guide'
     | '/terms'
+    | '/tg'
+    | '/tg-connect'
     | '/trust'
     | '/welcome'
     | '/.mcp/list-tools'
@@ -874,11 +1081,14 @@ export interface FileRouteTypes {
     | '/_authenticated/purchase-history'
     | '/_authenticated/referrals'
     | '/_authenticated/settings'
+    | '/_authenticated/signals'
     | '/_authenticated/sports'
     | '/_authenticated/store'
+    | '/api/og-chat'
     | '/auth_/callback'
     | '/portal/$slug'
     | '/r/$code'
+    | '/styles/rap'
     | '/track/$songId'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
@@ -895,6 +1105,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/onboarding'
     | '/_authenticated/admin/referrals-audit'
     | '/_authenticated/admin/route-map'
+    | '/_authenticated/admin/signals'
     | '/_authenticated/admin/store'
     | '/_authenticated/admin/system'
     | '/_authenticated/admin/user-settings'
@@ -903,15 +1114,24 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/buy-coins/return'
     | '/_authenticated/library/$songId'
+    | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
+    | '/api/public/signal-scan'
+    | '/api/public/song-audio'
     | '/api/public/sports-guide-reminders'
     | '/api/public/suno-retry'
+    | '/api/public/trade-signal-watch'
+    | '/api/public/vault-signin'
     | '/_authenticated/admin/'
     | '/_authenticated/buy-coins/'
     | '/_authenticated/library/'
     | '/_authenticated/admin/users/$userId'
+    | '/api/public/carrom/register-guest'
+    | '/api/public/carrom/verify'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
+    | '/api/public/trade-bot/webhook'
+    | '/api/public/worker-bots/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/api/public/v1/vault/credentials'
@@ -923,6 +1143,8 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppReturnRoute: typeof AppReturnRoute
   AuthRoute: typeof AuthRoute
+  CarromConnectRoute: typeof CarromConnectRoute
+  CarromReturnRoute: typeof CarromReturnRoute
   DashboardRoute: typeof DashboardRoute
   DeleteAccountRoute: typeof DeleteAccountRoute
   HomeRoute: typeof HomeRoute
@@ -934,23 +1156,37 @@ export interface RootRouteChildren {
   SignInReturnRoute: typeof SignInReturnRoute
   SigninRoute: typeof SigninRoute
   SignupRoute: typeof SignupRoute
+  SitemapTracksDotxmlRoute: typeof SitemapTracksDotxmlRoute
   SportsGuideRoute: typeof SportsGuideRoute
   TermsRoute: typeof TermsRoute
+  TgRoute: typeof TgRoute
+  TgConnectRoute: typeof TgConnectRoute
   TrustRoute: typeof TrustRoute
   WelcomeRoute: typeof WelcomeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiOgChatRoute: typeof ApiOgChatRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   PortalSlugRoute: typeof PortalSlugRoute
   RCodeRoute: typeof RCodeRoute
+  StylesRapRoute: typeof StylesRapRoute
   TrackSongIdRoute: typeof TrackSongIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicCopyFeedRoute: typeof ApiPublicCopyFeedRoute
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
+  ApiPublicSignalScanRoute: typeof ApiPublicSignalScanRoute
+  ApiPublicSongAudioRoute: typeof ApiPublicSongAudioRoute
   ApiPublicSportsGuideRemindersRoute: typeof ApiPublicSportsGuideRemindersRoute
   ApiPublicSunoRetryRoute: typeof ApiPublicSunoRetryRoute
+  ApiPublicTradeSignalWatchRoute: typeof ApiPublicTradeSignalWatchRoute
+  ApiPublicVaultSigninRoute: typeof ApiPublicVaultSigninRoute
+  ApiPublicCarromRegisterGuestRoute: typeof ApiPublicCarromRegisterGuestRoute
+  ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicTradeBotWebhookRoute: typeof ApiPublicTradeBotWebhookRoute
+  ApiPublicWorkerBotsIdRoute: typeof ApiPublicWorkerBotsIdRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   ApiPublicV1VaultCredentialsRoute: typeof ApiPublicV1VaultCredentialsRoute
@@ -979,6 +1215,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carrom-connect': {
+      id: '/carrom-connect'
+      path: '/carrom-connect'
+      fullPath: '/carrom-connect'
+      preLoaderRoute: typeof CarromConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carrom-return': {
+      id: '/carrom-return'
+      path: '/carrom-return'
+      fullPath: '/carrom-return'
+      preLoaderRoute: typeof CarromReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1058,6 +1308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap-tracks.xml': {
+      id: '/sitemap-tracks.xml'
+      path: '/sitemap-tracks.xml'
+      fullPath: '/sitemap-tracks.xml'
+      preLoaderRoute: typeof SitemapTracksDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sports-guide': {
       id: '/sports-guide'
       path: '/sports-guide'
@@ -1070,6 +1327,20 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tg': {
+      id: '/tg'
+      path: '/tg'
+      fullPath: '/tg'
+      preLoaderRoute: typeof TgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tg-connect': {
+      id: '/tg-connect'
+      path: '/tg-connect'
+      fullPath: '/tg-connect'
+      preLoaderRoute: typeof TgConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trust': {
@@ -1170,6 +1441,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/signals': {
+      id: '/_authenticated/signals'
+      path: '/signals'
+      fullPath: '/signals'
+      preLoaderRoute: typeof AuthenticatedSignalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sports': {
       id: '/_authenticated/sports'
       path: '/sports'
@@ -1183,6 +1461,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/store'
       preLoaderRoute: typeof AuthenticatedStoreRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/og-chat': {
+      id: '/api/og-chat'
+      path: '/api/og-chat'
+      fullPath: '/api/og-chat'
+      preLoaderRoute: typeof ApiOgChatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auth_/callback': {
       id: '/auth_/callback'
@@ -1203,6 +1488,13 @@ declare module '@tanstack/react-router' {
       path: '/r/$code'
       fullPath: '/r/$code'
       preLoaderRoute: typeof RCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/styles/rap': {
+      id: '/styles/rap'
+      path: '/styles/rap'
+      fullPath: '/styles/rap'
+      preLoaderRoute: typeof StylesRapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track/$songId': {
@@ -1317,6 +1609,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteMapRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/signals': {
+      id: '/_authenticated/admin/signals'
+      path: '/admin/signals'
+      fullPath: '/admin/signals'
+      preLoaderRoute: typeof AuthenticatedAdminSignalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/store': {
       id: '/_authenticated/admin/store'
       path: '/admin/store'
@@ -1387,11 +1686,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLibrarySongIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/copy-feed': {
+      id: '/api/public/copy-feed'
+      path: '/api/public/copy-feed'
+      fullPath: '/api/public/copy-feed'
+      preLoaderRoute: typeof ApiPublicCopyFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/new-user-alert': {
       id: '/api/public/new-user-alert'
       path: '/api/public/new-user-alert'
       fullPath: '/api/public/new-user-alert'
       preLoaderRoute: typeof ApiPublicNewUserAlertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/signal-scan': {
+      id: '/api/public/signal-scan'
+      path: '/api/public/signal-scan'
+      fullPath: '/api/public/signal-scan'
+      preLoaderRoute: typeof ApiPublicSignalScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/song-audio': {
+      id: '/api/public/song-audio'
+      path: '/api/public/song-audio'
+      fullPath: '/api/public/song-audio'
+      preLoaderRoute: typeof ApiPublicSongAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/sports-guide-reminders': {
@@ -1408,12 +1728,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSunoRetryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/trade-signal-watch': {
+      id: '/api/public/trade-signal-watch'
+      path: '/api/public/trade-signal-watch'
+      fullPath: '/api/public/trade-signal-watch'
+      preLoaderRoute: typeof ApiPublicTradeSignalWatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/vault-signin': {
+      id: '/api/public/vault-signin'
+      path: '/api/public/vault-signin'
+      fullPath: '/api/public/vault-signin'
+      preLoaderRoute: typeof ApiPublicVaultSigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/users/$userId': {
       id: '/_authenticated/admin/users/$userId'
       path: '/$userId'
       fullPath: '/admin/users/$userId'
       preLoaderRoute: typeof AuthenticatedAdminUsersUserIdRouteImport
       parentRoute: typeof AuthenticatedAdminUsersRoute
+    }
+    '/api/public/carrom/register-guest': {
+      id: '/api/public/carrom/register-guest'
+      path: '/api/public/carrom/register-guest'
+      fullPath: '/api/public/carrom/register-guest'
+      preLoaderRoute: typeof ApiPublicCarromRegisterGuestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/carrom/verify': {
+      id: '/api/public/carrom/verify'
+      path: '/api/public/carrom/verify'
+      fullPath: '/api/public/carrom/verify'
+      preLoaderRoute: typeof ApiPublicCarromVerifyRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
@@ -1427,6 +1775,20 @@ declare module '@tanstack/react-router' {
       path: '/api/public/telegram/webhook'
       fullPath: '/api/public/telegram/webhook'
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/trade-bot/webhook': {
+      id: '/api/public/trade-bot/webhook'
+      path: '/api/public/trade-bot/webhook'
+      fullPath: '/api/public/trade-bot/webhook'
+      preLoaderRoute: typeof ApiPublicTradeBotWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/worker-bots/$id': {
+      id: '/api/public/worker-bots/$id'
+      path: '/api/public/worker-bots/$id'
+      fullPath: '/api/public/worker-bots/$id'
+      preLoaderRoute: typeof ApiPublicWorkerBotsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/auth/preview': {
@@ -1491,6 +1853,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPurchaseHistoryRoute: typeof AuthenticatedPurchaseHistoryRoute
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
   AuthenticatedSportsRoute: typeof AuthenticatedSportsRoute
   AuthenticatedStoreRoute: typeof AuthenticatedStoreRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -1506,6 +1869,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminOnboardingRoute: typeof AuthenticatedAdminOnboardingRoute
   AuthenticatedAdminReferralsAuditRoute: typeof AuthenticatedAdminReferralsAuditRoute
   AuthenticatedAdminRouteMapRoute: typeof AuthenticatedAdminRouteMapRoute
+  AuthenticatedAdminSignalsRoute: typeof AuthenticatedAdminSignalsRoute
   AuthenticatedAdminStoreRoute: typeof AuthenticatedAdminStoreRoute
   AuthenticatedAdminSystemRoute: typeof AuthenticatedAdminSystemRoute
   AuthenticatedAdminUserSettingsRoute: typeof AuthenticatedAdminUserSettingsRoute
@@ -1529,6 +1893,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPurchaseHistoryRoute: AuthenticatedPurchaseHistoryRoute,
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSignalsRoute: AuthenticatedSignalsRoute,
   AuthenticatedSportsRoute: AuthenticatedSportsRoute,
   AuthenticatedStoreRoute: AuthenticatedStoreRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
@@ -1544,6 +1909,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminOnboardingRoute: AuthenticatedAdminOnboardingRoute,
   AuthenticatedAdminReferralsAuditRoute: AuthenticatedAdminReferralsAuditRoute,
   AuthenticatedAdminRouteMapRoute: AuthenticatedAdminRouteMapRoute,
+  AuthenticatedAdminSignalsRoute: AuthenticatedAdminSignalsRoute,
   AuthenticatedAdminStoreRoute: AuthenticatedAdminStoreRoute,
   AuthenticatedAdminSystemRoute: AuthenticatedAdminSystemRoute,
   AuthenticatedAdminUserSettingsRoute: AuthenticatedAdminUserSettingsRoute,
@@ -1564,6 +1930,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppReturnRoute: AppReturnRoute,
   AuthRoute: AuthRoute,
+  CarromConnectRoute: CarromConnectRoute,
+  CarromReturnRoute: CarromReturnRoute,
   DashboardRoute: DashboardRoute,
   DeleteAccountRoute: DeleteAccountRoute,
   HomeRoute: HomeRoute,
@@ -1575,24 +1943,38 @@ const rootRouteChildren: RootRouteChildren = {
   SignInReturnRoute: SignInReturnRoute,
   SigninRoute: SigninRoute,
   SignupRoute: SignupRoute,
+  SitemapTracksDotxmlRoute: SitemapTracksDotxmlRoute,
   SportsGuideRoute: SportsGuideRoute,
   TermsRoute: TermsRoute,
+  TgRoute: TgRoute,
+  TgConnectRoute: TgConnectRoute,
   TrustRoute: TrustRoute,
   WelcomeRoute: WelcomeRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiOgChatRoute: ApiOgChatRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   PortalSlugRoute: PortalSlugRoute,
   RCodeRoute: RCodeRoute,
+  StylesRapRoute: StylesRapRoute,
   TrackSongIdRoute: TrackSongIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicCopyFeedRoute: ApiPublicCopyFeedRoute,
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
+  ApiPublicSignalScanRoute: ApiPublicSignalScanRoute,
+  ApiPublicSongAudioRoute: ApiPublicSongAudioRoute,
   ApiPublicSportsGuideRemindersRoute: ApiPublicSportsGuideRemindersRoute,
   ApiPublicSunoRetryRoute: ApiPublicSunoRetryRoute,
+  ApiPublicTradeSignalWatchRoute: ApiPublicTradeSignalWatchRoute,
+  ApiPublicVaultSigninRoute: ApiPublicVaultSigninRoute,
+  ApiPublicCarromRegisterGuestRoute: ApiPublicCarromRegisterGuestRoute,
+  ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicTradeBotWebhookRoute: ApiPublicTradeBotWebhookRoute,
+  ApiPublicWorkerBotsIdRoute: ApiPublicWorkerBotsIdRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   ApiPublicV1VaultCredentialsRoute: ApiPublicV1VaultCredentialsRoute,

@@ -2,10 +2,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /**
- * Client-side mirror of the owner's creation rules (AGENTS.md):
- * making a song is free but needs at least 5 coins in the balance, and after
- * 3 unpaid tracks (not unlocked, since the member's last own-track unlock)
- * each new sample costs 2 coins. The backend re-checks and charges atomically
+ * Client-side mirror of the backend's sample rules. New tracks from the
+ * Create wizard are paid up front (pay step), so this now only guards older
+ * flows (e.g. a draft's Generate button): at least 5 coins in the balance,
+ * and after 3 unpaid tracks each new sample costs 2 coins. The backend re-checks and charges atomically
  * via start_generation_charge in suno-generate — this module only warns and
  * confirms up front so members aren't surprised.
  */
@@ -43,7 +43,7 @@ const goTo = (path: string) => {
 /** Below the 5-coin minimum: refuse with ways to fix the balance. */
 function refuseForBalance(terms: GenerationTerms): boolean {
   toast.error(
-    `You need at least ${terms.min_balance} OG coins in your balance to create a song. Making it is free — top up or earn coins to carry on.`,
+    `A track costs ${terms.min_balance} OG coins (or £0.99 by card on ogbot.co.uk). Top up or earn coins to carry on.`,
     {
       duration: 12000,
       action: { label: "Get coins", onClick: () => goTo("/buy-coins") },

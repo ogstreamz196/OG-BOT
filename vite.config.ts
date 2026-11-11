@@ -9,6 +9,7 @@ import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import { loadEnv } from "vite";
 import path from "node:path";
 import { VitePWA } from "vite-plugin-pwa";
+import { legacyCssPlugin } from "./vite-legacy-css";
 
 const serverEnv = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 Object.assign(process.env, serverEnv);
@@ -38,16 +39,22 @@ export default defineConfig({
     },
     plugins: [
       mcpPlugin(),
+      legacyCssPlugin(),
       VitePWA({
         strategies: "generateSW",
         registerType: "autoUpdate",
         injectRegister: null,
         manifest: false,
         filename: "sw.js",
+        // The published site is .output/public (nitro). Writing the worker to
+        // Vite's default dist/ meant /sw.js was never deployed.
+        outDir: ".output/public",
         devOptions: { enabled: false },
         workbox: {
-          // Only hashed, same-origin build assets are precached.
-          globPatterns: ["assets/**/*.{js,css,woff2,png,svg,jpg,webp}"],
+          // Nothing is downloaded up front: the build has ~500 files (~20MB,
+          // mostly code-highlighting languages that load on demand). Built
+          // assets are cached as they're used (og-assets below) instead.
+          globPatterns: ["favicon.png"],
           navigateFallback: null,
           // Opens the track page when a "track ready" notification is tapped.
           importScripts: ["/sw-notify.js"],
@@ -61,7 +68,9 @@ export default defineConfig({
                 request.mode === "navigate" &&
                 !url.pathname.startsWith("/~oauth") &&
                 !url.pathname.startsWith("/auth") &&
-                !url.pathname.startsWith("/api/"),
+                !url.pathname.startsWith("/api/") &&
+                // Shared tracks carry a short-lived audio link: always load them fresh.
+                !url.pathname.startsWith("/track/"),
               handler: "NetworkFirst",
               options: {
                 cacheName: "og-pages",

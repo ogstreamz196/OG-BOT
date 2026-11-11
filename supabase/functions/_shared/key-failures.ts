@@ -1,18 +1,19 @@
 // Records which AI key failed (name + HTTP status only) so the background
 // worker can send Boss a quiet Telegram heads-up. Never throws or blocks.
 import { adminClient } from "./clients.ts";
+import { envKey } from "./key-names.ts";
 
 const KEY_NAMES = [
-  "GEMINI_API_KEY", "GEMINI_FREE_API_KEY", "GEMINI_FREE_BACKUP_API_KEY", "GEMINI_FREE_3_API_KEY",
-  "GEMINI_FREE_4_API_KEY", "GROQ_API_KEY", "GROQ_BACKUP_API_KEY", "POLLINATIONS_API_KEY",
-  "POLLINATIONS_BACKUP_API_KEY", "OPENROUTER_API_KEY", "OPENROUTER_BACKUP_API_KEY", "SUNO_API_KEY",
+  "PAID_GEMINI_F196", "FREE_GEMINI_API_KEY_1", "FREE_GEMINI_API_KEY_2", "FREE_GEMINI_API_KEY_3",
+  "FREE_GEMINI_API_KEY_4", "FREE_GROQ_API_KEY", "FREE_GROQ_API_KEY_2", "FREE_POLLINATIONS_API_KEY",
+  "FREE_POLLINATIONS_API_KEY_2", "FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2", "SUNO_API_KEY",
 ];
 const ALERT_STATUSES = new Set([400, 401, 402, 403, 429]);
 
 function keyFor(url: string, headers: Headers): string | null {
   const hay = `${url} ${headers.get("Authorization") ?? ""} ${headers.get("x-goog-api-key") ?? ""}`;
   for (const name of KEY_NAMES) {
-    const v = Deno.env.get(name);
+    const v = envKey(name);
     if (v && v.length > 8 && hay.includes(v)) return name;
   }
   return null;

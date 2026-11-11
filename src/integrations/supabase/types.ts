@@ -333,6 +333,27 @@ export type Database = {
           },
         ]
       }
+      carrom_guest_accounts: {
+        Row: {
+          created_at: string
+          guest_id: string
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          guest_id: string
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          guest_id?: string
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
       chat_image_allowance: {
         Row: {
           last_free_at: string | null
@@ -558,6 +579,27 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_battle_claims: {
+        Row: {
+          claimed_at: string
+          credited_tenths: number
+          guest_id: string
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          credited_tenths?: number
+          guest_id: string
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          credited_tenths?: number
+          guest_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ledgerly_settings: {
         Row: {
           api_key: string | null
@@ -591,6 +633,111 @@ export type Database = {
           last_test_at?: string | null
           last_test_ok?: boolean | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      mt5_trades: {
+        Row: {
+          closed_at: string | null
+          confidence_pct: number | null
+          created_at: string
+          direction: string
+          entry: number
+          error: string | null
+          expires_at: string | null
+          id: string
+          label: string
+          market: string
+          opened_at: string | null
+          order_type: string
+          profit: number | null
+          setup_key: string
+          status: string
+          stop_loss: number
+          symbol: string
+          take_profit: number
+          ticket: string | null
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          closed_at?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          direction: string
+          entry: number
+          error?: string | null
+          expires_at?: string | null
+          id?: string
+          label: string
+          market: string
+          opened_at?: string | null
+          order_type: string
+          profit?: number | null
+          setup_key: string
+          status: string
+          stop_loss: number
+          symbol: string
+          take_profit: number
+          ticket?: string | null
+          updated_at?: string
+          volume: number
+        }
+        Update: {
+          closed_at?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          direction?: string
+          entry?: number
+          error?: string | null
+          expires_at?: string | null
+          id?: string
+          label?: string
+          market?: string
+          opened_at?: string | null
+          order_type?: string
+          profit?: number | null
+          setup_key?: string
+          status?: string
+          stop_loss?: number
+          symbol?: string
+          take_profit?: number
+          ticket?: string | null
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: []
+      }
+      og_bonds: {
+        Row: {
+          chat_day: string | null
+          chat_today: number
+          compliments: number
+          created_at: string
+          insults: number
+          score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_day?: string | null
+          chat_today?: number
+          compliments?: number
+          created_at?: string
+          insults?: number
+          score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_day?: string | null
+          chat_today?: number
+          compliments?: number
+          created_at?: string
+          insults?: number
+          score?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -765,6 +912,30 @@ export type Database = {
           phrase?: string
           severity?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      og_memories: {
+        Row: {
+          created_at: string
+          fact: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fact: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fact?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1160,6 +1331,210 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_broadcasts: {
+        Row: {
+          confidence_pct: number
+          created_at: string
+          direction: string
+          entry: number
+          expires_at: string
+          id: string
+          market: string
+          message_id: number | null
+          timeframe: string
+        }
+        Insert: {
+          confidence_pct: number
+          created_at?: string
+          direction: string
+          entry: number
+          expires_at: string
+          id?: string
+          market: string
+          message_id?: number | null
+          timeframe: string
+        }
+        Update: {
+          confidence_pct?: number
+          created_at?: string
+          direction?: string
+          entry?: number
+          expires_at?: string
+          id?: string
+          market?: string
+          message_id?: number | null
+          timeframe?: string
+        }
+        Relationships: []
+      }
+      signal_chat_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          kind: string
+          market: string | null
+          message_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          kind: string
+          market?: string | null
+          message_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          kind?: string
+          market?: string | null
+          message_id?: number
+        }
+        Relationships: []
+      }
+      signal_learn_samples: {
+        Row: {
+          created_at: string
+          market: string
+          sample: Json
+          t: number
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          market: string
+          sample: Json
+          t: number
+          version: number
+        }
+        Update: {
+          created_at?: string
+          market?: string
+          sample?: Json
+          t?: number
+          version?: number
+        }
+        Relationships: []
+      }
+      signal_results: {
+        Row: {
+          best_target: number
+          decided_at: string
+          direction: string
+          id: string
+          label: string
+          market: string
+          outcome: string
+          pips: number
+          setup_key: string
+          signal_id: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          best_target?: number
+          decided_at: string
+          direction: string
+          id?: string
+          label: string
+          market: string
+          outcome: string
+          pips: number
+          setup_key: string
+          signal_id?: string | null
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          best_target?: number
+          decided_at?: string
+          direction?: string
+          id?: string
+          label?: string
+          market?: string
+          outcome?: string
+          pips?: number
+          setup_key?: string
+          signal_id?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      signal_shadows: {
+        Row: {
+          closed_at: string | null
+          confidence_pct: number
+          created_at: string
+          decimals: number
+          direction: string
+          entered_at: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          key: string
+          label: string
+          last_candle_at: string | null
+          market: string
+          offset: number
+          outcome: string | null
+          pip: number | null
+          pips: number | null
+          reason: string
+          status: string
+          stop: number
+          timeframe: string
+          tp: number
+        }
+        Insert: {
+          closed_at?: string | null
+          confidence_pct: number
+          created_at?: string
+          decimals?: number
+          direction: string
+          entered_at?: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          key: string
+          label: string
+          last_candle_at?: string | null
+          market: string
+          offset?: number
+          outcome?: string | null
+          pip?: number | null
+          pips?: number | null
+          reason: string
+          status: string
+          stop: number
+          timeframe?: string
+          tp: number
+        }
+        Update: {
+          closed_at?: string | null
+          confidence_pct?: number
+          created_at?: string
+          decimals?: number
+          direction?: string
+          entered_at?: string | null
+          entry?: number
+          entry_type?: string
+          expires_at?: string
+          key?: string
+          label?: string
+          last_candle_at?: string | null
+          market?: string
+          offset?: number
+          outcome?: string | null
+          pip?: number | null
+          pips?: number | null
+          reason?: string
+          status?: string
+          stop?: number
+          timeframe?: string
+          tp?: number
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           key: string
@@ -1231,6 +1606,7 @@ export type Database = {
           foul_mouth: boolean
           generation_started_at: string | null
           id: string
+          is_nasheed: boolean
           is_public: boolean
           is_variation: boolean
           last_auto_retry_at: string | null
@@ -1257,6 +1633,8 @@ export type Database = {
           revealed: boolean
           sample_path: string | null
           status: string
+          stem_source_clip_id: string | null
+          stem_task_id: string | null
           stream_audio_url: string | null
           style: string | null
           suno_clip_id: string | null
@@ -1288,6 +1666,7 @@ export type Database = {
           foul_mouth?: boolean
           generation_started_at?: string | null
           id?: string
+          is_nasheed?: boolean
           is_public?: boolean
           is_variation?: boolean
           last_auto_retry_at?: string | null
@@ -1314,6 +1693,8 @@ export type Database = {
           revealed?: boolean
           sample_path?: string | null
           status?: string
+          stem_source_clip_id?: string | null
+          stem_task_id?: string | null
           stream_audio_url?: string | null
           style?: string | null
           suno_clip_id?: string | null
@@ -1345,6 +1726,7 @@ export type Database = {
           foul_mouth?: boolean
           generation_started_at?: string | null
           id?: string
+          is_nasheed?: boolean
           is_public?: boolean
           is_variation?: boolean
           last_auto_retry_at?: string | null
@@ -1371,6 +1753,8 @@ export type Database = {
           revealed?: boolean
           sample_path?: string | null
           status?: string
+          stem_source_clip_id?: string | null
+          stem_task_id?: string | null
           stream_audio_url?: string | null
           style?: string | null
           suno_clip_id?: string | null
@@ -1702,6 +2086,42 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_connect_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          telegram_first_name: string | null
+          telegram_user_id: number
+          telegram_username: string | null
+          token_hash: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          telegram_first_name?: string | null
+          telegram_user_id: number
+          telegram_username?: string | null
+          token_hash: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          telegram_first_name?: string | null
+          telegram_user_id?: number
+          telegram_username?: string | null
+          token_hash?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       telegram_dm_queue: {
         Row: {
           attempts: number
@@ -1776,6 +2196,87 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_group_lines: {
+        Row: {
+          chat_id: number
+          content: string
+          created_at: string
+          id: number
+          name: string | null
+          role: string
+          telegram_message_id: number | null
+          telegram_user_id: number | null
+        }
+        Insert: {
+          chat_id: number
+          content: string
+          created_at?: string
+          id?: number
+          name?: string | null
+          role: string
+          telegram_message_id?: number | null
+          telegram_user_id?: number | null
+        }
+        Update: {
+          chat_id?: number
+          content?: string
+          created_at?: string
+          id?: number
+          name?: string | null
+          role?: string
+          telegram_message_id?: number | null
+          telegram_user_id?: number | null
+        }
+        Relationships: []
+      }
+      telegram_group_nudges: {
+        Row: {
+          chat_id: number
+          nudged_at: string
+          telegram_user_id: number
+        }
+        Insert: {
+          chat_id: number
+          nudged_at?: string
+          telegram_user_id: number
+        }
+        Update: {
+          chat_id?: number
+          nudged_at?: string
+          telegram_user_id?: number
+        }
+        Relationships: []
+      }
+      telegram_managed_groups: {
+        Row: {
+          active_workers: Json
+          chat_id: number
+          chat_title: string | null
+          chat_type: string
+          og_bot_added_at: string | null
+          og_bot_present: boolean
+          updated_at: string
+        }
+        Insert: {
+          active_workers?: Json
+          chat_id: number
+          chat_title?: string | null
+          chat_type?: string
+          og_bot_added_at?: string | null
+          og_bot_present?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active_workers?: Json
+          chat_id?: number
+          chat_title?: string | null
+          chat_type?: string
+          og_bot_added_at?: string | null
+          og_bot_present?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       telegram_processed_updates: {
         Row: {
           chat_id: number | null
@@ -1794,6 +2295,27 @@ export type Database = {
           created_at?: string
           kind?: string | null
           update_id?: number
+        }
+        Relationships: []
+      }
+      telegram_screen_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          kind: string
+          message_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          kind?: string
+          message_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          kind?: string
+          message_id?: number
         }
         Relationships: []
       }
@@ -1830,6 +2352,77 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_worker_bots: {
+        Row: {
+          bot_id: number
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          instructions: string
+          name: string
+          role: string
+          token_ciphertext: string
+          updated_at: string
+          username: string
+          webhook_connected: boolean
+        }
+        Insert: {
+          bot_id: number
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name: string
+          role?: string
+          token_ciphertext: string
+          updated_at?: string
+          username: string
+          webhook_connected?: boolean
+        }
+        Update: {
+          bot_id?: number
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name?: string
+          role?: string
+          token_ciphertext?: string
+          updated_at?: string
+          username?: string
+          webhook_connected?: boolean
+        }
+        Relationships: []
+      }
+      telegram_worker_updates: {
+        Row: {
+          created_at: string
+          update_id: number
+          worker_id: string
+        }
+        Insert: {
+          created_at?: string
+          update_id: number
+          worker_id: string
+        }
+        Update: {
+          created_at?: string
+          update_id?: number
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_worker_updates_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_worker_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tiktok_renders: {
         Row: {
           created_at: string
@@ -1860,6 +2453,114 @@ export type Database = {
           song_id?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      trade_signals: {
+        Row: {
+          best_target: number
+          card: string | null
+          chat_id: number | null
+          closed_at: string | null
+          confidence_pct: number
+          created_at: string
+          decimals: number
+          direction: string
+          entered_at: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          feeds: Json
+          id: string
+          label: string
+          last_candle_at: string | null
+          last_checked_at: string | null
+          last_edit_at: string | null
+          last_price: number | null
+          last_trend_check_at: string | null
+          market: string
+          message_id: number | null
+          pip: number | null
+          quality: string
+          sender_worker: string | null
+          status: string
+          stop: number
+          style: string
+          timeframe: string
+          tp1: number
+          tp2: number
+          tp3: number
+          user_id: string
+        }
+        Insert: {
+          best_target?: number
+          card?: string | null
+          chat_id?: number | null
+          closed_at?: string | null
+          confidence_pct: number
+          created_at?: string
+          decimals?: number
+          direction: string
+          entered_at?: string | null
+          entry: number
+          entry_type: string
+          expires_at: string
+          feeds?: Json
+          id?: string
+          label: string
+          last_candle_at?: string | null
+          last_checked_at?: string | null
+          last_edit_at?: string | null
+          last_price?: number | null
+          last_trend_check_at?: string | null
+          market: string
+          message_id?: number | null
+          pip?: number | null
+          quality: string
+          sender_worker?: string | null
+          status?: string
+          stop: number
+          style: string
+          timeframe: string
+          tp1: number
+          tp2: number
+          tp3: number
+          user_id: string
+        }
+        Update: {
+          best_target?: number
+          card?: string | null
+          chat_id?: number | null
+          closed_at?: string | null
+          confidence_pct?: number
+          created_at?: string
+          decimals?: number
+          direction?: string
+          entered_at?: string | null
+          entry?: number
+          entry_type?: string
+          expires_at?: string
+          feeds?: Json
+          id?: string
+          label?: string
+          last_candle_at?: string | null
+          last_checked_at?: string | null
+          last_edit_at?: string | null
+          last_price?: number | null
+          last_trend_check_at?: string | null
+          market?: string
+          message_id?: number | null
+          pip?: number | null
+          quality?: string
+          sender_worker?: string | null
+          status?: string
+          stop?: number
+          style?: string
+          timeframe?: string
+          tp1?: number
+          tp2?: number
+          tp3?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -2046,6 +2747,7 @@ export type Database = {
           foul_intensity: number
           foul_mouth: boolean
           messenger_mode: string
+          og_memory: boolean
           text_scale: number
           updated_at: string
           user_id: string
@@ -2056,6 +2758,7 @@ export type Database = {
           foul_intensity?: number
           foul_mouth?: boolean
           messenger_mode?: string
+          og_memory?: boolean
           text_scale?: number
           updated_at?: string
           user_id: string
@@ -2066,6 +2769,7 @@ export type Database = {
           foul_intensity?: number
           foul_mouth?: boolean
           messenger_mode?: string
+          og_memory?: boolean
           text_scale?: number
           updated_at?: string
           user_id?: string
@@ -2395,6 +3099,7 @@ export type Database = {
           foul_mouth: boolean
           generation_started_at: string | null
           id: string
+          is_nasheed: boolean
           is_public: boolean
           is_variation: boolean
           last_auto_retry_at: string | null
@@ -2421,6 +3126,8 @@ export type Database = {
           revealed: boolean
           sample_path: string | null
           status: string
+          stem_source_clip_id: string | null
+          stem_task_id: string | null
           stream_audio_url: string | null
           style: string | null
           suno_clip_id: string | null
@@ -2461,6 +3168,7 @@ export type Database = {
           foul_mouth: boolean
           generation_started_at: string | null
           id: string
+          is_nasheed: boolean
           is_public: boolean
           is_variation: boolean
           last_auto_retry_at: string | null
@@ -2487,6 +3195,8 @@ export type Database = {
           revealed: boolean
           sample_path: string | null
           status: string
+          stem_source_clip_id: string | null
+          stem_task_id: string | null
           stream_audio_url: string | null
           style: string | null
           suno_clip_id: string | null
@@ -2505,6 +3215,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_guest_battle: {
+        Args: { _guest_id: string; _user_id: string }
+        Returns: Json
       }
       claim_presence_alert: {
         Args: { p_cooldown_minutes: number; p_kind: string; p_user: string }
@@ -2653,6 +3367,13 @@ export type Database = {
         Returns: number
       }
       my_generation_terms: { Args: never; Returns: Json }
+      og_bond_nudge: {
+        Args: { p_delta: number; p_kind: string; p_user_id: string }
+        Returns: {
+          after_score: number
+          before_score: number
+        }[]
+      }
       og_learn_insult: {
         Args: { p_phrase: string; p_user_id: string }
         Returns: undefined
@@ -2671,6 +3392,11 @@ export type Database = {
         Args: { p_n?: number; p_tone: string; p_user: string }
         Returns: Json
       }
+      pick_trade_hold: {
+        Args: { p_tone: string; p_user: string }
+        Returns: Json
+      }
+      prepay_track: { Args: { p_song: string; p_user: string }; Returns: Json }
       purchase_bot_token: {
         Args: { p_allowed_domain?: string }
         Returns: {
@@ -2770,6 +3496,10 @@ export type Database = {
       set_site_content: {
         Args: { p_key: string; p_value: string }
         Returns: string
+      }
+      set_telegram_worker: {
+        Args: { p_chat: number; p_on: boolean; p_worker: string }
+        Returns: Json
       }
       set_vault_pass_admin: {
         Args: {

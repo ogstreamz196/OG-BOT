@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, PackageOpen } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { StoreSectionHead } from "@/components/store/StoreSectionHead";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
+import { storeItemAllowed } from "@/lib/native-policy";
 import { arePaymentsEnabled } from "@/lib/stripe";
 import { StoreItemCard } from "@/components/store/StoreItemCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +18,16 @@ import {
 import { StripeCheckoutDialog } from "@/components/payments/StripeCheckoutDialog";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { getVipPassStatus, purchaseVipPass } from "@/lib/vip-pass.functions";
+import { useProfile } from "@/hooks/use-profile";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ALL_ITEMS = "all";
 
@@ -26,6 +38,14 @@ export function StoreItemsSection() {
   const createCheckout = useServerFn(createStoreItemCheckoutSession);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  // Coin purchases ask first: nothing is spent until the buyer confirms.
+  const [confirming, setConfirming] = useState<{
+    kind: "sports" | "vault";
+    name: string;
+    price: number;
+  } | null>(null);
+  const { data: profile } = useProfile();
+  const balance = profile?.coin_balance ?? 0;
   const catalog = useQuery({
     queryKey: ["store-catalog"],
     queryFn: () => listStoreCatalog(),
@@ -37,7 +57,16 @@ export function StoreItemsSection() {
   const getVipStatus = useServerFn(getVipPassStatus);
   const buyVipPass = useServerFn(purchaseVipPass);
   const vipStatus = useQuery({ queryKey: ["vip-pass-status"], queryFn: () => getVipStatus() });
-  const categories = catalog.data?.categories ?? [];
+  // Some items are website-only (native-policy.ts): the Vault Pass isn't sold in the phone apps.
+  const [native, setNative] = useState(false);
+  useEffect(() => setNative(Capacitor.isNativePlatform()), []);
+  const categories = useMemo(
+    () =>
+      (catalog.data?.categories ?? [])
+        .map((c) => ({ ...c, items: c.items.filter((i) => storeItemAllowed(i.slug, native)) }))
+        .filter((c) => c.items.length > 0),
+    [catalog.data, native],
+  );
   const allItems = useMemo(() => categories.flatMap((category) => category.items), [categories]);
   useEffect(() => {
     if (allItems.length === 0 || typeof window === "undefined") return;
@@ -87,14 +116,29 @@ export function StoreItemsSection() {
   const buy = (itemId: string) => {
     const item = allItems.find((candidate) => candidate.id === itemId);
     if (item?.slug === "og-sports-guide-access") {
-      sportsGuide.mutate();
+      setConfirming({ kind: "sports", name: item.name, price: item.coin_price ?? 0 });
       return;
     }
     if (item?.slug === "og-vip-pass") {
-      vipPass.mutate();
+      setConfirming({ kind: "vault", name: item.name, price: item.coin_price ?? 50 });
       return;
     }
     startCheckout(itemId);
+  };
+
+  const confirmCoinPurchase = () => {
+    const c = confirming;
+    setConfirming(null);
+    if (!c) return;
+    if (c.kind === "sports") sportsGuide.mutate();
+    else vipPass.mutate();
+  };
+
+  const goTopUp = () => {
+    setConfirming(null);
+    document
+      .getElementById("section-bundles")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const startCheckout = (itemId: string) => {
@@ -132,18 +176,17 @@ export function StoreItemsSection() {
   );
 
   return (
-    <section aria-labelledby="store-items-heading" className="scroll-mt-24">
-      <div className="mb-3 flex items-center gap-2">
-        <PackageOpen className="h-4 w-4 shrink-0 text-primary" />
-        <div>
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
-            Member access & extras
-          </p>
-          <h2 id="store-items-heading" className="font-display text-xl font-black">
-            Store items
-          </h2>
-        </div>
-      </div>
+    <section
+      aria-labelledby="store-items-heading"
+      id="section-unlocks"
+      className="og-store-section"
+    >
+      <StoreSectionHead
+        id="store-items-heading"
+        eyebrow="Member access & extras"
+        title="Unlocks"
+        accent="blue"
+      />
 
       {catalog.isLoading ? (
         <div className="grid place-items-center rounded-2xl border border-border py-12">
@@ -157,6 +200,8 @@ export function StoreItemsSection() {
         <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           No Store items are available yet.
         </div>
+      ) : categories.length <= 1 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{allItems.map(renderItem)}</div>
       ) : (
         <Tabs defaultValue={ALL_ITEMS}>
           <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 min-[520px]:flex min-[520px]:flex-wrap min-[520px]:justify-start">
@@ -193,6 +238,35 @@ export function StoreItemsSection() {
       )}
 
       <StripeCheckoutDialog clientSecret={clientSecret} onClose={() => setClientSecret(null)} />
+
+      <AlertDialog open={!!confirming} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent className="og-store og-store-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlock {confirming?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirming && balance >= confirming.price
+                ? `${confirming.price} OG Coins will come out of your balance. You'll have ${balance - confirming.price} left.`
+                : `This costs ${confirming?.price ?? 0} OG Coins and you have ${balance}. Top up first, then come back to unlock it.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            {confirming && balance >= confirming.price ? (
+              <button
+                type="button"
+                className="og-store-btn og-store-btn--gold"
+                onClick={confirmCoinPurchase}
+              >
+                Unlock · {confirming.price} coins
+              </button>
+            ) : (
+              <button type="button" className="og-store-btn og-store-btn--gold" onClick={goTopUp}>
+                Get coins
+              </button>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

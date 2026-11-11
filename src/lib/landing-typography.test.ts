@@ -42,7 +42,6 @@ describe("landing page typography parity", () => {
       void RULES.cardShell;
       void RULES.cardShadow;
 
-
       it("uses a centred landing container (max-w-5xl and up)", () => {
         expect(src).toMatch(RULES.container);
       });

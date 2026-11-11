@@ -18,7 +18,7 @@ export function CoinPill({
   className?: string;
   size?: "sm" | "md";
 }) {
-  const padding = size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs";
+  const padding = size === "sm" ? "px-1.5 py-0.5 text-[0.7rem]" : "px-2.5 py-1 text-xs";
   return (
     <span
       className={cn(

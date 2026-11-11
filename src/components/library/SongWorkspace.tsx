@@ -1,3 +1,4 @@
+import { useSongRealtime } from "@/hooks/user-songs-realtime";
 import { useServerFn } from "@tanstack/react-start";
 import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -60,9 +61,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { useRole } from "@/hooks/use-role";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import { POOLS, orderLanguages, isFreeStyle } from "@/lib/library-utils";
 import { LENGTH_OPTIONS, MIN_LENGTH, MAX_LENGTH } from "./CreateNowWizard";
 
@@ -85,6 +87,8 @@ const LANGUAGES = orderLanguages([
   "Swahili",
   "Patois",
   "Yoruba",
+  "Igbo",
+  "Hausa",
   "German",
   "Italian",
   "Romanian",
@@ -356,9 +360,9 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
     setCooking(true);
   }
 
-  // Realtime + polling fallback: while the song is generating, listen for the row
-  // flipping to completed/failed and ask the parent to refetch so the UI moves
-  // from "Sample" → "Full ready" automatically.
+  // While the song is generating, the song page's realtime channel and poll
+  // refetch the row; when the status here flips to completed/failed, say so
+  // and refresh the coin balance.
   const lastStatus = useRef(song.status);
   useEffect(() => {
     if (!isPending) {
@@ -373,28 +377,12 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
     }
     lastStatus.current = song.status;
 
-    const channel = supabase
-      .channel(`song-${song.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${song.id}` },
-        (payload) => {
-          const next = (payload.new as { status?: string })?.status;
-          if (next && next !== lastStatus.current) onSaved?.();
-        },
-      )
-      .subscribe();
-
-    // Tight 2s polling fallback in case Realtime drops a message.
-    const poll = setInterval(() => onSaved?.(), 2000);
-    // Refresh the coin balance every 5s while a job is in flight — belt & braces
-    // for the realtime profile subscription, so users see refunds/deductions
-    // land even if the socket blips.
-    const coinPoll = setInterval(refreshCoinBalance, 5000);
+    // Refresh the coin balance every 15s while a job is in flight — belt &
+    // braces for the realtime profile subscription, so users see
+    // refunds/deductions land even if the socket blips.
+    const coinPoll = setInterval(refreshCoinBalance, 15_000);
 
     return () => {
-      supabase.removeChannel(channel);
-      clearInterval(poll);
       clearInterval(coinPoll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -417,9 +405,7 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   }, [isPending, song.generation_started_at]);
 
   const stage: Stage = isReady ? 3 : hasLyrics ? 2 : 1;
-  const [tab, setTab] = useState<string>(
-    isReady ? "preview" : hasLyrics ? "preview" : "lyrics",
-  );
+  const [tab, setTab] = useState<string>(isReady ? "preview" : hasLyrics ? "preview" : "lyrics");
 
   const dirty =
     savedStyleValue !== (song.style ?? "") ||
@@ -650,8 +636,8 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
         announceSampleCharge(data);
         toast.success(
           editCost > 0
-            ? `${editCost} OG coins used · OG Bot is cooking your new take`
-            : "OG Bot is cooking your new take",
+            ? `${editCost} OG coins used · OG B0T is cooking your new take`
+            : "OG B0T is cooking your new take",
         );
         refreshCoinBalance();
         onSaved?.();
@@ -686,7 +672,8 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
     try {
       if (!ownsFull) {
         const data = await buyOwnerTrack({ data: { songId: song.id } });
-        if (!data?.already) toast.success(`Unlocked + Take 2 free · -${data?.cost ?? unlockCost} coins`);
+        if (!data?.already)
+          toast.success(`Unlocked + Take 2 free · -${data?.cost ?? unlockCost} coins`);
         void queryClient.invalidateQueries({ queryKey: ["library"] });
         void queryClient.invalidateQueries({ queryKey: ["recent-songs"] });
         void queryClient.invalidateQueries({ queryKey: ["variations"] });
@@ -784,563 +771,585 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
       )}
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="grid h-auto w-full grid-cols-3 p-1">
-          <TabsTrigger value="lyrics" className="text-xs sm:text-sm">Edit</TabsTrigger>
-          <TabsTrigger value="preview" className="text-xs sm:text-sm">Preview</TabsTrigger>
-          <TabsTrigger value="takes" className="text-xs sm:text-sm">Takes</TabsTrigger>
+          <TabsTrigger value="lyrics" className="text-xs sm:text-sm">
+            Edit
+          </TabsTrigger>
+          <TabsTrigger value="preview" className="text-xs sm:text-sm">
+            Preview
+          </TabsTrigger>
+          <TabsTrigger value="takes" className="text-xs sm:text-sm">
+            Takes
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lyrics" className="mt-0">
-        <Card>
-          <Collapsible open>
-            <CollapsibleTrigger className="pointer-events-none flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5 [&>svg]:hidden">
-              <div className="min-w-0">
-                <span className="flex items-center gap-2 text-lg font-semibold">
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />Lyrics & vibe
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {hasLyrics ? "Tweak, save, re-cook" : "Write the lyrics · Free"}
-                </span>
-              </div>
-              <ChevronDown className="h-5 w-5 shrink-0" />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4">
-                {/* Original idea from the wizard — editable, rewrites lyrics on Cook now */}
-                <div className="space-y-2">
-                  <Label htmlFor="song-idea">
-                    Your idea{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      (change it and Cook now writes fresh lyrics)
-                    </span>
-                  </Label>
-                  <Textarea
-                    id="song-idea"
-                    value={getIdea(brief)}
-                    onChange={(e) => setBrief((b) => setIdea(b, e.target.value))}
-                    placeholder="What's the song about? Names, stories, inside jokes…"
-                    rows={3}
-                    maxLength={500}
-                    disabled={!isOwner}
-                  />
-                </div>
-
-                {/* Styles — stack as many as you like */}
-                <div className="space-y-2">
-                  <Label>
-                    Styles{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      (pick one or more)
-                    </span>
-                  </Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {STYLE_OPTIONS.map((s) => {
-                      const on = styles.includes(s);
-                      const locked = !isVipUser && !isFreeStyle(s) && !on;
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => {
-                            if (locked) {
-                              toast(`👑 ${s} is an OG VIP style`, {
-                                description: "Unlock all 50+ styles & moods, plus custom requests.",
-                                action: { label: "Get VIP", onClick: () => void navigate({ to: "/buy-coins" }) },
-                              });
-                              return;
-                            }
-                            if (s === "Nasheed") {
-                              setStyles(on ? [] : ["Nasheed"]);
-                              setStyleExtra("");
-                              setVocalsOnly(!on);
-                              if (!on) {
-                                setFoulIntensityLocal(0);
-                                setFoulIntensity.mutate(0);
-                                if (foulMouth) setFoulMouth.mutate(false);
-                              }
-                              return;
-                            }
-                            setStyles((list) =>
-                              toggleItem(
-                                list.filter((style) => style !== "Nasheed"),
-                                s,
-                              ),
-                            );
-                          }}
-                          className={cn(
-                            "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-                            on
-                              ? "border-primary bg-primary/15 text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary))]"
-                              : "border-border bg-background/40 text-muted-foreground hover:border-primary/50",
-                          )}
-                        >
-                          {locked && <span className="mr-1">🔒👑</span>}
-                          {s}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <Input
-                    id="song-style-extra"
-                    value={styleExtra}
-                    onChange={(e) => setStyleExtra(e.target.value)}
-                    placeholder="Add your own, e.g. dark piano, 90s boom bap"
-                  />
-                </div>
-
-                {/* Languages — multi select, English always included */}
-                <div className="space-y-2">
-                  <Label>
-                    Languages{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      (mix as many as you like)
-                    </span>
-                  </Label>
-                  <details className="group rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold">
-                    <span className="truncate">{languages.join(" + ")}</span>
-                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
-                  </summary>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {LANGUAGES.map((l) => {
-                      const on = languages.includes(l);
-                      return (
-                        <button
-                          key={l}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() =>
-                            setLanguages((list) => {
-                              const next = toggleItem(list, l);
-                              return next.length ? next : ["English"];
-                            })
-                          }
-                          className={cn(
-                            "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-                            on
-                              ? "border-primary bg-primary/15 text-foreground"
-                              : "border-border bg-background/40 text-muted-foreground hover:border-primary/50",
-                          )}
-                        >
-                          {l}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  </details>
-                </div>
-
-                {/* Voice + length */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="song-vocal">Voice</Label>
-                    <Select value={vocal || "Mix voice"} onValueChange={setVocal}>
-                      <SelectTrigger id="song-vocal">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {VOCALS.map((v) => (
-                          <SelectItem key={v} value={v}>
-                            {v}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="song-length">Track length</Label>
-                    <Select
-                      value={String(targetMinutes)}
-                      onValueChange={(v) => setTargetMinutes(Number(v))}
-                    >
-                      <SelectTrigger id="song-length">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LENGTH_OPTIONS.map((m) => (
-                          <SelectItem key={m} value={String(m)}>
-                            {m} min
-                            {m > MIN_LENGTH
-                              ? ` · +${m - MIN_LENGTH} coin${m - MIN_LENGTH === 1 ? "" : "s"}`
-                              : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Vocals only */}
-                <label
-                  htmlFor="vocals-only-toggle"
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-medium"
-                >
-                  <span className="min-w-0">
-                    Vocals only {isNasheed ? "· REQUIRED" : vocalsOnly ? "· ON" : "· OFF"}
-                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
-                      {isNasheed
-                        ? "Nasheed stays strictly voice-only with no music or instruments."
-                        : "A cappella vocals with no generated instrumental."}
-                    </span>
+          <Card>
+            <Collapsible open>
+              <CollapsibleTrigger className="pointer-events-none flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5 [&>svg]:hidden">
+                <div className="min-w-0">
+                  <span className="flex items-center gap-2 text-lg font-semibold">
+                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                    Lyrics & vibe
                   </span>
-                  <Switch
-                    id="vocals-only-toggle"
-                    checked={vocalsOnly}
-                    onCheckedChange={setVocalsOnly}
-                    disabled={isNasheed}
-                  />
-                </label>
-
-                {hasLyrics && languageChanged && (
-                  <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground/80">
-                    Language changed to <b>{languageValue}</b> — Cook now will rewrite the lyrics.
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {hasLyrics ? "Tweak, save, re-cook" : "Write the lyrics · Free"}
+                  </span>
+                </div>
+                <ChevronDown className="h-5 w-5 shrink-0" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4">
+                  {/* Original idea from the wizard — editable, rewrites lyrics on Cook now */}
+                  <div className="space-y-2">
+                    <Label htmlFor="song-idea">
+                      Your idea{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (change it and Cook now writes fresh lyrics)
+                      </span>
+                    </Label>
+                    <Textarea
+                      id="song-idea"
+                      value={getIdea(brief)}
+                      onChange={(e) => setBrief((b) => setIdea(b, e.target.value))}
+                      placeholder="What's the song about? Names, stories, inside jokes…"
+                      rows={3}
+                      maxLength={500}
+                      disabled={!isOwner}
+                    />
                   </div>
-                )}
 
-                <Collapsible open={lyricsOpen} onOpenChange={setLyricsOpen}>
-                  <div className="flex items-center justify-between gap-3">
-                    <CollapsibleTrigger className="flex min-w-0 items-center gap-2 text-sm font-semibold hover:text-primary">
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 shrink-0 transition-transform",
-                          lyricsOpen && "rotate-180",
-                        )}
-                      />
-                      <span className="truncate">
-                        {lyricsOpen ? "Hide lyrics" : "View / edit lyrics"}
+                  {/* Styles — stack as many as you like */}
+                  <div className="space-y-2">
+                    <Label>
+                      Styles{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (pick one or more)
                       </span>
-                    </CollapsibleTrigger>
-                    {hasLyrics && !genLyrics && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-emerald-500">
-                        <Check className="h-3 w-3" /> Ready
-                      </span>
-                    )}
-                    {genLyrics && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-primary">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Writing…
-                      </span>
-                    )}
-                  </div>
-                  {genLyrics ? (
-                    <div className="pt-3">
-                      <LyricsSkeleton songId={song.id} />
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {STYLE_OPTIONS.map((s) => {
+                        const on = styles.includes(s);
+                        const locked = !isVipUser && !isFreeStyle(s) && !on;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                              if (locked) {
+                                toast(`👑 ${s} is an OG VIP style`, {
+                                  description:
+                                    "Unlock all 50+ styles & moods, plus custom requests.",
+                                  action: {
+                                    label: "Get VIP",
+                                    onClick: () => void navigate({ to: "/buy-coins" }),
+                                  },
+                                });
+                                return;
+                              }
+                              if (s === "Nasheed") {
+                                setStyles(on ? [] : ["Nasheed"]);
+                                setStyleExtra("");
+                                setVocalsOnly(!on);
+                                if (!on) {
+                                  setFoulIntensityLocal(0);
+                                  setFoulIntensity.mutate(0);
+                                  if (foulMouth) setFoulMouth.mutate(false);
+                                }
+                                return;
+                              }
+                              setStyles((list) =>
+                                toggleItem(
+                                  list.filter((style) => style !== "Nasheed"),
+                                  s,
+                                ),
+                              );
+                            }}
+                            className={cn(
+                              "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                              on
+                                ? "border-primary bg-primary/15 text-foreground shadow-[0_0_14px_-6px_hsl(var(--primary))]"
+                                : "border-border bg-background/40 text-muted-foreground hover:border-primary/50",
+                            )}
+                          >
+                            {locked && <span className="mr-1">🔒👑</span>}
+                            {s}
+                          </button>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <CollapsibleContent className="pt-3">
-                      <Label htmlFor="song-lyrics" className="sr-only">
-                        Lyrics
-                      </Label>
-                      <Textarea
-                        ref={lyricsRef}
-                        id="song-lyrics"
-                        value={lyrics}
-                        onChange={(e) => setLyrics(e.target.value)}
-                        rows={12}
-                        placeholder={
-                          "Tap Generate lyrics below — or paste your own.\n\n[Verse 1]\n…\n[Chorus]\n…"
-                        }
-                        className="font-mono text-sm"
-                      />
-                    </CollapsibleContent>
-                  )}
-                </Collapsible>
+                    <Input
+                      id="song-style-extra"
+                      value={styleExtra}
+                      onChange={(e) => setStyleExtra(e.target.value)}
+                      placeholder="Add your own, e.g. dark piano, 90s boom bap"
+                    />
+                  </div>
 
-                <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
-                  {dirty && (
-                    <span className="mr-auto text-xs text-muted-foreground">Unsaved changes</span>
-                  )}
+                  {/* Languages — multi select, English always included */}
+                  <div className="space-y-2">
+                    <Label>
+                      Languages{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (mix as many as you like)
+                      </span>
+                    </Label>
+                    <details className="group rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold">
+                        <span className="truncate">{languages.join(" + ")}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {LANGUAGES.map((l) => {
+                          const on = languages.includes(l);
+                          return (
+                            <button
+                              key={l}
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() =>
+                                setLanguages((list) => {
+                                  const next = toggleItem(list, l);
+                                  return next.length ? next : ["English"];
+                                })
+                              }
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                                on
+                                  ? "border-primary bg-primary/15 text-foreground"
+                                  : "border-border bg-background/40 text-muted-foreground hover:border-primary/50",
+                              )}
+                            >
+                              {l}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  </div>
+
+                  {/* Voice + length */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="song-vocal">Voice</Label>
+                      <Select value={vocal || "Mix voice"} onValueChange={setVocal}>
+                        <SelectTrigger id="song-vocal">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VOCALS.map((v) => (
+                            <SelectItem key={v} value={v}>
+                              {v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="song-length">Track length</Label>
+                      <Select
+                        value={String(targetMinutes)}
+                        onValueChange={(v) => setTargetMinutes(Number(v))}
+                      >
+                        <SelectTrigger id="song-length">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LENGTH_OPTIONS.map((m) => (
+                            <SelectItem key={m} value={String(m)}>
+                              {m} min
+                              {m > MIN_LENGTH
+                                ? ` · +${m - MIN_LENGTH} coin${m - MIN_LENGTH === 1 ? "" : "s"}`
+                                : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Vocals only */}
                   <label
-                    htmlFor="foul-mouth-toggle"
-                    className="col-span-2 grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs font-medium sm:col-span-1 sm:flex sm:w-auto sm:py-1.5"
-                    title="Allow explicit language in generated lyrics"
+                    htmlFor="vocals-only-toggle"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-medium"
                   >
-                    <span aria-hidden>🤬</span>
-                    <span className="min-w-0 whitespace-normal">Foul Mouth</span>
+                    <span className="min-w-0">
+                      Vocals only {isNasheed ? "· REQUIRED" : vocalsOnly ? "· ON" : "· OFF"}
+                      <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                        {isNasheed
+                          ? "Nasheed stays strictly voice-only with no music or instruments."
+                          : "A cappella vocals with no generated instrumental."}
+                      </span>
+                    </span>
                     <Switch
-                      id="foul-mouth-toggle"
-                      checked={foulMouth}
-                      onCheckedChange={(explicit) => {
-                        const value = explicit ? 3 : 0;
-                        setFoulIntensityLocal(value);
-                        setFoulIntensity.mutate(value);
-                        setFoulMouth.mutate(explicit);
-                      }}
-                      disabled={setFoulMouth.isPending || setFoulIntensity.isPending || isNasheed}
+                      id="vocals-only-toggle"
+                      checked={vocalsOnly}
+                      onCheckedChange={setVocalsOnly}
+                      disabled={isNasheed}
                     />
                   </label>
-                  {!isNasheed && (
-                    <div className="col-span-2 grid w-full grid-cols-[auto_minmax(7rem,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 sm:col-span-1 sm:w-64">
-                      <span className="text-[10px] font-semibold text-muted-foreground">Clean</span>
-                      <Slider
-                        aria-label="Swearing intensity"
-                        min={0}
-                        max={3}
-                        step={1}
-                        value={[displayedFoulIntensity]}
-                        onValueChange={(values) =>
-                          setFoulIntensityLocal(
-                            Math.max(0, Math.min(3, Math.round(values[0] ?? 3))),
-                          )
-                        }
-                        onValueCommit={(values) => {
-                          const value = Math.max(0, Math.min(3, Math.round(values[0] ?? 3)));
-                          setFoulIntensityLocal(value);
-                          setFoulIntensity.mutate(value);
-                          if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
-                        }}
-                      />
-                      <span className="text-[10px] font-semibold text-destructive">Savage</span>
+
+                  {hasLyrics && languageChanged && (
+                    <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground/80">
+                      Language changed to <b>{languageValue}</b> — Cook now will rewrite the lyrics.
                     </div>
                   )}
-                  <Button
-                    onClick={() => void cookNow()}
-                    disabled={genLyrics || genPreview || isPending || cooking || saving || missing}
-                    className="col-span-2 min-w-0 gap-2"
-                  >
-                    {genLyrics || genPreview || saving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+
+                  <Collapsible open={lyricsOpen} onOpenChange={setLyricsOpen}>
+                    <div className="flex items-center justify-between gap-3">
+                      <CollapsibleTrigger className="flex min-w-0 items-center gap-2 text-sm font-semibold hover:text-primary">
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 transition-transform",
+                            lyricsOpen && "rotate-180",
+                          )}
+                        />
+                        <span className="truncate">
+                          {lyricsOpen ? "Hide lyrics" : "View / edit lyrics"}
+                        </span>
+                      </CollapsibleTrigger>
+                      {hasLyrics && !genLyrics && (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs text-emerald-500">
+                          <Check className="h-3 w-3" /> Ready
+                        </span>
+                      )}
+                      {genLyrics && (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs text-primary">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Writing…
+                        </span>
+                      )}
+                    </div>
+                    {genLyrics ? (
+                      <div className="pt-3">
+                        <LyricsSkeleton songId={song.id} />
+                      </div>
                     ) : (
-                      <Sparkles className="h-4 w-4" />
+                      <CollapsibleContent className="pt-3">
+                        <Label htmlFor="song-lyrics" className="sr-only">
+                          Lyrics
+                        </Label>
+                        <Textarea
+                          ref={lyricsRef}
+                          id="song-lyrics"
+                          value={lyrics}
+                          onChange={(e) => setLyrics(e.target.value)}
+                          rows={12}
+                          placeholder={
+                            "Tap Generate lyrics below — or paste your own.\n\n[Verse 1]\n…\n[Chorus]\n…"
+                          }
+                          className="font-mono text-sm"
+                        />
+                      </CollapsibleContent>
                     )}
-                    {editCost > 0 ? `Cook now · ${editCost} coins` : "Cook now"}
-                  </Button>
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
+                  </Collapsible>
+
+                  <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
+                    {dirty && (
+                      <span className="mr-auto text-xs text-muted-foreground">Unsaved changes</span>
+                    )}
+                    <label
+                      htmlFor="foul-mouth-toggle"
+                      className="col-span-2 grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs font-medium sm:col-span-1 sm:flex sm:w-auto sm:py-1.5"
+                      title="Allow explicit language in generated lyrics"
+                    >
+                      <span aria-hidden>🤬</span>
+                      <span className="min-w-0 whitespace-normal">Foul Mouth</span>
+                      <Switch
+                        id="foul-mouth-toggle"
+                        checked={foulMouth}
+                        onCheckedChange={(explicit) => {
+                          const value = explicit ? 3 : 0;
+                          setFoulIntensityLocal(value);
+                          setFoulIntensity.mutate(value);
+                          setFoulMouth.mutate(explicit);
+                        }}
+                        disabled={setFoulMouth.isPending || setFoulIntensity.isPending || isNasheed}
+                      />
+                    </label>
+                    {!isNasheed && (
+                      <div className="col-span-2 grid w-full grid-cols-[auto_minmax(7rem,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 sm:col-span-1 sm:w-64">
+                        <span className="text-[0.7rem] font-semibold text-muted-foreground">
+                          Clean
+                        </span>
+                        <Slider
+                          aria-label="Swearing intensity"
+                          min={0}
+                          max={3}
+                          step={1}
+                          value={[displayedFoulIntensity]}
+                          onValueChange={(values) =>
+                            setFoulIntensityLocal(
+                              Math.max(0, Math.min(3, Math.round(values[0] ?? 3))),
+                            )
+                          }
+                          onValueCommit={(values) => {
+                            const value = Math.max(0, Math.min(3, Math.round(values[0] ?? 3)));
+                            setFoulIntensityLocal(value);
+                            setFoulIntensity.mutate(value);
+                            if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
+                          }}
+                        />
+                        <span className="text-[0.7rem] font-semibold text-destructive">Savage</span>
+                      </div>
+                    )}
+                    <Button
+                      onClick={() => void cookNow()}
+                      disabled={
+                        genLyrics || genPreview || isPending || cooking || saving || missing
+                      }
+                      className="col-span-2 min-w-0 gap-2"
+                    >
+                      {genLyrics || genPreview || saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      {editCost > 0 ? `Cook now · ${editCost} coins` : "Cook now"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
         </TabsContent>
 
         <TabsContent value="preview" id="studio-preview" className="mt-0 scroll-mt-20">
-        {/* Stage 2 — Sample */}
-        <Card>
-          <Collapsible open>
-            <CollapsibleTrigger className="pointer-events-none flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5 [&>svg]:hidden">
-              <div className="min-w-0">
-                <span className="flex items-center gap-2 text-lg font-semibold">
-                  <Play className="h-4 w-4 shrink-0 text-primary" />Preview
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {cooking
-                    ? "Cooking your new version…"
-                    : isReady && ownsFull
-                    ? "Full track ready"
-                    : isReady
-                    ? `Free ${settings?.sample_seconds ?? 60}s sample ready`
-                    : isPending
-                      ? "Generating…"
-                      : `Free ${settings?.sample_seconds ?? 60}s sample`}
-                </span>
-              </div>
-              <ChevronDown
-                className={cn("h-5 w-5 shrink-0 transition-transform", step2Open && "rotate-180")}
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-3">
-                {!hasLyrics && !genLyrics && (
-                  <p className="text-sm text-muted-foreground">Generate lyrics in step 1 first.</p>
-                )}
-                {!isPending && (genLyrics || genPreview || cooking) && (
-                  <LyricsSkeleton songId={song.id} />
-                )}
-                {isPending && (
-                  <>
-                    <GeneratingProgress
-                      sampleSeconds={settings?.sample_seconds ?? 60}
-                      startedAt={song.generation_started_at ?? song.updated_at ?? song.created_at}
-                      taskId={song.suno_task_id}
-                      hasLivePreview={!!song.stream_audio_url}
-                      songId={song.id}
-                      onCancelled={onSaved}
-                    />
-                    {song.stream_audio_url && (
-                      <LiveStreamPreview streamUrl={song.stream_audio_url} limitSeconds={35} />
-                    )}
-                  </>
-                )}
-                {isFailed && !cooking && (
-                  <div
-                    role="alert"
-                    className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
-                  >
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold">Generation failed</p>
-                        <p className="mt-0.5 text-xs opacity-90">
-                          {song.error_message || "Something went wrong on OG Bot's side."} Your
-                          coins were refunded automatically.
-                        </p>
+          {/* Stage 2 — Sample */}
+          <Card>
+            <Collapsible open>
+              <CollapsibleTrigger className="pointer-events-none flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5 [&>svg]:hidden">
+                <div className="min-w-0">
+                  <span className="flex items-center gap-2 text-lg font-semibold">
+                    <Play className="h-4 w-4 shrink-0 text-primary" />
+                    Preview
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {cooking
+                      ? "Cooking your new version…"
+                      : isReady && ownsFull
+                        ? "Full track ready"
+                        : isReady
+                          ? `Free ${settings?.sample_seconds ?? 60}s sample ready`
+                          : isPending
+                            ? "Generating…"
+                            : `Free ${settings?.sample_seconds ?? 60}s sample`}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={cn("h-5 w-5 shrink-0 transition-transform", step2Open && "rotate-180")}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-3">
+                  {!hasLyrics && !genLyrics && (
+                    <p className="text-sm text-muted-foreground">
+                      Generate lyrics in step 1 first.
+                    </p>
+                  )}
+                  {!isPending && (genLyrics || genPreview || cooking) && (
+                    <LyricsSkeleton songId={song.id} />
+                  )}
+                  {isPending && (
+                    <>
+                      <GeneratingProgress
+                        sampleSeconds={settings?.sample_seconds ?? 60}
+                        startedAt={song.generation_started_at ?? song.updated_at ?? song.created_at}
+                        taskId={song.suno_task_id}
+                        hasLivePreview={!!song.stream_audio_url}
+                        songId={song.id}
+                        onCancelled={onSaved}
+                      />
+                      {song.stream_audio_url && (
+                        <LiveStreamPreview streamUrl={song.stream_audio_url} limitSeconds={35} />
+                      )}
+                    </>
+                  )}
+                  {isFailed && !cooking && (
+                    <div
+                      role="alert"
+                      className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                    >
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold">Generation failed</p>
+                          <p className="mt-0.5 text-xs opacity-90">
+                            {song.error_message || "Something went wrong on OG B0T's side."} Your
+                            coins were refunded automatically.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => void generatePreview()}
+                          disabled={!hasLyrics || genPreview || balance < previewCost || missing}
+                          className="gap-1.5"
+                        >
+                          {genPreview ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          )}
+                          Try again
+                          <span className="ml-0.5 rounded-full bg-background/30 px-1.5 py-0.5 text-[0.7rem] font-semibold">
+                            Free
+                          </span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setTab("lyrics");
+                            setLyricsOpen(true);
+                            requestAnimationFrame(() =>
+                              lyricsRef.current?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                              }),
+                            );
+                          }}
+                          className="gap-1.5"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Tweak lyrics
+                        </Button>
+                        {balance < previewCost && (
+                          <Button asChild size="sm" variant="secondary" className="gap-1.5">
+                            <Link to="/buy-coins">
+                              <Coins className="h-3.5 w-3.5" /> Top up coins
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                  )}
+                  {isReady && !genLyrics && !genPreview && !cooking && (
+                    <>
+                      {freshReady && (
+                        <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                          <span className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" /> Your new take is ready!
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setTab("takes")}
+                            className="text-xs font-medium underline underline-offset-2"
+                          >
+                            Compare takes
+                          </button>
+                        </div>
+                      )}
+                      <InlineSamplePlayer
+                        key={`${song.id}-${song.updated_at ?? ""}`}
+                        songId={song.id}
+                        unlocked={!!song.unlocked}
+                      />
+                    </>
+                  )}
+                  {!isReady && !cooking && (
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <Button
-                        size="sm"
-                        variant="destructive"
                         onClick={() => void generatePreview()}
-                        disabled={!hasLyrics || genPreview || balance < previewCost || missing}
-                        className="gap-1.5"
+                        disabled={
+                          !hasLyrics || genPreview || isPending || balance < previewCost || missing
+                        }
+                        aria-busy={genPreview || isPending}
+                        className="gap-2"
                       >
-                        {genPreview ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {genPreview || isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : isReady ? (
+                          <RefreshCw className="h-4 w-4" />
                         ) : (
-                          <RefreshCw className="h-3.5 w-3.5" />
+                          <Play className="h-4 w-4" />
                         )}
-                        Try again
-                        <span className="ml-0.5 rounded-full bg-background/30 px-1.5 py-0.5 text-[10px] font-semibold">
+                        {genPreview
+                          ? "Starting…"
+                          : isPending
+                            ? `Generating… ${elapsed}s`
+                            : isReady
+                              ? "Regenerate sample"
+                              : "Generate preview"}
+                        <span className="ml-1 rounded-full bg-background/30 px-1.5 py-0.5 text-[0.7rem] font-semibold">
                           Free
                         </span>
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setTab("lyrics");
-                          setLyricsOpen(true);
-                          requestAnimationFrame(() =>
-                            lyricsRef.current?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "center",
-                            }),
-                          );
-                        }}
-                        className="gap-1.5"
-                      >
-                        <FileText className="h-3.5 w-3.5" /> Tweak lyrics
-                      </Button>
-                      {balance < previewCost && (
-                        <Button asChild size="sm" variant="secondary" className="gap-1.5">
-                          <Link to="/buy-coins">
-                            <Coins className="h-3.5 w-3.5" /> Top up coins
-                          </Link>
-                        </Button>
-                      )}
                     </div>
-                  </div>
-                )}
-                {isReady && !genLyrics && !genPreview && !cooking && (
-                  <>
-                    {freshReady && (
-                      <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" /> Your new take is ready!
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setTab("takes")}
-                          className="text-xs font-medium underline underline-offset-2"
-                        >
-                          Compare takes
-                        </button>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+            {isReady && !cooking && (
+              <CardContent className="space-y-3 border-t border-border/50 pt-4">
+                <>
+                  {!ownsFull && balance < unlockCost && (
+                    <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                      <Coins className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-amber-100">
+                          You need {unlockCost - balance} more coin
+                          {unlockCost - balance === 1 ? "" : "s"} to unlock
+                        </p>
+                        <p className="text-xs text-amber-200/80">
+                          Balance: {balance} · Cost: {unlockCost}
+                        </p>
                       </div>
-                    )}
-                    <InlineSamplePlayer
-                      key={`${song.id}-${song.updated_at ?? ""}`}
-                      songId={song.id}
-                      unlocked={!!song.unlocked}
-                    />
-                  </>
-                )}
-                {!isReady && !cooking && (
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    onClick={() => void generatePreview()}
-                    disabled={
-                      !hasLyrics || genPreview || isPending || balance < previewCost || missing
-                    }
-                    aria-busy={genPreview || isPending}
-                    className="gap-2"
-                  >
-                    {genPreview || isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : isReady ? (
-                      <RefreshCw className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                    {genPreview
-                      ? "Starting…"
-                      : isPending
-                        ? `Generating… ${elapsed}s`
-                        : isReady
-                          ? "Regenerate sample"
-                          : "Generate preview"}
-                    <span className="ml-1 rounded-full bg-background/30 px-1.5 py-0.5 text-[10px] font-semibold">
-                      Free
-                    </span>
-                  </Button>
-                </div>
-                )}
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-          {isReady && !cooking && (
-          <CardContent className="space-y-3 border-t border-border/50 pt-4">
-              <>
-
-
-                {!ownsFull && balance < unlockCost && (
-                  <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                    <Coins className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-amber-100">
-                        You need {unlockCost - balance} more coin
-                        {unlockCost - balance === 1 ? "" : "s"} to unlock
-                      </p>
-                      <p className="text-xs text-amber-200/80">
-                        Balance: {balance} · Cost: {unlockCost}
-                      </p>
+                      <Button asChild size="sm" className="shrink-0">
+                        <Link to="/buy-coins">Top up</Link>
+                      </Button>
                     </div>
-                    <Button asChild size="sm" className="shrink-0">
-                      <Link to="/buy-coins">Top up</Link>
-                    </Button>
-                  </div>
-                )}
+                  )}
 
-                <Button
-                  onClick={unlockFull}
-                  disabled={!!(
-                    unlocking ||
-                    (ownsFull && (!isReady || !song.audio_path))
+                  <Button
+                    onClick={unlockFull}
+                    disabled={!!(unlocking || (ownsFull && (!isReady || !song.audio_path)))}
+                    variant={ownsFull ? "default" : "outline"}
+                    className="h-12 w-full gap-2"
+                    aria-live="polite"
+                  >
+                    {unlocking ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {ownsFull ? "Preparing download…" : "Processing payment…"}
+                      </>
+                    ) : ownsFull && (!isReady || !song.audio_path) ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Download pending — finishing
+                        track…
+                      </>
+                    ) : ownsFull ? (
+                      <>
+                        <Download className="h-4 w-4" /> Download to device
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4" /> Unlock full track · {unlockCost} coins
+                      </>
+                    )}
+                  </Button>
+                  {ownsFull && (
+                    <SendToTelegramButton
+                      songId={song.id}
+                      title={song.title || "OG B0T track"}
+                      disabled={!isReady || !song.audio_path}
+                      className="h-12 w-full"
+                    />
                   )}
-                  variant={ownsFull ? "default" : "outline"}
-                  className="h-12 w-full gap-2"
-                  aria-live="polite"
-                >
-                  {unlocking ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {ownsFull ? "Preparing download…" : "Processing payment…"}
-                    </>
-                  ) : ownsFull && (!isReady || !song.audio_path) ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Download pending — finishing track…
-                    </>
-                  ) : ownsFull ? (
-                    <>
-                      <Download className="h-4 w-4" /> Download to device
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-4 w-4" /> Unlock full track · {unlockCost} coins
-                    </>
-                  )}
-                </Button>
-              </>
-          </CardContent>
-          )}
-        </Card>
+                </>
+              </CardContent>
+            )}
+          </Card>
         </TabsContent>
 
         <TabsContent value="takes" className="mt-0">
-        {cooking ? (
-          <p className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
-            Your old takes are hidden while OG Bot cooks the new version.
-          </p>
-        ) : (
-          <VariationsCard variations={variations} />
-        )}
+          {cooking ? (
+            <p className="rounded-lg border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+              Your old takes are hidden while OG B0T cooks the new version.
+            </p>
+          ) : (
+            <VariationsCard variations={variations} />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -1392,29 +1401,15 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
   }, []);
 
   // Realtime: snap to actual backend progress on every songs row update.
-  useEffect(() => {
-    if (!songId) return;
-    const channel = supabase
-      .channel(`lyrics-progress:${songId}:${Math.random().toString(36).slice(2, 8)}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${songId}` },
-        (payload) => {
-          const row = payload.new as {
-            lyrics_progress?: number | null;
-            lyrics_stage?: string | null;
-          };
-          if (typeof row.lyrics_progress === "number")
-            setProgress((p) => Math.max(p, row.lyrics_progress!));
-          if (typeof row.lyrics_stage === "string" && row.lyrics_stage)
-            setStageLabel(row.lyrics_stage);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
+  useSongRealtime(songId, (payload) => {
+    const row = payload.new as {
+      lyrics_progress?: number | null;
+      lyrics_stage?: string | null;
     };
-  }, [songId]);
+    if (typeof row.lyrics_progress === "number")
+      setProgress((p) => Math.max(p, row.lyrics_progress!));
+    if (typeof row.lyrics_stage === "string" && row.lyrics_stage) setStageLabel(row.lyrics_stage);
+  });
 
   // ETA = linear extrapolation from elapsed wall-clock against real progress.
   const elapsedS = (Date.now() - startedAt.current) / 1000;
@@ -1440,17 +1435,17 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
         <div className="relative">
           <div className="absolute inset-0 animate-ping rounded-full bg-primary/40" />
           <img
-            src={ogBotAsset.url}
+            src={ogBotLogo.small}
             alt=""
             className="relative h-12 w-12 rounded-full ring-2 ring-primary/60 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.9)] animate-bounce"
           />
         </div>
         <div className="flex flex-1 flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-bold text-primary">OG Bot is cooking…</span>
+            <span className="text-sm font-bold text-primary">OG B0T is cooking…</span>
             <span className="flex items-center gap-2 font-mono text-xs font-semibold tabular-nums text-primary">
               <span>{Math.round(progress)}%</span>
-              <span className="rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="rounded-full border border-primary/30 bg-background/60 px-2 py-0.5 text-[0.7rem] font-medium text-muted-foreground">
                 {etaLabel}
               </span>
             </span>
@@ -1461,7 +1456,7 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
             {stageLabel}
             <span className="inline-flex gap-0.5">
               <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
@@ -1474,7 +1469,7 @@ function LyricsSkeleton({ songId }: { songId?: string }) {
 
       {blocks.map((b, bi) => (
         <div key={bi} className="space-y-1.5">
-          <div className="text-[11px] font-semibold text-primary/80">{b.label}</div>
+          <div className="text-xs font-semibold text-primary/80">{b.label}</div>
           {Array.from({ length: b.lines }).map((_, i) => (
             <div
               key={i}
@@ -1620,9 +1615,7 @@ function GeneratingProgress({
       }
       const refunded = Number((data as { refunded?: number } | null)?.refunded ?? 0);
       toast.success(
-        refunded > 0
-          ? `Generation cancelled — ${refunded} coins refunded`
-          : "Generation cancelled",
+        refunded > 0 ? `Generation cancelled — ${refunded} coins refunded` : "Generation cancelled",
       );
       onCancelled?.();
     } catch (e) {
@@ -1685,7 +1678,7 @@ function GeneratingProgress({
           <span className="relative grid h-12 w-12 shrink-0 place-items-center">
             <span className="absolute inset-0 animate-ping rounded-full bg-primary/40" />
             <img
-              src={ogBotAsset.url}
+              src={ogBotLogo.small}
               alt=""
               className="relative h-12 w-12 rounded-full ring-2 ring-primary/60 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.9)] animate-bounce"
             />
@@ -1703,7 +1696,7 @@ function GeneratingProgress({
             <span className="block tabular-nums">
               {status.etaSeconds > 0 ? `ETA ${etaLabel}` : etaLabel}
             </span>
-            <span className="block text-[10px] font-medium text-muted-foreground tabular-nums">
+            <span className="block text-[0.7rem] font-medium text-muted-foreground tabular-nums">
               {mm}:{ss} elapsed
             </span>
           </div>
@@ -1744,7 +1737,7 @@ function GeneratingProgress({
               )}
               {step.label}
             </div>
-            <p className="mt-1 text-[11px] opacity-80">{step.detail}</p>
+            <p className="mt-1 text-xs opacity-80">{step.detail}</p>
           </div>
         ))}
       </div>
@@ -1769,7 +1762,7 @@ function GeneratingProgress({
             <span className="block text-4xl font-black leading-none tabular-nums text-white drop-shadow-[0_0_18px_hsl(var(--primary))] sm:text-5xl">
               {pct}%
             </span>
-            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/90">
+            <span className="mt-1 block text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary/90">
               {status.etaSeconds > 0 ? `ETA ${etaLabel}` : etaLabel}
             </span>
           </div>
@@ -1793,7 +1786,7 @@ function GeneratingProgress({
             }}
           />
         </div>
-        <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>{status.detail}</span>
           <span className="tabular-nums text-foreground/90">{pct}%</span>
         </div>
@@ -1969,7 +1962,7 @@ function LiveStreamPreview({
           </span>
           Live preview · listen while it generates
         </div>
-        <span className="rounded-full border border-primary/40 bg-background/60 px-2 py-0.5 text-[10px] font-bold tabular-nums text-foreground">
+        <span className="rounded-full border border-primary/40 bg-background/60 px-2 py-0.5 text-[0.7rem] font-bold tabular-nums text-foreground">
           {blocked ? "Locked" : `${remaining}s left`}
         </span>
       </div>

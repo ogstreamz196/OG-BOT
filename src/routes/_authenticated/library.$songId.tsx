@@ -1,3 +1,4 @@
+import { useSongRealtime } from "@/hooks/user-songs-realtime";
 import { useServerFn } from "@tanstack/react-start";
 import { purchaseOwnerTrack } from "@/lib/track-unlock.functions";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -29,6 +30,7 @@ import { PublishToggle } from "@/components/library/PublishToggle";
 import { UnlockConfirmDialog } from "@/components/library/UnlockConfirmDialog";
 import { OwnerUnlockDialog } from "@/components/library/OwnerUnlockDialog";
 import { useProfile } from "@/hooks/use-profile";
+import { SendToTelegramButton } from "@/components/library/SendToTelegramButton";
 import { useSessionRunState } from "@/hooks/use-session-run-state";
 import { ensureFullUrlAllowed } from "@/lib/ensure-full-url-allowed";
 
@@ -36,15 +38,15 @@ export const Route = createFileRoute("/_authenticated/library/$songId")({
   component: SongDetailPage,
   head: () => ({
     meta: [
-      { title: "Track Studio · OG BOT" },
+      { title: "Track Studio | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
-        content: "Listen, edit and unlock your OG BOT track with a free second take.",
+        content: "Listen, edit and unlock your OG B0T track with a free second take.",
       },
-      { property: "og:title", content: "Track Studio · OG BOT" },
+      { property: "og:title", content: "Track Studio | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Your OG BOT music workspace — two tracks for the price of one.",
+        content: "Your OG B0T music workspace — two tracks for the price of one.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -69,35 +71,23 @@ function SongDetailPage() {
       if (error) throw error;
       return (data ?? null) as FullSong | null;
     },
-    // While the song is still queued/generating (draft/pending/processing),
-    // poll every 3s as a safety net in case realtime drops an UPDATE.
+    // Realtime (below) moves the page along; while the song is still
+    // queued/generating, a 5s poll is the safety net in case an UPDATE is
+    // missed. Paused while the tab is hidden; it catches up on return.
     refetchInterval: (q) => {
       const s = q.state.data as FullSong | null | undefined;
-      if (!s) return 3000;
+      if (!s) return 5000;
       return s.status === "draft" || s.status === "pending" || s.status === "processing"
-        ? 3000
+        ? 5000
         : false;
     },
-    refetchIntervalInBackground: true,
   });
 
   // Shared with SongWorkspace: true while an edit is re-cooking this track.
   const [cookingEdit] = useSessionRunState<boolean>(`edit-cook:${songId}`, false, true);
 
-  // Realtime subscription scoped to this single row.
-  useEffect(() => {
-    const channel = supabase
-      .channel(`song-detail:${songId}:${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "songs", filter: `id=eq.${songId}` },
-        () => qc.invalidateQueries({ queryKey: ["song", songId] }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [songId, qc]);
+  // Realtime for this single row (shared with the workspace's panels).
+  useSongRealtime(songId, () => void qc.invalidateQueries({ queryKey: ["song", songId] }));
 
   return (
     <DashboardShell title="Song workspace">
@@ -118,7 +108,7 @@ function SongDetailPage() {
           <>
             {cookingEdit ? (
               <div className="rounded-2xl border border-primary/40 bg-card/60 p-6 text-center">
-                <p className="text-lg font-semibold">OG Bot is cooking your new version 🔥</p>
+                <p className="text-lg font-semibold">OG B0T is cooking your new version 🔥</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   The old track is hidden until the new one is ready.
                 </p>
@@ -521,6 +511,14 @@ function PlayerCard({ song, onRefresh }: { song: FullSong; onRefresh: () => void
                         ? "Download HQ"
                         : `Unlock · ${fullUnlockCost} coins`}
                 </Button>
+                {unlocked && !communityMode && (
+                  <SendToTelegramButton
+                    songId={song.id}
+                    title={song.title || "OG B0T track"}
+                    disabled={!song.audio_path}
+                    className="col-span-full h-auto min-h-11"
+                  />
+                )}
               </div>
 
               <div>
@@ -614,7 +612,7 @@ function GeneratingStatus({ song }: { song: FullSong }) {
     },
     {
       label: "Generating audio",
-      hint: "OG Bot is rendering vocals + instruments",
+      hint: "OG B0T is rendering vocals + instruments",
       state: hasAudio ? "done" : song.status === "processing" ? "active" : "pending",
     },
     {
@@ -655,7 +653,7 @@ function GeneratingStatus({ song }: { song: FullSong }) {
             <span
               aria-hidden
               className={
-                "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold " +
+                "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[0.7rem] font-bold " +
                 (s.state === "done"
                   ? "bg-primary text-primary-foreground"
                   : s.state === "active"
@@ -693,7 +691,7 @@ function GeneratingStatus({ song }: { song: FullSong }) {
       </p>
       {longRunning && (
         <p className="text-xs text-amber-400">
-          Taking a little longer than usual — sit tight, OG Bot is still cooking.
+          Taking a little longer than usual — sit tight, OG B0T is still cooking.
         </p>
       )}
     </div>

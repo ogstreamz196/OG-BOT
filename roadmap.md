@@ -54,6 +54,13 @@
 
 ## Pending
 
+- [x] Apply managed-group migration and encrypted website-managed bot registry
+- [x] Add Boss bot connection, replacement, disable, ping and webhook controls
+- [x] Wire registered workers into Gaffer dispatch and track exact signal outcomes as the sending bot
+- [x] Verify Telegram tests and signed-in Boss controls
+
+- [x] Add Telegram Signals menu with XAU/BTC and 1h/15m/1m live signals; 53 tests pass, live BTC 1m and XAU 1h delivered and read back
+- [x] Diagnose and fix Telegram trade-signal generation; verify live market fallback and delivery
 - [x] Use the supplied OG-STREAMZ artwork on Welcome back and enlarge both welcome and sign-in logos
 - [x] Free AI fallback cascade (Groq, OpenRouter) — waiting on user to add GROQ_API_KEY and OPENROUTER_API_KEY
 - [x] Use Lexcel32 as the username example and derive yearly VIP IDs as OG plus the uppercase username
@@ -70,3 +77,8 @@
 - [x] Platform-correct store wording, no web checkout links in apps
 - [ ] iOS production RevenueCat key — pending (owner to supply)
 - [ ] Age rating questionnaires 16+/17+ at store submission (owner)
+
+- [x] Add alt text to DodgyLogo mascot in welcome.tsx (SEO agent_content:content)
+- [x] Sync lovable-sync #184 (3-line announcement, 1-line Vantage intro), publish, tests pass
+- [ ] Keep trade_signals, signal_learn_samples and signal_shadows forever: no clean-up, retention job or migration that deletes their rows
+

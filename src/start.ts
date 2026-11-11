@@ -1,4 +1,4 @@
-import { createStart, createMiddleware } from "@tanstack/react-start";
+import { createCsrfMiddleware, createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
@@ -22,7 +22,15 @@ const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
   }
 });
 
+// Server functions only answer the app's own pages (Sec-Fetch-Site, then
+// Origin, then Referer must be same-origin). The website and both phone apps
+// load from ogbot.co.uk, so they pass; another site can't call them through a
+// visitor's browser. Server routes (webhooks, /api/public/*) aren't affected.
+const csrfMiddleware = createCsrfMiddleware({
+  filter: (ctx) => ctx.handlerType === "serverFn",
+});
+
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware],
+  requestMiddleware: [csrfMiddleware, errorMiddleware],
 }));

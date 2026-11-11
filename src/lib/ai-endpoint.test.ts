@@ -1,0 +1,366 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchAiChat, getLiveResearchContext, liveFactsMessage } from "./ai-endpoint.server";
+
+const realFetch = globalThis.fetch;
+const ENV = { ...process.env };
+/**
+ * Swaps in a fake fetch (works under both Vitest and Bun's test runner).
+ *
+ * The chat usage log is a database write through the same global fetch, so
+ * answering it here keeps "which model was asked?" honest: a test must never
+ * read the cost-panel insert as a Gemini call.
+ */
+function stubFetch(fn: unknown) {
+  const f = fn as (url: string, init?: RequestInit) => Promise<Response>;
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const u = String(url);
+    if (u.includes("/rest/v1/")) return new Response(JSON.stringify({ data: [] }));
+    return f(u, init);
+  }) as typeof fetch;
+}
+
+beforeEach(() => {
+  for (const k of Object.keys(process.env)) {
+    if (/_API_KEY$|^GEMINI_/.test(k)) delete process.env[k];
+  }
+  // These tests are about the keyed models; the keyless last resort has its own test.
+  process.env.POLLINATIONS_NO_KEY = "off";
+});
+afterEach(() => {
+  globalThis.fetch = realFetch;
+  process.env = { ...ENV };
+});
+
+const grounded = {
+  candidates: [
+    {
+      content: { parts: [{ text: "- Arsenal 2-1 Chelsea (full time)" }] },
+      groundingMetadata: {
+        groundingChunks: [
+          { web: { uri: "https://x/1", title: "bbc.co.uk" } },
+          { web: { uri: "https://x/2", title: "bbc.co.uk" } },
+          { web: { uri: "https://x/3", title: "skysports.com" } },
+        ],
+      },
+    },
+  ],
+};
+
+describe("live search (Gemini + Google Search)", () => {
+  it("needs no Perplexity key and returns nothing without Gemini", async () => {
+    process.env.PERPLEXITY_API_KEY = "old";
+    const spy = vi.fn();
+    stubFetch(spy);
+    expect(await getLiveResearchContext("who won today")).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("asks Gemini with the Google Search tool and returns facts plus sources", async () => {
+    process.env.GEMINI_API_KEY = "g";
+    let sent: { url: string; body: any } | null = null;
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("generativelanguage")) {
+          sent = { url, body: JSON.parse(String(init?.body)) };
+          return new Response(JSON.stringify(grounded));
+        }
+        return new Response("{}");
+      }),
+    );
+    const out = await getLiveResearchContext("who won the arsenal match today");
+    expect(sent!.url).toContain(":generateContent?key=g");
+    expect(sent!.body.tools).toEqual([{ googleSearch: {} }]);
+    expect(sent!.body.contents[0].parts[0].text).toContain("who won the arsenal match today");
+    expect(out).toBe("- Arsenal 2-1 Chelsea (full time)\n\nSources: bbc.co.uk, skysports.com");
+  });
+
+  it("soft-fails on an error so chat carries on", async () => {
+    process.env.GEMINI_API_KEY = "g";
+    stubFetch(vi.fn(async () => new Response("nope", { status: 429 })));
+    expect(await getLiveResearchContext("latest news")).toBeNull();
+    stubFetch(
+      vi.fn(async () => {
+        throw new Error("timeout");
+      }),
+    );
+    expect(await getLiveResearchContext("latest news")).toBeNull();
+  });
+
+  it("keeps OG B0T in character when it presents the facts", () => {
+    const msg = liveFactsMessage("- Arsenal 2-1 Chelsea", "who won?");
+    expect(msg).toContain("CURRENT WEB SOURCES");
+    expect(msg).toContain("normal OG B0T voice");
+    expect(msg).toContain("who won?");
+  });
+});
+
+describe("Foul Mouth chat routing", () => {
+  it("drops to Gemini straight after the swearing model times out", async () => {
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.OPENROUTER_BACKUP_API_KEY = "b";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        // Reading OpenRouter's model list isn't a chat call.
+        if (url.includes("/api/v1/models")) return new Response("{}", { status: 503 });
+        hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
+        if (url.includes("openrouter")) throw new DOMException("timed out", "TimeoutError");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "alright dickhead" }] },
+      "u",
+      { foulMouth: true },
+    );
+    expect(provider).toBe("gemini");
+    expect(hits).toEqual(["openrouter", "gemini"]);
+  });
+
+  it("free only (group roasts): never touches Gemini, even when the free model fails", async () => {
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.OPENROUTER_BACKUP_API_KEY = "b";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        // Reading OpenRouter's model list isn't a chat call.
+        if (url.includes("/api/v1/models")) return new Response("{}", { status: 503 });
+        hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
+        if (url.includes("openrouter")) throw new DOMException("timed out", "TimeoutError");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    await expect(
+      fetchAiChat({ messages: [{ role: "user", content: "alright dickhead" }] }, "u", {
+        foulMouth: true,
+        freeOnly: true,
+      }),
+    ).rejects.toThrow();
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits).not.toContain("gemini");
+
+    // And when the free model answers, that's the answer.
+    hits.length = 0;
+    stubFetch(
+      vi.fn(async (url: string) => {
+        // Reading OpenRouter's model list isn't a chat call.
+        if (url.includes("/api/v1/models")) return new Response("{}", { status: 503 });
+        hits.push(url.includes("openrouter") ? "openrouter" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "alright dickhead" }] },
+      "u",
+      { foulMouth: true, freeOnly: true },
+    );
+    expect(provider).not.toBe("gemini");
+    expect(hits).not.toContain("gemini");
+  });
+
+  it("free only + Foul Mouth: the swearing model first, then the other free models, never Gemini", async () => {
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        const who = url.includes("openrouter")
+          ? "openrouter"
+          : url.includes("groq")
+            ? "groq"
+            : "gemini";
+        hits.push(who);
+        // The free swearing model is out of free requests for the day.
+        if (who === "openrouter") return new Response("rate limited", { status: 429 });
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "alright dickhead" }] },
+      "u",
+      { foulMouth: true, freeOnly: true },
+    );
+    expect(provider).toBe("groq");
+    expect(hits[0]).toBe("openrouter");
+    expect(hits).not.toContain("gemini");
+  });
+
+  it("still tries Groq first for ordinary chat", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        hits.push(url.includes("groq") ? "groq" : "other");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "yo" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat({ messages: [{ role: "user", content: "hey" }] });
+    expect(provider).toBe("groq");
+    expect(hits).toEqual(["groq"]);
+  });
+});
+
+describe("when OG B0T searches the web", () => {
+  it("searches for live facts, not small talk", async () => {
+    const { needsLiveResearch } = await import("./ai-endpoint.server");
+    for (const q of [
+      "Who won the Premier League match today?",
+      "what's the latest on the transfer window",
+      "did arsenal win yesterday",
+      "live score city game",
+      "research: bitcoin ETF approval",
+      "today's news",
+    ])
+      expect(needsLiveResearch(q), q).toBe(true);
+    for (const q of ["how are you today", "you're a melt", "write me a diss track", "hello mate"])
+      expect(needsLiveResearch(q), q).toBe(false);
+  });
+});
+
+describe("smart routing", () => {
+  it("sorts messages into banter, hard, or worth a quick check", async () => {
+    const { messageTier } = await import("./ai-endpoint.server");
+    expect(messageTier("oi you melt")).toBe("banter");
+    expect(messageTier("lol")).toBe("banter");
+    expect(messageTier("explain how compound interest works on a mortgage")).toBe("complex");
+    expect(messageTier("can you help me sort out my CV for a warehouse job?")).toBe("unsure");
+  });
+
+  it("sends a message the router calls THINK to Gemini first", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (url.includes("groq") && body.max_tokens === 3) {
+          hits.push("router");
+          return new Response(JSON.stringify({ choices: [{ message: { content: "THINK" } }] }));
+        }
+        hits.push(url.includes("groq") ? "groq" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "should I pay off my car loan or save first?" }] },
+      "u",
+      { smart: true },
+    );
+    expect(provider).toBe("gemini");
+    expect(hits).toEqual(["router", "gemini"]);
+  });
+
+  it("keeps banter on the free models with no router call, and falls back safely", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (body.max_tokens === 3) {
+          hits.push("router");
+          throw new Error("router down");
+        }
+        hits.push(url.includes("groq") ? "groq" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      }),
+    );
+    await fetchAiChat({ messages: [{ role: "user", content: "oi dickhead" }] }, "u", {
+      smart: true,
+    });
+    expect(hits).toEqual(["groq"]);
+    hits.length = 0;
+    await fetchAiChat(
+      { messages: [{ role: "user", content: "what do you reckon about the new album?" }] },
+      "u",
+      { smart: true },
+    );
+    expect(hits).toEqual(["router", "groq"]);
+  });
+
+  it("never sends background memory jobs to the paid model first", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        hits.push(url.includes("groq") ? "groq" : "gemini");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }));
+      }),
+    );
+    await fetchAiChat({ messages: [{ role: "user", content: "x".repeat(2000) }] }, "memory", {
+      cheap: true,
+    });
+    expect(hits).toEqual(["groq"]);
+  });
+});
+
+describe("OG B0T's voice", () => {
+  it("keeps Foul Mouth on the swearing model, with no extra routing", async () => {
+    process.env.GROQ_API_KEY = "q";
+    process.env.OPENROUTER_API_KEY = "a";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        hits.push(
+          body.max_tokens === 3
+            ? "router"
+            : url.includes("openrouter")
+              ? "openrouter"
+              : url.includes("groq")
+                ? "groq"
+                : "gemini",
+        );
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi you melt" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat(
+      { messages: [{ role: "user", content: "should I pay off my car loan or save first?" }] },
+      "u",
+      { foulMouth: true, smart: true },
+    );
+    expect(provider).toBe("openrouter");
+    expect(hits).toEqual(["openrouter"]);
+  });
+});
+
+describe("keyless free fallback", () => {
+  it("uses Pollinations' open endpoint last, with no key, before the paid model", async () => {
+    delete process.env.POLLINATIONS_NO_KEY;
+    process.env.GROQ_API_KEY = "q";
+    process.env.GEMINI_API_KEY = "g";
+    const hits: { url: string; auth?: string }[] = [];
+    stubFetch(
+      vi.fn(async (url: string, init: { headers: Record<string, string> }) => {
+        hits.push({ url, auth: init.headers.Authorization });
+        if (url.includes("groq")) return new Response("busy", { status: 503 });
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi" } }] }));
+      }),
+    );
+    const { provider } = await fetchAiChat({ messages: [{ role: "user", content: "hey" }] }, "u");
+    expect(provider).toBe("pollinations");
+    const open = hits.find((h) => h.url.includes("text.pollinations.ai"))!;
+    expect(open.auth).toBeUndefined();
+    expect(hits.some((h) => h.url.includes("generativelanguage"))).toBe(false);
+  });
+
+  it("can be switched off", async () => {
+    process.env.POLLINATIONS_NO_KEY = "off";
+    process.env.GEMINI_API_KEY = "g";
+    const urls: string[] = [];
+    stubFetch(
+      vi.fn(async (url: string) => {
+        urls.push(url);
+        return new Response(JSON.stringify({ choices: [{ message: { content: "oi" } }] }));
+      }),
+    );
+    await fetchAiChat({ messages: [{ role: "user", content: "hey" }] }, "u");
+    expect(urls.some((u) => u.includes("text.pollinations.ai"))).toBe(false);
+  });
+});

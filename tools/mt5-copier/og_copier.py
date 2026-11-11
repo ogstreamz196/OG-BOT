@@ -1,0 +1,288 @@
+"""
+OG B0T -> MT5 copier (free, no MetaApi).
+
+Runs on a Windows PC (or Windows VPS) next to the MetaTrader 5 terminal,
+logged in to your Vantage account. Every few seconds it reads the OG Trade
+Bot's signals from ogbot.co.uk (/api/public/copy-feed) and copies them:
+
+  * a signal fills            -> open a market order (LOT lots)
+  * TP1 banked on a runner    -> close half
+  * the signal is over        -> close the rest at market
+  * price hits the bot's stop -> close at market straight away
+
+Like the bot itself, it puts no stop loss or take profit on the broker by
+default (USE_BROKER_STOP = False): it closes with market orders. That means
+it must keep running while trades are open. Set USE_BROKER_STOP = True if you
+want a safety stop at the broker in case the PC goes off.
+
+Settings live in config.ini next to this file (see config.example.ini).
+"""
+
+import configparser
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone
+
+import MetaTrader5 as mt5
+import requests
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+STATE_FILE = os.path.join(HERE, "copier_state.json")
+MAGIC = 196196
+
+# ── settings ────────────────────────────────────────────────────────────────
+cfg = configparser.ConfigParser()
+if not cfg.read(os.path.join(HERE, "config.ini")):
+    sys.exit("config.ini not found: copy config.example.ini to config.ini and fill it in.")
+c = cfg["copier"]
+FEED_URL = c.get("feed_url", "https://ogbot.co.uk/api/public/copy-feed")
+TOKEN = c.get("token", "").strip()
+LOT = c.getfloat("lot", 0.02)
+DRY_RUN = c.getboolean("dry_run", True)
+USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
+POLL_SECONDS = c.getfloat("poll_seconds", 3)
+MAX_LATE_MINUTES = c.getfloat("max_late_minutes", 10)
+MAX_OPEN = c.getint("max_open", 6)
+MARKETS = [m.strip() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
+SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in MARKETS}
+MT5_PATH = c.get("mt5_path", "").strip() or None
+
+if len(TOKEN) < 24:
+    sys.exit("Put the copy feed token (24+ characters) in config.ini.")
+
+
+def log(msg):
+    stamp = datetime.now().strftime("%H:%M:%S")
+    print(f"[{stamp}] {'(dry run) ' if DRY_RUN else ''}{msg}", flush=True)
+
+
+# ── state: which signal is which MT5 position ──────────────────────────────
+def load_state():
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    tmp = STATE_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
+    os.replace(tmp, STATE_FILE)
+
+
+# ── MT5 helpers ────────────────────────────────────────────────────────────
+def connect():
+    ok = mt5.initialize(path=MT5_PATH) if MT5_PATH else mt5.initialize()
+    if not ok:
+        sys.exit(f"Can't reach MetaTrader 5: {mt5.last_error()}. Is the terminal open and logged in?")
+    info = mt5.account_info()
+    if info is None:
+        sys.exit("MetaTrader 5 is open but not logged in to an account.")
+    if not mt5.terminal_info().trade_allowed:
+        sys.exit("Turn on Algo Trading in MetaTrader 5 (the button in the toolbar).")
+    log(f"Connected to {info.server}, account {info.login}, balance {info.balance} {info.currency}")
+    for m, sym in SYMBOLS.items():
+        if not mt5.symbol_select(sym, True):
+            sys.exit(f"Symbol {sym} (for {m}) not found. Set symbol_{m} in config.ini to the name in Market Watch.")
+
+
+def filling(sym):
+    mode = mt5.symbol_info(sym).filling_mode
+    if mode & 1:
+        return mt5.ORDER_FILLING_FOK
+    if mode & 2:
+        return mt5.ORDER_FILLING_IOC
+    return mt5.ORDER_FILLING_RETURN
+
+
+def round_volume(sym, vol):
+    info = mt5.symbol_info(sym)
+    step = info.volume_step or 0.01
+    vol = round(round(vol / step) * step, 8)
+    return max(info.volume_min, min(info.volume_max, vol))
+
+
+def position(ticket):
+    pos = mt5.positions_get(ticket=ticket)
+    return pos[0] if pos else None
+
+
+def send(request, what):
+    if DRY_RUN:
+        log(f"would {what}")
+        return True, None
+    res = mt5.order_send(request)
+    if res is None or res.retcode != mt5.TRADE_RETCODE_DONE:
+        log(f"FAILED to {what}: {res.retcode if res else mt5.last_error()} {res.comment if res else ''}")
+        return False, None
+    log(f"{what} ok (ticket {res.order})")
+    return True, res
+
+
+def open_trade(sig, sym):
+    buy = sig["direction"] == "BUY"
+    tick = mt5.symbol_info_tick(sym)
+    price = tick.ask if buy else tick.bid
+    req = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": sym,
+        "volume": round_volume(sym, LOT),
+        "type": mt5.ORDER_TYPE_BUY if buy else mt5.ORDER_TYPE_SELL,
+        "price": price,
+        "deviation": 50,
+        "magic": MAGIC,
+        "comment": f"OG {sig['id'][:8]}",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": filling(sym),
+    }
+    if USE_BROKER_STOP:
+        req["sl"] = float(sig["stopNow"])
+    ok, res = send(req, f"open {sig['direction']} {req['volume']} {sym} at {price}")
+    if not ok:
+        return None
+    if DRY_RUN:
+        return {"ticket": -1, "volume": req["volume"]}
+    # The position's ticket is the order's ticket on hedging accounts; look it up to be sure.
+    time.sleep(0.5)
+    for p in mt5.positions_get(symbol=sym) or []:
+        if p.magic == MAGIC and p.comment.startswith(f"OG {sig['id'][:8]}"):
+            return {"ticket": p.ticket, "volume": p.volume}
+    return {"ticket": res.order, "volume": req["volume"]}
+
+
+def close(ticket, sym, volume, why):
+    p = position(ticket) if ticket > 0 else None
+    if ticket > 0 and p is None:
+        return True  # already gone (closed by hand or by a broker stop)
+    vol = round_volume(sym, min(volume, p.volume) if p else volume)
+    buy = (p.type == mt5.POSITION_TYPE_BUY) if p else True
+    tick = mt5.symbol_info_tick(sym)
+    req = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": sym,
+        "volume": vol,
+        "type": mt5.ORDER_TYPE_SELL if buy else mt5.ORDER_TYPE_BUY,
+        "position": ticket,
+        "price": tick.bid if buy else tick.ask,
+        "deviation": 50,
+        "magic": MAGIC,
+        "comment": "OG close",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": filling(sym),
+    }
+    ok, _ = send(req, f"close {vol} {sym} ({why})")
+    return ok
+
+
+def move_stop(ticket, sym, stop):
+    p = position(ticket)
+    if p is None or abs((p.sl or 0) - stop) < 1e-9:
+        return
+    send(
+        {"action": mt5.TRADE_ACTION_SLTP, "symbol": sym, "position": ticket, "sl": float(stop), "tp": p.tp},
+        f"move stop to {stop}",
+    )
+
+
+# ── the loop ───────────────────────────────────────────────────────────────
+def fetch():
+    r = requests.get(FEED_URL, headers={"x-copy-token": TOKEN}, timeout=10)
+    if r.status_code == 403:
+        sys.exit("The feed said Forbidden: check the token in config.ini.")
+    r.raise_for_status()
+    return r.json()["signals"]
+
+
+def minutes_since(iso):
+    t = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    return (datetime.now(timezone.utc) - t).total_seconds() / 60
+
+
+def hit_stop(sig, sym):
+    tick = mt5.symbol_info_tick(sym)
+    if sig["direction"] == "BUY":
+        return tick.bid <= sig["stopNow"]
+    return tick.ask >= sig["stopNow"]
+
+
+def step(state):
+    signals = fetch()
+    by_id = {s["id"]: s for s in signals}
+    for sig in reversed(signals):  # oldest first
+        if sig["market"] not in SYMBOLS:
+            continue
+        sym = SYMBOLS[sig["market"]]
+        mine = state.get(sig["id"])
+        if mine is None:
+            if not (sig["active"] and sig["filled"]):
+                continue
+            if sig["halfClosed"] or minutes_since(sig["createdAt"]) > MAX_LATE_MINUTES:
+                state[sig["id"]] = {"skipped": True}
+                continue
+            if sum(1 for v in state.values() if v.get("ticket") and not v.get("closed")) >= MAX_OPEN:
+                continue
+            if hit_stop(sig, sym):
+                state[sig["id"]] = {"skipped": True}
+                continue
+            opened = open_trade(sig, sym)
+            if opened:
+                state[sig["id"]] = {**opened, "symbol": sym, "half": False, "closed": False}
+            continue
+        if mine.get("skipped") or mine.get("closed"):
+            continue
+        ticket, vol = mine["ticket"], mine["volume"]
+        if not sig["active"]:
+            if close(ticket, sym, vol, f"signal over: {sig['status']}"):
+                mine["closed"] = True
+            continue
+        if hit_stop(sig, sym):
+            if close(ticket, sym, vol, f"stop {sig['stopNow']} reached"):
+                mine["closed"] = True
+            continue
+        if sig["halfClosed"] and not mine["half"]:
+            half = round_volume(sym, vol / 2)
+            if half < vol and close(ticket, sym, half, "TP1: half closed"):
+                mine["half"] = True
+                mine["volume"] = round(vol - half, 8)
+            else:
+                mine["half"] = True  # too small to split: the whole lot rides the trail
+        if USE_BROKER_STOP and ticket > 0:
+            move_stop(ticket, sym, sig["stopNow"])
+    # Signals that dropped out of the feed (over a day old): close what's left,
+    # then forget them.
+    for sid in list(state):
+        if sid in by_id:
+            continue
+        mine = state[sid]
+        if mine.get("ticket") and not mine.get("closed") and not mine.get("skipped"):
+            if not close(mine["ticket"], mine["symbol"], mine["volume"], "signal expired"):
+                continue
+        del state[sid]
+    save_state(state)
+
+
+def main():
+    connect()
+    state = load_state()
+    log(f"Copying {', '.join(MARKETS)} at {LOT} lots, every {POLL_SECONDS}s. Ctrl+C to stop.")
+    while True:
+        try:
+            step(state)
+        except requests.RequestException as e:
+            log(f"feed not reachable ({e.__class__.__name__}), trying again")
+        except Exception as e:  # keep going: one bad pass must not stop the copier
+            log(f"error: {e}")
+        time.sleep(POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        log("Stopped. Open trades stay open: start it again to keep managing them.")
+    finally:
+        mt5.shutdown()

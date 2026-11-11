@@ -36,7 +36,7 @@ export function CreatorTag({ userId, className }: { userId?: string | null; clas
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary",
+        "inline-flex max-w-full items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[0.7rem] font-black uppercase tracking-wide text-primary",
         className,
       )}
     >

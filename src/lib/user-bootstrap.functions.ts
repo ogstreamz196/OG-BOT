@@ -14,11 +14,21 @@ const BOSS_EMAIL = "ogstreamz196@gmail.com";
 
 export const ensureCurrentUserBootstrap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) =>
+  .validator((data) =>
     z.object({ deviceId: z.string().min(8).max(128).optional() }).parse(data ?? {}),
   )
   .handler(async ({ data, context }): Promise<BootstrapResult> => {
     const { userId, claims } = context;
+    // Guest (anonymous) sessions exist only to make one paid track on the
+    // website: no device slot, welcome coins, roles or referral for them.
+    if ((claims as Record<string, unknown>).is_anonymous === true) {
+      return {
+        ensuredProfile: false,
+        ensuredUserRole: false,
+        ensuredBossRole: false,
+        welcomeCoinsGranted: false,
+      };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = typeof claims.email === "string" ? claims.email : "";
     const userMetadata =
@@ -72,8 +82,9 @@ export const ensureCurrentUserBootstrap = createServerFn({ method: "POST" })
         display_name: displayName || "User",
         coin_balance: 0,
       });
-      if (error) throw error;
-      ensuredProfile = true;
+      // A parallel bootstrap (two tabs, quick reload) may have created it first.
+      if (error && error.code !== "23505") throw error;
+      ensuredProfile = !error;
     }
 
     // Only the trusted, device-aware path can issue the one-time welcome reward.

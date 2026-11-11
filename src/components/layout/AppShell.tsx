@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
-import { Search, ShieldCheck, LogOut, Crown, MoreVertical } from "lucide-react";
+import { ShieldCheck, LogOut, Crown, MoreVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SwipeToOpenSidebar } from "@/components/layout/SwipeToOpenSidebar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +23,7 @@ import { CoinBalance } from "@/components/dashboard/CoinBalance";
 import { useAuth } from "@/hooks/use-auth";
 import { useDevMode } from "@/hooks/use-dev-mode";
 import { useRole } from "@/hooks/use-role";
+import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "./AppSidebar";
 import { VipTrialWelcome } from "./VipTrialWelcome";
@@ -34,26 +34,28 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { GlobalMiniPlayer } from "@/components/GlobalMiniPlayer";
 import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundMusic";
 
-import ogStreamzLogo from "@/assets/ogstreamz-logo.jpg.asset.json";
-import ogBotLogo from "@/assets/ogbot.png.asset.json";
+// 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
+import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 function BrandLockup({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-1 shadow-sm backdrop-blur-md"
-      aria-label="OG Streamz powered by OG Bot"
+      aria-label="OG Streamz powered by OG B0T"
     >
       <img
-        src={ogStreamzLogo.url}
+        src={ogStreamzLogo}
         alt="OG Streamz"
         className={`${compact ? "h-6" : "h-7"} w-auto rounded-md object-contain`}
       />
-      <span className="whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-tight">
+      {/* The words only where there's room; the two logos say it everywhere. */}
+      <span className="hidden whitespace-nowrap text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground leading-tight 2xl:inline">
         Powered by
       </span>
       <img
-        src={ogBotLogo.url}
-        alt="OG Bot"
+        src={ogBotLogo.small}
+        alt="OG B0T"
         className={`${compact ? "h-6 w-6" : "h-7 w-7"} rounded-full object-cover ring-1 ring-primary/40`}
       />
     </div>
@@ -63,10 +65,10 @@ function BrandLockup({ compact = false }: { compact?: boolean }) {
 const routeTitles: Record<string, string> = {
   "/": "Home",
   "/library": "Music",
-  "/messenger": "OG Bot",
+  "/messenger": "OG B0T",
   "/buy-coins": "Buy Coins",
   "/settings": "Settings",
-  "/profile": "Profile",
+  "/profile": "Settings",
   "/admin": "Admin Controls",
 };
 
@@ -132,36 +134,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Menu
               </SidebarTrigger>
 
-              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              {/* Clipped to its column, so it can never run under the badges on the right. */}
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden sm:gap-3">
                 {!pathname.startsWith("/messenger") && (
-                  <div className="hidden min-[480px]:block">
+                  <div className="hidden shrink-0 min-[480px]:block">
                     <BrandLockup compact />
                   </div>
                 )}
-                <div className="hidden min-w-0 sm:block">
-                  <h1 className="font-display truncate text-base font-black leading-tight tracking-tight text-gradient-brand sm:text-xl lg:text-2xl">
+                <div className="hidden min-w-0 flex-1 sm:block">
+                  <h1 className="font-display truncate text-base font-black leading-tight tracking-tight text-gradient-brand sm:text-xl 2xl:text-2xl">
                     {title}
                   </h1>
-                </div>
-                <div className="relative ml-2 hidden w-full max-w-xs lg:block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search songs"
-                    className="h-9 border-white/10 bg-white/5 pl-9"
-                    onChange={(event) => {
-                      window.dispatchEvent(
-                        new CustomEvent("sonix:search", { detail: event.target.value }),
-                      );
-                    }}
-                  />
                 </div>
               </div>
 
               <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-2">
                 <BackgroundMusicHeaderControl />
                 {!roleLoading && isAdmin && (
-                  <div className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow md:flex">
+                  <div className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow md:flex">
                     <ShieldCheck className="h-3 w-3" />
                     Boss
                   </div>
@@ -170,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     to="/settings"
                     title="VIP membership — manage subscription"
-                    className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
+                    className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
                   >
                     <Crown className="h-3 w-3" />
                     VIP
@@ -179,6 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <AdminEditModeToggle className="hidden md:inline-flex" />
                 <HighContrastToggle className="hidden sm:inline-flex" />
                 <CoinBalance className="order-first sm:order-none" />
+                <AccountButton />
 
                 {/* Standalone sign-out on ≥380px */}
                 <Button
@@ -268,7 +259,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </header>
 
             {!roleLoading && isAdmin && !pathname.startsWith("/messenger") && (
-              <div className="flex items-center justify-center gap-1.5 border-b border-primary/30 bg-primary/10 px-4 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary md:hidden">
+              <div className="flex items-center justify-center gap-1.5 border-b border-primary/30 bg-primary/10 px-4 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-primary md:hidden">
                 <ShieldCheck className="h-3 w-3" />
                 Boss mode
               </div>
@@ -287,5 +278,23 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </SidebarProvider>
     </AdminEditModeProvider>
+  );
+}
+
+/** Your initial in a circle: the quickest way to Settings, as in native apps. */
+function AccountButton() {
+  const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const name = profile?.display_name || user?.email || "";
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <Link
+      to="/settings"
+      aria-label="Account settings"
+      title="Account settings"
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/50 bg-primary/15 text-sm font-black text-foreground transition-colors hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {initial}
+    </Link>
   );
 }

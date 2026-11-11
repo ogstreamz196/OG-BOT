@@ -57,7 +57,7 @@ export function drawLyricCard(
   // Brand
   ctx.fillStyle = "#ff3b45";
   ctx.font = "900 46px system-ui, sans-serif";
-  ctx.fillText("OG BOT", W / 2, 170);
+  ctx.fillText("OG B0T", W / 2, 170);
   ctx.fillStyle = "rgba(255,255,255,0.55)";
   ctx.font = "600 28px system-ui, sans-serif";
   ctx.fillText("AI MUSIC · OGSTREAMZ", W / 2, 215);
@@ -123,7 +123,7 @@ export async function shareLyricClip(opts: {
 
   const filename = `${(opts.title || "og-track").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-ogbot.png`;
   const file = new File([blob], filename, { type: "image/png" });
-  const text = `🎧 "${opts.title}" — made with OG Bot`;
+  const text = `🎧 "${opts.title}" — made with OG B0T`;
   const nav = typeof navigator !== "undefined" ? navigator : undefined;
 
   try {

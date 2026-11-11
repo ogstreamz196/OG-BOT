@@ -166,7 +166,7 @@ export function GlobalMiniPlayer() {
     const ms = navigator.mediaSession;
     if (title) {
       try {
-        ms.metadata = new MediaMetadata({ title, artist: "OG BOT", album: "OGSTREAMZ" });
+        ms.metadata = new MediaMetadata({ title, artist: "OG B0T", album: "OGSTREAMZ" });
       } catch {
         /* unsupported */
       }

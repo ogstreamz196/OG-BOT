@@ -1,5 +1,5 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bug, ClipboardCheck, FlaskConical, KeyRound, Map, Truck, Webhook } from "lucide-react";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
+import { ClipboardCheck, KeyRound, ToggleRight, Wrench } from "lucide-react";
 import { TransferReadiness } from "@/components/admin/TransferReadiness";
 import { ApiHub } from "@/components/admin/ApiHub";
 import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
@@ -10,30 +10,91 @@ import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
 import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
-import { WebhooksAdminPage } from "./admin.webhooks";
-import { RouteMapPage } from "./admin.route-map";
-import { DebugContextPage } from "./admin.debug-context";
-import { OnboardingWizard } from "./admin.onboarding";
+import { BossAuditLog } from "@/components/admin/BossAuditLog";
+import { FreeAccessPanel } from "@/components/admin/FreeAccessPanel";
+import { RouteMapPage } from "@/components/admin/RouteMapPage";
+import { DebugContextPage } from "@/components/admin/DebugContextPage";
+import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 
 export const Route = createFileRoute("/_authenticated/admin/system")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
+  // Old links follow what moved: the Stripe webhook to Money, and
+  // Diagnostics and Boss actions into Tools & logs.
+  beforeLoad: ({ search }) => {
+    if (search.tab === "webhooks") {
+      throw redirect({ to: "/admin/coins", search: { tab: "webhooks" } });
+    }
+    if (search.tab === "tests" || search.tab === "actions") {
+      throw redirect({ to: "/admin/system", search: { tab: "tools" } });
+    }
+  },
   component: AdminSystemHub,
 });
 
-/** One-click checks that used to be scattered across the old Overview desks. */
-function Diagnostics() {
+/**
+ * Checks, the Boss log and the rarely needed tools, on one tab so the tab bar
+ * stays short. Each panel is the same one it always was, just stacked.
+ */
+function ToolsAndLogs() {
   return (
-    <>
-      <E2ESmokeTest />
-      <TelegramSmokeTest />
-      <FoulMouthSmokeTest />
-      <HardwiredCapabilities />
-    </>
+    <div className="space-y-8">
+      <ToolSection
+        title="Diagnostics"
+        desc="Run a full app, Telegram or foul-mouth check when something feels off."
+      >
+        <E2ESmokeTest />
+        <TelegramSmokeTest />
+        <FoulMouthSmokeTest />
+        <HardwiredCapabilities />
+      </ToolSection>
+      <ToolSection title="Boss actions" desc="Everything done from Boss controls, newest first.">
+        <BossAuditLog />
+      </ToolSection>
+      <ToolSection title="Route map" desc="Every page in the app.">
+        <RouteMapPage />
+      </ToolSection>
+      <ToolSection title="Lyric debug" desc="The extra context sent with recent lyric requests.">
+        <DebugContextPage />
+      </ToolSection>
+      <ToolSection
+        title="Transfer readiness"
+        desc="Checklist for moving the project to another account."
+      >
+        <TransferReadiness />
+      </ToolSection>
+    </div>
+  );
+}
+
+function ToolSection({
+  title,
+  desc,
+  children,
+}: {
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="min-w-0 space-y-3">
+      <div>
+        <h2 className="text-lg leading-tight">{title}</h2>
+        <p className="text-xs text-muted-foreground">{desc}</p>
+      </div>
+      {children}
+    </section>
   );
 }
 
 const TABS: readonly BossTab[] = [
+  {
+    value: "access",
+    label: "Free access",
+    Icon: ToggleRight,
+    hint: "Switch VIP features on for everyone for a while.",
+    Panel: FreeAccessPanel,
+  },
   {
     value: "apis",
     label: "API keys",
@@ -49,39 +110,11 @@ const TABS: readonly BossTab[] = [
     Panel: OnboardingWizard,
   },
   {
-    value: "tests",
-    label: "Diagnostics",
-    Icon: FlaskConical,
-    hint: "Run a full app, Telegram or foul-mouth check when something feels off.",
-    Panel: Diagnostics,
-  },
-  {
-    value: "webhooks",
-    label: "Payments webhook",
-    Icon: Webhook,
-    hint: "Stripe events as they arrive, and whether coins were credited.",
-    Panel: WebhooksAdminPage,
-  },
-  {
-    value: "routes",
-    label: "Route map",
-    Icon: Map,
-    hint: "Every page in the app.",
-    Panel: RouteMapPage,
-  },
-  {
-    value: "debug",
-    label: "Lyric debug",
-    Icon: Bug,
-    hint: "The extra context sent with recent lyric requests.",
-    Panel: DebugContextPage,
-  },
-  {
-    value: "transfer",
-    label: "Transfer readiness",
-    Icon: Truck,
-    hint: "Checklist for moving the project to another account.",
-    Panel: TransferReadiness,
+    value: "tools",
+    label: "Tools & logs",
+    Icon: Wrench,
+    hint: "Diagnostics, the Boss actions log, route map, lyric debug and transfer readiness.",
+    Panel: ToolsAndLogs,
   },
 ];
 

@@ -2,6 +2,8 @@
  * Battle Zone slang learning. OG Bot picks up words players use in roast
  * battles and recycles the popular ones. Only words are stored (no user ids).
  */
+import { cached } from "@/lib/server-cache";
+
 type Admin = {
   rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<unknown>;
   from: (t: string) => any;
@@ -46,16 +48,23 @@ export async function learnBattleWords(admin: Admin, text: string) {
 /** Popular community slang (used by many messages) for the prompt. */
 export async function learnedSlangBlock(admin: Admin): Promise<string> {
   try {
-    const { data } = await admin
-      .from("battle_lexicon")
-      .select("word, uses")
-      .gte("uses", 3)
-      .order("last_seen", { ascending: false })
-      .limit(300);
+    // The vocabulary grows slowly: read it at most every 5 minutes, and
+    // sample it fresh for every battle.
+    const pool = [
+      ...(await cached("battle-slang-pool", 5 * 60_000, async () => {
+        const { data, error } = await admin
+          .from("battle_lexicon")
+          .select("word, uses")
+          .gte("uses", 3)
+          .order("last_seen", { ascending: false })
+          .limit(300);
+        if (error) throw new Error(error.message);
+        return ((data ?? []) as { word: string }[])
+          .map((r) => r.word)
+          .filter((w) => !BLOCK.test(w) && !/weapon/.test(w));
+      })),
+    ];
     // Random sample of the growing vocabulary so every battle feels fresh.
-    const pool = ((data ?? []) as { word: string }[])
-      .map((r) => r.word)
-      .filter((w) => !BLOCK.test(w) && !/weapon/.test(w));
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];

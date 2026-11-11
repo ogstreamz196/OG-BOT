@@ -1,0 +1,60 @@
+# OG B0T's og_bot schema in the OGSTREAMZ hub (step 2 of docs/lovable-exit-plan.md).
+# Runs when supabase/hub/request.json changes on lovable-sync, so every hub
+# change is a reviewed commit. Needs the repo secret OG_BOT_HUB_DB_URL (the
+# hub's Postgres connection string, set in GitHub, never in code or chat).
+#   apply    : og_bot_init.sql, once (refuses if og_bot already exists)
+#   verify   : counts tables, functions and access rules in og_bot
+#   rollback : og_bot_rollback.sql (removes og_bot and its two auth triggers)
+name: OG B0T hub
+
+on:
+  push:
+    branches: [lovable-sync]
+    paths: [supabase/hub/request.json]
+
+concurrency:
+  group: og-bot-hub
+  cancel-in-progress: false
+
+jobs:
+  hub:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DB_URL: ${{ secrets.OG_BOT_HUB_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read request
+        id: req
+        run: echo "action=$(jq -r .action supabase/hub/request.json)" >> "$GITHUB_OUTPUT"
+      - name: Check secret
+        if: steps.req.outputs.action != 'none'
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::Repo secret OG_BOT_HUB_DB_URL is not set."
+            exit 1
+          fi
+      - name: Install psql
+        if: steps.req.outputs.action != 'none'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null
+      - name: Apply og_bot_init
+        if: steps.req.outputs.action == 'apply'
+        run: |
+          exists=$(psql "$DB_URL" -Atc "select count(*) from pg_namespace where nspname = 'og_bot'")
+          if [ "$exists" != "0" ]; then
+            echo "::error::og_bot already exists in the hub. Roll back first if you mean to re-apply."
+            exit 1
+          fi
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -1 -q -f supabase/hub/og_bot_init.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "insert into supabase_migrations.schema_migrations (version, name) values ('$(date -u +%Y%m%d%H%M%S)', 'og_bot_init')"
+      - name: Roll back
+        if: steps.req.outputs.action == 'rollback'
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -1 -q -f supabase/hub/og_bot_rollback.sql
+      - name: Verify
+        if: steps.req.outputs.action != 'none'
+        run: |
+          psql "$DB_URL" -At -c "select 'og_bot tables: ' || count(*) from pg_tables where schemaname = 'og_bot'" \
+            -c "select 'og_bot functions: ' || count(*) from pg_proc where pronamespace = (select oid from pg_namespace where nspname = 'og_bot')" \
+            -c "select 'og_bot access rules: ' || count(*) from pg_policies where schemaname = 'og_bot'" \
+            -c "select 'auth.users triggers: ' || string_agg(tgname, ', ' order by tgname) from pg_trigger where tgrelid = 'auth.users'::regclass and not tgisinternal" \
+            | tee -a "$GITHUB_STEP_SUMMARY"

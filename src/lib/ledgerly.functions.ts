@@ -36,7 +36,7 @@ export const getLedgerlySettings = createServerFn({ method: "POST" })
 
 export const saveLedgerlySettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { enabled: boolean; apiKey?: string; removeKey?: boolean }) => {
+  .validator((d: { enabled: boolean; apiKey?: string; removeKey?: boolean }) => {
     if (d.apiKey && (d.apiKey.length > 300 || !/^\S+$/.test(d.apiKey.trim()))) throw new Error("Invalid key");
     return { enabled: !!d.enabled, apiKey: d.apiKey?.trim() || undefined, removeKey: !!d.removeKey };
   })

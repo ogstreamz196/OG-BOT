@@ -43,7 +43,7 @@ async function ensureCoupon(stripe: ReturnType<typeof createStripeClient>) {
   }
   await stripe.coupons.create({
     id: COUPON_ID,
-    name: "OG Bot secret £10 off Yearly VIP",
+    name: "OG B0T secret £10 off Yearly VIP",
     amount_off: DISCOUNT_PENCE,
     currency: "gbp",
     duration: "once",

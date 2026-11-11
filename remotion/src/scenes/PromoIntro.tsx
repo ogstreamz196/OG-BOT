@@ -10,14 +10,23 @@ import {
 } from "remotion";
 import { C, DOMAIN } from "../theme";
 import { body, display } from "../components/Type";
-import { Spectrum } from "../components/PromoKit";
+import { Spectrum, shakeTransform, useCameraShake } from "../components/PromoKit";
 export const PromoIntro: React.FC = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const p = spring({ frame: f, fps, config: { damping: 13, stiffness: 120 } });
   const punch = 1 + Math.sin(f / 10) * 0.018;
+  // A kick on the logo landing and again on the "CREATE FOR FREE" drop.
+  const shake = useCameraShake([8, 58], { amp: 8, decayFrames: 15 });
   return (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
+    <AbsoluteFill
+      style={{
+        alignItems: "center",
+        justifyContent: "center",
+        transform: shakeTransform(shake),
+        willChange: "transform",
+      }}
+    >
       <div
         style={{
           position: "absolute",

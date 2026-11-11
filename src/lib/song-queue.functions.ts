@@ -9,7 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  */
 export const runQueuedSong = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ songId: z.string().uuid() }).parse(d))
+  .validator((d) => z.object({ songId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { data: own } = await context.supabase
       .from("songs")

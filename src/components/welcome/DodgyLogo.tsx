@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 import { DODGE_QUERIES, shouldDodgeCursor } from "./dodgy-logo-detect";
 
 type Props = {
@@ -15,6 +15,12 @@ type Props = {
   alt?: string;
   /** Rounded radius class for the image. */
   imageClassName?: string;
+  /** CSS aspect ratio of the box (defaults to square). */
+  aspectRatio?: string;
+  /** Box glow around the image (off for artwork that fades into the page). */
+  glow?: boolean;
+  /** Load straight away when it's the first thing on screen. */
+  priority?: boolean;
 };
 
 /**
@@ -27,14 +33,20 @@ export function DodgyLogo({
   dodgeRadius = 160,
   className = "",
   src,
-  alt = "OG Bot",
+  alt = "OG B0T - AI Music Creator Mascot",
   imageClassName = "rounded-2xl",
+  aspectRatio = "1 / 1",
+  glow = true,
+  priority = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const targetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
   const [isFine, setIsFine] = useState(false);
+  // Electrical glitch while the cursor is inside the dodge radius.
+  const [dodging, setDodging] = useState(false);
+  const dodgingRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -80,7 +92,8 @@ export function DodgyLogo({
       const dx = cx - e.clientX;
       const dy = cy - e.clientY;
       const dist = Math.hypot(dx, dy) || 1;
-      if (dist < dodgeRadius) {
+      const near = dist < dodgeRadius;
+      if (near) {
         const strength = (dodgeRadius - dist) / dodgeRadius; // 0..1
         const push = maxDrift * strength;
         targetRef.current = {
@@ -91,34 +104,48 @@ export function DodgyLogo({
         // ease back home
         targetRef.current = { x: 0, y: 0 };
       }
+      // Only touch React state when the glitch flips on or off.
+      if (near !== dodgingRef.current) {
+        dodgingRef.current = near;
+        setDodging(near);
+      }
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => {
       window.removeEventListener("pointermove", onMove);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      dodgingRef.current = false;
+      setDodging(false);
     };
   }, [isFine, maxDrift, dodgeRadius]);
 
   return (
     <div
       className={`pointer-events-none inline-flex max-w-full items-center justify-center ${className}`}
-      style={{ width: `min(${size}px, 100%)`, aspectRatio: "1 / 1" }}
+      style={{ width: `min(${size}px, 100%)`, aspectRatio }}
     >
       <div
         ref={wrapRef}
         className={isFine ? "will-change-transform" : "animate-[wcBob_4s_ease-in-out_infinite]"}
-        style={{ width: "100%", height: "100%", transition: isFine ? undefined : "transform 0.3s" }}
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          transition: isFine ? undefined : "transform 0.3s",
+        }}
       >
         <img
-          src={src ?? ogBotAsset.url}
+          src={src ?? ogBotLogo.large}
           alt={alt}
           width={512}
           height={512}
-          decoding="async"
+          decoding={priority ? "sync" : "async"}
+          fetchPriority={priority ? "high" : undefined}
           draggable={false}
-          className={`h-full w-full select-none object-contain shadow-glow ${imageClassName}`}
+          className={`h-full w-full select-none object-contain ${glow ? "shadow-glow" : ""} ${imageClassName} ${dodging ? "dodgy-glitch" : ""}`}
         />
+        {dodging ? <span aria-hidden className={`dodgy-scanline ${imageClassName}`} /> : null}
       </div>
       <style>{`@keyframes wcBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }`}</style>
     </div>

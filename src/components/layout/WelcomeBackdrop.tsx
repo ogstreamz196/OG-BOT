@@ -5,7 +5,7 @@
  */
 export function WelcomeBackdrop() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div aria-hidden className="og-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       <div className="wc-blob absolute -left-32 top-10 h-[420px] w-[420px] rounded-full bg-gradient-brand opacity-30 blur-3xl" />
       <div
         className="wc-blob absolute -right-24 top-40 h-[360px] w-[360px] rounded-full bg-gradient-brand-soft opacity-40 blur-3xl"

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicAppSettings } from "@/lib/public-settings.functions";
+import { FREE_ACCESS_KEY, useAppSettingsRealtime } from "./app-settings-realtime";
 import { toast } from "sonner";
 
 /**
@@ -11,7 +13,7 @@ import { toast } from "sonner";
  * Optionally an expiry timestamp (`free_access_expires_at`, ISO string)
  * automatically reverts access back to VIP-only after the set time.
  */
-export const FREE_ACCESS_KEY = ["app-setting", "free_access_all"] as const;
+export { FREE_ACCESS_KEY };
 
 type FreeAccessRow = {
   rawEnabled: boolean;
@@ -19,62 +21,33 @@ type FreeAccessRow = {
 };
 
 export function useFreeAccess() {
-  const qc = useQueryClient();
   const query = useQuery({
     queryKey: FREE_ACCESS_KEY,
     staleTime: 30_000,
     queryFn: async (): Promise<FreeAccessRow> => {
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session) return { rawEnabled: false, expiresAt: null };
-      const { data, error } = await supabase
-        .from("app_settings")
-        .select("key, value")
-        .in("key", ["free_access_all", "free_access_expires_at"]);
-      if (error) return { rawEnabled: false, expiresAt: null };
-      const map = new Map((data ?? []).map((r) => [r.key, r.value as unknown]));
-      const v = map.get("free_access_all");
-      const exp = map.get("free_access_expires_at");
-      return {
-        rawEnabled: v === true || v === "true",
-        expiresAt: typeof exp === "string" && exp ? exp : null,
-      };
+      // Read through the server: members' browsers can't read the end date
+      // directly, which left free access on after it should have ended.
+      const pub = await getPublicAppSettings().catch(() => null);
+      if (!pub) return { rawEnabled: false, expiresAt: null };
+      return { rawEnabled: pub.free_access_all, expiresAt: pub.free_access_expires_at };
     },
   });
 
-  // Tick every 30s so the expiry flips the UI without a manual refresh.
-  const [, setNowTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setNowTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase.channel(
-      `app-settings-free:${Math.random().toString(36).slice(2, 10)}`,
-    );
-    channel
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings", filter: "key=eq.free_access_all" },
-        () => qc.invalidateQueries({ queryKey: FREE_ACCESS_KEY }),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "app_settings",
-          filter: "key=eq.free_access_expires_at",
-        },
-        () => qc.invalidateQueries({ queryKey: FREE_ACCESS_KEY }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [qc]);
+  useAppSettingsRealtime();
 
   const row = query.data ?? { rawEnabled: false, expiresAt: null };
+
+  // Re-render the moment free access expires (one timer, not a 30s tick).
+  const [, setExpiredTick] = useState(0);
+  useEffect(() => {
+    if (!row.expiresAt) return;
+    const ms = new Date(row.expiresAt).getTime() - Date.now();
+    if (!(ms > 0)) return;
+    const id = setTimeout(() => setExpiredTick((n) => n + 1), Math.min(ms + 250, 2 ** 31 - 1));
+    return () => clearTimeout(id);
+  }, [row.expiresAt]);
   const expired = !!row.expiresAt && new Date(row.expiresAt).getTime() <= Date.now();
   const enabled = row.rawEnabled && !expired;
 
@@ -91,19 +64,15 @@ export function useSetFreeAccess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (next: { enabled: boolean; expiresAt?: string | null }) => {
-      const { error } = await supabase
-        .from("app_settings")
-        .upsert(
+      // One statement for both keys, so a save never half-applies.
+      const { error } = await supabase.from("app_settings").upsert(
+        [
           { key: "free_access_all", value: next.enabled as unknown as never },
-          { onConflict: "key" },
-        );
+          { key: "free_access_expires_at", value: (next.expiresAt ?? null) as unknown as never },
+        ],
+        { onConflict: "key" },
+      );
       if (error) throw new Error(error.message);
-      // Always upsert the expiry key (null clears it).
-      const expValue = (next.expiresAt ?? null) as unknown as never;
-      const { error: e2 } = await supabase
-        .from("app_settings")
-        .upsert({ key: "free_access_expires_at", value: expValue }, { onConflict: "key" });
-      if (e2) throw new Error(e2.message);
       return next;
     },
     onSuccess: (next) => {

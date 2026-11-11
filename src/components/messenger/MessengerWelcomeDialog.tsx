@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { MessengerMode } from "@/hooks/use-messenger-mode";
-import ogBotAsset from "@/assets/ogbot.png.asset.json";
+import { ogBotLogo } from "@/assets/ogbot-logo";
 
 export function greetKey(uid: string | null | undefined) {
   return `og:messenger-greeting:${uid ?? "anon"}`;
@@ -81,8 +81,8 @@ export function MessengerWelcomeDialog({
       >
         <DialogHeader className="items-center !text-center">
           <img
-            src={ogBotAsset.url}
-            alt="OG Bot"
+            src={ogBotLogo.large}
+            alt="OG B0T"
             className="mb-0.5 h-11 w-11 rounded-full object-cover ring-2 ring-primary/50 ring-offset-2 ring-offset-card sm:h-14 sm:w-14"
           />
           <DialogTitle className="max-w-[calc(100%-2.5rem)] text-balance text-base font-black leading-tight sm:max-w-none sm:text-2xl">
@@ -112,8 +112,8 @@ export function MessengerWelcomeDialog({
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-black uppercase sm:text-base">Private chat</span>
-              <span className="block text-pretty text-[11px] leading-snug text-muted-foreground sm:text-sm">
-                Just you &amp; OG Bot. Nobody else sees a word.
+              <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
+                Just you &amp; OG B0T. Nobody else sees a word.
               </span>
             </span>
           </button>
@@ -138,14 +138,14 @@ export function MessengerWelcomeDialog({
               <span className="block text-xs font-black uppercase sm:text-base">
                 OG Battle Zone
               </span>
-              <span className="block text-pretty text-[11px] leading-snug text-muted-foreground sm:text-sm">
-                Everyone vs OG Bot — see if you can win a roast battle.
+              <span className="block text-pretty text-xs leading-snug text-muted-foreground sm:text-sm">
+                Everyone vs OG B0T — see if you can win a cuss battle.
               </span>
             </span>
           </button>
         </div>
 
-        <p className="text-center text-[10px] leading-tight text-muted-foreground/80 sm:text-[11px]">
+        <p className="text-center text-[0.7rem] leading-tight text-muted-foreground/80 sm:text-xs">
           You&apos;re currently set to{" "}
           <span className="font-semibold text-foreground">
             {currentMode === "community" ? "OG Battle Zone" : "Private chat"}

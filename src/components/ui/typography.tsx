@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  * utility defined in src/styles.css, so the styling stays in one place.
  *
  * Examples:
- *   <Display>Music Hub</Display>
+ *   <Display>Make a Track</Display>
  *   <Heading level={2}>Choose the vibe</Heading>
  *   <Kicker>Curated for you</Kicker>
  *   <Body size="lg">Tonight's mood, dialed in.</Body>

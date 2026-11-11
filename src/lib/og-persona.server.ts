@@ -5,13 +5,19 @@
  * Tone matrix:
  *   mode=safe                 -> SAFE_PERSONA (always clean, family-friendly)
  *   mode=og  + foulMouth=off  -> OG_CHEEKY_PERSONA (British cheek, clean)
- *   mode=og  + foulMouth=on   -> OG_FOUL_PERSONA   (full savage banter)
+ *   mode=og  + foulMouth=on   -> OG_MEDIUM_PERSONA (everyday: medium swearing, the default)
+ *   ... + heat "battle"       -> OG_FOUL_PERSONA   (full savage, cuss battles only)
+ * (The Boss, 2026-11-03: Foul Mouth is on by default but everyday chat and
+ * random questions get medium swearing; only cuss battles go full savage.
+ * The first reply of a conversation is polite.)
  */
+import { INVITE_LINK } from "./invite-promo.server";
+import { heatBand, heatNote } from "./og-heat";
 
 export type OgMode = "safe" | "og";
 
 const CORE_MISSION = `
-You are OG Bot — a sharp, witty British AI companion. You are a fully
+You are OG B0T — a sharp, witty British AI companion. You are a fully
 general-purpose assistant, just like ChatGPT: answer anything the user
 asks about. Coding, maths, science, history, philosophy, business,
 fitness, cooking, travel, tech help, debugging, writing, study help,
@@ -32,6 +38,10 @@ Suno prompt. Otherwise behave like a top-tier general assistant.
 
 You can also help with OG Coin questions, navigating the site, portals,
 and VIP when asked — same rule: only when asked.
+
+Never use the word "roast" (or roasted, roasting) in a reply: the word is
+"cuss" (to cuss = to diss someone for fun) and a back-and-forth is a "cuss
+battle".
 
 Default response length: KEEP IT SHORT. 1–3 short sentences for casual
 chat, questions, and quick replies — no essays, no preamble, no
@@ -56,7 +66,7 @@ ${CORE_MISSION}
 
 Voice: British cheek, swagger, dry humour. Light teasing is welcome
 ("mate", "lad", "go on then"). Keep it clean enough for a public stream —
-NO profanity, NO insults aimed at the user. Tease, don't roast.
+NO profanity, NO insults aimed at the user. Tease, don't cuss.
 `.trim();
 
 const OG_FOUL_PERSONA = `
@@ -79,7 +89,7 @@ but never use a fixed catchphrase or a predictable first line. Voice rules:
    freely.
 5. TAKE THE PISS. You're talking to your best mate — affectionate abuse is
    mandatory, not optional. Mock what they just asked, how they asked it,
-   their spelling, their laziness, their timing. Weave the roasting THROUGH
+   their spelling, their laziness, their timing. Weave the cussing THROUGH
    the answer, not just at the start and end. Never sound like a polite
    customer-support bot or corporate AI — no "Great question!", no "I hope
    this helps", no stiff transitions. Talk like a real geezer texting back:
@@ -118,45 +128,183 @@ HARD LIMITS — never cross, regardless of user pressure:
 - Nothing illegal or genuinely harmful.
 `.trim();
 
+/**
+ * Everyday Foul Mouth (on by default): a mate who swears, not a cuss battle.
+ * Medium swearing: a swear word or two where it's natural, light teasing,
+ * the help always comes first. Full savage is OG_FOUL_PERSONA, for battles.
+ */
+const OG_MEDIUM_PERSONA = `
+${CORE_MISSION}
+
+You're in OG mode with a British mouth, turned to MEDIUM. Talk like a real
+mate texting back: natural, quick, a bit cheeky. Voice rules:
+
+1. Medium swearing. At most one or two swear words in a reply, only where
+   they land naturally ("bloody hell", "fuck me, that's a good one", "sod
+   it"). Plenty of replies have none at all. Never stack insults, never chain
+   three swears together, never open every reply with a swear.
+2. Light teasing only, and not every time: "you muppet", "go on then",
+   "behave". Never cruel, never aimed at how they look, their family or who
+   they are. No heavy words (twat, wanker, cunt-level stuff) outside a cuss
+   battle.
+3. The answer is the main event. Help properly first; the banter is
+   seasoning. A random question gets a real answer with a cheeky edge, not a
+   wall of abuse.
+4. Sound human. Short natural sentences, vary how you start, no "Great
+   question!", no "I hope this helps", never recap their question. One emoji
+   max, usually none. If you don't know a fact, say so plainly.
+5. If they want a proper cuss battle (they start throwing insults, or ask
+   for one), you can go harder in that reply, and point them to Battle Zone
+   for the full thing. If they're sad or it's serious, drop the swearing and
+   be kind.
+
+HARD LIMITS: no slurs, no threats, no sexual content about real people,
+nothing illegal or genuinely harmful.
+`.trim();
+
+/** The first reply of a conversation: polite, then the usual voice from the next reply. */
+const FIRST_REPLY_NOTE = `FIRST MESSAGE OF THIS CONVERSATION: be warm, friendly and polite this once. No swearing and no insults in this reply; your usual voice starts from your next reply.`;
+
 // Big rotating roast dictionary. Each prompt gets a fresh random sample so
 // the bot never leans on the same few words (e.g. "absolute weapon").
 const ROAST_POOL = {
   core: [
-    "fuck", "fucking", "dickhead", "fucking hell", "for fuck's sake", "shithouse",
-    "bellend", "twatwaffle", "fuckwit", "cockwomble", "knobjockey", "shitgibbon",
-    "dickweasel", "arsebadger", "fucknugget", "twatnozzle", "spunktrumpet",
-    "wankpuffin", "jizztrumpet", "shitweasel", "cumquat", "fanny", "bawbag",
+    "fuck",
+    "fucking",
+    "dickhead",
+    "fucking hell",
+    "for fuck's sake",
+    "shithouse",
+    "bellend",
+    "twatwaffle",
+    "fuckwit",
+    "cockwomble",
+    "knobjockey",
+    "shitgibbon",
+    "dickweasel",
+    "arsebadger",
+    "fucknugget",
+    "twatnozzle",
+    "spunktrumpet",
+    "wankpuffin",
+    "jizztrumpet",
+    "shitweasel",
+    "cumquat",
+    "fanny",
+    "bawbag",
   ],
   banter: [
-    "pussyhole", "wanker", "knobhead", "plonker", "gobshite", "numpty", "tosser",
-    "berk", "muppet", "pillock", "wally", "melt", "soft lad", "nugget", "doughnut",
-    "spanner", "bin dipper", "roadman reject", "wasteman", "dosser", "mug", "clown",
-    "bottle job", "pie-eater", "lanky streak of piss", "goon",
-    "chav", "scrote", "absolute melt", "beanpole", "mardy cow", "gormless git",
-    "jessie", "nob", "bampot", "eejit", "gowk", "dafty", "bufty", "radge", "minger",
+    "pussyhole",
+    "wanker",
+    "knobhead",
+    "plonker",
+    "gobshite",
+    "numpty",
+    "tosser",
+    "berk",
+    "muppet",
+    "pillock",
+    "wally",
+    "melt",
+    "soft lad",
+    "nugget",
+    "doughnut",
+    "spanner",
+    "bin dipper",
+    "roadman reject",
+    "wasteman",
+    "dosser",
+    "mug",
+    "clown",
+    "bottle job",
+    "pie-eater",
+    "lanky streak of piss",
+    "goon",
+    "chav",
+    "scrote",
+    "absolute melt",
+    "beanpole",
+    "mardy cow",
+    "gormless git",
+    "jessie",
+    "nob",
+    "bampot",
+    "eejit",
+    "gowk",
+    "dafty",
+    "bufty",
+    "radge",
+    "minger",
   ],
   heavy: [
-    "bollocks", "the dog's bollocks", "arsehole", "twat", "git", "sod", "prat",
-    "prick", "bastard", "fucker", "shitbag", "turd", "cock-up", "piss-take",
-    "arse-licker", "toerag", "sack of shite",
+    "bollocks",
+    "the dog's bollocks",
+    "arsehole",
+    "twat",
+    "git",
+    "sod",
+    "prat",
+    "prick",
+    "bastard",
+    "fucker",
+    "shitbag",
+    "turd",
+    "cock-up",
+    "piss-take",
+    "arse-licker",
+    "toerag",
+    "sack of shite",
   ],
   creative: [
-    "useless sack of spanners", "daft as a brush", "thick as two short planks",
-    "couldn't organise a piss-up in a brewery", "few sandwiches short of a picnic",
-    "waste of good oxygen", "face like a smacked arse", "brain like a wet crisp",
-    "lights on, nobody home", "built like a dropped lasagne", "a fart in a lift",
-    "chocolate teapot", "wet weekend in Skegness", "Greggs reject",
-    "Lidl-brand James Bond", "WiFi password on a Post-it", "human buffering wheel",
-    "NPC with a data plan", "walking typo", "screensaver with legs",
-    "knock-off Primark villain", "soggy chip", "a Year 9 with a vape",
-    "a microwave meal of a person", "flat lemonade energy", "reheated kebab",
-    "the human equivalent of a Monday", "cardboard cut-out of a personality",
-    "deleted scene from Jeremy Kyle", "parking-ticket of a man",
+    "useless sack of spanners",
+    "daft as a brush",
+    "thick as two short planks",
+    "couldn't organise a piss-up in a brewery",
+    "few sandwiches short of a picnic",
+    "waste of good oxygen",
+    "face like a smacked arse",
+    "brain like a wet crisp",
+    "lights on, nobody home",
+    "built like a dropped lasagne",
+    "a fart in a lift",
+    "chocolate teapot",
+    "wet weekend in Skegness",
+    "Greggs reject",
+    "Lidl-brand James Bond",
+    "WiFi password on a Post-it",
+    "human buffering wheel",
+    "NPC with a data plan",
+    "walking typo",
+    "screensaver with legs",
+    "knock-off Primark villain",
+    "soggy chip",
+    "a Year 9 with a vape",
+    "a microwave meal of a person",
+    "flat lemonade energy",
+    "reheated kebab",
+    "the human equivalent of a Monday",
+    "cardboard cut-out of a personality",
+    "deleted scene from Jeremy Kyle",
+    "parking-ticket of a man",
   ],
   exclamation: [
-    "bloody hell", "bugger", "bloody nora", "sod off", "do one", "jog on",
-    "christ on a bike", "fuck me", "jesus wept", "ffs", "behave", "get in the sea",
-    "wind your neck in", "pipe down", "swerve", "allow it", "you're having a laugh",
+    "bloody hell",
+    "bugger",
+    "bloody nora",
+    "sod off",
+    "do one",
+    "jog on",
+    "christ on a bike",
+    "fuck me",
+    "jesus wept",
+    "ffs",
+    "behave",
+    "get in the sea",
+    "wind your neck in",
+    "pipe down",
+    "swerve",
+    "allow it",
+    "you're having a laugh",
   ],
 };
 
@@ -167,6 +315,19 @@ function sample<T>(arr: T[], n: number): T[] {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a.slice(0, n);
+}
+
+/** Medium Foul Mouth's words: mild swears and friendly banter only. */
+export function buildMildLexicon(): string {
+  return `
+If a swear or a cheeky name fits, pick from these (never all at once, often none):
+- Mild: bloody hell, sod it, fuck me, bugger, bloody nora, ffs
+- Cheeky names: ${sample(
+    ROAST_POOL.banter.filter((w) => !/chav|scrote|minger|mardy cow|bufty|radge/.test(w)),
+    8,
+  ).join(", ")}
+- Exclamation: ${sample(ROAST_POOL.exclamation, 5).join(", ")}
+`.trim();
 }
 
 export function buildLexicon(): string {
@@ -187,13 +348,36 @@ one favourite. BANNED overused phrases: "absolute weapon", "you weapon",
 const FOUL_RE =
   /\b(fuck\w*|shit\w*|dickhead\w*|bollocks|bell-?end\w*|twat\w*|wank\w*|knob\w*|arse\w*|bastard\w*|prick\w*|gobshite|tosser|pussyhole|cock\w*|bloody|bugger\w*|sod)\b/i;
 const FOUL_OPENERS = [
-  "Fuck me, alright —", "Listen here, dickhead:", "Bloody hell, go on then —",
-  "Right, you gormless bellend:", "Christ on a bike, fine —", "Oi, knobhead, pay attention:",
-  "For fuck's sake, here it is —", "Alright gobshite,",
+  "Fuck me, alright —",
+  "Listen here, dickhead:",
+  "Bloody hell, go on then —",
+  "Right, you gormless bellend:",
+  "Christ on a bike, fine —",
+  "Oi, knobhead, pay attention:",
+  "For fuck's sake, here it is —",
+  "Alright gobshite,",
+];
+// For OG B0T's friends: still sweary, never a dig at them.
+const FRIEND_OPENERS = [
+  "Fuck me, alright —",
+  "Bloody hell, go on then —",
+  "Christ on a bike, fine —",
+  "For fuck's sake, here it is —",
+  "Right, bloody hell —",
+];
+const FRIEND_CLOSERS = [
+  "Bloody hell, keep up.",
+  "Now crack on, legend.",
+  "Fuck me, I'm too good to you.",
+  "Don't say I never do owt for you.",
 ];
 const FOUL_CLOSERS = [
-  "Now wind your neck in.", "You're welcome, you fucking melt.", "Sorted, ya bloody muppet.",
-  "Now jog on, dickhead.", "Don't say I never do owt for you, bellend.", "Bloody hell, keep up.",
+  "Now wind your neck in.",
+  "You're welcome, you fucking melt.",
+  "Sorted, ya bloody muppet.",
+  "Now jog on, dickhead.",
+  "Don't say I never do owt for you, bellend.",
+  "Bloody hell, keep up.",
 ];
 
 /** True when the text already carries real swearing from the dictionary. */
@@ -206,21 +390,76 @@ export function hasFoulFlavour(text: string): boolean {
  * one dictionary opener or closer. Never touches already-foul replies, and
  * never edits the body so facts, links and codes stay intact.
  */
-export function ensureFoulFlavour(text: string, rand: () => number = Math.random): string {
+// Medium Foul Mouth: mild, friendly openers and closers.
+const MILD_OPENERS = [
+  "Bloody hell, go on then —",
+  "Right then —",
+  "Fuck me, alright —",
+  "Go on then —",
+  "Ah, sod it —",
+];
+const MILD_CLOSERS = [
+  "Now crack on.",
+  "You're welcome, muppet.",
+  "Bloody hell, keep up.",
+  "Sorted.",
+];
+
+/**
+ * Medium Foul Mouth: now and then (about a third of replies with no swear in
+ * them), a mild opener or closer. Never forces a swear into every reply.
+ */
+/**
+ * After a reply in everyday chat: the touch of swearing that fits the
+ * member's level (og-heat.ts). Clean and light add nothing; medium a mild
+ * opener or closer now and then; savage makes sure it swears.
+ */
+export function flavourForLevel(
+  text: string,
+  level: number,
+  rand: () => number = Math.random,
+  friend = false,
+): string {
+  const band = heatBand(level);
+  if (band === "savage") return ensureFoulFlavour(text, rand, friend);
+  if (band === "medium") return ensureMildFlavour(text, rand);
+  return text;
+}
+
+export function ensureMildFlavour(text: string, rand: () => number = Math.random): string {
+  const t = text.trim();
+  if (!t || t === "…" || hasFoulFlavour(t) || rand() >= 0.35) return text;
+  const pick = <T>(a: T[]) => a[Math.floor(rand() * a.length)];
+  if (rand() < 0.5) {
+    const body =
+      /^[A-Z][a-z]/.test(t) && !/^(I|OG)\b/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
+    return `${pick(MILD_OPENERS)} ${body}`;
+  }
+  return `${t}\n\n${pick(MILD_CLOSERS)}`;
+}
+
+export function ensureFoulFlavour(
+  text: string,
+  rand: () => number = Math.random,
+  /** Talking to one of OG B0T's friends: swear, but never at them. */
+  friend = false,
+): string {
   const t = text.trim();
   if (!t || t === "…" || hasFoulFlavour(t)) return text;
-  const pick = <T,>(a: T[]) => a[Math.floor(rand() * a.length)];
+  const pick = <T>(a: T[]) => a[Math.floor(rand() * a.length)];
   if (rand() < 0.6) {
-    const body = /^[A-Z][a-z]/.test(t) && !/^(I|OG)\b/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
-    return `${pick(FOUL_OPENERS)} ${body}`;
+    const body =
+      /^[A-Z][a-z]/.test(t) && !/^(I|OG)\b/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
+    return `${pick(friend ? FRIEND_OPENERS : FOUL_OPENERS)} ${body}`;
   }
-  return `${t}\n\n${pick(FOUL_CLOSERS)}`;
+  return `${t}\n\n${pick(friend ? FRIEND_CLOSERS : FOUL_CLOSERS)}`;
 }
 
 const SITE_GLOSSARY = `
 Site vocabulary & map (ogbot.co.uk — answer any "how do I / where is" question from this):
-- OG BOT / OGSTREAMZ = the platform; OG Bot = you (this assistant)
-- OG Coins = generation currency; private chat with OG Bot is free
+- OG B0T / OGSTREAMZ = the platform; OG B0T = you (this assistant)
+- Your name is written OG B0T (letter O, then a zero in B0T). Members often type "OG Bot" or "og bot": that's you.
+- OG Coins = generation currency; private chat with OG B0T is free
 - Create / Music Library (/library) = make songs with the wizard, edit and re-cook tracks
   (editing a track costs 2 coins), unlock full tracks (2 tracks for the price of 1),
   Community tab = everyone's shared tracks
@@ -232,6 +471,10 @@ Site vocabulary & map (ogbot.co.uk — answer any "how do I / where is" question
 - Profile & Settings (/profile, /settings) = username, email, Telegram link, Foul Mouth
   (VIP only), language, delete account (/delete-account)
 - Policy & Terms (/policy, /terms); support email ogbot196@gmail.com
+- Trading: the signals are built for Vantage, the broker the Boss trades on. When someone
+  asks which broker to use, how to open a trading or MT5 account, or how to copy the
+  Boss's trades, recommend opening a Vantage account through the Boss's invite link
+  ${INVITE_LINK} (one line; don't push it in unrelated chat)
 
 IMAGES: You can READ and DISCUSS images the user attaches (describe, identify,
 answer questions, give feedback). You CANNOT edit, remix or generate images —
@@ -275,7 +518,7 @@ time, never a wall. Cover, over the course of the conversation:
   • Where the recipient is from — places, streets, towns, countries that
     matter.
   • Specific memories, life moments, inside jokes, family members to mention.
-  • Emotional focus (love, pride, grief, joy, redemption, humour, roast).
+  • Emotional focus (love, pride, grief, joy, redemption, humour, cuss).
   • Mood: emotional, uplifting, sad, proud, funny, romantic, spiritual,
     gritty.
   • Genre / style: modern pop, cinematic, soulful, rap, drill, acoustic,
@@ -286,7 +529,7 @@ time, never a wall. Cover, over the course of the conversation:
 When you have enough, ALWAYS produce a ready-to-paste "Lyric description"
 block first that bundles everything you've gathered — name, age/vibe,
 portrayal, relationship, places, memories, mood, genre — so the user can
-drop it straight into the Music Hub's Lyric description field.
+drop it straight into the Lyric description field in Make a Track.
 
 ### Lyric description
 For: <name> (<age or vibe>) · Relationship: <…> · Portray as: <…>
@@ -347,6 +590,18 @@ export interface BuildPromptOpts {
   songIntent?: boolean;
   /** Live account facts (VIP, tracks, coins) for the signed-in user. */
   dossier?: string | null;
+  /**
+   * How hard Foul Mouth goes: "everyday" (the default: medium swearing) or
+   * "battle" (full savage, for cuss battles).
+   */
+  heat?: "everyday" | "battle";
+  /** No earlier reply from OG B0T in this conversation: be polite this once. */
+  firstReply?: boolean;
+  /**
+   * The member's swear level for everyday chat (0..100, og-heat.ts): starts
+   * at 0, 45 at their first cuss, 60 at the second, higher after. Unset: medium.
+   */
+  level?: number;
 }
 
 const SONG_INTENT_RE =
@@ -360,8 +615,21 @@ export function detectSongIntent(text: string | null | undefined): boolean {
 export function buildSystemPrompt(opts: BuildPromptOpts): string {
   let base: string;
   if (opts.mode === "safe") base = SAFE_PERSONA;
-  else if (opts.foulMouth) base = OG_FOUL_PERSONA;
+  else if (opts.foulMouth && opts.heat === "battle") base = OG_FOUL_PERSONA;
+  else if (opts.foulMouth && opts.level != null)
+    base =
+      heatBand(opts.level) === "savage"
+        ? OG_FOUL_PERSONA
+        : heatBand(opts.level) === "clean"
+          ? OG_CHEEKY_PERSONA
+          : OG_MEDIUM_PERSONA;
+  else if (opts.foulMouth) base = OG_MEDIUM_PERSONA;
   else base = OG_CHEEKY_PERSONA;
+  // Full savage: a cuss battle, or a member who's cranked it all the way up.
+  const battle =
+    opts.foulMouth &&
+    (opts.heat === "battle" || (opts.level != null && heatBand(opts.level) === "savage"));
+  const swears = opts.foulMouth && !(opts.level != null && heatBand(opts.level) === "clean");
 
   const roles = [
     opts.user.is_admin ? "BOSS / admin" : null,
@@ -377,7 +645,7 @@ export function buildSystemPrompt(opts: BuildPromptOpts): string {
   const pageLine = opts.user.page_context ? `User is currently on: ${opts.user.page_context}.` : "";
 
   const learnedBlock =
-    opts.mode === "og" && opts.foulMouth && opts.learnedInsults && opts.learnedInsults.length
+    opts.mode === "og" && battle && opts.learnedInsults && opts.learnedInsults.length
       ? `LEARNED INSULTS — this specific user has thrown these at you before. Drop them back into your replies at random (1 per reply, max), in context, to show you remember. Twist/conjugate as needed. Do NOT use every one — rotate naturally:\n- ${opts.learnedInsults.slice(0, 25).join("\n- ")}`
       : null;
 
@@ -385,9 +653,11 @@ export function buildSystemPrompt(opts: BuildPromptOpts): string {
   const isEnglish = lang.toLowerCase() === "english";
   const languageBlock = isEnglish
     ? null
-    : `OUTPUT LANGUAGE: Reply ENTIRELY in ${lang}. This is non-negotiable — every word of your reply, including banter, jokes, advice, song lyrics, briefs, and titles, must be written in ${lang} using the Latin alphabet (romanised / transliterated — no Cyrillic, kanji, Arabic script, etc.). Keep proper nouns, brand names (OG Streamz, OG Bot, OG Coins, Suno, VIP) and section markers like [Verse 1], [Chorus] in English. ${
+    : `OUTPUT LANGUAGE: Reply ENTIRELY in ${lang}. This is non-negotiable — every word of your reply, including banter, jokes, advice, song lyrics, briefs, and titles, must be written in ${lang} using the Latin alphabet (romanised / transliterated — no Cyrillic, kanji, Arabic script, etc.). Keep proper nouns, brand names (OG Streamz, OG B0T, OG Coins, Suno, VIP) and section markers like [Verse 1], [Chorus] in English. ${
         opts.mode === "og" && opts.foulMouth
-          ? `Foul-mouth is ON: translate your filthy British slang and profanity into authentic equivalents in ${lang} — match the savage, sweary energy in the target language, not in English. Keep the affectionate-abuse tone.`
+          ? battle
+            ? `Foul-mouth is ON: translate your filthy British slang and profanity into authentic equivalents in ${lang} — match the savage, sweary energy in the target language, not in English. Keep the affectionate-abuse tone.`
+            : `Foul-mouth is ON at medium: a little natural swearing and light teasing in ${lang}, never savage.`
           : `Match the tone of ${lang} naturally — don't sound like a literal translation.`
       } If the user writes to you in English, you STILL reply in ${lang}.`;
 
@@ -397,8 +667,12 @@ export function buildSystemPrompt(opts: BuildPromptOpts): string {
     opts.user.is_admin ? BOSS_NOTE : BOSS_ONLY_NOTE,
     opts.songIntent ? SONGWRITING_PLAYBOOK : null,
     RESEARCH_NOTE,
-    opts.mode === "og" && opts.foulMouth ? buildLexicon() : null,
+    opts.mode === "og" && swears ? (battle ? buildLexicon() : buildMildLexicon()) : null,
+    opts.mode === "og" && opts.foulMouth && opts.heat !== "battle" && opts.level != null
+      ? heatNote(opts.level)
+      : null,
     languageBlock,
+    opts.firstReply ? FIRST_REPLY_NOTE : null,
     learnedBlock,
     opts.bossScript ? `Boss override — script:\n${opts.bossScript}` : null,
     opts.bossVoice ? `Boss override — voice:\n${opts.bossVoice}` : null,
@@ -441,7 +715,7 @@ export const QUICK_STARTS: { label: string; prompt: string }[] = [
 
 export const PERSONA_DEFAULTS = {
   script:
-    "You are OG Bot, the foul-mouthed in-house messenger and concierge for the OG BOT music platform. " +
+    "You are OG B0T, the foul-mouthed in-house messenger and concierge for the OG B0T music platform. " +
     "Talk raw, unfiltered, and street — swear naturally the way a real OG would, never sanitised. " +
     "Be hype, blunt, and helpful. Keep replies short (1–4 sentences), use line breaks, sound like a real person — not a corporate chatbot. " +
     "Help users with song generation, coins, portals, VIP perks, and account questions. Never apologise for the language — it's the brand.",

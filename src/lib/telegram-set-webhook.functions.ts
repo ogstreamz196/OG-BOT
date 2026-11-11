@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createHash } from "crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady, telegramWebhookSecrets } from "@/lib/connectors.server";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
-const DEFAULT_WEBHOOK_URL =
-  "https://ogbot.co.uk/api/public/telegram/webhook";
+const DEFAULT_WEBHOOK_URL = "https://ogbot.co.uk/api/public/telegram/webhook";
 
 export type SetWebhookResult = {
   ok: boolean;
@@ -13,10 +12,6 @@ export type SetWebhookResult = {
   botUsername: string | null;
 };
 
-function deriveSecret(key: string): string {
-  return createHash("sha256").update(`telegram-webhook:${key}`).digest("base64url");
-}
-
 /**
  * Admin one-click: (re)point Telegram at our webhook endpoint with the
  * derived secret. Use when /start in Telegram gets no reply — usually means
@@ -24,7 +19,7 @@ function deriveSecret(key: string): string {
  */
 export const setTelegramWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown): { url?: string } => {
+  .validator((data: unknown): { url?: string } => {
     const d = (data ?? {}) as { url?: unknown };
     return { url: typeof d.url === "string" && d.url.length ? d.url : undefined };
   })
@@ -42,19 +37,15 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
     if (roleErr) throw new Error(roleErr.message);
     if (!isAdmin) throw new Error("Forbidden");
 
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const tgKey = process.env.TELEGRAM_API_KEY;
-    if (!lovableKey || !tgKey) {
+    if (!connectorReady("telegram")) {
       throw new Error("Telegram connector not configured");
     }
     const url = data.url ?? DEFAULT_WEBHOOK_URL;
-    const secret = deriveSecret(tgKey);
+    const [secret] = await telegramWebhookSecrets();
 
-    const setRes = await fetch(`${GATEWAY_URL}/setWebhook`, {
+    const setRes = await connectorFetch(`${GATEWAY_URL}/setWebhook`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": tgKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -67,6 +58,8 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
           "channel_post",
           "edited_channel_post",
           "callback_query",
+          // OG B0T added to / removed from groups (the group register).
+          "my_chat_member",
         ],
       }),
     });
@@ -81,11 +74,9 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
     // Identify the bot the token actually belongs to.
     let botUsername: string | null = null;
     try {
-      const meRes = await fetch(`${GATEWAY_URL}/getMe`, {
+      const meRes = await connectorFetch(`${GATEWAY_URL}/getMe`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),
@@ -109,23 +100,22 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
       { command: "sports", description: "Open the Sports Guide" },
       { command: "buy", description: "Top up OG coins" },
       { command: "me", description: "Your profile" },
+      { command: "signals", description: "Live bitcoin signals" },
+      { command: "clear", description: "Wipe this chat and start fresh" },
     ];
     const adminCommands = [
       ...publicCommands,
-      { command: "online", description: "Who's on site right now" },
-      { command: "lastseen", description: "Recent visitors + last menu" },
       { command: "user", description: "Inspect a user by email/uuid" },
       { command: "users", description: "Search profiles" },
       { command: "stats", description: "Platform snapshot" },
-      { command: "addcoins", description: "Grant OG coins" },
+      { command: "addcoins", description: "Add or take OG coins" },
+      { command: "setcoins", description: "Set an exact coin balance" },
       { command: "broadcast", description: "DM every linked user" },
     ];
     const setCommands = async (scope: Record<string, unknown>, commands: unknown) => {
-      await fetch(`${GATEWAY_URL}/setMyCommands`, {
+      await connectorFetch(`${GATEWAY_URL}/setMyCommands`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": tgKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ commands, scope }),
@@ -140,7 +130,7 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
       const { data: roleRows } = await supabaseAdmin
         .from("user_roles")
         .select("user_id")
-        .in("role", ["admin"]);
+        .in("role", ["admin", "boss"]);
       const ids = Array.from(new Set((roleRows ?? []).map((r) => r.user_id as string)));
       if (ids.length) {
         const { data: profs } = await supabaseAdmin

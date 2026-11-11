@@ -74,3 +74,23 @@ describe("daily streaks", () => {
     expect(streakBonus(7)).toBe(3);
   });
 });
+
+import { shapeDailyReward, BATTLE_DAILY_CAP_TENTHS } from "./community.functions";
+describe("hidden daily battle ceiling", () => {
+  it("caps the day at 2 coins", () => {
+    expect(BATTLE_DAILY_CAP_TENTHS).toBe(20);
+    expect(shapeDailyReward(10, 19)).toBe(1);
+    expect(shapeDailyReward(10, 20)).toBe(0);
+  });
+  it("always pays the first insult at least 0.5 coin", () => {
+    expect(shapeDailyReward(1, 0)).toBe(5);
+    expect(shapeDailyReward(9, 0)).toBe(9);
+  });
+  it("pays small increments after the first", () => {
+    expect(shapeDailyReward(10, 5)).toBe(2);
+    expect(shapeDailyReward(1, 5)).toBe(1);
+  });
+  it("pays nothing for non-scoring lines", () => {
+    expect(shapeDailyReward(0, 0)).toBe(0);
+  });
+});

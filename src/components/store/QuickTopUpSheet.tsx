@@ -47,7 +47,7 @@ export function QuickTopUpSheet({
   reason?: string;
 }) {
   const navigate = useNavigate();
-  const rc = useRevenueCat();
+  const rc = useRevenueCat(open);
   const native = Capacitor.isNativePlatform();
   const [busy, setBusy] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);

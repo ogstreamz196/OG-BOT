@@ -14,6 +14,8 @@ const config: CapacitorConfig = {
   webDir: "mobile/www",
   server: {
     url: "https://ogbot.co.uk",
+    // OG Carrom opens inside the app instead of the phone's browser.
+    allowNavigation: ["carrom.ogbot.co.uk"],
     cleartext: false,
     androidScheme: "https",
   },

@@ -215,7 +215,7 @@ export function MusicDesk() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      <div className="og-panel overflow-hidden rounded-2xl border border-border bg-card shadow-card">
         {songsQuery.isLoading ? (
           <div className="grid place-items-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -237,7 +237,7 @@ export function MusicDesk() {
                     <span className="truncate font-semibold">{s.title || "Untitled"}</span>
                     <StatusPill status={s.status} />
                     {s.unlocked && (
-                      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-primary/15 px-2 py-0.5 text-[0.7rem] font-semibold text-primary">
                         <Unlock className="h-3 w-3" /> Unlocked
                       </span>
                     )}
@@ -300,7 +300,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+        "shrink-0 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold",
         status === "completed" && "bg-primary/15 text-primary",
         isProcessing(status) && "bg-muted text-muted-foreground",
         status === "failed" && "bg-destructive/15 text-destructive",

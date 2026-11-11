@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorReady } from "@/lib/connectors.server";
 
 async function assertBossOrAdmin(context: { supabase: unknown; userId: string }) {
   const supabase = context.supabase as {
@@ -29,13 +30,13 @@ export const getSheetsConfig = createServerFn({ method: "GET" })
     return {
       sheetId: id,
       updatedAt: data?.updated_at ?? null,
-      connectorPresent: !!process.env.LOVABLE_API_KEY && !!process.env.GOOGLE_SHEETS_API_KEY,
+      connectorPresent: connectorReady("google_sheets"),
     };
   });
 
 export const setSheetsConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { sheetId: string }) => {
+  .validator((d: { sheetId: string }) => {
     const id = (d?.sheetId ?? "").trim();
     if (!/^[A-Za-z0-9_-]{20,}$/.test(id)) throw new Error("Invalid spreadsheet ID");
     return { sheetId: id };

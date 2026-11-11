@@ -15,7 +15,7 @@ import {
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 
-async function resolveOrCreateCustomer(
+export async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
   options: { email?: string; userId?: string },
 ): Promise<string> {
@@ -56,7 +56,7 @@ async function resolveOrCreateCustomer(
 
 export const createCoinCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
     if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
     const pack = findCoinPackByPriceId(data.priceId);
     if (!pack) throw new Error("Unknown coin pack");
@@ -162,7 +162,7 @@ export const createCoinCheckoutSession = createServerFn({ method: "POST" })
 
 export const createVipCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (data: {
       returnUrl: string;
       environment: StripeEnv;
@@ -233,7 +233,7 @@ export const createVipCheckoutSession = createServerFn({ method: "POST" })
 
 export const createCustomCoinCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { units: number; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { units: number; returnUrl: string; environment: StripeEnv }) => {
     if (!Number.isInteger(data.units)) throw new Error("Invalid units");
     if (data.units < CUSTOM_COIN_UNIT.minUnits || data.units > CUSTOM_COIN_UNIT.maxUnits) {
       throw new Error(
@@ -324,11 +324,12 @@ type ReconcileResult =
   | { status: "already_credited"; coins: number; balance: number }
   | { status: "vip_granted"; ogVipId?: string | null }
   | { status: "pending"; reason: string }
+  | { status: "store_item" }
   | { error: string };
 
 export const reconcileCoinSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -379,6 +380,11 @@ export const reconcileCoinSession = createServerFn({ method: "POST" })
         return { status: "vip_granted", ogVipId };
       }
 
+      // Store items (Vault pass, perks, coin-reward items) are fulfilled once by
+      // the webhook under its own reference; crediting here as well would pay
+      // twice, and items without coins would wrongly report an error.
+      if (bundleId?.startsWith("store:")) return { status: "store_item" };
+
       const metaCoins = meta.coins ? Number(meta.coins) : 0;
       const pack = bundleId ? findCoinPackByBundleId(bundleId) : null;
       const coins = Number.isFinite(metaCoins) && metaCoins > 0 ? metaCoins : (pack?.coins ?? 0);
@@ -398,18 +404,7 @@ export const reconcileCoinSession = createServerFn({ method: "POST" })
 
       const balance = Number((result as { balance?: number } | null)?.balance ?? 0);
       const credited = Boolean((result as { credited?: boolean } | null)?.credited);
-      if (credited) {
-        const rewardCoins = Math.max(1, Math.floor(coins / 10));
-        const { error: referralError } = await (supabaseAdmin as any).rpc(
-          "credit_payment_referral",
-          {
-            _referee_id: userId,
-            _reward_coins: rewardCoins,
-            _payment_reference: reference,
-          },
-        );
-        if (referralError) console.error("payment referral reward failed", referralError);
-      }
+      // No referral reward on card payments (owner rule; see AGENTS.md).
       return credited
         ? { status: "credited", coins, balance }
         : { status: "already_credited", coins, balance };
@@ -427,7 +422,7 @@ const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 
 export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { songId: string; returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { songId: string; returnUrl: string; environment: StripeEnv }) => {
     if (!UUID_RE.test(data.songId)) throw new Error("Invalid songId");
     if (data.environment !== "sandbox" && data.environment !== "live") {
       throw new Error("Invalid environment");
@@ -449,6 +444,8 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
         .maybeSingle();
       if (!song) return { error: "Track not found" };
       if (song.status !== "completed") return { error: "Track is not ready yet" };
+      const { trackCardQuantity, songIsNasheed } = await import("@/lib/nasheed");
+      const nasheed = await songIsNasheed(supabase, data.songId);
 
       let email: string | undefined;
       try {
@@ -463,7 +460,7 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
       }
 
       const customerId = await resolveOrCreateCustomer(stripe, { email, userId });
-      const description = `Full track unlock — ${song.title || "OG Bot track"}`;
+      const description = `Full track unlock — ${song.title || "OG B0T track"}`;
 
       const session = await stripe.checkout.sessions.create({
         line_items: [
@@ -471,9 +468,11 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
             price_data: {
               currency: TRACK_UNLOCK_CURRENCY,
               unit_amount: TRACK_UNLOCK_PENCE,
-              product_data: { name: "Full track unlock" },
+              product_data: {
+                name: nasheed ? "Nasheed full track unlock" : "Full track unlock",
+              },
             },
-            quantity: 1,
+            quantity: trackCardQuantity(nasheed),
           },
         ],
         mode: "payment",
@@ -501,7 +500,7 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
 
 export const reconcileTrackUnlock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -541,20 +540,10 @@ export const reconcileTrackUnlock = createServerFn({ method: "POST" })
           userId,
           meta.songId,
           `stripe:${data.environment}:${session.id}`,
+          session.amount_total,
         );
         if (!result.ok) return { error: result.error };
-        if (!result.already) {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { error: referralError } = await (supabaseAdmin as any).rpc(
-            "credit_payment_referral",
-            {
-              _referee_id: userId,
-              _reward_coins: 1,
-              _payment_reference: `stripe:${data.environment}:track:${session.id}`,
-            },
-          );
-          if (referralError) console.error("payment referral reward failed", referralError);
-        }
+        // No referral reward on card payments (owner rule; see AGENTS.md).
         return { status: "unlocked", songId: meta.songId };
       } catch (error) {
         console.error("reconcileTrackUnlock failed", error);
@@ -768,7 +757,7 @@ type ReceiptResult = { url: string } | { error: string };
 
 export const getStripeReceiptUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -806,7 +795,7 @@ type RefundResult =
 
 export const refundCoinPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
     if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) throw new Error("Invalid sessionId");
     if (data.environment !== "sandbox" && data.environment !== "live")
       throw new Error("Invalid environment");
@@ -904,7 +893,7 @@ type PortalResult = { url: string } | { error: string };
 
 export const createBillingPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => {
+  .validator((data: { returnUrl: string; environment: StripeEnv }) => {
     if (data.environment !== "sandbox" && data.environment !== "live") {
       throw new Error("Invalid environment");
     }
@@ -987,7 +976,7 @@ export type RefundRow = {
 
 export const getMyRefunds = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { refresh?: boolean } | undefined) => data ?? {})
+  .validator((data: { refresh?: boolean } | undefined) => data ?? {})
   .handler(async ({ data, context }): Promise<RefundRow[]> => {
     const { supabase, userId } = context;
 

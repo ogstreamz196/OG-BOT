@@ -67,7 +67,7 @@ export const adminListPersonaTemplates = createServerFn({ method: "POST" })
 
 export const adminSetPersonaTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { key: string; value: string }) => {
+  .validator((d: { key: string; value: string }) => {
     if (!d?.key || typeof d.key !== "string" || !d.key.startsWith("og_persona.")) {
       throw new Error("invalid_key");
     }
@@ -109,7 +109,7 @@ export const adminListLexicon = createServerFn({ method: "POST" })
 
 export const adminUpsertLexiconPhrase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (d: { phrase: string; severity?: number; enabled?: boolean; notes?: string | null }) => {
       const phrase = String(d?.phrase ?? "").trim();
       if (phrase.length < 2 || phrase.length > 60) throw new Error("invalid_phrase");
@@ -137,7 +137,7 @@ export const adminUpsertLexiconPhrase = createServerFn({ method: "POST" })
 
 export const adminDeleteLexiconPhrase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { phrase: string }) => {
+  .validator((d: { phrase: string }) => {
     const phrase = String(d?.phrase ?? "").trim();
     if (!phrase) throw new Error("invalid_phrase");
     return { phrase };

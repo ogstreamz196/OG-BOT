@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  */
 function SubscriptionLegal({ storeName }: { storeName: string }) {
   return (
-    <div className="mt-5 space-y-2 border-t border-border/60 pt-4 text-[11px] leading-relaxed text-muted-foreground">
+    <div className="mt-5 space-y-2 border-t border-border/60 pt-4 text-xs leading-relaxed text-muted-foreground">
       <p>
         Payment is charged to your {storeName} account at confirmation of purchase. The subscription
         renews automatically at the same price unless you cancel at least 24 hours before the end of

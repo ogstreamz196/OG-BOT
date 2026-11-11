@@ -18,8 +18,8 @@ const PERKS = [
   { icon: Coins, title: "Wallet on the go", text: "Check your balance and top up in one tap." },
   {
     icon: MessageCircle,
-    title: "OG Bot in your pocket",
-    text: "Chat with the same OG Bot brain anywhere.",
+    title: "OG B0T in your pocket",
+    text: "Chat with the same OG B0T brain anywhere.",
   },
 ];
 
@@ -63,7 +63,7 @@ export function TelegramConnectCard() {
           <Send className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-lg font-bold leading-tight">OG Bot on Telegram</h2>
+          <h2 className="font-display text-lg font-bold leading-tight">OG B0T on Telegram</h2>
           {status.isLoading ? (
             <p className="text-xs text-muted-foreground">Checking connection…</p>
           ) : linked ? (
@@ -77,26 +77,22 @@ export function TelegramConnectCard() {
         </div>
       </div>
 
-      <ul className="relative mt-4 grid gap-2 sm:grid-cols-2">
-        {PERKS.map(({ icon: Icon, title, text }) => (
-          <li
-            key={title}
-            className="flex gap-2.5 rounded-xl border border-border bg-background/40 p-3"
-          >
-            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div>
-              <p className="text-sm font-semibold leading-tight">{title}</p>
-              <p className="text-xs text-muted-foreground">{text}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {!linked && (
+        <ul className="relative mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {PERKS.map(({ icon: Icon, title, text }) => (
+            <li key={title} title={text} className="flex items-center gap-2 text-xs font-medium">
+              <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+              {title}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="relative mt-4">
         {linked ? (
           <Button asChild variant="outline" className="w-full">
             <a href={`https://t.me/${BOT}`} target="_blank" rel="noopener noreferrer">
-              <Send className="mr-2 h-4 w-4" /> Open OG Bot
+              <Send className="mr-2 h-4 w-4" /> Open OG B0T
             </a>
           </Button>
         ) : (
@@ -126,7 +122,7 @@ export function TelegramConnectCard() {
                 Connect Telegram
               </a>
             </Button>
-            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            <p className="mt-2 text-center text-xs text-muted-foreground">
               Opens Telegram on your device — just tap <b>START</b>.
             </p>
           </>

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { connectorFetch, connectorReady } from "@/lib/connectors.server";
 
 export type CardTxRow = {
   id: string;
@@ -34,7 +35,7 @@ function categorise(c: any): string {
 
 export const listCardTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { from: string; to: string }) => {
+  .validator((d: { from: string; to: string }) => {
     if (isNaN(Date.parse(d.from)) || isNaN(Date.parse(d.to))) throw new Error("Invalid dates");
     return d;
   })
@@ -94,13 +95,13 @@ export const listCardTransactions = createServerFn({ method: "POST" })
     }
   });
 
-const PURCHASE_REVIEW_FOLDER = "1aaNQ3B5cglti1x1kAGGk9y6FtMQ5FHT0"; // OG BOT / PURCHASE REVIEW
+const PURCHASE_REVIEW_FOLDER = "1aaNQ3B5cglti1x1kAGGk9y6FtMQ5FHT0"; // OG B0T / PURCHASE REVIEW
 const DRIVE = "https://connector-gateway.lovable.dev/google_drive";
 
 /** Saves the accountant CSV into PURCHASE REVIEW/<period folder> on the boss's Drive. */
 export const saveAccountantCsvToDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { folder: string; fileName: string; csv: string }) => {
+  .validator((d: { folder: string; fileName: string; csv: string }) => {
     if (!/^[\w .\-/]{1,60}$/.test(d.folder) || !/^[\w .\-]{1,120}\.csv$/.test(d.fileName))
       throw new Error("Invalid name");
     if (d.csv.length > 5_000_000) throw new Error("File too large");
@@ -112,20 +113,19 @@ export const saveAccountantCsvToDrive = createServerFn({ method: "POST" })
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
     ]);
     if (!b.data && !a.data) return { error: "Forbidden" };
-    const lovable = process.env["LOVABLE_API_KEY"];
-    const conn = process.env["GOOGLE_DRIVE_API_KEY"];
-    if (!lovable || !conn) return { error: "Google Drive isn't connected" };
-    const h = { Authorization: `Bearer ${lovable}`, "X-Connection-Api-Key": conn };
+    if (!connectorReady("google_drive")) return { error: "Google Drive isn't connected" };
+    // Gateway or Google auth is added by connectorFetch.
+    const h: Record<string, string> = {};
     try {
       const folderName = data.folder.replace(/\//g, "-");
       const q = encodeURIComponent(
         `name='${folderName}' and '${PURCHASE_REVIEW_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
       );
-      const found = await fetch(`${DRIVE}/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`, { headers: h });
+      const found = await connectorFetch(`${DRIVE}/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`, { headers: h });
       if (!found.ok) throw new Error(`find ${found.status}: ${await found.text()}`);
       let folderId = ((await found.json()) as { files?: { id: string }[] }).files?.[0]?.id;
       if (!folderId) {
-        const c = await fetch(`${DRIVE}/drive/v3/files?fields=id`, {
+        const c = await connectorFetch(`${DRIVE}/drive/v3/files?fields=id`, {
           method: "POST",
           headers: { ...h, "Content-Type": "application/json" },
           body: JSON.stringify({ name: folderName, parents: [PURCHASE_REVIEW_FOLDER], mimeType: "application/vnd.google-apps.folder" }),
@@ -138,7 +138,7 @@ export const saveAccountantCsvToDrive = createServerFn({ method: "POST" })
         `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
         JSON.stringify({ name: data.fileName, parents: [folderId], mimeType: "application/vnd.google-apps.spreadsheet" }) +
         `\r\n--${boundary}\r\nContent-Type: text/csv; charset=UTF-8\r\n\r\n${data.csv}\r\n--${boundary}--`;
-      const up = await fetch(`${DRIVE}/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`, {
+      const up = await connectorFetch(`${DRIVE}/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink`, {
         method: "POST",
         headers: { ...h, "Content-Type": `multipart/related; boundary=${boundary}` },
         body,

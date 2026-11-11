@@ -18,7 +18,7 @@ const INPUT_RATE = 0.3;
 const OUTPUT_RATE = 2.5;
 
 const FEATURE_LABELS: Record<string, { label: string; Icon: typeof Sparkles }> = {
-  chat: { label: "OG Bot chat", Icon: MessageSquare },
+  chat: { label: "OG B0T chat", Icon: MessageSquare },
   lyrics: { label: "Song lyrics", Icon: Music4 },
   interview_question: { label: "Song interview", Icon: Sparkles },
   interview_summary: { label: "Interview brief", Icon: Sparkles },
@@ -76,7 +76,7 @@ export function GeminiUsagePanel() {
   const money = (usd: number) => (usd < 0.01 && usd > 0 ? "<$0.01" : `$${usd.toFixed(2)}`);
 
   return (
-    <section className="mb-6 rounded-2xl border border-border bg-card/70 p-5">
+    <section className="og-panel mb-6 rounded-2xl border border-border bg-card/70 p-5">
       <h2 className="flex items-center gap-2 font-display text-lg font-black">
         <Activity className="h-5 w-5 text-primary" />
         Gemini usage

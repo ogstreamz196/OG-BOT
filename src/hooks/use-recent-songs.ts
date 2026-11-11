@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useUserSongsRealtime } from "@/hooks/user-songs-realtime";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,23 +38,9 @@ export function useRecentSongs(userId: string | undefined, limit = 6) {
 
   // Realtime: refresh the moment a song row changes for this user (e.g. status
   // flips to "completed"). Falls back to the standard query refetch path.
-  useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      .channel(`recent-songs-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "songs", filter: `user_id=eq.${userId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, limit]);
+  useUserSongsRealtime(userId, () => {
+    queryClient.invalidateQueries({ queryKey });
+  });
 
   return query;
 }

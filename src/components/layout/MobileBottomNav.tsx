@@ -14,13 +14,13 @@ const TABS: Tab[] = [
   { to: "/library", label: "Music", icon: Library, match: (p) => p.startsWith("/library") },
   {
     to: "/messenger",
-    label: "OG Bot",
+    label: "OG B0T",
     icon: MessageCircle,
     match: (p) => p.startsWith("/messenger"),
   },
   {
     to: "/store",
-    label: "Store",
+    label: "OG Store",
     icon: ShoppingBag,
     match: (p) => p.startsWith("/store") || p.startsWith("/buy-coins"),
   },
@@ -74,7 +74,7 @@ export function MobileBottomNav() {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
-                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[9px] font-semibold uppercase transition-colors min-[380px]:px-2 min-[380px]:text-[10px] ${
+                className={`flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[0.7rem] font-semibold uppercase transition-colors min-[380px]:px-2 min-[380px]:text-[0.7rem] ${
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -82,7 +82,7 @@ export function MobileBottomNav() {
                   className={`h-5 w-5 ${active ? "drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" : ""}`}
                   aria-hidden
                 />
-                <span className="max-w-full text-center leading-tight">{label}</span>
+                <span className="max-w-full whitespace-nowrap text-center leading-tight tracking-tight">{label}</span>
               </Link>
             </li>
           );
