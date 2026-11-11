@@ -136,6 +136,22 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             });
           }
         } else if (bot.role === "copy") {
+          // The Boss's copier settings (/settings, /pause, /lot …), Boss only.
+          if (!group) {
+            const { copySettingsReply } = await import("@/lib/copy-settings-bot.server");
+            const settings = await copySettingsReply(admin, msg.chat.id, msg.text).catch(
+              () => null,
+            );
+            if (settings) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: settings },
+                key,
+              );
+              return Response.json({ ok: true });
+            }
+          }
           // The copy-trade bot: how to copy the Boss's trades, with the link.
           const { copyBotReply } = await import("@/lib/mt5-autotrade.server");
           const copy = await copyBotReply(admin);

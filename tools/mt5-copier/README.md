@@ -77,6 +77,11 @@ set keeps `config.ini`. Keys:
   `config.ini` (`symbol_XAUUSD`, `symbol_BTCUSD`).
 - `maxOpen`, `maxLateMinutes`, `useBrokerStop`.
 
+The Boss can change them from Telegram too: in a private chat with the Copy
+Trader B0T, `/settings` shows them and `/pause`, `/resume`, `/lot bot` or
+`/lot 0.05`, `/markets gold btc`, `/maxopen 6`, `/late 10` and
+`/brokerstop on|off` change them.
+
 The token and `dry_run` stay on the laptop only. The copier logs
 "Remote settings: …" each time they change.
 
