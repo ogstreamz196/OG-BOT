@@ -27,6 +27,7 @@ import {
   NO_TIME_LIMIT,
   detectTradeIntent,
   scaleTargets,
+  SL_WIDEN,
   SESSIONS,
   ukSession,
   type SessionId,
@@ -248,7 +249,7 @@ export function applyTuning(s: LearnSample, tune: Tuning, tpToStop?: number) {
   const raw = s.raw.targets.map((t) => t + shift) as [number, number, number];
   // TP1 is one risk out, so it moves with the risk.
   raw[0] += side * (risk - s.raw.risk);
-  const stop = entry - side * risk * tune.stopRoom;
+  const stop = entry - side * risk * tune.stopRoom * SL_WIDEN;
   // One take profit (the Quick Scalp), as live signals have; with a runner,
   // a third there and the rest further on. Learned: just short of the first
   // level (or round number) in the way, when that's nearer.

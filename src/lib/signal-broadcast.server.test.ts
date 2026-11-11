@@ -247,6 +247,39 @@ describe("auto-posted scalp signals", () => {
     ).toEqual(["BTCUSD BUY"]);
   });
 
+  test("a hedge (the other side) goes out at the base bar; same-side trades face the higher one", async () => {
+    const { db, tables } = fakeDb();
+    const at = (entry: number, direction: "BUY" | "SELL", pct: number) => ({
+      BTC: {
+        ...card("BTCUSD", direction, pct, 120),
+        plan: { ...card("BTCUSD", direction, pct, 120).plan, entry },
+        summary: { stop: direction === "BUY" ? entry - 5 : entry + 5 },
+      },
+    });
+    // Four buys running: past CONCURRENCY_FREE, so a fifth buy needs more.
+    for (let i = 1; i <= 4; i++)
+      tables.trade_signals.push({
+        market: "BTCUSD",
+        sender_worker: "trade",
+        message_id: i,
+        status: "open",
+        closed_at: null,
+        created_at: new Date(T0 - 30 * 60_000).toISOString(),
+      });
+    const pct = BROADCAST_MIN_CONFIDENCE + 1;
+    expect(concurrencyBar(4)).toBeGreaterThan(pct);
+    // Seed the running posts so the scan sees them.
+    for (let i = 0; i < 4; i++)
+      await scanAndBroadcast(db, deps(at(100 + i * 30, "BUY", 90) as never, T0 + i * 4 * 60_000));
+    const later = T0 + 30 * 60_000;
+    expect((await scanAndBroadcast(db, deps(at(300, "BUY", pct) as never, later))).posted).toEqual(
+      [],
+    );
+    expect((await scanAndBroadcast(db, deps(at(300, "SELL", pct) as never, later))).posted).toEqual(
+      ["BTCUSD SELL"],
+    );
+  });
+
   test("without the table, nothing is posted (it can't tell repeats apart)", async () => {
     const { db } = fakeDb({ broken: true });
     const d = deps({ BTC: card("BTCUSD", "BUY", 90) });

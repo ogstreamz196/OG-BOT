@@ -7,6 +7,7 @@ import {
   detectTradeIntent,
   resolveTradeRequest,
   STOP_ROOM,
+  SL_WIDEN,
   TP1_TIGHTEN,
   isAnyMarketAsk,
   ema,
@@ -184,9 +185,9 @@ describe("buildPlan", () => {
     expect(plan.targets[0]).toBeGreaterThan(plan.entry!);
     expect(plan.targets[1]).toBeGreaterThan(plan.targets[0]);
     expect(plan.targets[2]).toBeGreaterThanOrEqual(plan.targets[1]);
-    // Quick Scalp sits at 0.8R, tightened by TP1_TIGHTEN (0.85): 0.68R. The
-    // stop sits 20% further out than that R, and the R:R uses that stop.
-    const engineRisk = (plan.entry! - plan.stop!) / STOP_ROOM;
+    // Quick Scalp sits at 0.8R × TP1_TIGHTEN (0.935): 0.748R. The stop sits
+    // 20% further out than that R, then SL_WIDEN (10%) more; the R:R uses it.
+    const engineRisk = (plan.entry! - plan.stop!) / (STOP_ROOM * SL_WIDEN);
     expect(plan.targets[0] - plan.entry!).toBeCloseTo(engineRisk * 0.8 * TP1_TIGHTEN);
     expect(plan.rr.startsWith("1:0.6 /")).toBe(true);
   });
@@ -319,8 +320,8 @@ describe("buildPlan accuracy rules", () => {
     withHigh[290] = { ...withHigh[290], h: price + 3 };
     const clear = buildPlan(frame("Daily"), frame("4H"), frame("1H"), withHigh, line(300), price);
     expect(clear.verdict).toBe("trade");
-    // The engine's stop is 3.5 away; members get 20% more room.
-    expect(clear.stop).toBeCloseTo(price + 3.5 * STOP_ROOM);
+    // The engine's stop is 3.5 away; members get 20% more room, then 10% more.
+    expect(clear.stop).toBeCloseTo(price + 3.5 * STOP_ROOM * SL_WIDEN);
 
     // Now a swing low 4 below: only 1.1R of room before support.
     const blocked = [...withHigh];
@@ -332,7 +333,7 @@ describe("buildPlan accuracy rules", () => {
 
   it("puts the second target on a real level when there is one", () => {
     const plan = buildPlan(hi, mid, lo, h, h4);
-    const risk = (plan.stop - plan.entry) / STOP_ROOM;
+    const risk = (plan.stop - plan.entry) / (STOP_ROOM * SL_WIDEN);
     const tp2R = (plan.entry - plan.targets[1]) / risk;
     expect(tp2R).toBeGreaterThanOrEqual(1.5);
     expect(plan.targets[2]).toBeLessThan(plan.targets[1]);
@@ -448,17 +449,18 @@ describe("signal expiry tag", () => {
 });
 
 describe("scaleTargets (Quick Scalp, Potentially, Greedy Runner)", () => {
-  it("BUY: 80% of TP1 (tightened ×0.85), 60% of the way TP1→TP2, 85% of the way TP2→TP3", () => {
+  it("BUY: 80% of TP1 (×0.935), 60% of the way TP1→TP2, 85% of the way TP2→TP3", () => {
     const [q, p, g] = scaleTargets("BUY", 100, [110, 120, 140], 0.01);
-    expect(TP1_TIGHTEN).toBe(0.85);
-    expect(q).toBeCloseTo(106.8);
+    expect(TP1_TIGHTEN).toBe(0.935);
+    expect(SL_WIDEN).toBe(1.1);
+    expect(q).toBeCloseTo(107.48);
     expect(p).toBeCloseTo(116);
     expect(g).toBeCloseTo(137);
     expect(100 < q && q < p && p < g).toBe(true);
   });
   it("SELL mirrors it", () => {
     const [q, p, g] = scaleTargets("SELL", 100, [90, 80, 60], 0.01);
-    expect(q).toBeCloseTo(93.2);
+    expect(q).toBeCloseTo(92.52);
     expect(p).toBeCloseTo(84);
     expect(g).toBeCloseTo(63);
     expect(100 > q && q > p && p > g).toBe(true);
@@ -531,11 +533,7 @@ describe("volatilityRatio and ukBlock", () => {
   });
 });
 
-import {
-  fundingAdjust,
-  CROWDED_FUNDING,
-  EXTREME_FUNDING,
-} from "./trade-signal";
+import { fundingAdjust, CROWDED_FUNDING, EXTREME_FUNDING } from "./trade-signal";
 
 describe("funding/OI confidence nudge", () => {
   it("costs confidence for trading with a crowded book", () => {
@@ -554,7 +552,10 @@ describe("funding/OI confidence nudge", () => {
   });
   it("does nothing when funding is mild or unknown", () => {
     expect(fundingAdjust({ funding: 0.0002, oiChange24h: 0 }, "BUY").delta).toBe(0);
-    expect(fundingAdjust({ funding: NaN, oiChange24h: NaN }, "BUY")).toEqual({ delta: 0, reason: null });
+    expect(fundingAdjust({ funding: NaN, oiChange24h: NaN }, "BUY")).toEqual({
+      delta: 0,
+      reason: null,
+    });
     expect(fundingAdjust(undefined, "BUY").delta).toBe(0);
   });
 });
