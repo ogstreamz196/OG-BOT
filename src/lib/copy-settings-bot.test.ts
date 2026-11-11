@@ -1,45 +1,95 @@
 import { describe, expect, it } from "vitest";
-import { applyCommand, settingsCommand, settingsText } from "./copy-settings-bot.server";
+import {
+  applyCommand,
+  applyPanelAction,
+  asCommand,
+  bossKeyboard,
+  LOT_CHOICES,
+  OPEN_BUTTON,
+  panelKeyboard,
+  panelText,
+  settingsCommand,
+} from "./copy-settings-bot.server";
 
-describe("Boss's copier settings in the copy bot", () => {
-  it("knows its commands, with or without the bot's @name", () => {
-    expect(settingsCommand("/settings")).toBe("settings");
-    expect(settingsCommand("/lot@ogcopybot 0.05")).toBe("lot");
-    expect(settingsCommand("/PAUSE")).toBe("pause");
-    expect(settingsCommand("/start")).toBeNull();
-    expect(settingsCommand("lot 0.05")).toBeNull();
+const datas = (s: Parameters<typeof panelKeyboard>[0]) =>
+  panelKeyboard(s)
+    .inline_keyboard.flat()
+    .map((b) => b.callback_data);
+const texts = (s: Parameters<typeof panelKeyboard>[0]) =>
+  panelKeyboard(s)
+    .inline_keyboard.flat()
+    .map((b) => b.text);
+
+describe("the copy bot's settings card", () => {
+  it("says in plain words what each setting does, defaults when nothing's set", () => {
+    const t = panelText({});
+    expect(t).toContain("▶️ COPYING: new trades are copied.");
+    expect(t).toContain("Lot size: same as the bot");
+    expect(t).toContain("Markets: Gold and Bitcoin");
+    expect(t).toContain("Max trades open at once: 6");
+    expect(t).toContain("Joins a trade up to 10 min after it opens");
+    expect(t).toContain("Safety stop on the broker: OFF");
+    expect(panelText({ paused: true, lot: 0.05, markets: ["XAUUSD"] })).toMatch(
+      /PAUSED[\s\S]*0\.05 on every trade[\s\S]*Markets: Gold\n/,
+    );
   });
-  it("pause, resume and the lot", () => {
-    expect(applyCommand({}, "/pause").next).toEqual({ paused: true });
-    expect(applyCommand({ paused: true }, "/resume").next).toEqual({ paused: false });
-    expect(applyCommand({}, "/lot 0.05").next).toEqual({ lot: 0.05 });
-    expect(applyCommand({ lot: 0.05 }, "/lot bot").next).toEqual({ lot: "bot" });
-    expect(applyCommand({}, "/lot 9")).toMatchObject({ next: null });
-    expect(applyCommand({}, "/lot")).toMatchObject({ next: null });
+  it("ticks what's chosen, and every button fits Telegram's 64-byte limit", () => {
+    expect(texts({})).toContain("✅ 📏 Lot: same as the bot");
+    expect(texts({ lot: 0.05 })).toContain("✅ 0.05 lot");
+    expect(texts({ markets: ["BTCUSD"] })).toEqual(
+      expect.arrayContaining(["🥇 Gold", "✅ ₿ Bitcoin"]),
+    );
+    expect(texts({ paused: true })).toContain("▶️ Resume copying");
+    for (const d of datas({})) expect(new TextEncoder().encode(d).length).toBeLessThanOrEqual(64);
   });
-  it("markets by name, keeping the other settings", () => {
-    expect(applyCommand({ lot: "bot" }, "/markets gold").next).toEqual({
-      lot: "bot",
-      markets: ["XAUUSD"],
+  it("every button does what it says", () => {
+    expect(applyPanelAction({}, "cs:pause").next).toEqual({ paused: true });
+    expect(applyPanelAction({ paused: true }, "cs:resume").next).toEqual({ paused: false });
+    for (const n of LOT_CHOICES)
+      expect(applyPanelAction({}, `cs:lot:${n}`).next).toEqual({ lot: n });
+    expect(applyPanelAction({ lot: 0.05 }, "cs:lot:bot").next).toEqual({ lot: "bot" });
+    expect(applyPanelAction({}, "cs:mk:XAUUSD").next).toEqual({ markets: ["BTCUSD"] });
+    expect(applyPanelAction({ markets: ["BTCUSD"] }, "cs:mk:XAUUSD").next).toEqual({
+      markets: ["XAUUSD", "BTCUSD"],
     });
-    expect(applyCommand({}, "/markets gold, btc").next).toEqual({ markets: ["XAUUSD", "BTCUSD"] });
-    expect(applyCommand({}, "/markets all").next).toEqual({ markets: ["XAUUSD", "BTCUSD"] });
-    expect(applyCommand({}, "/markets gold eurusd")).toMatchObject({ next: null });
+    expect(applyPanelAction({}, "cs:open:1").next).toEqual({ maxOpen: 7 });
+    expect(applyPanelAction({}, "cs:late:-5").next).toEqual({ maxLateMinutes: 5 });
+    expect(applyPanelAction({}, "cs:stop:on").next).toEqual({ useBrokerStop: true });
   });
-  it("numbers and the broker stop, in range only", () => {
-    expect(applyCommand({}, "/maxopen 4").next).toEqual({ maxOpen: 4 });
-    expect(applyCommand({}, "/maxopen 99")).toMatchObject({ next: null });
-    expect(applyCommand({}, "/late 15").next).toEqual({ maxLateMinutes: 15 });
-    expect(applyCommand({}, "/late 0")).toMatchObject({ next: null });
-    expect(applyCommand({}, "/brokerstop on").next).toEqual({ useBrokerStop: true });
-    expect(applyCommand({}, "/brokerstop maybe")).toMatchObject({ next: null });
+  it("won't leave no markets or go out of range; refresh and labels change nothing", () => {
+    expect(applyPanelAction({ markets: ["XAUUSD"] }, "cs:mk:XAUUSD")).toMatchObject({ next: null });
+    expect(applyPanelAction({ maxOpen: 1 }, "cs:open:-1")).toMatchObject({ next: null });
+    expect(applyPanelAction({ maxLateMinutes: 60 }, "cs:late:5")).toMatchObject({ next: null });
+    expect(applyPanelAction({}, "cs:refresh").next).toBeNull();
+    expect(applyPanelAction({}, "cs:noop").next).toBeNull();
+    expect(applyPanelAction({}, "cs:lot:7").next).toBeNull();
   });
-  it("shows the settings, defaults where nothing's set", () => {
-    const t = settingsText({});
-    expect(t).toContain("▶️ Running");
-    expect(t).toContain("Lot: bot (same as the copy bot)");
-    expect(t).toContain("Markets: XAUUSD, BTCUSD");
-    expect(t).toContain("/brokerstop on");
-    expect(settingsText({ paused: true, markets: ["XAUUSD"], lot: 0.05 })).toContain("⏸ Paused");
+  it("every button on the card is handled", () => {
+    for (const d of datas({}))
+      if (d !== "cs:noop" && d !== "cs:refresh") expect(applyPanelAction({}, d).toast).not.toBe("");
+  });
+});
+
+describe("typed commands still work", () => {
+  it("knows its commands; /start and the ⚙️ button open the card", () => {
+    expect(settingsCommand("/lot@ogcopybot 0.1")).toBe("lot");
+    expect(settingsCommand("/start")).toBeNull();
+    expect(asCommand("/start")).toBe("/settings");
+    expect(asCommand(OPEN_BUTTON)).toBe("/settings");
+    expect(asCommand("hello")).toBe("hello");
+  });
+  it("values the buttons don't offer", () => {
+    expect(applyCommand({}, "/lot 0.3").next).toEqual({ lot: 0.3 });
+    expect(applyCommand({}, "/maxopen 12").next).toEqual({ maxOpen: 12 });
+    expect(applyCommand({}, "/late 25").next).toEqual({ maxLateMinutes: 25 });
+    expect(applyCommand({}, "/markets gold").next).toEqual({ markets: ["XAUUSD"] });
+    expect(applyCommand({}, "/lot 9")).toMatchObject({ next: null });
+  });
+  it("the Boss's keyboard: ⚙️ settings above the ⚡ signal button", () => {
+    expect(
+      bossKeyboard("⚡ Generate BTC Signal Now")
+        .keyboard.flat()
+        .map((b) => b.text),
+    ).toEqual([OPEN_BUTTON, "⚡ Generate BTC Signal Now"]);
   });
 });

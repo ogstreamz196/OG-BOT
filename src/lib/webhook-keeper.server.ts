@@ -31,6 +31,8 @@ export const MAIN_UPDATES = [
   "my_chat_member",
 ];
 export const WORKER_UPDATES = ["message", "my_chat_member"];
+/** Fleet bots also get button taps (the copy bot's settings panel). */
+export const FLEET_UPDATES = ["message", "my_chat_member", "callback_query"];
 
 /** What Telegram's getWebhookInfo says (the parts we read). */
 export type WebhookInfo = {
@@ -172,7 +174,7 @@ export async function checkWebhooks(admin: Admin, now = Date.now()): Promise<Web
         const check = await keepOne(
           b.username ? `@${b.username}` : (b.name ?? "Worker bot"),
           (method, body) => f.fleetApi(b.id, method, body, key),
-          { url: workerWebhook(b.id), updates: WORKER_UPDATES, secret: f.fleetSecret(b.id, key) },
+          { url: workerWebhook(b.id), updates: FLEET_UPDATES, secret: f.fleetSecret(b.id, key) },
           now,
         );
         out.push(check);
