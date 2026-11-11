@@ -94,3 +94,42 @@ export function copyFeed(rows: CopyFeedRow[]): CopySignal[] {
     .map(copySignal)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+
+/**
+ * A test signal for the copier only (site_content "copy.testSignal", JSON),
+ * so the Boss can check the copier on a demo without anything going to
+ * Telegram or the trade records. Shown until `until` (ms). Fields:
+ * { id, market, direction, status, halfClosed?, createdAt, until }. The stop
+ * is out of reach, so only the status (or the test ending) closes it. Pure.
+ */
+export function testSignal(value: string | null | undefined, now: number): CopySignal | null {
+  if (!value) return null;
+  let t: Record<string, unknown>;
+  try {
+    t = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  const until = Number(t.until);
+  const direction = t.direction === "SELL" ? "SELL" : "BUY";
+  const market = String(t.market ?? "");
+  const createdAt = String(t.createdAt ?? "");
+  if (!(until > now) || !market || !Number.isFinite(Date.parse(createdAt))) return null;
+  const status = String(t.status ?? "open");
+  return {
+    id: `test-${String(t.id ?? "1")}`,
+    market,
+    direction,
+    status,
+    active: ACTIVE.has(status),
+    filled: status !== "pending",
+    entry: 0,
+    stopNow: direction === "BUY" ? 0 : 1e12,
+    tp1: 0,
+    tp3: 0,
+    halfClosed: !!t.halfClosed,
+    confidence: null,
+    createdAt,
+    closedAt: null,
+  };
+}
