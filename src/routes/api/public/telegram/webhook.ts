@@ -150,6 +150,40 @@ async function handleCallbackQuery(cq: {
 }) {
   const answer = (text: string) =>
     tg("answerCallbackQuery", { callback_query_id: cq.id, ...(text ? { text } : {}) });
+  // The Boss's strategy on/off switches card (engine-strategies-bot).
+  if (cq.data?.startsWith("es:")) {
+    const chatId = cq.message?.chat?.id;
+    if (!chatId || chatId <= 0) {
+      await answer("");
+      return Response.json({ ok: true, ignored: true });
+    }
+    const admin = await loadAdmin();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("telegram_chat_id", cq.from?.id ?? 0)
+      .maybeSingle();
+    const isBoss = profile?.id ? (await isAdmin(admin, profile.id as string)).admin : false;
+    if (!isBoss) {
+      await answer("Boss only.");
+      return Response.json({ ok: true, ignored: true });
+    }
+    const { engineConfig, saveEngineConfig } = await import("@/lib/engine-config.server");
+    const { applyStrategyTap, strategyPanelText, strategyPanelKeyboard } =
+      await import("@/lib/engine-strategies-bot.server");
+    const current = await engineConfig();
+    const { next, toast } = applyStrategyTap(current, cq.data);
+    if (next) await saveEngineConfig(admin, next, profile!.id as string).catch(() => {});
+    const cfg = next ?? current;
+    await tg("editMessageText", {
+      chat_id: chatId,
+      message_id: cq.message?.message_id,
+      text: strategyPanelText(cfg),
+      reply_markup: strategyPanelKeyboard(cfg),
+    }).catch(() => {});
+    await answer(toast || "Up to date");
+    return Response.json({ ok: true, strategies: true });
+  }
   // A signal button in a group: the member who tapped gets the signal there.
   const groupSignal = /^gsig:(XAU|BTC):(1h|5m)$/.exec(cq.data ?? "");
   if (groupSignal) {
@@ -732,6 +766,7 @@ const MENU_ACTIONS = {
   help: "/help",
   stats: "/stats",
   users: "/users",
+  strategies: "/strategies",
   open: "/menu",
 } as const;
 type MenuKey = keyof typeof MENU_ACTIONS;
@@ -763,7 +798,12 @@ function menuPanel(isBoss: boolean, siteUrl: string, foul: FoulAccess) {
       [menuButton("🎧 My tracks", "tracks"), menuButton("💰 Balance", "balance")],
       [menuButton("🛒 Buy coins", "buy"), menuButton("⚽ Sports Guide", "sports")],
       [menuButton("👤 My profile", "me"), menuButton("❓ Help", "help")],
-      ...(isBoss ? [[menuButton("📊 Stats", "stats"), menuButton("👥 Users", "users")]] : []),
+      ...(isBoss
+        ? [
+            [menuButton("📊 Stats", "stats"), menuButton("👥 Users", "users")],
+            [menuButton("🎛 Strategies", "strategies")],
+          ]
+        : []),
       [{ text: "🌐 Open OGBOT.CO.UK", url: siteUrl }],
     ],
   };
@@ -2628,6 +2668,14 @@ async function handleTelegramUpdate(
     if (/^\/help\b/i.test(trimmed)) {
       await show(isBoss ? HELP_ADMIN : HELP_USER);
       return Response.json({ ok: true, help: true });
+    }
+    if (isBoss && (/^\/strategies\b/i.test(trimmed) || trimmed === "🎛 Strategies")) {
+      const { engineConfig } = await import("@/lib/engine-config.server");
+      const { strategyPanelText, strategyPanelKeyboard } =
+        await import("@/lib/engine-strategies-bot.server");
+      const cfg = await engineConfig();
+      await screen(chat_id, strategyPanelText(cfg), { reply_markup: strategyPanelKeyboard(cfg) });
+      return Response.json({ ok: true, strategies: true });
     }
     if (/^\/sports\b/i.test(trimmed)) {
       const { quickSportsReply } = await import("@/lib/sports-guide-context.server");

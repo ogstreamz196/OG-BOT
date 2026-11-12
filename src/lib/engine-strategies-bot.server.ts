@@ -27,7 +27,8 @@ const STRATEGY_INFO: Record<keyof StrategyToggles, { name: string; blurb: string
   },
   rangeHedge: {
     name: "🔁 Range hedging",
-    blurb: "When a market is just ranging, buys and sells that fight each other instead of chasing take-profit.",
+    blurb:
+      "When a market is just ranging, buys and sells that fight each other instead of chasing take-profit.",
   },
   patternsAlongside: {
     name: "➕ Patterns alongside",
@@ -87,7 +88,10 @@ export function applyStrategyTap(
     ...current,
     strategies: { ...current.strategies, [key]: on },
   });
-  return { next, toast: `${STRATEGY_INFO[key as keyof StrategyToggles].name}: ${on ? "ON" : "OFF"}` };
+  return {
+    next,
+    toast: `${STRATEGY_INFO[key as keyof StrategyToggles].name}: ${on ? "ON" : "OFF"}`,
+  };
 }
 
 /** The strategies button (or "/strategies") normalised to the command. Pure. */
