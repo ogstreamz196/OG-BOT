@@ -818,16 +818,14 @@ export async function maybeHedgeSignal(
         .maybeSingle();
       const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
       if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
-      await admin
-        .from("site_content")
-        .upsert(
-          {
-            key: hedgeTryKey(market),
-            value: new Date(now).toISOString(),
-            updated_at: new Date(now).toISOString(),
-          },
-          { onConflict: "key" },
-        );
+      await admin.from("site_content").upsert(
+        {
+          key: hedgeTryKey(market),
+          value: new Date(now).toISOString(),
+          updated_at: new Date(now).toISOString(),
+        },
+        { onConflict: "key" },
+      );
       const signal = await deps.build(`${signalRequest(pair, "5m")} hedge:${side}`);
       const plan = signal.plan;
       if (!plan?.feeds?.hedge || plan.direction !== side) {
@@ -844,6 +842,104 @@ export async function maybeHedgeSignal(
     return out.length ? out.join("; ") : "no running trend trade to hedge";
   } catch (e) {
     console.warn("[signals] hedge step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
+
+/* ── Range hedging (the Boss's "rangeHedge" strategy switch, off by default) ── */
+
+const rangeTryKey = (market: string) => `signals.rangeHedge.lastTry.${market}`;
+
+/**
+ * The edges a range hedge may still take for a market: each side that has no
+ * range hedge running there already (at most one buy and one sell at a time,
+ * fighting each other). Pure.
+ */
+export function rangeSidesFree(
+  running: { direction: "BUY" | "SELL"; rangeHedge?: boolean }[],
+): ("BUY" | "SELL")[] {
+  const taken = new Set(running.filter((r) => r.rangeHedge).map((r) => r.direction));
+  return (["BUY", "SELL"] as const).filter((s) => !taken.has(s));
+}
+
+/** The range hedge's line on its card. Pure. */
+export function tagRangeHedge(card: string): string {
+  return `${card}\n🔁 Range hedge: fading the edge of a ranging market, one target at the middle, stop to my entry halfway there`;
+}
+
+/**
+ * The range-hedge step, once a scan run (the Boss, 2026-11-12: "when a market
+ * is just ranging, buys and sells that fight each other instead of chasing
+ * take-profit"). Only with the "rangeHedge" switch on. For each market, at
+ * most once a minute, it asks the chart for the range fade on each edge that
+ * has no range hedge running (buildTradeSignal "range:<side>", rangeHedgePlan)
+ * and posts what shows through postOnce (cap, repeats, the gate at the hedge
+ * floor, the demo account, follow, copy), so a buy at the bottom and a sell at
+ * the top can run together. Never throws.
+ */
+export async function maybeRangeHedge(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const cfg = await engineConfig().catch(() => null);
+    if (!cfg?.strategies?.rangeHedge) return "off";
+    const now = deps.now();
+    const { chatPurgedAt } = await import("./signal-chat.server");
+    const purgedAt = await chatPurgedAt().catch(() => null);
+    const purgedMs = purgedAt == null ? 0 : new Date(purgedAt).getTime() || 0;
+    const since = Math.max(purgedMs, now - 12 * 3600_000);
+    const { data } = await admin
+      .from("trade_signals")
+      .select("market, direction, feeds")
+      .eq("sender_worker", "trade")
+      .in("status", ["pending", "open", "tp1", "tp2"])
+      .gte("created_at", new Date(since).toISOString())
+      .limit(100);
+    const rows = (data ?? []) as {
+      market: string;
+      direction: "BUY" | "SELL";
+      feeds: { rangeHedge?: boolean } | null;
+    }[];
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      const free = rangeSidesFree(
+        rows
+          .filter((r) => r.market === market)
+          .map((r) => ({ direction: r.direction, rangeHedge: !!r.feeds?.rangeHedge })),
+      );
+      if (!free.length) continue;
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", rangeTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
+      const at = new Date(now).toISOString();
+      await admin
+        .from("site_content")
+        .upsert({ key: rangeTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
+      for (const side of free) {
+        const signal = await deps.build(`${signalRequest(pair, "5m")} range:${side}`);
+        const plan = signal.plan;
+        if (!plan?.feeds?.rangeHedge || plan.direction !== side) continue;
+        if (plan.confidencePct < HEDGE_MIN_CONFIDENCE) {
+          out.push(`${market} ${side}: only ${plan.confidencePct}%`);
+          continue;
+        }
+        const posted = await postOnce(admin, deps, signal, (s) =>
+          tagRangeHedge(compactCard(s.reply)),
+        );
+        out.push(`${market} ${side}: ${posted ? "posted" : "not posted"}`);
+      }
+      if (!out.some((o) => o.startsWith(market))) out.push(`${market}: not ranging at an edge`);
+    }
+    return out.length ? out.join("; ") : "range hedges running on both edges";
+  } catch (e) {
+    console.warn("[signals] range hedge step failed", e instanceof Error ? e.message : "error");
     return "failed: error";
   }
 }

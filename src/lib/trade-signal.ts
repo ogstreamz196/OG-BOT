@@ -466,6 +466,8 @@ export type TradePlan = {
    * so the copier keeps it as its own ticket and it counts only its own side.
    */
   hedge?: boolean;
+  /** A range hedge (rangeHedgePlan): a hedge fading one edge of a ranging market. */
+  rangeHedge?: boolean;
   score: number;
   maxScore: number;
   reasons: string[];

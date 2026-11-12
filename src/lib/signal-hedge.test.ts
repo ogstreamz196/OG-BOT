@@ -7,12 +7,13 @@ vi.mock("./signal-chat.server", async (orig) => ({
 }));
 // The Boss's strategy switches: the hedges switch is flipped per test.
 let hedgesOn = false;
+let rangeOn = false;
 vi.mock("./engine-config.server", async () => {
   const { DEFAULT_ENGINE_CONFIG } = await import("./engine-config");
   return {
     engineConfig: async () => ({
       ...DEFAULT_ENGINE_CONFIG,
-      strategies: { ...DEFAULT_ENGINE_CONFIG.strategies, hedges: hedgesOn },
+      strategies: { ...DEFAULT_ENGINE_CONFIG.strategies, hedges: hedgesOn, rangeHedge: rangeOn },
     }),
   };
 });
@@ -21,8 +22,13 @@ import {
   HEDGE_MIN_CONFIDENCE,
   hedgeSideFor,
   maybeHedgeSignal,
+  maybeRangeHedge,
+  rangeSidesFree,
   tagHedge,
+  tagRangeHedge,
 } from "./signal-broadcast.server";
+import { rangeHedgePlan, type SetupHit } from "./trade-setups";
+import type { TradePlan } from "./trade-signal";
 
 type Row = Record<string, unknown>;
 
@@ -96,6 +102,7 @@ function deps(built: (ask: string) => unknown, now = T0) {
 
 beforeEach(() => {
   hedgesOn = false;
+  rangeOn = false;
 });
 
 describe("which side a hedge takes", () => {
@@ -172,5 +179,104 @@ describe("the hedge step in the scan", () => {
     const d = deps(() => notHedge);
     expect(await maybeHedgeSignal(db, d)).toBe("BTCUSD SELL: no hedge setup");
     expect(d.sent).toEqual([]);
+  });
+});
+
+const rangeCard = (direction: "BUY" | "SELL", pct = 62) => ({
+  reply: `XAUUSD ${direction} range card`,
+  plan: {
+    market: "XAUUSD",
+    label: "Gold",
+    direction,
+    confidencePct: pct,
+    entry: 100,
+    expiresAt: new Date(T0 + 60 * 60_000).toISOString(),
+    feeds: { hedge: true, rangeHedge: true },
+  },
+});
+
+describe("range hedging", () => {
+  // A range from 96 to 104 (middle 100); price closed at 96.5 going up: a buy
+  // at the bottom edge, stop 0.3 ATR (ATR 1) under the bottom.
+  const hit: SetupHit = {
+    id: "range_fade",
+    direction: "BUY",
+    entry: 96.5,
+    risk: 0.8,
+    targets: [100, 103.2, 104],
+    atr: 1,
+    confidencePct: 62,
+  };
+  const base = { market: "XAUUSD" } as unknown as TradePlan;
+
+  test("one quick target at the middle, the setup's stop, tagged as a (range) hedge", () => {
+    const p = rangeHedgePlan(base, hit, 96.6)!;
+    expect(p).toMatchObject({
+      direction: "BUY",
+      entry: 96.6,
+      entryType: "market",
+      stop: 95.7,
+      targets: [100, 100, 100],
+      verdict: "trade",
+      hedge: true,
+      rangeHedge: true,
+    });
+    expect(p.entryNote).toMatch(/bottom of the range/);
+  });
+
+  test("not for another setup, or once price has run off", () => {
+    expect(rangeHedgePlan(base, { ...hit, id: "wick_rejection" }, 96.6)).toBeNull();
+    expect(rangeHedgePlan(base, hit, 97.0)).toBeNull(); // 0.5 away > half the 0.8 risk
+  });
+
+  test("at most one buy and one sell at a time", () => {
+    expect(rangeSidesFree([])).toEqual(["BUY", "SELL"]);
+    expect(rangeSidesFree([{ direction: "BUY", rangeHedge: true }])).toEqual(["SELL"]);
+    expect(rangeSidesFree([{ direction: "BUY" }, { direction: "SELL" }])).toEqual(["BUY", "SELL"]);
+    expect(
+      rangeSidesFree([
+        { direction: "BUY", rangeHedge: true },
+        { direction: "SELL", rangeHedge: true },
+      ]),
+    ).toEqual([]);
+    expect(tagRangeHedge("card")).toMatch(/^card\n🔁 Range hedge/);
+  });
+
+  test("off by default: no chart read", async () => {
+    const { db } = fakeDb();
+    const d = deps(() => rangeCard("BUY"));
+    expect(await maybeRangeHedge(db, d)).toBe("off");
+    expect(d.asks).toEqual([]);
+  });
+
+  test("switched on: asks both edges, posts the one showing", async () => {
+    rangeOn = true;
+    const { db } = fakeDb();
+    const d = deps((ask) =>
+      ask.startsWith("XAUUSD") && ask.endsWith("range:BUY") ? rangeCard("BUY") : { reply: "wait" },
+    );
+    const out = await maybeRangeHedge(db, d);
+    expect(out).toContain("XAUUSD BUY: posted");
+    expect(out).toContain("BTCUSD: not ranging at an edge");
+    expect(d.asks).toEqual(
+      expect.arrayContaining(["XAUUSD signal 5m range:BUY", "XAUUSD signal 5m range:SELL"]),
+    );
+    expect(d.sent[0]).toMatch(/XAUUSD BUY range card[\s\S]*🔁 Range hedge/);
+  });
+
+  test("an edge with a range hedge running isn't asked again", async () => {
+    rangeOn = true;
+    const { db, tables } = fakeDb();
+    tables.trade_signals.push({
+      market: "XAUUSD",
+      direction: "BUY",
+      sender_worker: "trade",
+      status: "open",
+      created_at: new Date(T0 - 60_000).toISOString(),
+      feeds: { hedge: true, rangeHedge: true },
+    });
+    const d = deps(() => ({ reply: "wait" }));
+    await maybeRangeHedge(db, d);
+    expect(d.asks.filter((a) => a.startsWith("XAUUSD"))).toEqual(["XAUUSD signal 5m range:SELL"]);
   });
 });
