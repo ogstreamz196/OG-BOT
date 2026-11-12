@@ -11,9 +11,37 @@ import { copierLot, copierSkips, copySettings } from "./copy-feed";
 
 type Admin = any;
 
+/**
+ * Whether the Boss's high-frequency switch is on (site_content "copy.settings"),
+ * for the posting side: more trades at once and shorter waits (hftConcurrency).
+ * Cached 15 seconds; off on any error.
+ */
+export async function hftOn(): Promise<boolean> {
+  try {
+    const { cached } = await import("./server-cache");
+    return await cached("copy-settings-hft", 15_000, async () => {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data } = await supabaseAdmin
+        .from("site_content")
+        .select("value")
+        .eq("key", "copy.settings")
+        .maybeSingle();
+      return copySettings((data as { value?: string } | null)?.value).hft === true;
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function mirrorCopier(
   admin: Admin,
-  o: { market: string; botLots: number; confidence?: number | null; manual?: boolean },
+  o: {
+    market: string;
+    botLots: number;
+    confidence?: number | null;
+    manual?: boolean;
+    balance?: number | null;
+  },
 ): Promise<{ lots: number; why?: string }> {
   try {
     if (!(o.botLots > 0)) return { lots: o.botLots };

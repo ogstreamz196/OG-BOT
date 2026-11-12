@@ -199,6 +199,28 @@ export function effectiveBand(band: LotBand, hft: boolean | undefined): LotBand 
   return LOT_BAND_ORDER[Math.min(LOT_BAND_ORDER.length - 1, i + 1)];
 }
 
+/** Gold only takes the bigger high-frequency lots with at least this balance (USD). */
+export const GOLD_BIG_LOT_BALANCE = 400;
+
+/**
+ * The band a trade uses in high-frequency mode (the Boss, 2026-11-13): bitcoin
+ * a notch bigger; gold a notch bigger only with GOLD_BIG_LOT_BALANCE or more on
+ * the account, and the small band under it (gold ties up more margin, which
+ * would squeeze the other open trades). A balance that isn't known leaves gold
+ * on the chosen band. With high-frequency off, the chosen band as it is. Pure.
+ */
+export function hftBand(
+  band: LotBand,
+  hft: boolean | undefined,
+  market?: string,
+  balance?: number | null,
+): LotBand {
+  if (!hft) return band;
+  if (market !== "XAUUSD") return effectiveBand(band, true);
+  if (balance == null || !Number.isFinite(Number(balance))) return band;
+  return Number(balance) >= GOLD_BIG_LOT_BALANCE ? effectiveBand(band, true) : "small";
+}
+
 /** The lot within a band, bigger the surer the signal (confidence 55–90%). Pure. */
 export function lotForBand(band: LotBand, confidence?: number | null): number {
   const [lo, hi] = LOT_BANDS[band];
@@ -271,23 +293,29 @@ export function copySettings(value: string | null | undefined): CopySettings {
  */
 export function copierLot(
   s: CopySettings,
-  sig: { botLots: number; confidence?: number | null; manual?: boolean },
+  sig: {
+    botLots: number;
+    confidence?: number | null;
+    manual?: boolean;
+    market?: string;
+    balance?: number | null;
+  },
 ): number {
   // Halves round up, with a little slack for float sums (0.15 x 0.5 = 0.075
   // -> 0.08), exactly as og_copier.py's round_volume does.
   const r = (n: number) => Math.max(0.01, Math.floor(n * 100 + 0.5 + 1e-9) / 100);
   if (sig.manual) return r(sig.botLots);
-  if (s.lotBand) return r(lotForBand(effectiveBand(s.lotBand, s.hft), sig.confidence));
+  if (s.lotBand)
+    return r(lotForBand(hftBand(s.lotBand, s.hft, sig.market, sig.balance), sig.confidence));
   const m = Number(s.multiplier);
   const mult = Number.isFinite(m) && m > 0 ? Math.min(MAX_MULTIPLIER, Math.max(0.25, m)) : 1;
   const base = typeof s.lot === "number" && s.lot > 0 ? s.lot : sig.botLots;
   return r(base * mult);
 }
 
-/** The most trades the copier keeps open (HFT lifts it to at least 20), as og_copier does. Pure. */
+/** The most trades the copier keeps open (no cap in high-frequency mode), as og_copier does. Pure. */
 export function copierMaxOpen(s: CopySettings): number {
-  const base = s.maxOpen ?? 6;
-  return s.hft ? Math.max(base, 20) : base;
+  return s.hft ? Number.POSITIVE_INFINITY : (s.maxOpen ?? 6);
 }
 
 /**

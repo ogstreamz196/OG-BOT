@@ -93,6 +93,7 @@ export async function buildScanDeps(
       market: s.plan.market,
       botLots: chosen.lots,
       confidence: s.plan.confidencePct,
+      balance,
     });
     const lots = mirrored.lots;
     const why = mirrored.why ?? chosen.why;

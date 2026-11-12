@@ -326,7 +326,7 @@ async function postOnce(
     .gt("expires_at", nowIso)
     .gte("created_at", new Date(purgedAt ?? 0).toISOString())
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(100);
   // Without the table there's no way to tell repeats apart: post nothing.
   if (error) {
     console.warn("[signals] broadcast check failed", error.message);
@@ -338,6 +338,10 @@ async function postOnce(
   const engineCfg = await import("./engine-config.server")
     .then((m) => m.engineConfig())
     .catch(() => DEFAULT_ENGINE_CONFIG);
+  // High-frequency mode (the copier card's switch): no cap on trades at once
+  // and shorter waits; the gate and "not the same setup twice" stay.
+  const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+  const { hftConcurrency } = await import("./engine-config");
   if (
     !(await roomForAnother(
       admin,
@@ -345,7 +349,7 @@ async function postOnce(
       signal.summary?.stop,
       (live ?? []) as PostRow[],
       deps.now(),
-      engineCfg.concurrency,
+      hft ? hftConcurrency(engineCfg.concurrency) : engineCfg.concurrency,
     ))
   )
     return false;
@@ -753,9 +757,13 @@ const hedgeTryKey = (market: string) => `signals.hedge.lastTry.${market}`;
  */
 export function hedgeSideFor(
   running: { direction: "BUY" | "SELL"; hedge?: boolean }[],
+  /** Hedges allowed at once (more in high-frequency mode), never more than the trend trades. */
+  maxHedges = 1,
 ): "BUY" | "SELL" | null {
-  if (running.some((r) => r.hedge)) return null;
-  const sides = new Set(running.filter((r) => !r.hedge).map((r) => r.direction));
+  const trend = running.filter((r) => !r.hedge);
+  const hedges = running.length - trend.length;
+  if (hedges >= Math.min(maxHedges, Math.max(1, trend.length))) return null;
+  const sides = new Set(trend.map((r) => r.direction));
   if (sides.size !== 1) return null;
   return sides.has("BUY") ? "SELL" : "BUY";
 }
@@ -782,6 +790,8 @@ export async function maybeHedgeSignal(
     const { engineConfig } = await import("./engine-config.server");
     const cfg = await engineConfig().catch(() => null);
     if (!cfg?.strategies?.hedges) return "off";
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const { hedgesPerMarket, stepEveryMs } = await import("./engine-config");
     const now = deps.now();
     const { chatPurgedAt } = await import("./signal-chat.server");
     const purgedAt = await chatPurgedAt().catch(() => null);
@@ -808,6 +818,7 @@ export async function maybeHedgeSignal(
         rows
           .filter((r) => r.market === market)
           .map((r) => ({ direction: r.direction, hedge: !!r.feeds?.hedge })),
+        hedgesPerMarket(hft),
       );
       if (!side) continue;
       // At most one chart read a minute per market.
@@ -817,7 +828,7 @@ export async function maybeHedgeSignal(
         .eq("key", hedgeTryKey(market))
         .maybeSingle();
       const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
-      if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(hft)) continue;
       await admin.from("site_content").upsert(
         {
           key: hedgeTryKey(market),
@@ -857,9 +868,12 @@ const rangeTryKey = (market: string) => `signals.rangeHedge.lastTry.${market}`;
  */
 export function rangeSidesFree(
   running: { direction: "BUY" | "SELL"; rangeHedge?: boolean }[],
+  /** Range hedges allowed per side (two in high-frequency mode). */
+  perSide = 1,
 ): ("BUY" | "SELL")[] {
-  const taken = new Set(running.filter((r) => r.rangeHedge).map((r) => r.direction));
-  return (["BUY", "SELL"] as const).filter((s) => !taken.has(s));
+  const count = (s: "BUY" | "SELL") =>
+    running.filter((r) => r.rangeHedge && r.direction === s).length;
+  return (["BUY", "SELL"] as const).filter((s) => count(s) < perSide);
 }
 
 /** The range hedge's line on its card. Pure. */
@@ -885,6 +899,8 @@ export async function maybeRangeHedge(
     const { engineConfig } = await import("./engine-config.server");
     const cfg = await engineConfig().catch(() => null);
     if (!cfg?.strategies?.rangeHedge) return "off";
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const { rangeHedgesPerSide, stepEveryMs } = await import("./engine-config");
     const now = deps.now();
     const { chatPurgedAt } = await import("./signal-chat.server");
     const purgedAt = await chatPurgedAt().catch(() => null);
@@ -909,6 +925,7 @@ export async function maybeRangeHedge(
         rows
           .filter((r) => r.market === market)
           .map((r) => ({ direction: r.direction, rangeHedge: !!r.feeds?.rangeHedge })),
+        rangeHedgesPerSide(hft),
       );
       if (!free.length) continue;
       const { data: last } = await admin
@@ -917,7 +934,7 @@ export async function maybeRangeHedge(
         .eq("key", rangeTryKey(market))
         .maybeSingle();
       const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
-      if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(hft)) continue;
       const at = new Date(now).toISOString();
       await admin
         .from("site_content")
@@ -971,6 +988,8 @@ export async function maybeAlongside(
     const { engineConfig } = await import("./engine-config.server");
     const cfg = await engineConfig().catch(() => null);
     if (!cfg?.strategies?.patternsAlongside) return "off";
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const { stepEveryMs } = await import("./engine-config");
     const now = deps.now();
     const out: string[] = [];
     for (const pair of BROADCAST_MARKETS) {
@@ -981,7 +1000,7 @@ export async function maybeAlongside(
         .eq("key", alongsideTryKey(market))
         .maybeSingle();
       const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
-      if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(hft)) continue;
       const at = new Date(now).toISOString();
       await admin
         .from("site_content")

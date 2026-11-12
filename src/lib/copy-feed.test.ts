@@ -214,7 +214,9 @@ describe("the test account mirrors the copier", () => {
     expect(copierSkips({ paused: true }, "XAUUSD", 0)).toMatch(/paused/);
     expect(copierSkips({ markets: ["BTCUSD"] }, "XAUUSD", 0)).toMatch(/market's off/);
     expect(copierSkips({ maxOpen: 3 }, "XAUUSD", 3)).toMatch(/most open/);
-    expect(copierMaxOpen({ maxOpen: 8, hft: true })).toBe(20);
+    // High-frequency mode: no cap on open trades.
+    expect(copierMaxOpen({ maxOpen: 8, hft: true })).toBe(Infinity);
+    expect(copierSkips({ maxOpen: 3, hft: true }, "XAUUSD", 50)).toBeNull();
     expect(copierMaxOpen({})).toBe(6);
   });
   it("the copy feed sends the bot's own lot, so the copier applies its rule once", async () => {
