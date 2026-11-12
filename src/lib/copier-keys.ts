@@ -32,7 +32,40 @@ export type CopierKey = {
   lastSeen?: string;
   /** The account's balance as last reported. */
   balance?: number;
+  /**
+   * Their ogbot.co.uk username (lower case), when the name the Boss gave is
+   * one: signing in with it on the stick's app fetches this key.
+   */
+  user?: string;
+  /** The ogbot account that signed in with it (set on the first sign-in). */
+  userId?: string;
 };
+
+/** The ogbot username a name stands for, or "" when it isn't shaped like one. Pure. */
+export function userHandle(name: string): string {
+  const h = String(name ?? "")
+    .trim()
+    .toLowerCase();
+  return /^[a-z0-9._-]{3,40}$/.test(h) ? h : "";
+}
+
+/**
+ * The key an ogbot account may fetch by signing in: the one already tied to
+ * that account, else one the Boss added under that username and nobody has
+ * claimed yet. Pure.
+ */
+export function keyForLogin<T extends { key: CopierKey }>(
+  keys: T[],
+  handle: string,
+  userId: string,
+): T | null {
+  const h = userHandle(handle);
+  return (
+    keys.find((s) => s.key.userId === userId) ??
+    (h ? keys.find((s) => !s.key.userId && s.key.user === h) : undefined) ??
+    null
+  );
+}
 
 export const keyRow = (hash: string) => `${KEY_ROW_PREFIX}${hash}`;
 export const keyId = (hash: string) => hash.slice(0, 10);
@@ -65,6 +98,8 @@ export function parseKey(value: string | null | undefined): CopierKey | null {
         ? { lastSeen: String(t.lastSeen) }
         : {}),
       ...(t.balance != null && Number.isFinite(balance) ? { balance } : {}),
+      ...(userHandle(String(t.user ?? "")) ? { user: userHandle(String(t.user)) } : {}),
+      ...(/^[0-9a-f-]{36}$/i.test(String(t.userId ?? "")) ? { userId: String(t.userId) } : {}),
     };
   } catch {
     return null;
@@ -79,6 +114,7 @@ export function newKey(hash: string, name: string, days: number, now: number): C
     name: clean(name, 40) || "User",
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + d * 86_400_000).toISOString(),
+    ...(userHandle(name) ? { user: userHandle(name) } : {}),
   };
 }
 
@@ -210,7 +246,7 @@ export function usersPanel(keys: CopierKey[], now: number, note?: string): KeysP
       ...sorted.map((k, i) => `${i + 1}. ${k.name}: ${state(k, now)} · ${seen(k, now)}`),
       ...(sorted.length ? [""] : []),
       "To add someone, send:  /adduser Name 30",
-      "(the number is how many days of access)",
+      "(the number is how many days of access; use their ogbot username as the name so they can sign in on the stick)",
     ].join("\n"),
     reply_markup: {
       inline_keyboard: [
@@ -237,6 +273,11 @@ export function userPanel(
       seen(k, now),
       k.stick ? "🔒 Locked to a USB stick" : "🔓 No stick yet (locks on first use)",
       k.account ? `🔒 MT5 account ${k.account}` : "🔓 No MT5 account yet (locks on first use)",
+      k.userId
+        ? "🔑 Signs in with their ogbot login"
+        : k.user
+          ? `🔑 Can sign in on the stick as "${k.user}" (their ogbot username)`
+          : "🔑 Key only (to let them sign in, add them by their ogbot username)",
       ...(k.balance != null ? [`💰 Balance last seen: ${k.balance.toFixed(2)}`] : []),
     ].join("\n"),
     reply_markup: {

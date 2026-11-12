@@ -4,6 +4,7 @@ import {
   daysLeft,
   extendKey,
   helloFrom,
+  keyForLogin,
   newKey,
   parseKey,
   parseKeyCommand,
@@ -11,6 +12,7 @@ import {
   resetLock,
   restoreKey,
   revokeKey,
+  userHandle,
   userPanel,
   usersPanel,
   type CopierKey,
@@ -171,5 +173,30 @@ describe("the Boss's users cards", () => {
     expect(parseKeyCommand("/adduser Sam")).toEqual({ cmd: "badadd" });
     expect(parseKeyCommand("/adduser 30")).toEqual({ cmd: "badadd" });
     expect(parseKeyCommand("hello")).toBeNull();
+  });
+});
+
+describe("signing in on the stick with an ogbot login", () => {
+  const uid = "11111111-2222-3333-4444-555555555555";
+  const other = "99999999-2222-3333-4444-555555555555";
+  it("a name shaped like a username is kept as one", () => {
+    expect(userHandle("Sam_123")).toBe("sam_123");
+    expect(userHandle("Big Sam")).toBe("");
+    expect(newKey(hash, "sam123", 30, now).user).toBe("sam123");
+    expect(newKey(hash, "Big Sam", 30, now).user).toBeUndefined();
+  });
+  it("finds the unclaimed key the Boss added under that username", () => {
+    const keys = [{ key: newKey(hash, "sam123", 30, now) }];
+    expect(keyForLogin(keys, "Sam123", uid)).toBe(keys[0]);
+    expect(keyForLogin(keys, "someoneelse", uid)).toBeNull();
+  });
+  it("once claimed, only that account gets it, whatever username is typed", () => {
+    const keys = [{ key: { ...newKey(hash, "sam123", 30, now), userId: uid } }];
+    expect(keyForLogin(keys, "anything", uid)).toBe(keys[0]);
+    expect(keyForLogin(keys, "sam123", other)).toBeNull();
+  });
+  it("keeps the sign-in fields when stored", () => {
+    const k = { ...newKey(hash, "sam123", 30, now), userId: uid };
+    expect(parseKey(JSON.stringify(k))).toEqual(k);
   });
 });
