@@ -317,7 +317,13 @@ def apply_remote(settings):
 
 
 def fetch():
-    r = requests.get(FEED_URL, headers={"x-copy-token": TOKEN}, timeout=10)
+    headers = {"x-copy-token": TOKEN}
+    # Tell the server this account's balance, so the signals chat sizes gold
+    # by the same balance this copier does.
+    bal = account_balance()
+    if bal is not None:
+        headers["x-copy-balance"] = f"{bal:.2f}"
+    r = requests.get(FEED_URL, headers=headers, timeout=10)
     if r.status_code == 403:
         sys.exit("The feed said Forbidden: check the token in config.ini.")
     r.raise_for_status()

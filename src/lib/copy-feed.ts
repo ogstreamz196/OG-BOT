@@ -188,6 +188,41 @@ export type LotBand = keyof typeof LOT_BANDS;
 export const LOT_BAND_ORDER: LotBand[] = ["small", "medium", "large"];
 export const lotBandLabel = (b: LotBand) => `${LOT_BANDS[b][0]} – ${LOT_BANDS[b][1]}`;
 
+/** A balance the copier reported is trusted for this long. */
+export const COPIER_BALANCE_FRESH_MS = 15 * 60_000;
+
+/** The balance in the copier's x-copy-balance header, or null when it isn't a sane number. Pure. */
+export function balanceHeader(v: string | null | undefined): number | null {
+  if (v == null || v.trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n < 1e9 ? Math.round(n * 100) / 100 : null;
+}
+
+/**
+ * The real account's balance as the copier last reported it (site_content
+ * "copy.balance", JSON { balance, at }), or null when there's none or it's
+ * older than COPIER_BALANCE_FRESH_MS (the copier is off). Lets the signals
+ * chat apply the gold balance rule on the same balance the copier does. Pure.
+ */
+export function copierBalance(value: string | null | undefined, now: number): number | null {
+  if (!value) return null;
+  try {
+    const t = JSON.parse(value) as { balance?: unknown; at?: unknown };
+    const at = Date.parse(String(t.at ?? ""));
+    const b = balanceHeader(String(t.balance ?? ""));
+    if (
+      b == null ||
+      !Number.isFinite(at) ||
+      now - at > COPIER_BALANCE_FRESH_MS ||
+      at > now + 60_000
+    )
+      return null;
+    return b;
+  } catch {
+    return null;
+  }
+}
+
 /** Gold only takes the top of its band in high-frequency mode with at least this balance (USD). */
 export const GOLD_BIG_LOT_BALANCE = 400;
 

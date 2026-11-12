@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copierLot, hftLotSpot } from "./copy-feed";
+import { balanceHeader, copierBalance, copierLot, hftLotSpot } from "./copy-feed";
 import {
   DEFAULT_ENGINE_CONFIG,
   hedgesPerMarket,
@@ -77,5 +77,24 @@ describe("high-frequency posting limits", () => {
     expect(rangeSidesFree([r])).toEqual(["SELL"]);
     expect(rangeSidesFree([r], rangeHedgesPerSide(true))).toEqual(["BUY", "SELL"]);
     expect(rangeSidesFree([r, r], rangeHedgesPerSide(true))).toEqual(["SELL"]);
+  });
+});
+
+describe("the copier's reported balance", () => {
+  const now = Date.parse("2026-11-13T12:00:00Z");
+  const row = (balance: unknown, minsAgo: number) =>
+    JSON.stringify({ balance, at: new Date(now - minsAgo * 60_000).toISOString() });
+  it("reads a sane header and drops junk", () => {
+    expect(balanceHeader("412.337")).toBe(412.34);
+    expect(balanceHeader("0")).toBe(0);
+    expect(balanceHeader("-5")).toBeNull();
+    expect(balanceHeader("abc")).toBeNull();
+    expect(balanceHeader(null)).toBeNull();
+  });
+  it("is used while fresh and ignored once the copier's been off 15 minutes", () => {
+    expect(copierBalance(row(350, 2), now)).toBe(350);
+    expect(copierBalance(row(350, 16), now)).toBeNull();
+    expect(copierBalance("not json", now)).toBeNull();
+    expect(copierBalance(null, now)).toBeNull();
   });
 });
