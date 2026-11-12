@@ -152,8 +152,14 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
 }
 
 /** The copiers' remote settings (site_content "copy.settings"), as the feed sends them. */
-/** Risk multipliers offered: -4x, -2x, 1x, 2x, 4x, 10x. (Kept for back-compat / typed commands.) */
-export const MULTIPLIERS = [0.25, 0.5, 1, 2, 4, 10];
+/**
+ * Risk multipliers offered: -4x (a quarter), -2x (half), 1x, 2x, 4x. 10x was
+ * dropped (the Boss, 2026-11-12: "maybe 10x is too much"); a stored 10 is
+ * ignored, so the copier falls back to 1x. (Kept for back-compat / typed commands.)
+ */
+export const MULTIPLIERS = [0.25, 0.5, 1, 2, 4];
+/** The most any copier multiplies a lot by, whatever it's told. */
+export const MAX_MULTIPLIER = 4;
 export const multLabel = (m: number) => (m < 1 ? `-${Math.round(1 / m)}x` : `${m}x`);
 
 /**
@@ -201,7 +207,7 @@ export type CopySettings = {
   maxOpen?: number;
   maxLateMinutes?: number;
   useBrokerStop?: boolean;
-  /** Lot multiplier on every copied trade (0.25 to 10). */
+  /** Lot multiplier on every copied trade (0.25 to 4). */
   multiplier?: number;
   /** High-frequency mode: faster checks and more trades open at once. */
   hft?: boolean;

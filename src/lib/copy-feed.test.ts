@@ -151,3 +151,13 @@ describe("copiers' remote settings", () => {
     expect(copySettings("{oops")).toEqual({});
   });
 });
+
+describe("risk multiplier cap", () => {
+  it("10x is no longer accepted; 4x is the most", async () => {
+    const { copySettings, MULTIPLIERS, MAX_MULTIPLIER } = await import("./copy-feed");
+    expect(MAX_MULTIPLIER).toBe(4);
+    expect(Math.max(...MULTIPLIERS)).toBe(4);
+    expect(copySettings(JSON.stringify({ multiplier: 10 }))).toEqual({});
+    expect(copySettings(JSON.stringify({ multiplier: 4 }))).toEqual({ multiplier: 4 });
+  });
+});

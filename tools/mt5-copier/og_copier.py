@@ -60,6 +60,7 @@ SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in KNOWN_MARKETS}
 PAUSED = False
 # High-frequency mode (set remotely): bigger lots, quicker checks, more open.
 HFT = False
+MAX_MULTIPLIER = 4.0
 REMOTE = {}
 MT5_PATH = c.get("mt5_path", "").strip() or None
 
@@ -161,8 +162,14 @@ def lot_for(sig):
             t = 0.0
         return round(lo + (hi - lo) * t, 2)
     mult = REMOTE.get("multiplier", 1) if isinstance(REMOTE, dict) else 1
+    try:
+        mult = float(mult or 1)
+    except (TypeError, ValueError):
+        mult = 1.0
+    # Never more than 4x, whatever the server says (10x was dropped as too risky).
+    mult = max(0.25, min(MAX_MULTIPLIER, mult))
     base = float(sig["lots"]) if LOT_SETTING == "bot" else LOT
-    return base * float(mult or 1)
+    return base * mult
 
 
 def open_trade(sig, sym):
