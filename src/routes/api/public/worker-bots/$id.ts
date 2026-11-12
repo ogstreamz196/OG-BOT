@@ -51,22 +51,38 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             bot.role === "copy" &&
             (press.data?.startsWith("cs:") ||
               press.data?.startsWith("es:") ||
-              press.data?.startsWith("mt:")) &&
+              press.data?.startsWith("mt:") ||
+              press.data?.startsWith("ck:")) &&
             press.message
           ) {
             const { error: dup } = await admin
               .from("telegram_worker_updates")
               .insert({ worker_id: bot.id, update_id: update?.update_id as number });
             if (dup) return Response.json({ ok: true });
-            const fallback = { toast: "⚠️ Something went wrong. Try again.", panel: null };
-            // "mt:" is the manual trade card; "cs:"/"es:" the settings card.
-            const res = press.data.startsWith("mt:")
-              ? await (await import("@/lib/manual-trade.server"))
-                  .manualTradeTap(admin, press.from.id, press.data)
+            const fallback: {
+              toast: string;
+              panel: { text: string; reply_markup: unknown } | null;
+              extra?: string;
+            } = { toast: "⚠️ Something went wrong. Try again.", panel: null };
+            // "mt:" is the manual trade card; "ck:" the copier users cards;
+            // "cs:"/"es:" the settings card.
+            const res: typeof fallback = press.data.startsWith("ck:")
+              ? await (
+                  await import("@/lib/copier-keys.server")
+                )
+                  .copierKeysTap(admin, press.from.id, press.data)
                   .catch(() => fallback)
-              : await (await import("@/lib/copy-settings-bot.server"))
-                  .copySettingsTap(admin, press.from.id, press.data)
-                  .catch(() => fallback);
+              : press.data.startsWith("mt:")
+                ? await (
+                    await import("@/lib/manual-trade.server")
+                  )
+                    .manualTradeTap(admin, press.from.id, press.data)
+                    .catch(() => fallback)
+                : await (
+                    await import("@/lib/copy-settings-bot.server")
+                  )
+                    .copySettingsTap(admin, press.from.id, press.data)
+                    .catch(() => fallback);
             await f.fleetApi(
               bot.id,
               "answerCallbackQuery",
@@ -83,6 +99,14 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
                   text: res.panel.text,
                   reply_markup: res.panel.reply_markup,
                 },
+                key,
+              );
+            // A new user key is shown once, in its own message.
+            if (res.extra)
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: press.message.chat.id, text: res.extra },
                 key,
               );
           } else {
@@ -190,6 +214,23 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         } else if (bot.role === "copy") {
           // The Boss's copier settings (/settings, /pause, /lot …), Boss only.
           if (!group) {
+            // The Boss's copier users (/users, 👥 Copier users, /adduser Name 30).
+            const { copierKeysReply } = await import("@/lib/copier-keys.server");
+            const users = await copierKeysReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (users) {
+              for (const m of users)
+                await f.fleetApi(
+                  bot.id,
+                  "sendMessage",
+                  {
+                    chat_id: msg.chat.id,
+                    text: m.text,
+                    ...(m.reply_markup ? { reply_markup: m.reply_markup } : {}),
+                  },
+                  key,
+                );
+              return Response.json({ ok: true });
+            }
             // The Boss's manual trade card (/trade or ✋ Manual trade).
             const { manualTradeReply } = await import("@/lib/manual-trade.server");
             const manual = await manualTradeReply(admin, msg.chat.id, msg.text).catch(() => null);

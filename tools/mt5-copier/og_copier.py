@@ -22,8 +22,10 @@ import configparser
 import math
 import json
 import os
+import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 
 import MetaTrader5 as mt5
@@ -31,6 +33,50 @@ import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAGIC = 196196
+# One id per start of the copier, so the server can tell a second copy of the
+# same key from this one.
+INSTANCE = uuid.uuid4().hex
+
+
+def stick_id():
+    """The drive this copier lives on: the disk's hardware serial when Windows
+    gives one, else the volume's serial. A user's key locks to it on first use."""
+    drive = os.path.splitdrive(HERE)[0].rstrip(":")
+    if os.name != "nt" or not drive:
+        return "no-drive"
+    try:
+        out = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"(Get-Partition -DriveLetter {drive} | Get-Disk).SerialNumber",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        ).stdout.strip()
+        serial = "".join(ch for ch in out if ch.isalnum())
+        if len(serial) >= 4:
+            return f"disk-{serial}"[:80]
+    except Exception:
+        pass
+    try:
+        import ctypes
+
+        vol = ctypes.c_ulong(0)
+        ok = ctypes.windll.kernel32.GetVolumeInformationW(
+            f"{drive}:\\", None, 0, ctypes.byref(vol), None, None, None, 0
+        )
+        if ok:
+            return f"vol-{vol.value:08X}"
+    except Exception:
+        pass
+    return "no-drive"
+
+
+STICK = stick_id()
+ACCESS_NOTE = None
 
 # ── settings ────────────────────────────────────────────────────────────────
 cfg = configparser.ConfigParser()
@@ -323,11 +369,40 @@ def fetch():
     bal = account_balance()
     if bal is not None:
         headers["x-copy-balance"] = f"{bal:.2f}"
+    # Which stick, MT5 account and copy this is (a user's key is locked to one
+    # stick and one account, and runs one copy at a time).
+    headers["x-copy-stick"] = STICK
+    headers["x-copy-instance"] = INSTANCE
+    try:
+        info = mt5.account_info()
+        if info:
+            headers["x-copy-account"] = str(info.login)
+    except Exception:
+        pass
+    global ACCESS_NOTE
     r = requests.get(FEED_URL, headers=headers, timeout=10)
     if r.status_code == 403:
-        sys.exit("The feed said Forbidden: check the token in config.ini.")
+        try:
+            refused = r.json()
+        except ValueError:
+            sys.exit("The feed said Forbidden: check the token in config.ini.")
+        message = refused.get("message") or "Access refused."
+        if refused.get("reason") == "running_elsewhere":
+            # Most likely this copier was just restarted: wait for the old
+            # check-in to lapse, then carry on.
+            if ACCESS_NOTE != message:
+                log(f"{message} Waiting...")
+                ACCESS_NOTE = message
+            time.sleep(15)
+            return None
+        sys.exit(message)
     r.raise_for_status()
     body = r.json()
+    access = body.get("access")
+    note = access.get("message") if isinstance(access, dict) and not access.get("ok") else None
+    if note != ACCESS_NOTE:
+        log(note or "Access is active again.")
+        ACCESS_NOTE = note
     apply_remote(body.get("settings"))
     return body["signals"]
 
@@ -346,6 +421,8 @@ def hit_stop(sig, sym):
 
 def step(state):
     signals = fetch()
+    if signals is None:  # waiting for access: nothing to do this pass
+        return
     by_id = {s["id"]: s for s in signals}
     for sig in reversed(signals):  # oldest first
         if sig["market"] not in SYMBOLS:

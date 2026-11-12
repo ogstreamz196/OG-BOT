@@ -293,6 +293,19 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #PRNUM** · Per-user copier keys + the Boss's
+  users card (step 1 of the Boss's "copier on a USB for several people").
+  `copier-keys.ts` / `copier-keys.server.ts`: one site_content row per key
+  (`copy.key.<hash>`, no migration), an expiry, locked on first use to one USB
+  stick and one MT5 account, one copy running at a time; expired/off keys get
+  the feed paused. The feed's check is `copyAccess` (the Boss's own token
+  unchanged). Cards in the Copy Trader B0T: 👥 Copier users, `/adduser Name
+  30`, per-user extend / off / reset lock / new key / remove. `og_copier.py`
+  sends stick, account and instance. **Next, in order:** (2) sign-in endpoint
+  so a user's ogbot login fetches their key, (3) the Windows app on the stick
+  (login, dashboard, Start/Stop, MT5 portable), (4) the user's own view on the
+  web and in Telegram.
+
 - **Boss's Claude · 2026-11-13 · #290** · The signals chat follows the
   copier's rules on the real balance. It already used `copierLot` /
   `copierSkips` (bands, HFT top of band, no cap); the gold $400 rule was
