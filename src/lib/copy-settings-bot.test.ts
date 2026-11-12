@@ -100,11 +100,15 @@ describe("lot bands, strategies and high-frequency", () => {
       expect.arrayContaining(["✅ 📏 0.01 – 0.05", "📏 0.02 – 0.1", "📏 0.1 – 0.5"]),
     );
     expect(applyPanelAction({}, "cs:band:medium").next).toMatchObject({ lotBand: "medium" });
-    expect(applyPanelAction({ lot: 0.1 }, "cs:band:large").next).toMatchObject({ lotBand: "large" });
+    expect(applyPanelAction({ lot: 0.1 }, "cs:band:large").next).toMatchObject({
+      lotBand: "large",
+    });
     expect(applyPanelAction({}, "cs:band:nope").next).toBeNull();
   });
   it("the risk multiplier still works via the typed command / data (back-compat)", () => {
-    expect(applyPanelAction({}, "cs:mult:10").next).toEqual({ multiplier: 10 });
+    expect(applyPanelAction({}, "cs:mult:4").next).toEqual({ multiplier: 4 });
+    // 10x was dropped: no change.
+    expect(applyPanelAction({}, "cs:mult:10").next).toBeNull();
     expect(applyPanelAction({}, "cs:mult:3").next).toBeNull();
   });
   it("shows a strategies section with high-frequency and the engine switches", () => {
