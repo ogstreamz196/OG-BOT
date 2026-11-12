@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · High-frequency mode now changes
+- **Boss's Claude · 2026-11-13 · #288** · High-frequency mode now changes
   posting too (the Boss: more trades at once when HFT is on, no max, bigger
   lots, bitcoin favoured, gold big only from $400). `hftOn()` reads the copier
   card's switch; `postOnce` uses `hftConcurrency` (no per-market cap, no rising
