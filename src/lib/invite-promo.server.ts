@@ -5,7 +5,7 @@
 // chat never fills up with them.
 type Admin = any;
 
-export const INVITE_LINK = "https://vigco.co/la-com-inv/TRADER2026";
+export const INVITE_LINK = "https://vigco.co/la-com-inv/CREDIT25";
 const LAST_AT = "promo.invite.lastAt";
 const LAST_MESSAGE = "promo.invite.lastMessage";
 export const PROMO_EVERY_MS = 8 * 3600_000;
