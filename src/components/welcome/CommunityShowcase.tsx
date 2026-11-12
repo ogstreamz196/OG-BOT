@@ -152,9 +152,11 @@ export function CommunityShowcase() {
 
             {/* List */}
             <div className="min-w-0">
-              <ul className="grid gap-2">
+              {/* One column capped at the box's width, so a long style line
+                  truncates instead of stretching the rows off the edge. */}
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {tracks.slice(0, shown).map((t) => (
-                  <li key={t.id}>
+                  <li key={t.id} className="min-w-0">
                     <button
                       type="button"
                       onClick={() => play(t.id)}

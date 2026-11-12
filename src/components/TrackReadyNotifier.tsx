@@ -22,7 +22,7 @@ async function showReady(title: string, songId: string) {
     if (reg) {
       await reg.showNotification("🎵 Your track is ready!", {
         body,
-        icon: "/favicon.ico",
+        icon: "/icons/icon-192.png",
         tag: songId,
         data: { url },
       });
@@ -30,7 +30,7 @@ async function showReady(title: string, songId: string) {
     }
     const n = new Notification("🎵 Your track is ready!", {
       body,
-      icon: "/favicon.ico",
+      icon: "/icons/icon-192.png",
       tag: songId,
     });
     n.onclick = () => {
