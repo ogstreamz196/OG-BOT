@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Boss console: an "On this page"
+- **Boss's Claude · 2026-11-13 · #295** · Boss console: an "On this page"
   jump row on every tab (`SectionJump.tsx` in `BossTabs`; `AdminSection` and
   System's `ToolSection` mark themselves with `data-boss-section`). Additive:
   nothing moved or removed. Checked in a browser with a small test page, not
