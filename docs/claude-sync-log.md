@@ -293,6 +293,26 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude (session 0133i9…) · 2026-11-12 · #281–#285** · The
+  partner's #280 to-do, done one at a time at the Boss's ask ("do 1 thru 4
+  slowly"), every new behaviour behind its switch (all off by default) and
+  published after each merge:
+  - #281 copier risk multiplier capped at 4x (10x dropped; the copier clamps too).
+  - #282 hedge auto-posting (`maybeHedgeSignal`, `hedge:<side>` ask →
+    `hedgePlan`, 55% hedge gate floor). Also fixed: `plan.hedge` never reached
+    `feeds.hedge`, so #280's 0.5R break-even and the copier's hedge ticket
+    weren't firing; hedges never trail or move their take profit.
+  - #283 range hedging (`maybeRangeHedge`, `range:<side>` → new
+    `rangeHedgePlan`: one quick target at the middle of the range; one buy and
+    one sell at a time).
+  - #284 patterns alongside (`maybeAlongside`, `alongside` ask: only a proven
+    setup, never the engine's own trade twice).
+  - #285 manual-trade command in the Copy Trader B0T (✋ Manual trade card,
+    two-tap place, `manual:` ask, posted and followed like any alert, copied at
+    exactly the Boss's lot).
+  Nothing from #280's to-do list is left. The Boss's laptop copier needs the
+  latest `og_copier.py` for the multiplier cap, hedges and manual lots.
+
 - **Boss's Claude · 2026-11-12 · #280** · Sniper entry + strategy toggles +
   hedge mechanism + clearer copier card + HFT (Gold & BTC; all new behaviour
   off by default). Sniper is entryStyle 4 (limit at the 50% of the last FVG or

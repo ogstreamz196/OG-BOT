@@ -161,3 +161,29 @@ describe("risk multiplier cap", () => {
     expect(copySettings(JSON.stringify({ multiplier: 4 }))).toEqual({ multiplier: 4 });
   });
 });
+
+describe("manual trades in the copy feed", () => {
+  it("are marked so every copier takes exactly their lot", async () => {
+    const { copySignal } = await import("./copy-feed");
+    const base = {
+      id: "m",
+      market: "XAUUSD",
+      direction: "BUY" as const,
+      entry: 100,
+      stop: 97,
+      tp1: 106,
+      tp3: 106,
+      status: "open",
+      best_target: 0,
+      entered_at: "2026-11-12T02:00:00Z",
+      closed_at: null,
+      created_at: "2026-11-12T02:00:00Z",
+      confidence_pct: 60,
+    };
+    expect(copySignal({ ...base, feeds: { manual: true, paper: { lots: 0.5 } } })).toMatchObject({
+      manual: true,
+      lots: 0.5,
+    });
+    expect(copySignal({ ...base, feeds: {} }).manual).toBe(false);
+  });
+});

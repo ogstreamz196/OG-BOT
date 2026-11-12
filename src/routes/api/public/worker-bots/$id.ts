@@ -49,18 +49,24 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         if (press) {
           if (
             bot.role === "copy" &&
-            (press.data?.startsWith("cs:") || press.data?.startsWith("es:")) &&
+            (press.data?.startsWith("cs:") ||
+              press.data?.startsWith("es:") ||
+              press.data?.startsWith("mt:")) &&
             press.message
           ) {
             const { error: dup } = await admin
               .from("telegram_worker_updates")
               .insert({ worker_id: bot.id, update_id: update?.update_id as number });
             if (dup) return Response.json({ ok: true });
-            const { copySettingsTap } = await import("@/lib/copy-settings-bot.server");
-            const res = await copySettingsTap(admin, press.from.id, press.data).catch(() => ({
-              toast: "⚠️ Something went wrong. Try again.",
-              panel: null,
-            }));
+            const fallback = { toast: "⚠️ Something went wrong. Try again.", panel: null };
+            // "mt:" is the manual trade card; "cs:"/"es:" the settings card.
+            const res = press.data.startsWith("mt:")
+              ? await (await import("@/lib/manual-trade.server"))
+                  .manualTradeTap(admin, press.from.id, press.data)
+                  .catch(() => fallback)
+              : await (await import("@/lib/copy-settings-bot.server"))
+                  .copySettingsTap(admin, press.from.id, press.data)
+                  .catch(() => fallback);
             await f.fleetApi(
               bot.id,
               "answerCallbackQuery",
@@ -184,6 +190,18 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         } else if (bot.role === "copy") {
           // The Boss's copier settings (/settings, /pause, /lot …), Boss only.
           if (!group) {
+            // The Boss's manual trade card (/trade or ✋ Manual trade).
+            const { manualTradeReply } = await import("@/lib/manual-trade.server");
+            const manual = await manualTradeReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (manual) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: manual.text, reply_markup: manual.reply_markup },
+                key,
+              );
+              return Response.json({ ok: true });
+            }
             const { copySettingsReply } = await import("@/lib/copy-settings-bot.server");
             const settings = await copySettingsReply(admin, msg.chat.id, msg.text).catch(
               () => null,

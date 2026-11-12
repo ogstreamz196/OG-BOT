@@ -470,6 +470,8 @@ export type TradePlan = {
   rangeHedge?: boolean;
   /** A proven setup posted beside the engine's own trade (patterns alongside). */
   alongside?: boolean;
+  /** The Boss's manual trade (manual-trade.server.ts). */
+  manual?: boolean;
   score: number;
   maxScore: number;
   reasons: string[];

@@ -254,7 +254,7 @@ export function applyPanelAction(
 /** The Boss's reply-keyboard: the settings button beside the ⚡ signal button. */
 export function bossKeyboard(generateText: string) {
   return {
-    keyboard: [[{ text: OPEN_BUTTON }], [{ text: generateText }]],
+    keyboard: [[{ text: OPEN_BUTTON }, { text: "✋ Manual trade" }], [{ text: generateText }]],
     is_persistent: true,
     resize_keyboard: true,
     input_field_placeholder: "Tap ⚙️ for the copier settings",

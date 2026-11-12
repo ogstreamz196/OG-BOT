@@ -85,12 +85,12 @@ describe("typed commands still work", () => {
     expect(applyCommand({}, "/markets gold").next).toEqual({ markets: ["XAUUSD"] });
     expect(applyCommand({}, "/lot 9")).toMatchObject({ next: null });
   });
-  it("the Boss's keyboard: ⚙️ settings above the ⚡ signal button", () => {
+  it("the Boss's keyboard: ⚙️ settings and ✋ manual trade above the ⚡ signal button", () => {
     expect(
       bossKeyboard("⚡ Generate BTC Signal Now")
         .keyboard.flat()
         .map((b) => b.text),
-    ).toEqual([OPEN_BUTTON, "⚡ Generate BTC Signal Now"]);
+    ).toEqual([OPEN_BUTTON, "✋ Manual trade", "⚡ Generate BTC Signal Now"]);
   });
 });
 
