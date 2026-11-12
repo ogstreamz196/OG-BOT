@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · The stick app (step 3).
+- **Boss's Claude · 2026-11-13 · #293** · The stick app (step 3).
   `tools/mt5-copier/og_stick.py` (tkinter: sign in, dashboard, Start/Stop,
   practice mode, MT5 account dialog), `stick_core.py` (+ `test_stick_core.py`),
   `build_stick.bat` (PyInstaller → `OGCopier.exe`), `STICK.md` (how to make
