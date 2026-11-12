@@ -34,6 +34,12 @@ describe("copy feed", () => {
       filled: false,
     });
   });
+  it("passes the hedge flag and the entry type through", () => {
+    expect(copySignal(row())).toMatchObject({ hedge: false, entryType: "market" });
+    expect(copySignal(row({ feeds: { hedge: true, lock: true } })).hedge).toBe(true);
+    expect(copySignal(row({ feeds: { entry: "stop" } })).entryType).toBe("stop");
+    expect(copySignal(row({ status: "pending", entered_at: null })).entryType).toBe("limit");
+  });
   it("the profit lock moves the stop to 30% of the way", () => {
     expect(copySignal(row({ feeds: { lock: true, protected: true } })).stopNow).toBe(103);
   });

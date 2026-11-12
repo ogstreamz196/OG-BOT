@@ -144,6 +144,10 @@ def lot_for(sig):
 
 def open_trade(sig, sym):
     buy = sig["direction"] == "BUY"
+    # A counter-trend hedge keeps its own ticket (the account is in hedging mode,
+    # so a BUY and a SELL on one symbol sit side by side); the H mark makes it
+    # easy to spot in MT5. The risk multiplier applies to it like any other.
+    hedge = bool(sig.get("hedge"))
     tick = mt5.symbol_info_tick(sym)
     price = tick.ask if buy else tick.bid
     req = {
@@ -154,7 +158,7 @@ def open_trade(sig, sym):
         "price": price,
         "deviation": 50,
         "magic": MAGIC,
-        "comment": f"OG {sig['id'][:8]}",
+        "comment": f"OG {sig['id'][:8]}{' H' if hedge else ''}",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": filling(sym),
     }

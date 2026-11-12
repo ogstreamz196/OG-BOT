@@ -28,6 +28,10 @@ export type CopyFeedRow = {
     tp0?: number;
     trail?: { stop?: number | null } | null;
     paper?: { lots?: number } | null;
+    /** A counter-trend hedge: the copier keeps it as its own MT5 ticket. */
+    hedge?: boolean;
+    /** "stop" for a break entry; limit/market are told apart by the status. */
+    entry?: unknown;
   } | null;
 };
 
@@ -50,6 +54,10 @@ export type CopySignal = {
   halfClosed: boolean;
   /** The lot the bot's test account took on this trade, or null. */
   lots: number | null;
+  /** A counter-trend hedge: the copier keeps it as its own ticket (MT5 hedging). */
+  hedge: boolean;
+  /** How the bot entered: "stop" (break), "limit" (pullback/sniper) or "market". */
+  entryType: "market" | "limit" | "stop";
   confidence: number | null;
   createdAt: string;
   closedAt: string | null;
@@ -85,6 +93,9 @@ export function copySignal(row: CopyFeedRow): CopySignal {
     tp3,
     halfClosed: runner && best >= 1,
     lots: Number(row.feeds?.paper?.lots) > 0 ? Number(row.feeds!.paper!.lots) : null,
+    hedge: !!row.feeds?.hedge,
+    entryType:
+      row.feeds?.entry === "stop" ? "stop" : row.status === "pending" ? "limit" : "market",
     confidence: row.confidence_pct,
     createdAt: row.created_at,
     closedAt: row.closed_at,
@@ -133,6 +144,8 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
     tp3: 0,
     halfClosed: !!t.halfClosed,
     lots: Number(t.lots) > 0 ? Number(t.lots) : null,
+    hedge: !!t.hedge,
+    entryType: "market",
     confidence: null,
     createdAt,
     closedAt: null,

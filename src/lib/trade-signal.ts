@@ -460,6 +460,12 @@ export type TradePlan = {
   waitReason?: string;
   /** Set when an extra chart setup (trade-setups.ts) made this plan, by name. */
   setup?: string;
+  /**
+   * A counter-trend hedge (the other side, while a trend trade still runs):
+   * a single 1R target and the stop to break-even at 0.5R. Tagged feeds.hedge
+   * so the copier keeps it as its own ticket and it counts only its own side.
+   */
+  hedge?: boolean;
   score: number;
   maxScore: number;
   reasons: string[];
