@@ -934,11 +934,18 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
           ),
         }
       : learned;
+  // The Boss's strategy switches (engine config). The sniper switch forces the
+  // sniper entry (entryStyle 4) over the learner; off (default) changes nothing.
+  const strategies = await import("./engine-config.server")
+    .then((m) => m.engineConfig())
+    .then((c) => c.strategies)
+    .catch(() => null);
+  const tuningFx = strategies?.sniper ? { ...(tuning ?? DEFAULT_TUNING), entryStyle: 4 } : tuning;
   let plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
     roundStep: roundStepFor(inst.code),
-    tuning,
+    tuning: tuningFx,
     flow: flow ?? undefined,
   });
   // A proxy chart (gold from PAX Gold) without a confirmed spot price would
