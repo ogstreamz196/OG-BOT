@@ -67,8 +67,14 @@ const routeTitles: Record<string, string> = {
   "/library": "Music",
   "/messenger": "OG B0T",
   "/buy-coins": "Buy Coins",
+  "/store": "OG Store",
+  "/signals": "OG Signals",
+  "/sports": "Sports Guide",
+  "/referrals": "Earnings",
+  "/purchase-history": "Purchase History",
   "/settings": "Settings",
   "/profile": "Settings",
+  "/change-password": "Change Password",
   "/admin": "Admin Controls",
 };
 
@@ -78,7 +84,7 @@ function getRouteTitle(pathname: string) {
       path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(path + "/"),
     )
     .sort((a, b) => b.length - a.length)[0];
-  return match ? routeTitles[match] : "PORTAL";
+  return match ? routeTitles[match] : "OG B0T";
 }
 
 function AdminEditHint() {
