@@ -13,9 +13,16 @@ export const Route = createFileRoute("/api/public/copy-feed")({
     handlers: {
       GET: async ({ request }) => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { copyTokenOk } = await import("@/lib/mt5-account.server");
-        if (!(await copyTokenOk(supabaseAdmin, request)))
-          return new Response("Forbidden", { status: 403 });
+        // The Boss's own token, or a user's key (copier-keys: an expiry, locked
+        // to one USB stick and one MT5 account, one copy running at a time).
+        const { copyAccess } = await import("@/lib/copier-keys.server");
+        const who = await copyAccess(supabaseAdmin, request);
+        if (!who) return new Response("Forbidden", { status: 403 });
+        if (who.kind === "user" && who.access.status === "refused")
+          return Response.json(
+            { ok: false, reason: who.access.reason, message: who.message },
+            { status: 403, headers: { "cache-control": "no-store" } },
+          );
         // The copier reports its MT5 balance (x-copy-balance), so the signals
         // chat's test account applies the gold balance rule on the real one.
         try {
@@ -23,6 +30,7 @@ export const Route = createFileRoute("/api/public/copy-feed")({
           const reported = balanceHeader(request.headers.get("x-copy-balance"));
           const nowMs = Date.now();
           if (
+            who.kind === "master" &&
             reported != null &&
             (!lastBalance ||
               nowMs - lastBalance.at > 60_000 ||
@@ -64,7 +72,19 @@ export const Route = createFileRoute("/api/public/copy-feed")({
           .select("value")
           .eq("key", "copy.settings")
           .maybeSingle();
-        const settings = copySettings(remote?.value);
+        const shared = copySettings(remote?.value);
+        // An expired or switched-off key still gets the feed, paused: open
+        // trades are closed as usual, nothing new opens.
+        const limited = who.kind === "user" && who.access.status === "limited";
+        const settings = limited ? { ...shared, paused: true } : shared;
+        const access =
+          who.kind === "user" && who.access.status !== "refused"
+            ? {
+                ok: who.access.status === "ok",
+                expiresAt: who.access.key.expiresAt,
+                ...(who.message ? { message: who.message } : {}),
+              }
+            : undefined;
         // A copier-only test signal, when the Boss has one switched on.
         const { data: test } = await supabaseAdmin
           .from("site_content")
@@ -74,7 +94,13 @@ export const Route = createFileRoute("/api/public/copy-feed")({
         const extra = testSignal(test?.value, Date.now());
         const signals = copyFeed((data ?? []) as never);
         return Response.json(
-          { ok: true, now: Date.now(), settings, signals: extra ? [extra, ...signals] : signals },
+          {
+            ok: true,
+            now: Date.now(),
+            settings,
+            ...(access ? { access } : {}),
+            signals: extra ? [extra, ...signals] : signals,
+          },
           { headers: { "cache-control": "no-store" } },
         );
       },
