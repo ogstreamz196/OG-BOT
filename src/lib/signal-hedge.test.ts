@@ -8,12 +8,18 @@ vi.mock("./signal-chat.server", async (orig) => ({
 // The Boss's strategy switches: the hedges switch is flipped per test.
 let hedgesOn = false;
 let rangeOn = false;
+let alongsideOn = false;
 vi.mock("./engine-config.server", async () => {
   const { DEFAULT_ENGINE_CONFIG } = await import("./engine-config");
   return {
     engineConfig: async () => ({
       ...DEFAULT_ENGINE_CONFIG,
-      strategies: { ...DEFAULT_ENGINE_CONFIG.strategies, hedges: hedgesOn, rangeHedge: rangeOn },
+      strategies: {
+        ...DEFAULT_ENGINE_CONFIG.strategies,
+        hedges: hedgesOn,
+        rangeHedge: rangeOn,
+        patternsAlongside: alongsideOn,
+      },
     }),
   };
 });
@@ -21,9 +27,11 @@ vi.mock("./engine-config.server", async () => {
 import {
   HEDGE_MIN_CONFIDENCE,
   hedgeSideFor,
+  maybeAlongside,
   maybeHedgeSignal,
   maybeRangeHedge,
   rangeSidesFree,
+  tagAlongside,
   tagHedge,
   tagRangeHedge,
 } from "./signal-broadcast.server";
@@ -103,6 +111,7 @@ function deps(built: (ask: string) => unknown, now = T0) {
 beforeEach(() => {
   hedgesOn = false;
   rangeOn = false;
+  alongsideOn = false;
 });
 
 describe("which side a hedge takes", () => {
@@ -278,5 +287,60 @@ describe("range hedging", () => {
     const d = deps(() => ({ reply: "wait" }));
     await maybeRangeHedge(db, d);
     expect(d.asks.filter((a) => a.startsWith("XAUUSD"))).toEqual(["XAUUSD signal 5m range:SELL"]);
+  });
+});
+
+describe("patterns alongside", () => {
+  const proven = (direction: "BUY" | "SELL") => ({
+    reply: `BTCUSD ${direction} flag card`,
+    plan: {
+      market: "BTCUSD",
+      label: "BTC/USD",
+      direction,
+      confidencePct: 72,
+      entry: 100,
+      expiresAt: new Date(T0 + 60 * 60_000).toISOString(),
+      feeds: { alongside: true, setup: "Flag continuation" },
+    },
+  });
+
+  test("off by default: no chart read", async () => {
+    const { db } = fakeDb();
+    const d = deps(() => proven("BUY"));
+    expect(await maybeAlongside(db, d)).toBe("off");
+    expect(d.asks).toEqual([]);
+  });
+
+  test("switched on: asks each market for a proven pattern and posts it, named", async () => {
+    alongsideOn = true;
+    const { db } = fakeDb();
+    const d = deps((ask) => (ask.startsWith("BTCUSD") ? proven("BUY") : { reply: "wait" }));
+    const out = await maybeAlongside(db, d);
+    expect(out).toContain("BTCUSD BUY: posted");
+    expect(out).toContain("XAUUSD: no proven pattern");
+    expect(d.asks).toEqual(["XAUUSD signal 5m alongside", "BTCUSD signal 5m alongside"]);
+    expect(d.sent[0]).toMatch(/➕ Alongside the engine: Flag continuation/);
+  });
+
+  test("the engine's own trade (not marked alongside) is never posted by this step", async () => {
+    alongsideOn = true;
+    const { db } = fakeDb();
+    const engineOwn = { ...proven("BUY"), plan: { ...proven("BUY").plan, feeds: {} } };
+    const d = deps(() => engineOwn);
+    await maybeAlongside(db, d);
+    expect(d.sent).toEqual([]);
+  });
+
+  test("once a minute per market", async () => {
+    alongsideOn = true;
+    const { db } = fakeDb();
+    await maybeAlongside(
+      db,
+      deps(() => ({ reply: "wait" })),
+    );
+    const soon = deps(() => ({ reply: "wait" }), T0 + 30_000);
+    expect(await maybeAlongside(db, soon)).toBe("not due");
+    expect(soon.asks).toEqual([]);
+    expect(tagAlongside("card")).toMatch(/a proven pattern/);
   });
 });
