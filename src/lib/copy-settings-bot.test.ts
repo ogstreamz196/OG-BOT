@@ -24,7 +24,7 @@ describe("the copy bot's settings card", () => {
   it("says in plain words what each setting does, defaults when nothing's set", () => {
     const t = panelText({});
     expect(t).toContain("▶️ COPYING: new trades are copied.");
-    expect(t).toContain("Lot size: same as the bot");
+    expect(t).toContain("Lot size: 0.01 – 0.05");
     expect(t).toContain("Markets: Gold and Bitcoin");
     expect(t).toContain("Max trades open at once: 6");
     expect(t).toContain("Joins a trade up to 10 min after it opens");
@@ -34,7 +34,7 @@ describe("the copy bot's settings card", () => {
     );
   });
   it("ticks what's chosen, and every button fits Telegram's 64-byte limit", () => {
-    expect(texts({})).toContain("✅ 📏 Lot: same as the bot");
+    expect(texts({})).toContain("✅ 📏 0.01 – 0.05");
     expect(texts({ markets: ["BTCUSD"] })).toEqual(
       expect.arrayContaining(["🥇 Gold", "✅ ₿ Bitcoin"]),
     );
@@ -63,9 +63,10 @@ describe("the copy bot's settings card", () => {
     expect(applyPanelAction({}, "cs:noop").next).toBeNull();
     expect(applyPanelAction({}, "cs:lot:7").next).toBeNull();
   });
-  it("every button on the card is handled", () => {
+  it("every copier button on the card is handled (strategy switches go to the engine)", () => {
     for (const d of datas({}))
-      if (d !== "cs:noop" && d !== "cs:refresh") expect(applyPanelAction({}, d).toast).not.toBe("");
+      if (d !== "cs:noop" && d !== "cs:refresh" && !d.startsWith("es:"))
+        expect(applyPanelAction({}, d).toast).not.toBe("");
   });
 });
 
@@ -93,12 +94,26 @@ describe("typed commands still work", () => {
   });
 });
 
-describe("risk multiplier and high-frequency", () => {
-  it("offers -4x -2x 1x 2x 4x 10x and saves the pick", () => {
-    expect(texts({})).toEqual(expect.arrayContaining(["-4x", "-2x", "✅ 1x", "2x", "4x", "10x"]));
+describe("lot bands, strategies and high-frequency", () => {
+  it("offers the three lot bands and picks one (clearing any fixed lot)", () => {
+    expect(texts({})).toEqual(
+      expect.arrayContaining(["✅ 📏 0.01 – 0.05", "📏 0.02 – 0.1", "📏 0.1 – 0.5"]),
+    );
+    expect(applyPanelAction({}, "cs:band:medium").next).toMatchObject({ lotBand: "medium" });
+    expect(applyPanelAction({ lot: 0.1 }, "cs:band:large").next).toMatchObject({ lotBand: "large" });
+    expect(applyPanelAction({}, "cs:band:nope").next).toBeNull();
+  });
+  it("the risk multiplier still works via the typed command / data (back-compat)", () => {
     expect(applyPanelAction({}, "cs:mult:10").next).toEqual({ multiplier: 10 });
-    expect(applyPanelAction({}, "cs:mult:0.25").next).toEqual({ multiplier: 0.25 });
     expect(applyPanelAction({}, "cs:mult:3").next).toBeNull();
+  });
+  it("shows a strategies section with high-frequency and the engine switches", () => {
+    const t = panelText({});
+    expect(t).toContain("STRATEGIES");
+    expect(t).toContain("High-frequency: OFF");
+    expect(t).toContain("Counter-trend hedges");
+    // The strategy switches point at the engine config (es:…), not copy settings.
+    expect(datas({})).toEqual(expect.arrayContaining(["es:hedges:on", "es:sniper:on"]));
   });
   it("toggles high-frequency mode", () => {
     expect(applyPanelAction({}, "cs:hft:on").next).toEqual({ hft: true });

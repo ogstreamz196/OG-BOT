@@ -22,12 +22,13 @@ export type TweakField = {
   integer?: boolean;
 };
 
-/** The four ways in, for the entryStyle select. */
+/** The ways in, for the entryStyle select. */
 export const ENTRY_STYLES = [
   { value: 0, label: "Engine's choice" },
   { value: 1, label: "Always pullback" },
   { value: 2, label: "Always a break" },
   { value: 3, label: "Always at the price" },
+  { value: 4, label: "Always sniper limit" },
 ] as const;
 
 /** UK time-of-day blocks (ukBlock), for the skip-blocks toggles. */
@@ -117,7 +118,7 @@ export const TWEAK_FIELDS: readonly TweakField[] = [
   {
     key: "entryStyle",
     label: "Entry style",
-    help: "How to get in: the engine's choice, always a pullback, always a break, or always at the price now.",
+    help: "How to get in: the engine's choice, always a pullback, always a break, always at the price now, or always a sniper limit (into the last gap or a retest).",
     kind: "entryStyle",
     integer: true,
   },

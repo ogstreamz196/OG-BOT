@@ -47,7 +47,11 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         // A tap on the copy bot's settings card (Boss only): edit the card in place.
         const press = update?.callback_query;
         if (press) {
-          if (bot.role === "copy" && press.data?.startsWith("cs:") && press.message) {
+          if (
+            bot.role === "copy" &&
+            (press.data?.startsWith("cs:") || press.data?.startsWith("es:")) &&
+            press.message
+          ) {
             const { error: dup } = await admin
               .from("telegram_worker_updates")
               .insert({ worker_id: bot.id, update_id: update?.update_id as number });

@@ -7,6 +7,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -291,6 +292,24 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-12 · #280** · Sniper entry + strategy toggles +
+  hedge mechanism + clearer copier card + HFT (Gold & BTC; all new behaviour
+  off by default). Sniper is entryStyle 4 (limit at the 50% of the last FVG or
+  the retest, tight structure stop; no level → nothing posted); the learner can
+  try it per market (20+ trades, walk-forward) and a Boss switch forces it on.
+  Four Boss strategy switches (`sniper`/`hedges`/`rangeHedge`/`patternsAlongside`)
+  in `engine-config`, tappable in the signals bot (`/strategies`) and in a new
+  Strategies section on the Copy Trader B0T card. Hedge machinery: `hedgePlan()`
+  (counter-trend, 1R, `feeds.hedge`), tracker BE at 0.5R (`lockOf`), copy feed +
+  `og_copier` carry hedges as their own MT5 tickets. Copier card: three lot-size
+  bands replace "same as bot" + multiplier; HFT bumps the band up a notch and
+  checks twice a second. Manual-trade sizing core (`manual-trade.ts`, gold
+  tighter). No migrations. **Still on the to-do list (the Boss, 2026-11-12, do
+  later):** hedge auto-posting (scan fires the opposite side — watch on paper
+  first), the range-hedging behaviour, the patterns-alongside wiring, and the
+  manual-trade Telegram command. The machinery and toggles for all of these are
+  already in; only the live posting/command wiring is left.
 
 - **Boss's Claude · 2026-11-10 · #268** · Copy feed + Python MT5 copier.
   `GET /api/public/copy-feed` (token: site_content `copy.feedToken`, off when

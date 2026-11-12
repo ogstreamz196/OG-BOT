@@ -292,9 +292,18 @@ export function trailOf(row: { feeds: { trail?: { risk: number; stop?: number } 
 /** The signal's profit lock levels, when it has the lock. */
 export function lockOf(
   row: Pick<Row, "direction" | "entry" | "tp1"> & {
-    feeds: { lock?: boolean; tp0?: number } | null;
+    feeds: { lock?: boolean; tp0?: number; hedge?: boolean } | null;
   },
 ): { trigger: number; stop: number } | null {
+  // A hedge moves its stop to break-even at 0.5R. Its take profit is exactly
+  // 1R out, so the half-R trigger is halfway from the entry to it.
+  if (row.feeds?.hedge) {
+    const entry = Number(row.entry);
+    const side = row.direction === "BUY" ? 1 : -1;
+    const r = Math.abs(Number(row.tp1) - entry);
+    if (!(r > 0)) return null;
+    return { trigger: entry + side * r * 0.5, stop: entry };
+  }
   // Always from the take profit it was sent with, so moving it doesn't move the lock.
   const tp = Number(row.feeds?.tp0 ?? row.tp1);
   return row.feeds?.lock ? profitLock(row.direction, Number(row.entry), tp) : null;

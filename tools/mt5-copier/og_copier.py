@@ -42,6 +42,10 @@ TOKEN = c.get("token", "").strip()
 # that lot on every trade.
 LOT_SETTING = c.get("lot", "bot").strip().lower()
 LOT = 0.02 if LOT_SETTING == "bot" else float(LOT_SETTING)
+# Lot-size bands (set remotely): the copier takes a lot inside the band, bigger
+# the surer the signal. The band replaces the old lot + multiplier controls.
+LOT_BANDS = {"small": (0.01, 0.05), "medium": (0.02, 0.1), "large": (0.1, 0.5)}
+LOT_BAND = "small"
 
 DRY_RUN = c.getboolean("dry_run", True)
 USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
@@ -54,6 +58,8 @@ MARKETS = [m.strip().upper() for m in c.get("markets", "XAUUSD,BTCUSD").split(",
 KNOWN_MARKETS = sorted(set(MARKETS) | {"XAUUSD", "BTCUSD"})
 SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in KNOWN_MARKETS}
 PAUSED = False
+# High-frequency mode (set remotely): bigger lots, quicker checks, more open.
+HFT = False
 REMOTE = {}
 MT5_PATH = c.get("mt5_path", "").strip() or None
 
@@ -136,7 +142,24 @@ def send(request, what):
 
 
 def lot_for(sig):
-    """The Copy Trader B0T's lot for this signal when lot = bot, else the fixed lot."""
+    """The lot for this signal: inside the chosen band (bigger when surer), or
+    the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
+    risk multiplier only still applies to the bot/fixed modes."""
+    if LOT_SETTING == "band":
+        # High-frequency mode trades bigger: bump the band up one notch.
+        order = ["small", "medium", "large"]
+        band = LOT_BAND
+        if HFT and band in order:
+            band = order[min(len(order) - 1, order.index(band) + 1)]
+        lo, hi = LOT_BANDS[band]
+        t = 0.0
+        try:
+            conf = sig.get("confidence")
+            if conf is not None:
+                t = max(0.0, min(1.0, (float(conf) - 55) / 35))
+        except (TypeError, ValueError):
+            t = 0.0
+        return round(lo + (hi - lo) * t, 2)
     mult = REMOTE.get("multiplier", 1) if isinstance(REMOTE, dict) else 1
     base = float(sig["lots"]) if LOT_SETTING == "bot" else LOT
     return base * float(mult or 1)
@@ -144,6 +167,10 @@ def lot_for(sig):
 
 def open_trade(sig, sym):
     buy = sig["direction"] == "BUY"
+    # A counter-trend hedge keeps its own ticket (the account is in hedging mode,
+    # so a BUY and a SELL on one symbol sit side by side); the H mark makes it
+    # easy to spot in MT5. The risk multiplier applies to it like any other.
+    hedge = bool(sig.get("hedge"))
     tick = mt5.symbol_info_tick(sym)
     price = tick.ask if buy else tick.bid
     req = {
@@ -154,7 +181,7 @@ def open_trade(sig, sym):
         "price": price,
         "deviation": 50,
         "magic": MAGIC,
-        "comment": f"OG {sig['id'][:8]}",
+        "comment": f"OG {sig['id'][:8]}{' H' if hedge else ''}",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": filling(sym),
     }
@@ -212,14 +239,19 @@ def move_stop(ticket, sym, stop):
 # ── the loop ───────────────────────────────────────────────────────────────
 def apply_remote(settings):
     """Settings set on the server (site_content copy.settings) win over config.ini."""
-    global PAUSED, LOT_SETTING, LOT, MARKETS, MAX_OPEN, MAX_LATE_MINUTES, USE_BROKER_STOP, REMOTE
+    global PAUSED, LOT_SETTING, LOT, LOT_BAND, MARKETS, MAX_OPEN, MAX_LATE_MINUTES
+    global USE_BROKER_STOP, REMOTE, HFT
     settings = settings or {}
     if settings == REMOTE:
         return
     REMOTE = settings
     PAUSED = bool(settings.get("paused", False))
+    band = settings.get("lotBand")
     lot = settings.get("lot")
-    if lot == "bot":
+    # A band is the lot control on the card; a fixed lot or "bot" still work too.
+    if band in LOT_BANDS:
+        LOT_SETTING, LOT_BAND = "band", band
+    elif lot == "bot":
         LOT_SETTING, LOT = "bot", 0.02
     elif isinstance(lot, (int, float)) and lot > 0:
         LOT_SETTING, LOT = str(lot), float(lot)
@@ -235,9 +267,15 @@ def apply_remote(settings):
         MAX_LATE_MINUTES = settings["maxLateMinutes"]
     if isinstance(settings.get("useBrokerStop"), bool):
         USE_BROKER_STOP = settings["useBrokerStop"]
-    if settings.get("hft") is True:
+    HFT = settings.get("hft") is True
+    if HFT:
         MAX_OPEN = max(MAX_OPEN, 20)
-    size = "the bot's lot" if LOT_SETTING == "bot" else f"{LOT} lots"
+    if LOT_SETTING == "band":
+        size = f"the {LOT_BAND} lot band {LOT_BANDS[LOT_BAND]}"
+    elif LOT_SETTING == "bot":
+        size = "the bot's lot"
+    else:
+        size = f"{LOT} lots"
     log(
         f"Remote settings: {'PAUSED (managing open trades only), ' if PAUSED else ''}"
         f"{', '.join(MARKETS) or 'no markets'} at {size}, max {MAX_OPEN} open, "
@@ -345,7 +383,7 @@ def main():
             log(f"feed not reachable ({e.__class__.__name__}), trying again")
         except Exception as e:  # keep going: one bad pass must not stop the copier
             log(f"error: {e}")
-        time.sleep(1 if REMOTE.get("hft") else POLL_SECONDS)
+        time.sleep(0.5 if HFT else POLL_SECONDS)
 
 
 if __name__ == "__main__":

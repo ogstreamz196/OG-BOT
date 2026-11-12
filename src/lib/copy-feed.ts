@@ -28,6 +28,10 @@ export type CopyFeedRow = {
     tp0?: number;
     trail?: { stop?: number | null } | null;
     paper?: { lots?: number } | null;
+    /** A counter-trend hedge: the copier keeps it as its own MT5 ticket. */
+    hedge?: boolean;
+    /** "stop" for a break entry; limit/market are told apart by the status. */
+    entry?: unknown;
   } | null;
 };
 
@@ -50,6 +54,10 @@ export type CopySignal = {
   halfClosed: boolean;
   /** The lot the bot's test account took on this trade, or null. */
   lots: number | null;
+  /** A counter-trend hedge: the copier keeps it as its own ticket (MT5 hedging). */
+  hedge: boolean;
+  /** How the bot entered: "stop" (break), "limit" (pullback/sniper) or "market". */
+  entryType: "market" | "limit" | "stop";
   confidence: number | null;
   createdAt: string;
   closedAt: string | null;
@@ -85,6 +93,8 @@ export function copySignal(row: CopyFeedRow): CopySignal {
     tp3,
     halfClosed: runner && best >= 1,
     lots: Number(row.feeds?.paper?.lots) > 0 ? Number(row.feeds!.paper!.lots) : null,
+    hedge: !!row.feeds?.hedge,
+    entryType: row.feeds?.entry === "stop" ? "stop" : row.status === "pending" ? "limit" : "market",
     confidence: row.confidence_pct,
     createdAt: row.created_at,
     closedAt: row.closed_at,
@@ -133,6 +143,8 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
     tp3: 0,
     halfClosed: !!t.halfClosed,
     lots: Number(t.lots) > 0 ? Number(t.lots) : null,
+    hedge: !!t.hedge,
+    entryType: "market",
     confidence: null,
     createdAt,
     closedAt: null,
@@ -140,14 +152,50 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
 }
 
 /** The copiers' remote settings (site_content "copy.settings"), as the feed sends them. */
-/** Risk multipliers offered: -4x, -2x, 1x, 2x, 4x, 10x. */
+/** Risk multipliers offered: -4x, -2x, 1x, 2x, 4x, 10x. (Kept for back-compat / typed commands.) */
 export const MULTIPLIERS = [0.25, 0.5, 1, 2, 4, 10];
 export const multLabel = (m: number) => (m < 1 ? `-${Math.round(1 / m)}x` : `${m}x`);
+
+/**
+ * Lot-size bands (the Boss, 2026-11-12: clearer than "same as the bot" plus a
+ * multiplier). The copier takes a lot inside the chosen band, bigger the surer
+ * the signal is. Low/medium/high overlap on purpose, the way the bot's own lot
+ * does. Replaces the lot/multiplier controls on the settings card.
+ */
+export const LOT_BANDS = {
+  small: [0.01, 0.05],
+  medium: [0.02, 0.1],
+  large: [0.1, 0.5],
+} as const;
+export type LotBand = keyof typeof LOT_BANDS;
+export const LOT_BAND_ORDER: LotBand[] = ["small", "medium", "large"];
+export const lotBandLabel = (b: LotBand) => `${LOT_BANDS[b][0]} – ${LOT_BANDS[b][1]}`;
+
+/**
+ * High-frequency mode trades bigger: it bumps the chosen lot band up one notch
+ * (small→medium→large), already at the top otherwise. Off, the band is unchanged.
+ * Pure.
+ */
+export function effectiveBand(band: LotBand, hft: boolean | undefined): LotBand {
+  if (!hft) return band;
+  const i = LOT_BAND_ORDER.indexOf(band);
+  return LOT_BAND_ORDER[Math.min(LOT_BAND_ORDER.length - 1, i + 1)];
+}
+
+/** The lot within a band, bigger the surer the signal (confidence 55–90%). Pure. */
+export function lotForBand(band: LotBand, confidence?: number | null): number {
+  const [lo, hi] = LOT_BANDS[band];
+  const c = Number(confidence);
+  const t = Number.isFinite(c) ? Math.min(1, Math.max(0, (c - 55) / 35)) : 0;
+  return Math.round((lo + (hi - lo) * t) * 100) / 100;
+}
 
 export type CopySettings = {
   /** No new trades; open ones are still managed and closed. */
   paused?: boolean;
-  /** "bot" (the Copy Trader B0T's lot) or a fixed lot. */
+  /** The lot-size band the copier scales within (the card's lot control). */
+  lotBand?: LotBand;
+  /** "bot" (the Copy Trader B0T's lot) or a fixed lot. Back-compat / typed commands. */
   lot?: "bot" | number;
   markets?: string[];
   maxOpen?: number;
@@ -175,6 +223,7 @@ export function copySettings(value: string | null | undefined): CopySettings {
   if (!t || typeof t !== "object") return {};
   const out: CopySettings = {};
   if (typeof t.paused === "boolean") out.paused = t.paused;
+  if (LOT_BAND_ORDER.includes(t.lotBand as LotBand)) out.lotBand = t.lotBand as LotBand;
   if (t.lot === "bot") out.lot = "bot";
   else if (Number(t.lot) >= 0.01 && Number(t.lot) <= 5)
     out.lot = Math.round(Number(t.lot) * 100) / 100;
