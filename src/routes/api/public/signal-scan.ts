@@ -147,6 +147,30 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               follow: deps.follow,
               now: deps.now,
             }),
+            // High-frequency mode (the copier card's switch): the hedge, range
+            // and alongside steps look again 20 and 40 seconds in, each still
+            // behind its own switch.
+            (async () => {
+              const { hftOn } = await import("@/lib/copy-mirror.server");
+              if (!(await hftOn())) return;
+              const stepDeps = {
+                build: deps.build,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+              };
+              for (let i = 0; i < 2; i++) {
+                await new Promise((r) => setTimeout(r, 20_000));
+                await Promise.all([
+                  maybeHedgeSignal(supabaseAdmin, stepDeps),
+                  maybeRangeHedge(supabaseAdmin, stepDeps),
+                  maybeAlongside(supabaseAdmin, stepDeps),
+                ]);
+              }
+            })().catch(() => undefined),
           ]);
           const result = {
             checked: passes.reduce((n, p) => n + p.checked, 0),

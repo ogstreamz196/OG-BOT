@@ -83,6 +83,28 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   },
 };
 
+/**
+ * High-frequency mode (the copier card's switch) for the posting limits: no
+ * cap on trades per market, no rising confidence bar as more run, and shorter
+ * waits (30s between same-side entries, 1 minute after a stop). The posting
+ * gate, the room checks and "not the same setup twice" all stay. Pure.
+ */
+export function hftConcurrency(c: ConcurrencyConfig): ConcurrencyConfig {
+  return {
+    ...c,
+    free: Number.POSITIVE_INFINITY,
+    perMarket: Number.POSITIVE_INFINITY,
+    sameSideGapMins: Math.min(c.sameSideGapMins, 0.5),
+    afterStopMins: Math.min(c.afterStopMins, 1),
+  };
+}
+/** Hedges a market may run at once: one normally, up to three in high-frequency mode. */
+export const hedgesPerMarket = (hft: boolean) => (hft ? 3 : 1);
+/** Range hedges per side of a market: one normally, two in high-frequency mode. */
+export const rangeHedgesPerSide = (hft: boolean) => (hft ? 2 : 1);
+/** How often the hedge, range and alongside steps may read a market's chart. */
+export const stepEveryMs = (hft: boolean) => (hft ? 20_000 : 60_000);
+
 type Range = readonly [number, number];
 export const ENGINE_BOUNDS: {
   gate: Record<keyof GateConfig, Range>;

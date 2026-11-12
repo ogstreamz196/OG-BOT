@@ -94,7 +94,7 @@ export function panelText(
       : "▶️ COPYING: new trades are copied.",
     `📏 Lot size: ${lot}`,
     `📈 Markets: ${markets.length ? markets.map((m) => MARKET_LABEL[m] ?? m).join(" and ") : "none (nothing new is copied)"}`,
-    `🔢 Max trades open at once: ${maxOpenOf(s)}`,
+    `🔢 Max trades open at once: ${s.hft ? "no cap while high-frequency is on" : maxOpenOf(s)}`,
     `⏱ Joins a trade up to ${lateOf(s)} min after it opens`,
     s.useBrokerStop
       ? "🛑 Safety stop on the broker: ON (the bot's stop sits on the broker too, in case the laptop goes off)"
@@ -102,7 +102,7 @@ export function panelText(
     "",
     "🎛 STRATEGIES (several run at once)",
     s.hft
-      ? "⚡ High-frequency: ON (bigger lots, checks twice a second, up to 20 open)"
+      ? "⚡ High-frequency: ON (more trades, no cap on open trades, entries 30s apart, more hedges; bitcoin a notch bigger, gold too from $400 and small lots under it)"
       : "⚡ High-frequency: OFF",
     ...STRATEGY_KEYS.map((k) => `${strategies[k] ? "✅ ON" : "⬜️ OFF"} — ${STRATEGY_LABEL[k]}`),
     "",

@@ -147,6 +147,18 @@ def send(request, what):
     return True, res
 
 
+GOLD_BIG_LOT_BALANCE = 400
+
+
+def account_balance():
+    """The MT5 account's balance, or None when it can't be read."""
+    try:
+        info = mt5.account_info()
+        return float(info.balance) if info else None
+    except Exception:
+        return None
+
+
 def lot_for(sig):
     """The lot for this signal: inside the chosen band (bigger when surer), or
     the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
@@ -159,7 +171,16 @@ def lot_for(sig):
         order = ["small", "medium", "large"]
         band = LOT_BAND
         if HFT and band in order:
-            band = order[min(len(order) - 1, order.index(band) + 1)]
+            up = order[min(len(order) - 1, order.index(band) + 1)]
+            if sig.get("market") != "XAUUSD":
+                # Bitcoin is favoured: always the bigger lots.
+                band = up
+            else:
+                # Gold ties up more margin: bigger lots only with $400 or more
+                # on the account, the small band under that.
+                bal = account_balance()
+                if bal is not None:
+                    band = up if bal >= GOLD_BIG_LOT_BALANCE else "small"
         lo, hi = LOT_BANDS[band]
         t = 0.0
         try:
@@ -284,7 +305,8 @@ def apply_remote(settings):
         USE_BROKER_STOP = settings["useBrokerStop"]
     HFT = settings.get("hft") is True
     # High-frequency mode lifts it to at least 20; turned off, it's back.
-    MAX_OPEN = max(BASE_MAX_OPEN, 20) if HFT else BASE_MAX_OPEN
+    # High-frequency mode: no cap on open trades.
+    MAX_OPEN = float("inf") if HFT else BASE_MAX_OPEN
     if LOT_SETTING == "band":
         size = f"the {LOT_BAND} lot band {LOT_BANDS[LOT_BAND]}"
     elif LOT_SETTING == "bot":
@@ -293,7 +315,7 @@ def apply_remote(settings):
         size = f"{LOT} lots"
     log(
         f"Remote settings: {'PAUSED (managing open trades only), ' if PAUSED else ''}"
-        f"{', '.join(MARKETS) or 'no markets'} at {size}, max {MAX_OPEN} open, "
+        f"{', '.join(MARKETS) or 'no markets'} at {size}, {'no cap on' if HFT else f'max {MAX_OPEN}'} open, "
         f"broker stop {'on' if USE_BROKER_STOP else 'off'}"
     )
 

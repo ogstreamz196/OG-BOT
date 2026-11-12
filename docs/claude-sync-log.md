@@ -293,6 +293,19 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #PRNUM** · High-frequency mode now changes
+  posting too (the Boss: more trades at once when HFT is on, no max, bigger
+  lots, bitcoin favoured, gold big only from $400). `hftOn()` reads the copier
+  card's switch; `postOnce` uses `hftConcurrency` (no per-market cap, no rising
+  bar, 30s same-side gap, 1 min after a stop; gate, desk, alert bar and
+  same-setup rule unchanged). Hedge/range/alongside steps keep their own
+  switches; with HFT on they look every 20s, up to 3 hedges a market (never
+  more than the trend trades) and 2 range hedges a side. Lots: `hftBand`
+  (copy-feed.ts) + `og_copier.py`: bitcoin a band up, gold a band up from $400
+  and the small band under it. No cap on open trades with HFT on. Tests:
+  `hft-mode.test.ts`. No migrations. The laptop copier needs the new
+  `og_copier.py`.
+
 - **Boss's Claude (session 0133i9…) · 2026-11-12 · #281–#285** · The
   partner's #280 to-do, done one at a time at the Boss's ask ("do 1 thru 4
   slowly"), every new behaviour behind its switch (all off by default) and
