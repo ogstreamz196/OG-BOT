@@ -76,7 +76,7 @@ export async function buildScanDeps(
       desk: String(s.plan.feeds?.desk ?? ""),
     });
     const learned = await pa.lotInputs(admin, state, s.plan.market, s.plan.confidencePct);
-    const { lots, why } = pa.chooseLot({
+    const chosen = pa.chooseLot({
       market: s.plan.market,
       entry: s.plan.entry,
       stop: s.summary.stop,
@@ -85,14 +85,31 @@ export async function buildScanDeps(
       big,
       ...learned,
     });
+    // The test account trades what the Boss's copier would (its lot rule,
+    // paused / market off / max open), so the signals group shows the real
+    // account (copy-mirror.server.ts). The bot's own lot is kept as botLots.
+    const { mirrorCopier } = await import("./copy-mirror.server");
+    const mirrored = await mirrorCopier(admin, {
+      market: s.plan.market,
+      botLots: chosen.lots,
+      confidence: s.plan.confidencePct,
+    });
+    const lots = mirrored.lots;
+    const why = mirrored.why ?? chosen.why;
     const { CARD_LOT } = await import("./trade-bias");
     return {
       ...s,
       reply: [
-        pa.rescaleCardMoney(s.reply, CARD_LOT, lots),
+        pa.rescaleCardMoney(s.reply, CARD_LOT, lots > 0 ? lots : chosen.lots),
         ...pa.paperLines(balance, lots, why),
       ].join("\n"),
-      plan: { ...s.plan, feeds: { ...(s.plan.feeds ?? {}), paper: { lots, balance, why } } },
+      plan: {
+        ...s.plan,
+        feeds: {
+          ...(s.plan.feeds ?? {}),
+          paper: { lots, botLots: chosen.lots, balance, why },
+        },
+      },
     };
   };
 

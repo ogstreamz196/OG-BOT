@@ -187,3 +187,54 @@ describe("manual trades in the copy feed", () => {
     expect(copySignal({ ...base, feeds: {} }).manual).toBe(false);
   });
 });
+
+describe("the test account mirrors the copier", () => {
+  it("takes the lot the copier would, in every mode", async () => {
+    const { copierLot } = await import("./copy-feed");
+    // Same as the bot (no settings): the bot's lot.
+    expect(copierLot({}, { botLots: 0.15, confidence: 80 })).toBe(0.15);
+    // The bot's lot times the multiplier (half), on MT5's 0.01 step.
+    expect(copierLot({ lot: "bot", multiplier: 0.5 }, { botLots: 0.15 })).toBe(0.08);
+    // A fixed lot times the multiplier.
+    expect(copierLot({ lot: 0.02, multiplier: 2 }, { botLots: 0.3 })).toBe(0.04);
+    // A band: bigger the surer; HFT bumps it a notch.
+    expect(copierLot({ lotBand: "small" }, { botLots: 0.3, confidence: 55 })).toBe(0.01);
+    expect(copierLot({ lotBand: "small" }, { botLots: 0.3, confidence: 90 })).toBe(0.05);
+    expect(copierLot({ lotBand: "small", hft: true }, { botLots: 0.3, confidence: 90 })).toBe(0.1);
+    // A manual trade is its own lot, whatever the mode.
+    expect(
+      copierLot({ lotBand: "large", hft: true, multiplier: 4 }, { botLots: 0.1, manual: true }),
+    ).toBe(0.1);
+    // Never under MT5's smallest lot.
+    expect(copierLot({ multiplier: 0.25 }, { botLots: 0.01 })).toBe(0.01);
+  });
+  it("skips what the copier would skip", async () => {
+    const { copierSkips, copierMaxOpen } = await import("./copy-feed");
+    expect(copierSkips({}, "XAUUSD", 0)).toBeNull();
+    expect(copierSkips({ paused: true }, "XAUUSD", 0)).toMatch(/paused/);
+    expect(copierSkips({ markets: ["BTCUSD"] }, "XAUUSD", 0)).toMatch(/market's off/);
+    expect(copierSkips({ maxOpen: 3 }, "XAUUSD", 3)).toMatch(/most open/);
+    expect(copierMaxOpen({ maxOpen: 8, hft: true })).toBe(20);
+    expect(copierMaxOpen({})).toBe(6);
+  });
+  it("the copy feed sends the bot's own lot, so the copier applies its rule once", async () => {
+    const { copySignal } = await import("./copy-feed");
+    const row = {
+      id: "x",
+      market: "XAUUSD",
+      direction: "BUY" as const,
+      entry: 100,
+      stop: 97,
+      tp1: 106,
+      tp3: 106,
+      status: "open",
+      best_target: 0,
+      entered_at: null,
+      closed_at: null,
+      created_at: "2026-11-12T02:00:00Z",
+      confidence_pct: 70,
+    };
+    expect(copySignal({ ...row, feeds: { paper: { lots: 0.08, botLots: 0.15 } } }).lots).toBe(0.15);
+    expect(copySignal({ ...row, feeds: { paper: { lots: 0.1 } } }).lots).toBe(0.1);
+  });
+});
