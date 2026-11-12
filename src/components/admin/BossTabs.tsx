@@ -3,6 +3,7 @@ import { centerActiveChild } from "@/components/admin/BossNav";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SectionJump } from "@/components/admin/SectionJump";
 
 export type BossTab = {
   value: string;
@@ -51,6 +52,7 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   useEffect(() => setTab(pick(routerTab)), [routerTab]);
   const current = tabs.find((t) => t.value === tab) ?? tabs[0];
   const listRef = useRef<HTMLDivElement>(null);
+  const panelsRef = useRef<HTMLDivElement>(null);
   useEffect(() => centerActiveChild(listRef.current, '[data-state="active"]'), [tab]);
   const navigate = useNavigate();
 
@@ -108,11 +110,15 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
         ))}
       </TabsList>
       {current.hint && <p className="mb-4 text-sm text-muted-foreground">{current.hint}</p>}
-      {tabs.map(({ value, Panel }) => (
-        <TabsContent key={value} value={value} className="mt-0 min-w-0 space-y-4">
-          <Panel />
-        </TabsContent>
-      ))}
+      {/* Jump chips for the open tab's sections (only when it has three or more). */}
+      <SectionJump key={tab} within={panelsRef} />
+      <div ref={panelsRef}>
+        {tabs.map(({ value, Panel }) => (
+          <TabsContent key={value} value={value} className="mt-0 min-w-0 space-y-4">
+            <Panel />
+          </TabsContent>
+        ))}
+      </div>
     </Tabs>
   );
 }

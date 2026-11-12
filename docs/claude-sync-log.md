@@ -293,6 +293,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #295** · Boss console: an "On this page"
+  jump row on every tab (`SectionJump.tsx` in `BossTabs`; `AdminSection` and
+  System's `ToolSection` mark themselves with `data-boss-section`). Additive:
+  nothing moved or removed. Checked in a browser with a small test page, not
+  on the real Boss pages (no Boss login here). The Boss was also given a
+  written review of the console (what to merge, which switches to drop);
+  nothing from it is built until he picks.
+
 - **Boss's Claude · 2026-11-13 · #294** · The user's own copier view
   (step 4, the last of the USB copier plan). `key.paused` (their own pause;
   the feed serves it paused). Website `/copier` (website only; no nav link
