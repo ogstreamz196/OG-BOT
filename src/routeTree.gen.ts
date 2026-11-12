@@ -80,6 +80,7 @@ import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authen
 import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authenticated/buy-coins.index'
 import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
 import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
+import { Route as ApiPublicCopierLoginRouteImport } from './routes/api/public/copier-login'
 import { Route as ApiPublicCopyFeedRouteImport } from './routes/api/public/copy-feed'
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
 import { Route as ApiPublicSignalScanRouteImport } from './routes/api/public/signal-scan'
@@ -478,6 +479,11 @@ const AuthenticatedLibrarySongIdRoute =
     path: '/library/$songId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCopierLoginRoute = ApiPublicCopierLoginRouteImport.update({
+  id: '/api/public/copier-login',
+  path: '/api/public/copier-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCopyFeedRoute = ApiPublicCopyFeedRouteImport.update({
   id: '/api/public/copy-feed',
   path: '/api/public/copy-feed',
@@ -654,6 +660,7 @@ export interface FileRoutesByFullPath {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copier-login': typeof ApiPublicCopierLoginRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
@@ -745,6 +752,7 @@ export interface FileRoutesByTo {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copier-login': typeof ApiPublicCopierLoginRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
@@ -838,6 +846,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copier-login': typeof ApiPublicCopierLoginRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
@@ -931,6 +940,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/copier-login'
     | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
@@ -1022,6 +1032,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/copier-login'
     | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
@@ -1114,6 +1125,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/buy-coins/return'
     | '/_authenticated/library/$songId'
+    | '/api/public/copier-login'
     | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
@@ -1173,6 +1185,7 @@ export interface RootRouteChildren {
   TrackSongIdRoute: typeof TrackSongIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicCopierLoginRoute: typeof ApiPublicCopierLoginRoute
   ApiPublicCopyFeedRoute: typeof ApiPublicCopyFeedRoute
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
   ApiPublicSignalScanRoute: typeof ApiPublicSignalScanRoute
@@ -1686,6 +1699,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLibrarySongIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/copier-login': {
+      id: '/api/public/copier-login'
+      path: '/api/public/copier-login'
+      fullPath: '/api/public/copier-login'
+      preLoaderRoute: typeof ApiPublicCopierLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/copy-feed': {
       id: '/api/public/copy-feed'
       path: '/api/public/copy-feed'
@@ -1961,6 +1981,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrackSongIdRoute: TrackSongIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicCopierLoginRoute: ApiPublicCopierLoginRoute,
   ApiPublicCopyFeedRoute: ApiPublicCopyFeedRoute,
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
   ApiPublicSignalScanRoute: ApiPublicSignalScanRoute,

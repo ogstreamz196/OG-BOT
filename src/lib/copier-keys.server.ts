@@ -8,6 +8,7 @@ import {
   checkAccess,
   extendKey,
   helloFrom,
+  keyForLogin,
   KEY_ROW_PREFIX,
   keyRow,
   newKey,
@@ -75,6 +76,106 @@ async function audit(admin: Admin, userId: string | undefined, what: string, key
       () => undefined,
       () => undefined,
     );
+}
+
+/** A fresh token for the same key (same expiry and lock); the old token stops. */
+async function rotateToken(
+  admin: Admin,
+  stored: Stored,
+  change: Partial<CopierKey> = {},
+): Promise<{ token: string; hash: string; key: CopierKey } | null> {
+  const made = await makeToken();
+  const key: CopierKey = { ...stored.key, ...change, id: made.hash.slice(0, 10) };
+  if (!(await saveKey(admin, made.hash, key))) return null;
+  await admin.from("site_content").delete().eq("key", keyRow(stored.hash));
+  return { ...made, key };
+}
+
+/* ── signing in on the stick ────────────────────────────────────────────── */
+
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const LOGIN_MAX_TRIES = 8;
+const loginTries = new Map<string, { count: number; until: number }>();
+function tooManyLogins(key: string): boolean {
+  const now = Date.now();
+  const t = loginTries.get(key);
+  if (!t || t.until < now) {
+    loginTries.set(key, { count: 1, until: now + LOGIN_WINDOW_MS });
+    if (loginTries.size > 5000) loginTries.delete(loginTries.keys().next().value!);
+    return false;
+  }
+  t.count += 1;
+  return t.count > LOGIN_MAX_TRIES;
+}
+
+/** The ogbot account a username and password belong to, or null. Never returns the email. */
+async function accountFor(
+  admin: Admin,
+  username: string,
+  password: string,
+): Promise<string | null> {
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !anonKey) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  const anon = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+  });
+  const tryEmail = async (email: string | null | undefined) => {
+    if (!email) return null;
+    const { data } = await anon.auth.signInWithPassword({ email, password });
+    return data?.user?.id ?? null;
+  };
+  // A username account's own login name first, as the website does.
+  const { vaultLoginEmail } = await import("./vault-signin");
+  const direct = vaultLoginEmail(username);
+  const first = direct.startsWith("@") ? null : await tryEmail(direct);
+  if (first) return first;
+  // Else an account whose display name is that username (e.g. one that has
+  // since added a real email address).
+  const like = username.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data: rows } = await admin
+    .from("profiles")
+    .select("id, email")
+    .ilike("display_name", like)
+    .limit(3);
+  for (const p of (rows ?? []) as { id: string; email: string | null }[]) {
+    let email = p.email;
+    if (!email) {
+      const { data: u } = await admin.auth.admin.getUserById(p.id);
+      email = u?.user?.email ?? null;
+    }
+    const uid = await tryEmail(email);
+    if (uid) return uid;
+  }
+  return null;
+}
+
+export type CopierLogin =
+  | { ok: true; token: string; name: string; expiresAt: string }
+  | { ok: false; reason: "bad_login" | "too_many" | "no_access" };
+
+/**
+ * Signing in on the stick's app with an ogbot username and password: checks
+ * the password, finds the key the Boss gave that username, ties it to the
+ * account and hands back a fresh token for the app to keep (the old token
+ * stops; the expiry and the stick/account lock carry over).
+ */
+export async function copierLogin(
+  admin: Admin,
+  username: string,
+  password: string,
+): Promise<CopierLogin> {
+  const handle = username.trim().toLowerCase();
+  if (tooManyLogins(handle)) return { ok: false, reason: "too_many" };
+  const userId = await accountFor(admin, username.trim(), password).catch(() => null);
+  if (!userId) return { ok: false, reason: "bad_login" };
+  loginTries.delete(handle);
+  const stored = keyForLogin(await listKeys(admin), handle, userId);
+  if (!stored) return { ok: false, reason: "no_access" };
+  const made = await rotateToken(admin, stored, { userId });
+  if (!made) return { ok: false, reason: "no_access" };
+  return { ok: true, token: made.token, name: made.key.name, expiresAt: made.key.expiresAt };
 }
 
 /* ── the copy feed ──────────────────────────────────────────────────────── */
@@ -222,11 +323,9 @@ export async function copierKeysTap(
     }
     case "newkey": {
       // A fresh token for the same user: same expiry and lock, the old token stops.
-      const made = await makeToken();
-      const next: CopierKey = { ...key, id: made.hash.slice(0, 10) };
-      if (!(await saveKey(admin, made.hash, next)))
-        return { toast: "⚠️ Couldn't make a new key. Try again.", panel: null };
-      await admin.from("site_content").delete().eq("key", keyRow(hash));
+      const made = await rotateToken(admin, found);
+      if (!made) return { toast: "⚠️ Couldn't make a new key. Try again.", panel: null };
+      const next = made.key;
       await audit(admin, boss.userId, "new key", next);
       return {
         toast: "🔑 New key made",
