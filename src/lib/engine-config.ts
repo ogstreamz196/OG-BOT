@@ -25,7 +25,35 @@ export type ConcurrencyConfig = {
   afterStopMins: number;
   sameSetupR: number;
 };
-export type EngineConfig = { gate: GateConfig; concurrency: ConcurrencyConfig };
+/**
+ * The Boss's strategy on/off toggles (Telegram buttons, like the copier's
+ * high-frequency switch). Several strategies run at once; these turn each one
+ * on or off without a code change. All off by default, so live posting is
+ * exactly as it was until the Boss flips one.
+ */
+export type StrategyToggles = {
+  /** Force the sniper entry (entryStyle 4) on every market, over the learner. */
+  sniper: boolean;
+  /** Counter-trend hedges (the other side) while a trend trade still runs. */
+  hedges: boolean;
+  /** Extra buy/sell hedges that fight each other when a market is ranging. */
+  rangeHedge: boolean;
+  /** Run the proven patterns alongside the engine, not only when it says wait. */
+  patternsAlongside: boolean;
+};
+export type EngineConfig = {
+  gate: GateConfig;
+  concurrency: ConcurrencyConfig;
+  strategies: StrategyToggles;
+};
+
+/** The strategy toggles in the order the Telegram card shows them. */
+export const STRATEGY_KEYS: readonly (keyof StrategyToggles)[] = [
+  "sniper",
+  "hedges",
+  "rangeHedge",
+  "patternsAlongside",
+];
 
 /** Defaults = the current code constants. Changing these changes live defaults. */
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -45,6 +73,13 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     sameSideGapMins: 1.5,
     afterStopMins: 3,
     sameSetupR: 0.3,
+  },
+  // All off: live posting is unchanged until the Boss turns one on.
+  strategies: {
+    sniper: false,
+    hedges: false,
+    rangeHedge: false,
+    patternsAlongside: false,
   },
 };
 
@@ -79,14 +114,18 @@ const clamp = (v: unknown, [lo, hi]: Range, fallback: number) => {
 };
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+
 /** Merge a loose/partial config over the defaults and clamp every value. */
 export function cleanEngineConfig(input: unknown): EngineConfig {
   const src = (input ?? {}) as {
     gate?: Record<string, unknown>;
     concurrency?: Record<string, unknown>;
+    strategies?: Record<string, unknown>;
   };
   const g = src.gate ?? {};
   const c = src.concurrency ?? {};
+  const st = src.strategies ?? {};
   const d = DEFAULT_ENGINE_CONFIG;
   const gb = ENGINE_BOUNDS.gate;
   const cb = ENGINE_BOUNDS.concurrency;
@@ -111,6 +150,12 @@ export function cleanEngineConfig(input: unknown): EngineConfig {
       ),
       afterStopMins: round2(clamp(c.afterStopMins, cb.afterStopMins, d.concurrency.afterStopMins)),
       sameSetupR: round2(clamp(c.sameSetupR, cb.sameSetupR, d.concurrency.sameSetupR)),
+    },
+    strategies: {
+      sniper: bool(st.sniper, d.strategies.sniper),
+      hedges: bool(st.hedges, d.strategies.hedges),
+      rangeHedge: bool(st.rangeHedge, d.strategies.rangeHedge),
+      patternsAlongside: bool(st.patternsAlongside, d.strategies.patternsAlongside),
     },
   };
 }
