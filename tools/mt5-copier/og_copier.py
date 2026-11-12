@@ -137,9 +137,9 @@ def send(request, what):
 
 def lot_for(sig):
     """The Copy Trader B0T's lot for this signal when lot = bot, else the fixed lot."""
-    if LOT_SETTING == "bot":
-        return float(sig["lots"])
-    return LOT
+    mult = REMOTE.get("multiplier", 1) if isinstance(REMOTE, dict) else 1
+    base = float(sig["lots"]) if LOT_SETTING == "bot" else LOT
+    return base * float(mult or 1)
 
 
 def open_trade(sig, sym):
@@ -235,6 +235,8 @@ def apply_remote(settings):
         MAX_LATE_MINUTES = settings["maxLateMinutes"]
     if isinstance(settings.get("useBrokerStop"), bool):
         USE_BROKER_STOP = settings["useBrokerStop"]
+    if settings.get("hft") is True:
+        MAX_OPEN = max(MAX_OPEN, 20)
     size = "the bot's lot" if LOT_SETTING == "bot" else f"{LOT} lots"
     log(
         f"Remote settings: {'PAUSED (managing open trades only), ' if PAUSED else ''}"
@@ -343,7 +345,7 @@ def main():
             log(f"feed not reachable ({e.__class__.__name__}), trying again")
         except Exception as e:  # keep going: one bad pass must not stop the copier
             log(f"error: {e}")
-        time.sleep(POLL_SECONDS)
+        time.sleep(1 if REMOTE.get("hft") else POLL_SECONDS)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
 // site_content "copy.settings", which every Python copier reads on each check
 // (copySettings in copy-feed.ts); each change is audit-logged. Typed commands
 // (/lot 0.1, /maxopen 6 …) still work for values the buttons don't offer.
-import { copySettings, type CopySettings } from "./copy-feed";
+import { copySettings, MULTIPLIERS, multLabel, type CopySettings } from "./copy-feed";
 
 type Admin = any;
 
@@ -62,6 +62,10 @@ export function panelText(s: CopySettings, note?: string): string {
       ? "⏸ PAUSED: no new trades. Open trades are still managed and closed."
       : "▶️ COPYING: new trades are copied.",
     `📏 Lot size: ${lot}`,
+    `🎯 Risk multiplier: ${multLabel(s.multiplier ?? 1)}`,
+    s.hft
+      ? "⚡ High-frequency: ON (checks every second, up to 20 trades open)"
+      : "⚡ High-frequency: OFF",
     `📈 Markets: ${markets.length ? markets.map((m) => MARKET_LABEL[m] ?? m).join(" and ") : "none (nothing new is copied)"}`,
     `🔢 Max trades open at once: ${maxOpenOf(s)}`,
     `⏱ Joins a trade up to ${lateOf(s)} min after it opens`,
@@ -87,10 +91,16 @@ export function panelKeyboard(s: CopySettings): { inline_keyboard: Button[][] } 
           : { text: "⏸ Pause copying", callback_data: "cs:pause" },
       ],
       [{ text: tick(lotIsBot(s), "📏 Lot: same as the bot"), callback_data: "cs:lot:bot" }],
-      LOT_CHOICES.map((n) => ({
-        text: tick(!lotIsBot(s) && s.lot === n, `${n} lot`),
-        callback_data: `cs:lot:${n}`,
+      MULTIPLIERS.map((m) => ({
+        text: tick((s.multiplier ?? 1) === m, multLabel(m)),
+        callback_data: `cs:mult:${m}`,
       })),
+      [
+        {
+          text: s.hft ? "⚡ High-frequency: ON · tap to turn off" : "⚡ High-frequency: OFF · tap to turn on",
+          callback_data: s.hft ? "cs:hft:off" : "cs:hft:on",
+        },
+      ],
       [
         { text: tick(markets.includes("XAUUSD"), "🥇 Gold"), callback_data: "cs:mk:XAUUSD" },
         { text: tick(markets.includes("BTCUSD"), "₿ Bitcoin"), callback_data: "cs:mk:BTCUSD" },
@@ -167,6 +177,16 @@ export function applyPanelAction(
       return save(
         { useBrokerStop: val === "on" },
         val === "on" ? "🛑 Safety stop on the broker: ON" : "🛑 Safety stop on the broker: OFF",
+      );
+    case "mult": {
+      const m = Number(val);
+      if (!MULTIPLIERS.includes(m)) return { next: null, toast: "" };
+      return save({ multiplier: m }, `🎯 Risk multiplier: ${multLabel(m)}`);
+    }
+    case "hft":
+      return save(
+        { hft: val === "on" },
+        val === "on" ? "⚡ High-frequency: ON" : "⚡ High-frequency: OFF",
       );
     case "refresh":
       return { next: null, toast: "Up to date" };

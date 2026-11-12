@@ -140,6 +140,10 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
 }
 
 /** The copiers' remote settings (site_content "copy.settings"), as the feed sends them. */
+/** Risk multipliers offered: -4x, -2x, 1x, 2x, 4x, 10x. */
+export const MULTIPLIERS = [0.25, 0.5, 1, 2, 4, 10];
+export const multLabel = (m: number) => (m < 1 ? `-${Math.round(1 / m)}x` : `${m}x`);
+
 export type CopySettings = {
   /** No new trades; open ones are still managed and closed. */
   paused?: boolean;
@@ -149,6 +153,10 @@ export type CopySettings = {
   maxOpen?: number;
   maxLateMinutes?: number;
   useBrokerStop?: boolean;
+  /** Lot multiplier on every copied trade (0.25 to 10). */
+  multiplier?: number;
+  /** High-frequency mode: faster checks and more trades open at once. */
+  hft?: boolean;
 };
 
 /**
@@ -179,6 +187,8 @@ export function copySettings(value: string | null | undefined): CopySettings {
   if (t.maxOpen != null) out.maxOpen = int(t.maxOpen, 0, 50);
   if (t.maxLateMinutes != null) out.maxLateMinutes = int(t.maxLateMinutes, 1, 120);
   if (typeof t.useBrokerStop === "boolean") out.useBrokerStop = t.useBrokerStop;
+  if (MULTIPLIERS.includes(Number(t.multiplier))) out.multiplier = Number(t.multiplier);
+  if (typeof t.hft === "boolean") out.hft = t.hft;
   for (const k of Object.keys(out) as (keyof CopySettings)[])
     if (out[k] === undefined) delete out[k];
   return out;

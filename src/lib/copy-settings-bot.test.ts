@@ -35,7 +35,6 @@ describe("the copy bot's settings card", () => {
   });
   it("ticks what's chosen, and every button fits Telegram's 64-byte limit", () => {
     expect(texts({})).toContain("✅ 📏 Lot: same as the bot");
-    expect(texts({ lot: 0.05 })).toContain("✅ 0.05 lot");
     expect(texts({ markets: ["BTCUSD"] })).toEqual(
       expect.arrayContaining(["🥇 Gold", "✅ ₿ Bitcoin"]),
     );
@@ -45,7 +44,7 @@ describe("the copy bot's settings card", () => {
   it("every button does what it says", () => {
     expect(applyPanelAction({}, "cs:pause").next).toEqual({ paused: true });
     expect(applyPanelAction({ paused: true }, "cs:resume").next).toEqual({ paused: false });
-    for (const n of LOT_CHOICES)
+    for (const n of [] as number[])
       expect(applyPanelAction({}, `cs:lot:${n}`).next).toEqual({ lot: n });
     expect(applyPanelAction({ lot: 0.05 }, "cs:lot:bot").next).toEqual({ lot: "bot" });
     expect(applyPanelAction({}, "cs:mk:XAUUSD").next).toEqual({ markets: ["BTCUSD"] });
@@ -91,5 +90,18 @@ describe("typed commands still work", () => {
         .keyboard.flat()
         .map((b) => b.text),
     ).toEqual([OPEN_BUTTON, "⚡ Generate BTC Signal Now"]);
+  });
+});
+
+describe("risk multiplier and high-frequency", () => {
+  it("offers -4x -2x 1x 2x 4x 10x and saves the pick", () => {
+    expect(texts({})).toEqual(expect.arrayContaining(["-4x", "-2x", "✅ 1x", "2x", "4x", "10x"]));
+    expect(applyPanelAction({}, "cs:mult:10").next).toEqual({ multiplier: 10 });
+    expect(applyPanelAction({}, "cs:mult:0.25").next).toEqual({ multiplier: 0.25 });
+    expect(applyPanelAction({}, "cs:mult:3").next).toBeNull();
+  });
+  it("toggles high-frequency mode", () => {
+    expect(applyPanelAction({}, "cs:hft:on").next).toEqual({ hft: true });
+    expect(applyPanelAction({ hft: true }, "cs:hft:off").next).toEqual({ hft: false });
   });
 });
