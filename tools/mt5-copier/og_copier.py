@@ -31,7 +31,9 @@ from datetime import datetime, timezone
 import MetaTrader5 as mt5
 import requests
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+# Where config.ini, the trade memory and the status file live: next to this
+# file, or the folder the stick's app (og_stick.py) names.
+HERE = os.environ.get("OG_COPIER_HOME") or os.path.dirname(os.path.abspath(__file__))
 MAGIC = 196196
 # One id per start of the copier, so the server can tell a second copy of the
 # same key from this one.
@@ -112,6 +114,14 @@ HFT = False
 MAX_MULTIPLIER = 4.0
 REMOTE = {}
 MT5_PATH = c.get("mt5_path", "").strip() or None
+# A path that isn't absolute is from this folder, so a USB stick works whatever
+# drive letter the PC gives it.
+if MT5_PATH and not os.path.isabs(MT5_PATH):
+    MT5_PATH = os.path.join(HERE, MT5_PATH)
+# Portable MT5 (keeps its login and data in its own folder, e.g. on the stick).
+MT5_PORTABLE = c.getboolean("mt5_portable", False)
+STATUS_FILE = os.path.join(HERE, "copier_status.json")
+ACCESS = None
 
 # Dry runs keep their own memory, so pretend trades never reach a live run.
 STATE_FILE = os.path.join(HERE, "copier_state_dry.json" if DRY_RUN else "copier_state.json")
@@ -143,7 +153,19 @@ def save_state(state):
 
 # ── MT5 helpers ────────────────────────────────────────────────────────────
 def connect():
-    ok = mt5.initialize(path=MT5_PATH) if MT5_PATH else mt5.initialize()
+    kwargs = {}
+    if MT5_PATH:
+        kwargs["path"] = MT5_PATH
+    if MT5_PORTABLE:
+        kwargs["portable"] = True
+    # A first-time login handed over by the stick's app for this start only
+    # (never written to disk here; the MT5 terminal remembers it afterwards).
+    login = os.environ.get("OG_MT5_LOGIN", "").strip()
+    if login.isdigit() and os.environ.get("OG_MT5_PASSWORD") and os.environ.get("OG_MT5_SERVER"):
+        kwargs["login"] = int(login)
+        kwargs["password"] = os.environ["OG_MT5_PASSWORD"]
+        kwargs["server"] = os.environ["OG_MT5_SERVER"].strip()
+    ok = mt5.initialize(**kwargs)
     if not ok:
         sys.exit(f"Can't reach MetaTrader 5: {mt5.last_error()}. Is the terminal open and logged in?")
     info = mt5.account_info()
@@ -379,7 +401,7 @@ def fetch():
             headers["x-copy-account"] = str(info.login)
     except Exception:
         pass
-    global ACCESS_NOTE
+    global ACCESS_NOTE, ACCESS
     r = requests.get(FEED_URL, headers=headers, timeout=10)
     if r.status_code == 403:
         try:
@@ -399,6 +421,7 @@ def fetch():
     r.raise_for_status()
     body = r.json()
     access = body.get("access")
+    ACCESS = access if isinstance(access, dict) else None
     note = access.get("message") if isinstance(access, dict) and not access.get("ok") else None
     if note != ACCESS_NOTE:
         log(note or "Access is active again.")
@@ -487,18 +510,62 @@ def step(state):
     save_state(state)
 
 
+def today_profit():
+    """What this copier's closed trades made today (profit, swap and commission)."""
+    try:
+        start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        deals = mt5.history_deals_get(start, datetime.now()) or []
+        return round(sum(d.profit + d.swap + d.commission for d in deals if d.magic == MAGIC), 2)
+    except Exception:
+        return None
+
+
+def write_status(state, error=None):
+    """A small file the stick's app reads for its dashboard. Never raises."""
+    try:
+        info = mt5.account_info()
+        status = {
+            "at": datetime.now(timezone.utc).isoformat(),
+            "account": str(info.login) if info else None,
+            "server": info.server if info else None,
+            "balance": round(float(info.balance), 2) if info else None,
+            "equity": round(float(info.equity), 2) if info else None,
+            "currency": info.currency if info else None,
+            "open": sum(1 for v in state.values() if v.get("ticket") and not v.get("closed")),
+            "today": today_profit(),
+            "paused": bool(PAUSED),
+            "dry_run": bool(DRY_RUN),
+            "access": ACCESS,
+            "note": ACCESS_NOTE,
+            "error": error,
+        }
+        tmp = STATUS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(status, f)
+        os.replace(tmp, STATUS_FILE)
+    except Exception:
+        pass
+
+
 def main():
     connect()
     state = load_state()
     size = "the bot's lot for each signal" if LOT_SETTING == "bot" else f"{LOT} lots"
     log(f"Copying {', '.join(MARKETS)} at {size}, every {POLL_SECONDS}s. Ctrl+C to stop.")
+    last_status = 0.0
     while True:
+        error = None
         try:
             step(state)
         except requests.RequestException as e:
+            error = "The signal feed can't be reached. Trying again."
             log(f"feed not reachable ({e.__class__.__name__}), trying again")
         except Exception as e:  # keep going: one bad pass must not stop the copier
+            error = str(e)
             log(f"error: {e}")
+        if time.time() - last_status >= 2:
+            write_status(state, error)
+            last_status = time.time()
         time.sleep(0.5 if HFT else POLL_SECONDS)
 
 

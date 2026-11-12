@@ -293,6 +293,17 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #PRNUM** · The stick app (step 3).
+  `tools/mt5-copier/og_stick.py` (tkinter: sign in, dashboard, Start/Stop,
+  practice mode, MT5 account dialog), `stick_core.py` (+ `test_stick_core.py`),
+  `build_stick.bat` (PyInstaller → `OGCopier.exe`), `STICK.md` (how to make
+  and hand out a stick). `og_copier.py`: `OG_COPIER_HOME`, relative
+  `mt5_path` + `mt5_portable`, one-start MT5 login from env, and
+  `copier_status.json` for the dashboard. Tools only: nothing in the site
+  changed. Dry-run on Linux with stand-in MT5; **not yet run on Windows with
+  a real terminal**. **Next:** (4) the user's own view on the web and in
+  Telegram.
+
 - **Boss's Claude · 2026-11-13 · #292** · Copier sign-in (step 2). `POST
   /api/public/copier-login` { username, password } → `copierLogin`: checks the
   ogbot password server-side, finds the key the Boss added under that username

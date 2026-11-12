@@ -85,6 +85,12 @@ Trader B0T, `/settings` shows them and `/pause`, `/resume`, `/lot bot` or
 The token and `dry_run` stay on the laptop only. The copier logs
 "Remote settings: …" each time they change.
 
+## On a USB stick, for other people
+
+See `STICK.md`: a small app (`og_stick.py` → `OGCopier.exe`) with a sign-in
+screen, a dashboard and a Start button, MT5 in portable mode on the stick,
+and per-user keys the Boss manages from the Copy Trader B0T.
+
 ## Safety
 
 - `config.ini` holds the token: don't share it. A new token in
