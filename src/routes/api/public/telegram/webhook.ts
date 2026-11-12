@@ -179,7 +179,9 @@ async function handleCallbackQuery(cq: {
       chat_id: chatId,
       message_id: cq.message?.message_id,
       text: strategyPanelText(cfg),
-      reply_markup: strategyPanelKeyboard(cfg),
+      reply_markup: {
+        inline_keyboard: [...strategyPanelKeyboard(cfg).inline_keyboard, MENU_BACK_ROW],
+      },
     }).catch(() => {});
     await answer(toast || "Up to date");
     return Response.json({ ok: true, strategies: true });
@@ -2674,7 +2676,11 @@ async function handleTelegramUpdate(
       const { strategyPanelText, strategyPanelKeyboard } =
         await import("@/lib/engine-strategies-bot.server");
       const cfg = await engineConfig();
-      await screen(chat_id, strategyPanelText(cfg), { reply_markup: strategyPanelKeyboard(cfg) });
+      await screen(chat_id, strategyPanelText(cfg), {
+        reply_markup: {
+          inline_keyboard: [...strategyPanelKeyboard(cfg).inline_keyboard, MENU_BACK_ROW],
+        },
+      });
       return Response.json({ ok: true, strategies: true });
     }
     if (/^\/sports\b/i.test(trimmed)) {

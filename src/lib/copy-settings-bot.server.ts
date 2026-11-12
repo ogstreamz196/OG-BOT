@@ -101,7 +101,9 @@ export function panelText(
       : "🛑 Safety stop on the broker: OFF (the copier closes trades itself, so keep it running)",
     "",
     "🎛 STRATEGIES (several run at once)",
-    `⚡ High-frequency: ${s.hft ? "ON" : "OFF"}`,
+    s.hft
+      ? "⚡ High-frequency: ON (bigger lots, checks twice a second, up to 20 open)"
+      : "⚡ High-frequency: OFF",
     ...STRATEGY_KEYS.map((k) => `${strategies[k] ? "✅ ON" : "⬜️ OFF"} — ${STRATEGY_LABEL[k]}`),
     "",
     "Tap a button to change it.",

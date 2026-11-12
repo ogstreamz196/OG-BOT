@@ -58,6 +58,8 @@ MARKETS = [m.strip().upper() for m in c.get("markets", "XAUUSD,BTCUSD").split(",
 KNOWN_MARKETS = sorted(set(MARKETS) | {"XAUUSD", "BTCUSD"})
 SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in KNOWN_MARKETS}
 PAUSED = False
+# High-frequency mode (set remotely): bigger lots, quicker checks, more open.
+HFT = False
 REMOTE = {}
 MT5_PATH = c.get("mt5_path", "").strip() or None
 
@@ -144,7 +146,12 @@ def lot_for(sig):
     the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
     risk multiplier only still applies to the bot/fixed modes."""
     if LOT_SETTING == "band":
-        lo, hi = LOT_BANDS[LOT_BAND]
+        # High-frequency mode trades bigger: bump the band up one notch.
+        order = ["small", "medium", "large"]
+        band = LOT_BAND
+        if HFT and band in order:
+            band = order[min(len(order) - 1, order.index(band) + 1)]
+        lo, hi = LOT_BANDS[band]
         t = 0.0
         try:
             conf = sig.get("confidence")
@@ -233,7 +240,7 @@ def move_stop(ticket, sym, stop):
 def apply_remote(settings):
     """Settings set on the server (site_content copy.settings) win over config.ini."""
     global PAUSED, LOT_SETTING, LOT, LOT_BAND, MARKETS, MAX_OPEN, MAX_LATE_MINUTES
-    global USE_BROKER_STOP, REMOTE
+    global USE_BROKER_STOP, REMOTE, HFT
     settings = settings or {}
     if settings == REMOTE:
         return
@@ -260,7 +267,8 @@ def apply_remote(settings):
         MAX_LATE_MINUTES = settings["maxLateMinutes"]
     if isinstance(settings.get("useBrokerStop"), bool):
         USE_BROKER_STOP = settings["useBrokerStop"]
-    if settings.get("hft") is True:
+    HFT = settings.get("hft") is True
+    if HFT:
         MAX_OPEN = max(MAX_OPEN, 20)
     if LOT_SETTING == "band":
         size = f"the {LOT_BAND} lot band {LOT_BANDS[LOT_BAND]}"
@@ -375,7 +383,7 @@ def main():
             log(f"feed not reachable ({e.__class__.__name__}), trying again")
         except Exception as e:  # keep going: one bad pass must not stop the copier
             log(f"error: {e}")
-        time.sleep(1 if REMOTE.get("hft") else POLL_SECONDS)
+        time.sleep(0.5 if HFT else POLL_SECONDS)
 
 
 if __name__ == "__main__":

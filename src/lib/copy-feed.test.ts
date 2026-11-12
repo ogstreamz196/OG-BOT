@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { copyFeed, copySettings, copySignal, testSignal, type CopyFeedRow } from "./copy-feed";
+import {
+  copyFeed,
+  copySettings,
+  copySignal,
+  effectiveBand,
+  testSignal,
+  type CopyFeedRow,
+} from "./copy-feed";
 
 const row = (over: Partial<CopyFeedRow> = {}): CopyFeedRow => ({
   id: "a",
@@ -33,6 +40,12 @@ describe("copy feed", () => {
       active: true,
       filled: false,
     });
+  });
+  it("high-frequency mode bumps the lot band up one notch", () => {
+    expect(effectiveBand("small", false)).toBe("small");
+    expect(effectiveBand("small", true)).toBe("medium");
+    expect(effectiveBand("medium", true)).toBe("large");
+    expect(effectiveBand("large", true)).toBe("large");
   });
   it("passes the hedge flag and the entry type through", () => {
     expect(copySignal(row())).toMatchObject({ hedge: false, entryType: "market" });

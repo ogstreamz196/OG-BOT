@@ -171,6 +171,17 @@ export type LotBand = keyof typeof LOT_BANDS;
 export const LOT_BAND_ORDER: LotBand[] = ["small", "medium", "large"];
 export const lotBandLabel = (b: LotBand) => `${LOT_BANDS[b][0]} – ${LOT_BANDS[b][1]}`;
 
+/**
+ * High-frequency mode trades bigger: it bumps the chosen lot band up one notch
+ * (small→medium→large), already at the top otherwise. Off, the band is unchanged.
+ * Pure.
+ */
+export function effectiveBand(band: LotBand, hft: boolean | undefined): LotBand {
+  if (!hft) return band;
+  const i = LOT_BAND_ORDER.indexOf(band);
+  return LOT_BAND_ORDER[Math.min(LOT_BAND_ORDER.length - 1, i + 1)];
+}
+
 /** The lot within a band, bigger the surer the signal (confidence 55–90%). Pure. */
 export function lotForBand(band: LotBand, confidence?: number | null): number {
   const [lo, hi] = LOT_BANDS[band];
