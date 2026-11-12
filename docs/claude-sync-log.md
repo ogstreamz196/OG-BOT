@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · The user's own copier view
+- **Boss's Claude · 2026-11-13 · #294** · The user's own copier view
   (step 4, the last of the USB copier plan). `key.paused` (their own pause;
   the feed serves it paused). Website `/copier` (website only; no nav link
   added) with `getMyCopier` / `setMyCopierPause`; Telegram `/mycopier` in the
