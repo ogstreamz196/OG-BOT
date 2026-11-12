@@ -102,7 +102,7 @@ export function panelText(
     "",
     "🎛 STRATEGIES (several run at once)",
     s.hft
-      ? "⚡ High-frequency: ON (more trades, no cap on open trades, entries 30s apart, more hedges; bitcoin a notch bigger, gold too from $400 and small lots under it)"
+      ? "⚡ High-frequency: ON (more trades, no cap on open trades, entries 30s apart, more hedges; bitcoin at the top of your lot range, gold too from $400 and at the bottom of it under that)"
       : "⚡ High-frequency: OFF",
     ...STRATEGY_KEYS.map((k) => `${strategies[k] ? "✅ ON" : "⬜️ OFF"} — ${STRATEGY_LABEL[k]}`),
     "",

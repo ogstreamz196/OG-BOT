@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copierLot, hftBand } from "./copy-feed";
+import { copierLot, hftLotSpot } from "./copy-feed";
 import {
   DEFAULT_ENGINE_CONFIG,
   hedgesPerMarket,
@@ -9,37 +9,38 @@ import {
 } from "./engine-config";
 import { concurrencyBar, hedgeSideFor, rangeSidesFree } from "./signal-broadcast.server";
 
-describe("high-frequency lots: bitcoin favoured, gold by balance", () => {
-  it("leaves the chosen band alone when high-frequency is off", () => {
-    expect(hftBand("small", false, "XAUUSD", 100)).toBe("small");
-    expect(hftBand("medium", undefined, "BTCUSD", 100)).toBe("medium");
+describe("high-frequency lots stay inside the band set on the card", () => {
+  it("off: the usual scaling by confidence", () => {
+    expect(hftLotSpot(false, "BTCUSD", 1000)).toBeNull();
+    expect(
+      copierLot({ lotBand: "small" }, { botLots: 0.1, confidence: 55, market: "BTCUSD" }),
+    ).toBe(0.01);
   });
-  it("bitcoin always goes a notch bigger", () => {
-    expect(hftBand("small", true, "BTCUSD", 50)).toBe("medium");
-    expect(hftBand("medium", true, "BTCUSD", null)).toBe("large");
-  });
-  it("gold goes bigger from $400 and drops to the small band under it", () => {
-    expect(hftBand("medium", true, "XAUUSD", 400)).toBe("large");
-    expect(hftBand("small", true, "XAUUSD", 1000)).toBe("medium");
-    expect(hftBand("large", true, "XAUUSD", 399.99)).toBe("small");
-    expect(hftBand("medium", true, "XAUUSD", 120)).toBe("small");
-  });
-  it("gold keeps the chosen band when the balance isn't known", () => {
-    expect(hftBand("medium", true, "XAUUSD", null)).toBe("medium");
-    expect(hftBand("medium", true, "XAUUSD")).toBe("medium");
-  });
-  it("the copier's lot follows it", () => {
-    const s = { lotBand: "medium" as const, hft: true };
-    // Top confidence: the top of the band used.
-    expect(copierLot(s, { botLots: 0.1, confidence: 90, market: "BTCUSD", balance: 100 })).toBe(
-      0.5,
-    );
-    expect(copierLot(s, { botLots: 0.1, confidence: 90, market: "XAUUSD", balance: 100 })).toBe(
+  it("bitcoin takes the top of the band, whatever the balance or confidence", () => {
+    const s = { lotBand: "small" as const, hft: true };
+    expect(copierLot(s, { botLots: 0.1, confidence: 55, market: "BTCUSD", balance: 50 })).toBe(
       0.05,
     );
-    expect(copierLot(s, { botLots: 0.1, confidence: 90, market: "XAUUSD", balance: 500 })).toBe(
-      0.5,
+    expect(copierLot({ ...s, lotBand: "medium" }, { botLots: 0.1, market: "BTCUSD" })).toBe(0.1);
+    expect(copierLot({ ...s, lotBand: "large" }, { botLots: 0.1, market: "BTCUSD" })).toBe(0.5);
+  });
+  it("gold takes the top from $400 and the bottom of the band under it", () => {
+    const s = { lotBand: "medium" as const, hft: true };
+    expect(copierLot(s, { botLots: 0.1, confidence: 60, market: "XAUUSD", balance: 400 })).toBe(
+      0.1,
     );
+    expect(copierLot(s, { botLots: 0.1, confidence: 90, market: "XAUUSD", balance: 399 })).toBe(
+      0.02,
+    );
+    expect(
+      copierLot({ ...s, lotBand: "small" }, { botLots: 0.1, market: "XAUUSD", balance: 100 }),
+    ).toBe(0.01);
+  });
+  it("gold with no known balance scales by confidence inside the band", () => {
+    const s = { lotBand: "medium" as const, hft: true };
+    expect(hftLotSpot(true, "XAUUSD", null)).toBeNull();
+    expect(copierLot(s, { botLots: 0.1, confidence: 90, market: "XAUUSD" })).toBe(0.1);
+    expect(copierLot(s, { botLots: 0.1, confidence: 55, market: "XAUUSD" })).toBe(0.02);
   });
 });
 
