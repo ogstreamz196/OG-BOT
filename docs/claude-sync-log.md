@@ -293,6 +293,16 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #294** · The user's own copier view
+  (step 4, the last of the USB copier plan). `key.paused` (their own pause;
+  the feed serves it paused). Website `/copier` (website only; no nav link
+  added) with `getMyCopier` / `setMyCopierPause`; Telegram `/mycopier` in the
+  Copy Trader B0T with pause / resume / refresh (`ck:me:` taps). Never shows
+  the token or the stick. The page hasn't been looked at in a browser (needs
+  a signed-in account with a key). No migrations. **Left for the Boss:**
+  publish, build `OGCopier.exe` on a Windows PC and try a stick end to end
+  (see `tools/mt5-copier/STICK.md`).
+
 - **Boss's Claude · 2026-11-13 · #293** · The stick app (step 3).
   `tools/mt5-copier/og_stick.py` (tkinter: sign in, dashboard, Start/Stop,
   practice mode, MT5 account dialog), `stick_core.py` (+ `test_stick_core.py`),

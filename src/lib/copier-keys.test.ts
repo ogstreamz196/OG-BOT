@@ -4,14 +4,19 @@ import {
   daysLeft,
   extendKey,
   helloFrom,
+  isMyCommand,
   keyForLogin,
+  myCopier,
+  myPanel,
   newKey,
   parseKey,
   parseKeyCommand,
   parseKeyTap,
+  parseMyTap,
   resetLock,
   restoreKey,
   revokeKey,
+  setPaused,
   userHandle,
   userPanel,
   usersPanel,
@@ -198,5 +203,51 @@ describe("signing in on the stick with an ogbot login", () => {
   it("keeps the sign-in fields when stored", () => {
     const k = { ...newKey(hash, "sam123", 30, now), userId: uid };
     expect(parseKey(JSON.stringify(k))).toEqual(k);
+  });
+});
+
+describe("the user's own view", () => {
+  const bound = (checkAccess(fresh(), hello(), now) as { key: CopierKey }).key;
+  it("shows access, running, account and balance, and nothing secret", () => {
+    const v = myCopier(bound, now);
+    expect(v).toMatchObject({
+      state: "active",
+      daysLeft: 30,
+      running: true,
+      paused: false,
+      account: "123456",
+      balance: 500,
+    });
+    expect(JSON.stringify(v)).not.toContain("disk-AAA111");
+    expect(myCopier(revokeKey(bound), now).state).toBe("off");
+    expect(myCopier(bound, now + 40 * 86_400_000).state).toBe("expired");
+  });
+  it("pauses and resumes, and the pause survives being stored", () => {
+    const paused = setPaused(bound, true);
+    expect(myCopier(paused, now).paused).toBe(true);
+    expect(parseKey(JSON.stringify(paused))?.paused).toBe(true);
+    expect(setPaused(paused, false).paused).toBeUndefined();
+    // A paused key is still let in (the feed serves it paused).
+    expect(checkAccess(paused, hello(), now + 1000).status).toBe("ok");
+  });
+  it("the Telegram card offers pause or resume only while access is active", () => {
+    const taps = (k: CopierKey | null, at = now) =>
+      myPanel(k, at)
+        .reply_markup.inline_keyboard.flat()
+        .map((b) => b.callback_data);
+    expect(taps(bound)).toEqual(["ck:me:pause", "ck:me:refresh"]);
+    expect(taps(setPaused(bound, true))).toEqual(["ck:me:resume", "ck:me:refresh"]);
+    expect(taps(revokeKey(bound))).toEqual(["ck:me:refresh"]);
+    expect(taps(null)).toEqual([]);
+    expect(myPanel(null, now).text).toContain("no copier access");
+    for (const d of taps(bound)) expect(parseMyTap(d)).not.toBeNull();
+    // The Boss's taps and the user's never cross.
+    expect(parseMyTap("ck:off:ab12cd34ef")).toBeNull();
+    expect(parseKeyTap("ck:me:pause")).toBeNull();
+  });
+  it("knows its command", () => {
+    expect(isMyCommand("/mycopier")).toBe(true);
+    expect(isMyCommand("/copier@OGCopyBot")).toBe(true);
+    expect(isMyCommand("/users")).toBe(false);
   });
 });

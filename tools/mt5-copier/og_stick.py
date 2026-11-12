@@ -375,7 +375,13 @@ class App:
         left = core.days_left(expires)
         self.access.config(
             text=core.access_line(expires, note),
-            fg=BAD if note or left == 0 else WARN if left is not None and left <= 3 else FG,
+            fg=WARN
+            if note and access.get("ok")
+            else BAD
+            if note or left == 0
+            else WARN
+            if left is not None and left <= 3
+            else FG,
         )
         if status and status.get("account"):
             currency = status.get("currency") or ""

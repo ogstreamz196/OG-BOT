@@ -66,23 +66,30 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             } = { toast: "⚠️ Something went wrong. Try again.", panel: null };
             // "mt:" is the manual trade card; "ck:" the copier users cards;
             // "cs:"/"es:" the settings card.
-            const res: typeof fallback = press.data.startsWith("ck:")
+            // "ck:me:" is a user's own copier card (anyone with access, not only the Boss).
+            const res: typeof fallback = press.data.startsWith("ck:me:")
               ? await (
                   await import("@/lib/copier-keys.server")
                 )
-                  .copierKeysTap(admin, press.from.id, press.data)
+                  .myCopierTap(admin, press.from.id, press.data)
                   .catch(() => fallback)
-              : press.data.startsWith("mt:")
+              : press.data.startsWith("ck:")
                 ? await (
-                    await import("@/lib/manual-trade.server")
+                    await import("@/lib/copier-keys.server")
                   )
-                    .manualTradeTap(admin, press.from.id, press.data)
+                    .copierKeysTap(admin, press.from.id, press.data)
                     .catch(() => fallback)
-                : await (
-                    await import("@/lib/copy-settings-bot.server")
-                  )
-                    .copySettingsTap(admin, press.from.id, press.data)
-                    .catch(() => fallback);
+                : press.data.startsWith("mt:")
+                  ? await (
+                      await import("@/lib/manual-trade.server")
+                    )
+                      .manualTradeTap(admin, press.from.id, press.data)
+                      .catch(() => fallback)
+                  : await (
+                      await import("@/lib/copy-settings-bot.server")
+                    )
+                      .copySettingsTap(admin, press.from.id, press.data)
+                      .catch(() => fallback);
             await f.fleetApi(
               bot.id,
               "answerCallbackQuery",
@@ -214,6 +221,18 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         } else if (bot.role === "copy") {
           // The Boss's copier settings (/settings, /pause, /lot …), Boss only.
           if (!group) {
+            // A user's own copier card (/mycopier): access, running, pause.
+            const { myCopierReply } = await import("@/lib/copier-keys.server");
+            const mine = await myCopierReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (mine) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: mine.text, reply_markup: mine.reply_markup },
+                key,
+              );
+              return Response.json({ ok: true });
+            }
             // The Boss's copier users (/users, 👥 Copier users, /adduser Name 30).
             const { copierKeysReply } = await import("@/lib/copier-keys.server");
             const users = await copierKeysReply(admin, msg.chat.id, msg.text).catch(() => null);

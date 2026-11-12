@@ -86,6 +86,12 @@ const ROUTES: RouteEntry[] = [
   { path: "/community", file: "_authenticated/community.tsx", guard: "auth" },
   { path: "/portals", file: "_authenticated/portals.tsx", guard: "auth" },
   { path: "/referrals", file: "_authenticated/referrals.tsx", guard: "auth" },
+  {
+    path: "/copier",
+    file: "_authenticated/copier.tsx",
+    guard: "auth",
+    note: "A member's own copier (website only)",
+  },
   { path: "/settings", file: "_authenticated/settings.tsx", guard: "auth" },
   { path: "/store", file: "_authenticated/store.tsx", guard: "auth" },
   { path: "/sports", file: "_authenticated/sports.tsx", guard: "auth" },
