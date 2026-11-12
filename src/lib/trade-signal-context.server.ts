@@ -819,7 +819,10 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // A strategy tried on purpose (random signals, signal-random.server.ts):
   // "setup:<id>" reads only that setup, proven or not. Members never send it.
   const forced = /\bsetup:([a-z_]+)\b/.exec(userText)?.[1];
-  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}`;
+  // "hedge:BUY" / "hedge:SELL" (the scan's hedge step, Boss switch "hedges"):
+  // reads only a counter-trend reversal on that side (hedgePlan). Members never send it.
+  const hedgeSide = /\bhedge:(BUY|SELL)\b/.exec(userText)?.[1] as "BUY" | "SELL" | undefined;
+  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}`;
   const hit = cache.get(key);
   // Not past the close of a new entry candle, so a fresh setup is never hidden.
   if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
@@ -991,7 +994,27 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   if (sitOut && plan.verdict === "trade") plan = { ...plan, verdict: "wait", waitReason: sitOut };
   // No engine setup right now (and the market's open): on the 5-minute chart,
   // an extra setup the learning loop has proven for this market takes its place.
-  if (forced) {
+  if (hedgeSide) {
+    // A counter-trend hedge on that side: the surest reversal setup showing
+    // on this chart now (HEDGE_SETUPS), as hedgePlan builds it (market entry,
+    // one 1R target, break-even at 0.5R from feeds.hedge). Else a wait.
+    const { findSetups, hedgePlan, HEDGE_SETUPS } = await import("./trade-setups");
+    const { chartTrend } = await import("./signal-frame-setups.server");
+    const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
+    const trend = entryIv === "5m" ? hi.bias : chartTrend(closed);
+    const open =
+      SETUP_FRAMES.includes(entryIv) &&
+      !spotUnconfirmed &&
+      !sitOut &&
+      !/\bclosed\b/i.test(plan.waitReason ?? "");
+    const hit = open
+      ? findSetups(closed, trend)
+          .filter((h) => HEDGE_SETUPS.includes(h.id) && h.direction === hedgeSide)
+          .sort((x, y) => y.confidencePct - x.confidencePct)[0]
+      : undefined;
+    const fromHedge = hit ? hedgePlan(plan, hit, live) : null;
+    plan = fromHedge ?? { ...plan, verdict: "wait", waitReason: "No hedge setup showing" };
+  } else if (forced) {
     // Only the one setup asked for, if it's showing on this chart right now.
     const { findSetups, setupPlan, SETUP_NAMES } = await import("./trade-setups");
     const { chartTrend } = await import("./signal-frame-setups.server");
@@ -1313,6 +1336,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
       ...(plan.setup ? { setup: plan.setup } : {}),
+      // A counter-trend hedge: the tracker's break-even at 0.5R (lockOf) and
+      // the copier's own-ticket handling read this.
+      ...(plan.hedge ? { hedge: true } : {}),
       // A learned-off filter that let this one through (its live record decides if it stays off).
       ...(relaxedBy && plan.verdict === "trade" ? { relaxed: relaxedBy } : {}),
       // What the live-trial pair checks said (the Boss's report groups by it).

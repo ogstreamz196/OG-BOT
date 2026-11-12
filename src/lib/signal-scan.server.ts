@@ -132,7 +132,17 @@ export async function buildScanDeps(
         strategyName: rnd.STRATEGY_NAMES[strategy],
         chartName: `${s.summary.timeframe} chart`,
       },
-      cfg.gate,
+      // A hedge (Boss switch on) has its own floor: counter-trend reversals
+      // score lower by design. The losing-record checks still apply.
+      s.plan.feeds?.hedge
+        ? {
+            ...cfg.gate,
+            minConfidence: Math.min(
+              cfg.gate.minConfidence,
+              (await import("./signal-broadcast.server")).HEDGE_MIN_CONFIDENCE,
+            ),
+          }
+        : cfg.gate,
     );
     return d.post ? null : d.why;
   };

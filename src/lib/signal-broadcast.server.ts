@@ -737,3 +737,113 @@ export async function maybeRandomSignal(admin: Admin, deps: RandomDeps): Promise
     return "failed: error";
   }
 }
+
+/* ── Hedges (the Boss's "hedges" strategy switch, off by default) ─────────── */
+
+/** A hedge's own confidence floor: counter-trend reversals score lower by design. */
+export const HEDGE_MIN_CONFIDENCE = 55;
+/** How often each market is checked for a hedge (a chart read each time). */
+export const HEDGE_EVERY_MS = 60_000;
+const hedgeTryKey = (market: string) => `signals.hedge.lastTry.${market}`;
+
+/**
+ * Which side a hedge would take for a market, from its running trades: the
+ * other side of the trend trades, when they all lean one way and no hedge is
+ * running there already (one hedge per market at a time). Null otherwise. Pure.
+ */
+export function hedgeSideFor(
+  running: { direction: "BUY" | "SELL"; hedge?: boolean }[],
+): "BUY" | "SELL" | null {
+  if (running.some((r) => r.hedge)) return null;
+  const sides = new Set(running.filter((r) => !r.hedge).map((r) => r.direction));
+  if (sides.size !== 1) return null;
+  return sides.has("BUY") ? "SELL" : "BUY";
+}
+
+/** The hedge's line on its card. Pure. */
+export function tagHedge(card: string): string {
+  return `${card}\n🛡 Hedge: against the running trade, one 1R target, stop to my entry at 0.5R`;
+}
+
+/**
+ * The hedge step, once a scan run (the Boss, 2026-11-12: "more hedging, buys
+ * and sells against each other"). Only with the "hedges" strategy switch on.
+ * For each market whose running trend trades all lean one way, at most once
+ * a minute, it asks the chart for a counter-trend reversal on the other side
+ * (buildTradeSignal "hedge:<side>", hedgePlan) and posts it through postOnce,
+ * so it faces the same cap, repeat checks and gate (at HEDGE_MIN_CONFIDENCE)
+ * and is followed, copied and counted like any alert. Never throws.
+ */
+export async function maybeHedgeSignal(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const cfg = await engineConfig().catch(() => null);
+    if (!cfg?.strategies?.hedges) return "off";
+    const now = deps.now();
+    const { chatPurgedAt } = await import("./signal-chat.server");
+    const purgedAt = await chatPurgedAt().catch(() => null);
+    const purgedMs = purgedAt == null ? 0 : new Date(purgedAt).getTime() || 0;
+    const since = Math.max(purgedMs, now - 12 * 3600_000);
+    const { data } = await admin
+      .from("trade_signals")
+      .select("market, direction, feeds")
+      .eq("sender_worker", "trade")
+      .in("status", ["open", "tp1", "tp2"])
+      .gte("created_at", new Date(since).toISOString())
+      .limit(100);
+    const rows = (
+      (data ?? []) as {
+        market: string;
+        direction: "BUY" | "SELL";
+        feeds: { hedge?: boolean; bias?: boolean } | null;
+      }[]
+    ).filter((r) => !r.feeds?.bias);
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      const side = hedgeSideFor(
+        rows
+          .filter((r) => r.market === market)
+          .map((r) => ({ direction: r.direction, hedge: !!r.feeds?.hedge })),
+      );
+      if (!side) continue;
+      // At most one chart read a minute per market.
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", hedgeTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
+      await admin
+        .from("site_content")
+        .upsert(
+          {
+            key: hedgeTryKey(market),
+            value: new Date(now).toISOString(),
+            updated_at: new Date(now).toISOString(),
+          },
+          { onConflict: "key" },
+        );
+      const signal = await deps.build(`${signalRequest(pair, "5m")} hedge:${side}`);
+      const plan = signal.plan;
+      if (!plan?.feeds?.hedge || plan.direction !== side) {
+        out.push(`${market} ${side}: no hedge setup`);
+        continue;
+      }
+      if (plan.confidencePct < HEDGE_MIN_CONFIDENCE) {
+        out.push(`${market} ${side}: only ${plan.confidencePct}%`);
+        continue;
+      }
+      const posted = await postOnce(admin, deps, signal, (s) => tagHedge(compactCard(s.reply)));
+      out.push(`${market} ${side}: ${posted ? "posted" : "not posted"}`);
+    }
+    return out.length ? out.join("; ") : "no running trend trade to hedge";
+  } catch (e) {
+    console.warn("[signals] hedge step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
