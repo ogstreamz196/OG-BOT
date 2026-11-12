@@ -167,21 +167,17 @@ def lot_for(sig):
     if sig.get("manual") and sig.get("lots"):
         return float(sig["lots"])
     if LOT_SETTING == "band":
-        # High-frequency mode trades bigger: bump the band up one notch.
-        order = ["small", "medium", "large"]
-        band = LOT_BAND
-        if HFT and band in order:
-            up = order[min(len(order) - 1, order.index(band) + 1)]
+        # The lot always stays inside the band set on the card.
+        lo, hi = LOT_BANDS[LOT_BAND]
+        if HFT:
+            # High-frequency mode trades bigger: the top of the band. Bitcoin
+            # always; gold only with $400 or more on the account, and the
+            # bottom of the band under that (gold ties up more margin).
             if sig.get("market") != "XAUUSD":
-                # Bitcoin is favoured: always the bigger lots.
-                band = up
-            else:
-                # Gold ties up more margin: bigger lots only with $400 or more
-                # on the account, the small band under that.
-                bal = account_balance()
-                if bal is not None:
-                    band = up if bal >= GOLD_BIG_LOT_BALANCE else "small"
-        lo, hi = LOT_BANDS[band]
+                return hi
+            bal = account_balance()
+            if bal is not None:
+                return hi if bal >= GOLD_BIG_LOT_BALANCE else lo
         t = 0.0
         try:
             conf = sig.get("confidence")

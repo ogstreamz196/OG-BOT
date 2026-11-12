@@ -293,6 +293,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #PRNUM** · HFT lots stay inside the band set
+  on the card (the Boss: "bigger lots" = the top of the range, e.g. 0.05 on
+  0.01–0.05, not a bigger range). `hftLotSpot` replaces `hftBand` and
+  `effectiveBand`: bitcoin the top of the band; gold the top from $400 and the
+  bottom of the band under it. `og_copier.py` matches. No migrations. The
+  laptop copier needs the new `og_copier.py`.
+
 - **Boss's Claude · 2026-11-13 · #288** · High-frequency mode now changes
   posting too (the Boss: more trades at once when HFT is on, no max, bigger
   lots, bitcoin favoured, gold big only from $400). `hftOn()` reads the copier

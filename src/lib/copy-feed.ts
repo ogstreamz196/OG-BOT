@@ -188,37 +188,26 @@ export type LotBand = keyof typeof LOT_BANDS;
 export const LOT_BAND_ORDER: LotBand[] = ["small", "medium", "large"];
 export const lotBandLabel = (b: LotBand) => `${LOT_BANDS[b][0]} – ${LOT_BANDS[b][1]}`;
 
-/**
- * High-frequency mode trades bigger: it bumps the chosen lot band up one notch
- * (small→medium→large), already at the top otherwise. Off, the band is unchanged.
- * Pure.
- */
-export function effectiveBand(band: LotBand, hft: boolean | undefined): LotBand {
-  if (!hft) return band;
-  const i = LOT_BAND_ORDER.indexOf(band);
-  return LOT_BAND_ORDER[Math.min(LOT_BAND_ORDER.length - 1, i + 1)];
-}
-
-/** Gold only takes the bigger high-frequency lots with at least this balance (USD). */
+/** Gold only takes the top of its band in high-frequency mode with at least this balance (USD). */
 export const GOLD_BIG_LOT_BALANCE = 400;
 
 /**
- * The band a trade uses in high-frequency mode (the Boss, 2026-11-13): bitcoin
- * a notch bigger; gold a notch bigger only with GOLD_BIG_LOT_BALANCE or more on
- * the account, and the small band under it (gold ties up more margin, which
- * would squeeze the other open trades). A balance that isn't known leaves gold
- * on the chosen band. With high-frequency off, the chosen band as it is. Pure.
+ * Where in the chosen band a high-frequency trade sits (the Boss, 2026-11-13:
+ * "bigger lots" means the top of the range set on the card, never a bigger
+ * range): "top" for bitcoin, and for gold with GOLD_BIG_LOT_BALANCE or more on
+ * the account; "bottom" for gold under that (gold ties up more margin, which
+ * would squeeze the other open trades); null (the usual scaling by confidence)
+ * when high-frequency is off or gold's balance isn't known. Pure.
  */
-export function hftBand(
-  band: LotBand,
+export function hftLotSpot(
   hft: boolean | undefined,
   market?: string,
   balance?: number | null,
-): LotBand {
-  if (!hft) return band;
-  if (market !== "XAUUSD") return effectiveBand(band, true);
-  if (balance == null || !Number.isFinite(Number(balance))) return band;
-  return Number(balance) >= GOLD_BIG_LOT_BALANCE ? effectiveBand(band, true) : "small";
+): "top" | "bottom" | null {
+  if (!hft) return null;
+  if (market !== "XAUUSD") return "top";
+  if (balance == null || !Number.isFinite(Number(balance))) return null;
+  return Number(balance) >= GOLD_BIG_LOT_BALANCE ? "top" : "bottom";
 }
 
 /** The lot within a band, bigger the surer the signal (confidence 55–90%). Pure. */
@@ -287,8 +276,8 @@ export function copySettings(value: string | null | undefined): CopySettings {
  * as og_copier.py's lot_for, so the bot's test account can trade exactly what
  * the Boss's real account does (the Boss, 2026-11-12: "whatever settings I do
  * inside the copy trade bot, make it reflect inside the signal group"). A
- * manual trade is its own lot; a band scales with confidence (HFT bumps it a
- * notch); otherwise the bot's lot (or a fixed lot) times the multiplier,
+ * manual trade is its own lot; a band scales with confidence (in HFT the top
+ * of the band, or the bottom for gold on a small balance: hftLotSpot); otherwise the bot's lot (or a fixed lot) times the multiplier,
  * 0.25x–4x. Rounded to MT5's 0.01 step, never under 0.01. Pure.
  */
 export function copierLot(
@@ -305,8 +294,11 @@ export function copierLot(
   // -> 0.08), exactly as og_copier.py's round_volume does.
   const r = (n: number) => Math.max(0.01, Math.floor(n * 100 + 0.5 + 1e-9) / 100);
   if (sig.manual) return r(sig.botLots);
-  if (s.lotBand)
-    return r(lotForBand(hftBand(s.lotBand, s.hft, sig.market, sig.balance), sig.confidence));
+  if (s.lotBand) {
+    const spot = hftLotSpot(s.hft, sig.market, sig.balance);
+    const [lo, hi] = LOT_BANDS[s.lotBand];
+    return r(spot === "top" ? hi : spot === "bottom" ? lo : lotForBand(s.lotBand, sig.confidence));
+  }
   const m = Number(s.multiplier);
   const mult = Number.isFinite(m) && m > 0 ? Math.min(MAX_MULTIPLIER, Math.max(0.25, m)) : 1;
   const base = typeof s.lot === "number" && s.lot > 0 ? s.lot : sig.botLots;

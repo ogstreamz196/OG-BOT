@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  copyFeed,
-  copySettings,
-  copySignal,
-  effectiveBand,
-  testSignal,
-  type CopyFeedRow,
-} from "./copy-feed";
+import { copyFeed, copySettings, copySignal, testSignal, type CopyFeedRow } from "./copy-feed";
 
 const row = (over: Partial<CopyFeedRow> = {}): CopyFeedRow => ({
   id: "a",
@@ -40,12 +33,6 @@ describe("copy feed", () => {
       active: true,
       filled: false,
     });
-  });
-  it("high-frequency mode bumps the lot band up one notch", () => {
-    expect(effectiveBand("small", false)).toBe("small");
-    expect(effectiveBand("small", true)).toBe("medium");
-    expect(effectiveBand("medium", true)).toBe("large");
-    expect(effectiveBand("large", true)).toBe("large");
   });
   it("passes the hedge flag and the entry type through", () => {
     expect(copySignal(row())).toMatchObject({ hedge: false, entryType: "market" });
@@ -200,7 +187,8 @@ describe("the test account mirrors the copier", () => {
     // A band: bigger the surer; HFT bumps it a notch.
     expect(copierLot({ lotBand: "small" }, { botLots: 0.3, confidence: 55 })).toBe(0.01);
     expect(copierLot({ lotBand: "small" }, { botLots: 0.3, confidence: 90 })).toBe(0.05);
-    expect(copierLot({ lotBand: "small", hft: true }, { botLots: 0.3, confidence: 90 })).toBe(0.1);
+    // High-frequency: the top of the same band, never a bigger band.
+    expect(copierLot({ lotBand: "small", hft: true }, { botLots: 0.3, confidence: 60 })).toBe(0.05);
     // A manual trade is its own lot, whatever the mode.
     expect(
       copierLot({ lotBand: "large", hft: true, multiplier: 4 }, { botLots: 0.1, manual: true }),
