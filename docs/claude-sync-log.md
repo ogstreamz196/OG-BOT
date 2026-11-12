@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · HFT lots stay inside the band set
+- **Boss's Claude · 2026-11-13 · #289** · HFT lots stay inside the band set
   on the card (the Boss: "bigger lots" = the top of the range, e.g. 0.05 on
   0.01–0.05, not a bigger range). `hftLotSpot` replaces `hftBand` and
   `effectiveBand`: bitcoin the top of the band; gold the top from $400 and the
