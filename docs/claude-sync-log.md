@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · The signals chat follows the
+- **Boss's Claude · 2026-11-13 · #290** · The signals chat follows the
   copier's rules on the real balance. It already used `copierLot` /
   `copierSkips` (bands, HFT top of band, no cap); the gold $400 rule was
   checked on the test account's balance. Now `og_copier.py` sends its MT5
