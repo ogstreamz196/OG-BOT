@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Per-user copier keys + the Boss's
+- **Boss's Claude · 2026-11-13 · #291** · Per-user copier keys + the Boss's
   users card (step 1 of the Boss's "copier on a USB for several people").
   `copier-keys.ts` / `copier-keys.server.ts`: one site_content row per key
   (`copy.key.<hash>`, no migration), an expiry, locked on first use to one USB
