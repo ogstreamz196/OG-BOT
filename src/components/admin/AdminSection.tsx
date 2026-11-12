@@ -35,8 +35,10 @@ export function AdminSection({
   const hasHeader = !!(icon || title || subtitle || action);
   return (
     <section
+      // A plain-text title makes this a stop in the tab's "On this page" row (SectionJump).
+      data-boss-section={typeof title === "string" ? title : undefined}
       className={cn(
-        "rounded-2xl border border-border shadow-card",
+        "scroll-mt-36 rounded-2xl border border-border shadow-card",
         muted ? "bg-card/70" : "bg-card",
         padding,
         !flush && "mb-6",

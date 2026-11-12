@@ -77,7 +77,7 @@ function ToolSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="min-w-0 space-y-3">
+    <section data-boss-section={title} className="min-w-0 scroll-mt-36 space-y-3">
       <div>
         <h2 className="text-lg leading-tight">{title}</h2>
         <p className="text-xs text-muted-foreground">{desc}</p>
