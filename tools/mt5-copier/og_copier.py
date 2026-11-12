@@ -146,6 +146,9 @@ def lot_for(sig):
     """The lot for this signal: inside the chosen band (bigger when surer), or
     the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
     risk multiplier only still applies to the bot/fixed modes."""
+    # The Boss's manual trade: exactly the lot he chose, whatever the mode.
+    if sig.get("manual") and sig.get("lots"):
+        return float(sig["lots"])
     if LOT_SETTING == "band":
         # High-frequency mode trades bigger: bump the band up one notch.
         order = ["small", "medium", "large"]
