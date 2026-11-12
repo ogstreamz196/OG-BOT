@@ -19,6 +19,7 @@ Settings live in config.ini next to this file (see config.example.ini).
 """
 
 import configparser
+import math
 import json
 import os
 import sys
@@ -52,6 +53,8 @@ USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
 POLL_SECONDS = c.getfloat("poll_seconds", 3)
 MAX_LATE_MINUTES = c.getfloat("max_late_minutes", 10)
 MAX_OPEN = c.getint("max_open", 6)
+# The max-open the settings ask for, before high-frequency mode lifts it.
+BASE_MAX_OPEN = MAX_OPEN
 MARKETS = [m.strip().upper() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
 # Symbol names for every market the bot trades (your broker's names), so a
 # market switched on remotely is ready, and one switched off is still managed.
@@ -121,7 +124,9 @@ def filling(sym):
 def round_volume(sym, vol):
     info = mt5.symbol_info(sym)
     step = info.volume_step or 0.01
-    vol = round(round(vol / step) * step, 8)
+    # Halves round up (0.045 -> 0.05), the same as the bot's own sums, so the
+    # test account in the signals group trades exactly this lot.
+    vol = round(math.floor(vol / step + 0.5 + 1e-9) * step, 8)
     return max(info.volume_min, min(info.volume_max, vol))
 
 
@@ -163,7 +168,7 @@ def lot_for(sig):
                 t = max(0.0, min(1.0, (float(conf) - 55) / 35))
         except (TypeError, ValueError):
             t = 0.0
-        return round(lo + (hi - lo) * t, 2)
+        return math.floor((lo + (hi - lo) * t) * 100 + 0.5 + 1e-9) / 100
     mult = REMOTE.get("multiplier", 1) if isinstance(REMOTE, dict) else 1
     try:
         mult = float(mult or 1)
@@ -249,7 +254,7 @@ def move_stop(ticket, sym, stop):
 # ── the loop ───────────────────────────────────────────────────────────────
 def apply_remote(settings):
     """Settings set on the server (site_content copy.settings) win over config.ini."""
-    global PAUSED, LOT_SETTING, LOT, LOT_BAND, MARKETS, MAX_OPEN, MAX_LATE_MINUTES
+    global PAUSED, LOT_SETTING, LOT, LOT_BAND, MARKETS, MAX_OPEN, BASE_MAX_OPEN, MAX_LATE_MINUTES
     global USE_BROKER_STOP, REMOTE, HFT
     settings = settings or {}
     if settings == REMOTE:
@@ -272,14 +277,14 @@ def apply_remote(settings):
                 SYMBOLS[m] = c.get(f"symbol_{m}", m)
         MARKETS = [m for m in wanted if mt5.symbol_select(SYMBOLS[m], True) or DRY_RUN]
     if isinstance(settings.get("maxOpen"), int):
-        MAX_OPEN = settings["maxOpen"]
+        BASE_MAX_OPEN = settings["maxOpen"]
     if isinstance(settings.get("maxLateMinutes"), (int, float)):
         MAX_LATE_MINUTES = settings["maxLateMinutes"]
     if isinstance(settings.get("useBrokerStop"), bool):
         USE_BROKER_STOP = settings["useBrokerStop"]
     HFT = settings.get("hft") is True
-    if HFT:
-        MAX_OPEN = max(MAX_OPEN, 20)
+    # High-frequency mode lifts it to at least 20; turned off, it's back.
+    MAX_OPEN = max(BASE_MAX_OPEN, 20) if HFT else BASE_MAX_OPEN
     if LOT_SETTING == "band":
         size = f"the {LOT_BAND} lot band {LOT_BANDS[LOT_BAND]}"
     elif LOT_SETTING == "bot":

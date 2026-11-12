@@ -27,7 +27,7 @@ export type CopyFeedRow = {
     protected?: boolean;
     tp0?: number;
     trail?: { stop?: number | null } | null;
-    paper?: { lots?: number } | null;
+    paper?: { lots?: number; botLots?: number } | null;
     /** A counter-trend hedge: the copier keeps it as its own MT5 ticket. */
     hedge?: boolean;
     /** The Boss's manual trade: copied at its own lot. */
@@ -96,7 +96,12 @@ export function copySignal(row: CopyFeedRow): CopySignal {
     tp1,
     tp3,
     halfClosed: runner && best >= 1,
-    lots: Number(row.feeds?.paper?.lots) > 0 ? Number(row.feeds!.paper!.lots) : null,
+    // The bot's own lot (before the copier mirror), so the copier applies its
+    // own lot rule once; older rows only have lots.
+    lots:
+      Number(row.feeds?.paper?.botLots ?? row.feeds?.paper?.lots) > 0
+        ? Number(row.feeds!.paper!.botLots ?? row.feeds!.paper!.lots)
+        : null,
     hedge: !!row.feeds?.hedge,
     manual: !!row.feeds?.manual,
     entryType: row.feeds?.entry === "stop" ? "stop" : row.status === "pending" ? "limit" : "market",
@@ -199,7 +204,7 @@ export function lotForBand(band: LotBand, confidence?: number | null): number {
   const [lo, hi] = LOT_BANDS[band];
   const c = Number(confidence);
   const t = Number.isFinite(c) ? Math.min(1, Math.max(0, (c - 55) / 35)) : 0;
-  return Math.round((lo + (hi - lo) * t) * 100) / 100;
+  return Math.floor((lo + (hi - lo) * t) * 100 + 0.5 + 1e-9) / 100;
 }
 
 export type CopySettings = {
@@ -253,4 +258,45 @@ export function copySettings(value: string | null | undefined): CopySettings {
   for (const k of Object.keys(out) as (keyof CopySettings)[])
     if (out[k] === undefined) delete out[k];
   return out;
+}
+
+/**
+ * The lot the copier takes for a signal under these settings: the same rule
+ * as og_copier.py's lot_for, so the bot's test account can trade exactly what
+ * the Boss's real account does (the Boss, 2026-11-12: "whatever settings I do
+ * inside the copy trade bot, make it reflect inside the signal group"). A
+ * manual trade is its own lot; a band scales with confidence (HFT bumps it a
+ * notch); otherwise the bot's lot (or a fixed lot) times the multiplier,
+ * 0.25x–4x. Rounded to MT5's 0.01 step, never under 0.01. Pure.
+ */
+export function copierLot(
+  s: CopySettings,
+  sig: { botLots: number; confidence?: number | null; manual?: boolean },
+): number {
+  // Halves round up, with a little slack for float sums (0.15 x 0.5 = 0.075
+  // -> 0.08), exactly as og_copier.py's round_volume does.
+  const r = (n: number) => Math.max(0.01, Math.floor(n * 100 + 0.5 + 1e-9) / 100);
+  if (sig.manual) return r(sig.botLots);
+  if (s.lotBand) return r(lotForBand(effectiveBand(s.lotBand, s.hft), sig.confidence));
+  const m = Number(s.multiplier);
+  const mult = Number.isFinite(m) && m > 0 ? Math.min(MAX_MULTIPLIER, Math.max(0.25, m)) : 1;
+  const base = typeof s.lot === "number" && s.lot > 0 ? s.lot : sig.botLots;
+  return r(base * mult);
+}
+
+/** The most trades the copier keeps open (HFT lifts it to at least 20), as og_copier does. Pure. */
+export function copierMaxOpen(s: CopySettings): number {
+  const base = s.maxOpen ?? 6;
+  return s.hft ? Math.max(base, 20) : base;
+}
+
+/**
+ * Why the copier wouldn't take a new trade right now (paused, the market
+ * switched off, at its max open trades), or null when it would. Pure.
+ */
+export function copierSkips(s: CopySettings, market: string, openCopied: number): string | null {
+  if (s.paused) return "the copier's paused";
+  if (s.markets && !s.markets.includes(market)) return "that market's off on the copier";
+  if (openCopied >= copierMaxOpen(s)) return "the copier's at its most open trades";
+  return null;
 }

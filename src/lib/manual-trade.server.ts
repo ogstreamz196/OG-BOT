@@ -85,7 +85,22 @@ export async function placeManualTrade(
       n.toLocaleString("en-GB", { minimumFractionDigits: dp, maximumFractionDigits: dp });
     plan.feeds = {
       ...plan.feeds,
-      paper: { lots: trade.lot, ...(balance != null ? { balance } : {}), why: "manual trade" },
+      // The test account mirrors the copier: the Boss's lot, unless the
+      // copier wouldn't take it (paused, market off, at its most open).
+      paper: await (async () => {
+        const { mirrorCopier } = await import("./copy-mirror.server");
+        const m = await mirrorCopier(admin, {
+          market: plan.market,
+          botLots: trade.lot,
+          manual: true,
+        });
+        return {
+          lots: m.lots,
+          botLots: trade.lot,
+          ...(balance != null ? { balance } : {}),
+          why: m.why ?? "manual trade",
+        };
+      })(),
     };
     const card = manualCard({
       market: draft.market,
