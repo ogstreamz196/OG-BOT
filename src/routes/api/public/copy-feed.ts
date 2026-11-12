@@ -75,12 +75,17 @@ export const Route = createFileRoute("/api/public/copy-feed")({
         const shared = copySettings(remote?.value);
         // An expired or switched-off key still gets the feed, paused: open
         // trades are closed as usual, nothing new opens.
-        const limited = who.kind === "user" && who.access.status === "limited";
+        // So does one its own user has paused (website or Telegram).
+        const limited =
+          who.kind === "user" &&
+          (who.access.status === "limited" ||
+            (who.access.status === "ok" && !!who.access.key.paused));
         const settings = limited ? { ...shared, paused: true } : shared;
         const access =
           who.kind === "user" && who.access.status !== "refused"
             ? {
                 ok: who.access.status === "ok",
+                ...(who.access.key.paused ? { paused: true } : {}),
                 expiresAt: who.access.key.expiresAt,
                 ...(who.message ? { message: who.message } : {}),
               }

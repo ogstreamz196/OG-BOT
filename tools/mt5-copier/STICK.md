@@ -50,6 +50,19 @@ still closes the trades it has open. Stopping the app or pulling the stick
 leaves open trades unmanaged until it is started again: turn on the safety
 stop on the copier card if that worries you.
 
+## Away from the PC
+
+A user can check on their copier from anywhere with the same account:
+
+- **Website:** ogbot.co.uk/copier shows their days left, whether the app is
+  running, the MT5 account and the balance last seen.
+- **Telegram:** `/mycopier` in the Copy Trader B0T shows the same (their
+  Telegram has to be linked to their ogbot.co.uk account).
+
+Both have **Pause new trades / Resume**. Pausing stops new trades; open ones
+are still managed while the app runs. Starting and stopping the app itself
+is only done on the PC.
+
 ## Managing people (the Boss)
 
 Copy Trader B0T → 👥 Copier users: add days, switch someone off or back on,

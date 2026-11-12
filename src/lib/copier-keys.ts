@@ -39,6 +39,8 @@ export type CopierKey = {
   user?: string;
   /** The ogbot account that signed in with it (set on the first sign-in). */
   userId?: string;
+  /** Paused by the user themselves (website or Telegram): no new trades until they resume. */
+  paused?: boolean;
 };
 
 /** The ogbot username a name stands for, or "" when it isn't shaped like one. Pure. */
@@ -100,6 +102,7 @@ export function parseKey(value: string | null | undefined): CopierKey | null {
       ...(t.balance != null && Number.isFinite(balance) ? { balance } : {}),
       ...(userHandle(String(t.user ?? "")) ? { user: userHandle(String(t.user)) } : {}),
       ...(/^[0-9a-f-]{36}$/i.test(String(t.userId ?? "")) ? { userId: String(t.userId) } : {}),
+      ...(t.paused === true ? { paused: true } : {}),
     };
   } catch {
     return null;
@@ -194,6 +197,7 @@ export const ACCESS_MESSAGE: Record<string, string> = {
   wrong_stick: "This key is locked to a different USB stick.",
   wrong_account: "This key is locked to a different MT5 account.",
   running_elsewhere: "This key is already running on another PC. Stop that one first.",
+  paused: "You've paused your copier. Open trades are still managed; nothing new opens.",
   expired: "Your access has run out. Open trades are still managed; nothing new opens.",
   revoked: "Your access is switched off. Open trades are still managed; nothing new opens.",
 };
@@ -273,6 +277,7 @@ export function userPanel(
       seen(k, now),
       k.stick ? "🔒 Locked to a USB stick" : "🔓 No stick yet (locks on first use)",
       k.account ? `🔒 MT5 account ${k.account}` : "🔓 No MT5 account yet (locks on first use)",
+      ...(k.paused ? ["⏸ Paused by the user"] : []),
       k.userId
         ? "🔑 Signs in with their ogbot login"
         : k.user
@@ -357,4 +362,93 @@ export function parseKeyCommand(
   const name = clean(parts.slice(0, -1).join(" "), 40);
   if (!name || !Number.isInteger(days) || days < 1 || days > MAX_KEY_DAYS) return { cmd: "badadd" };
   return { cmd: "add", name, days };
+}
+
+/* ── the user's own view (website and Telegram) ─────────────────────────── */
+
+/** What a user is shown about their own copier. No token, no stick serial. */
+export type MyCopier = {
+  name: string;
+  state: "active" | "expired" | "off";
+  daysLeft: number;
+  expiresAt: string;
+  running: boolean;
+  paused: boolean;
+  account: string | null;
+  balance: number | null;
+  lastSeen: string | null;
+};
+
+export function myCopier(k: CopierKey, now: number): MyCopier {
+  return {
+    name: k.name,
+    state: k.revoked ? "off" : isExpired(k, now) ? "expired" : "active",
+    daysLeft: daysLeft(k, now),
+    expiresAt: k.expiresAt,
+    running: isRunning(k, now),
+    paused: !!k.paused,
+    account: k.account ?? null,
+    balance: k.balance ?? null,
+    lastSeen: k.lastSeen ?? null,
+  };
+}
+
+export function setPaused(k: CopierKey, paused: boolean): CopierKey {
+  const { paused: _p, ...rest } = k;
+  return paused ? { ...rest, paused: true } : rest;
+}
+
+/** "/mycopier" (or "/copier") in the Copy Trader B0T. Pure. */
+export const isMyCommand = (text: string) => /^\/(?:my)?copier(?:@\w+)?$/i.test(text.trim());
+
+/** The user's own card in Telegram. Pure. */
+export function myPanel(k: CopierKey | null, now: number, note?: string): KeysPanel {
+  if (!k)
+    return {
+      text: [
+        ...(note ? [note, ""] : []),
+        "📟 MY COPIER",
+        "There's no copier access on your account yet.",
+      ].join("\n"),
+      reply_markup: { inline_keyboard: [] },
+    };
+  const v = myCopier(k, now);
+  const access =
+    v.state === "off"
+      ? "⛔ Your access is switched off."
+      : v.state === "expired"
+        ? "⌛ Your access has run out."
+        : `✅ ${v.daysLeft} day${v.daysLeft === 1 ? "" : "s"} of access left (until ${v.expiresAt.slice(0, 10)})`;
+  return {
+    text: [
+      ...(note ? [note, ""] : []),
+      "📟 MY COPIER",
+      access,
+      v.running ? "🟢 Running on your PC now" : "⚪️ Not running right now",
+      ...(v.paused ? ["⏸ Paused by you: nothing new opens until you resume."] : []),
+      ...(v.account ? [`🏦 MT5 account ${v.account}`] : []),
+      ...(v.balance != null ? [`💰 Balance last seen: ${v.balance.toFixed(2)}`] : []),
+      "",
+      "Start and stop it from the app on your stick. Pausing here stops new trades; open ones are still managed while the app runs.",
+    ].join("\n"),
+    reply_markup: {
+      inline_keyboard: [
+        ...(v.state === "active"
+          ? [
+              [
+                v.paused
+                  ? { text: "▶️ Resume new trades", callback_data: "ck:me:resume" }
+                  : { text: "⏸ Pause new trades", callback_data: "ck:me:pause" },
+              ],
+            ]
+          : []),
+        [{ text: "🔄 Refresh", callback_data: "ck:me:refresh" }],
+      ],
+    },
+  };
+}
+
+export function parseMyTap(data: string): "pause" | "resume" | "refresh" | null {
+  const m = /^ck:me:(pause|resume|refresh)$/.exec(data);
+  return m ? (m[1] as "pause" | "resume" | "refresh") : null;
 }

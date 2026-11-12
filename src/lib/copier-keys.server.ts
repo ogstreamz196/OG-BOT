@@ -8,16 +8,21 @@ import {
   checkAccess,
   extendKey,
   helloFrom,
+  isMyCommand,
   keyForLogin,
+  myCopier,
+  myPanel,
   KEY_ROW_PREFIX,
   keyRow,
   newKey,
   parseKey,
   parseKeyCommand,
   parseKeyTap,
+  parseMyTap,
   resetLock,
   restoreKey,
   revokeKey,
+  setPaused,
   tokenMessage,
   USER_TOKEN_PREFIX,
   userPanel,
@@ -25,6 +30,7 @@ import {
   type Access,
   type CopierKey,
   type KeysPanel,
+  type MyCopier,
 } from "./copier-keys";
 
 type Admin = any;
@@ -206,7 +212,7 @@ export async function copyAccess(admin: Admin, request: Request): Promise<CopyAc
   if (!key) return null;
   const access = checkAccess(key, helloFrom(request.headers), Date.now());
   if (access.status !== "refused" && access.save) await saveKey(admin, hash, access.key);
-  const reason = access.status === "ok" ? undefined : access.reason;
+  const reason = access.status !== "ok" ? access.reason : access.key.paused ? "paused" : undefined;
   return { kind: "user", access, ...(reason ? { message: ACCESS_MESSAGE[reason] } : {}) };
 }
 
@@ -334,4 +340,78 @@ export async function copierKeysTap(
       };
     }
   }
+}
+
+/* ── the user's own view ────────────────────────────────────────────────── */
+
+async function keyOfUser(admin: Admin, userId: string): Promise<Stored | null> {
+  return (await listKeys(admin)).find((s) => s.key.userId === userId) ?? null;
+}
+
+/** A signed-in user's own copier (website), or null when they have none. */
+export async function myCopierFor(admin: Admin, userId: string): Promise<MyCopier | null> {
+  const stored = await keyOfUser(admin, userId);
+  return stored ? myCopier(stored.key, Date.now()) : null;
+}
+
+/** The user pauses or resumes their own copier. Null when they have none or it didn't save. */
+export async function setMyCopierPaused(
+  admin: Admin,
+  userId: string,
+  paused: boolean,
+): Promise<MyCopier | null> {
+  const stored = await keyOfUser(admin, userId);
+  if (!stored) return null;
+  const next = setPaused(stored.key, paused);
+  if (!(await saveKey(admin, stored.hash, next))) return null;
+  return myCopier(next, Date.now());
+}
+
+/** The ogbot account linked to a Telegram private chat, or null. */
+async function accountOfChat(admin: Admin, chatId: number): Promise<string | null> {
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+  return (data as { id?: string } | null)?.id ?? null;
+}
+
+const NOT_LINKED =
+  "Link this Telegram to your ogbot.co.uk account first (ogbot.co.uk → Settings → Telegram), then send /mycopier again.";
+
+/** "/mycopier" in the Copy Trader B0T's private chat: the user's own card, or null when it isn't that. */
+export async function myCopierReply(
+  admin: Admin,
+  chatId: number,
+  sent: string,
+): Promise<KeysPanel | null> {
+  if (!isMyCommand(sent)) return null;
+  const userId = await accountOfChat(admin, chatId).catch(() => null);
+  if (!userId) return { text: NOT_LINKED, reply_markup: { inline_keyboard: [] } };
+  const stored = await keyOfUser(admin, userId);
+  return myPanel(stored?.key ?? null, Date.now());
+}
+
+/** A tap on the user's own card ("ck:me:…"). */
+export async function myCopierTap(
+  admin: Admin,
+  fromId: number,
+  data: string,
+): Promise<{ toast: string; panel: KeysPanel | null }> {
+  const tap = parseMyTap(data);
+  if (!tap) return { toast: "", panel: null };
+  const userId = await accountOfChat(admin, fromId).catch(() => null);
+  if (!userId) return { toast: "Link your ogbot account first.", panel: null };
+  const stored = await keyOfUser(admin, userId);
+  const now = Date.now();
+  if (!stored) return { toast: "No copier access yet.", panel: myPanel(null, now) };
+  if (tap === "refresh") return { toast: "Up to date", panel: myPanel(stored.key, now) };
+  const next = setPaused(stored.key, tap === "pause");
+  if (!(await saveKey(admin, stored.hash, next)))
+    return { toast: "⚠️ Couldn't save that. Try again.", panel: null };
+  return {
+    toast: tap === "pause" ? "⏸ Paused: nothing new opens" : "▶️ New trades are on again",
+    panel: myPanel(next, now),
+  };
 }

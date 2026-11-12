@@ -39,6 +39,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
+import { Route as AuthenticatedCopierRouteImport } from './routes/_authenticated/copier'
 import { Route as AuthenticatedDeveloperRouteImport } from './routes/_authenticated/developer'
 import { Route as AuthenticatedMessengerRouteImport } from './routes/_authenticated/messenger'
 import { Route as AuthenticatedPortalsRouteImport } from './routes/_authenticated/portals'
@@ -246,6 +247,11 @@ const AuthenticatedChangePasswordRoute =
 const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
   id: '/community',
   path: '/community',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCopierRoute = AuthenticatedCopierRouteImport.update({
+  id: '/copier',
+  path: '/copier',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDeveloperRoute = AuthenticatedDeveloperRouteImport.update({
@@ -621,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/community': typeof AuthenticatedCommunityRoute
+  '/copier': typeof AuthenticatedCopierRoute
   '/developer': typeof AuthenticatedDeveloperRoute
   '/messenger': typeof AuthenticatedMessengerRoute
   '/portals': typeof AuthenticatedPortalsRoute
@@ -712,6 +719,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/community': typeof AuthenticatedCommunityRoute
+  '/copier': typeof AuthenticatedCopierRoute
   '/developer': typeof AuthenticatedDeveloperRoute
   '/messenger': typeof AuthenticatedMessengerRoute
   '/portals': typeof AuthenticatedPortalsRoute
@@ -806,6 +814,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/change-password': typeof AuthenticatedChangePasswordRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRoute
+  '/_authenticated/copier': typeof AuthenticatedCopierRoute
   '/_authenticated/developer': typeof AuthenticatedDeveloperRoute
   '/_authenticated/messenger': typeof AuthenticatedMessengerRoute
   '/_authenticated/portals': typeof AuthenticatedPortalsRoute
@@ -901,6 +910,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/change-password'
     | '/community'
+    | '/copier'
     | '/developer'
     | '/messenger'
     | '/portals'
@@ -992,6 +1002,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/change-password'
     | '/community'
+    | '/copier'
     | '/developer'
     | '/messenger'
     | '/portals'
@@ -1085,6 +1096,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/change-password'
     | '/_authenticated/community'
+    | '/_authenticated/copier'
     | '/_authenticated/developer'
     | '/_authenticated/messenger'
     | '/_authenticated/portals'
@@ -1403,6 +1415,13 @@ declare module '@tanstack/react-router' {
       path: '/community'
       fullPath: '/community'
       preLoaderRoute: typeof AuthenticatedCommunityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/copier': {
+      id: '/_authenticated/copier'
+      path: '/copier'
+      fullPath: '/copier'
+      preLoaderRoute: typeof AuthenticatedCopierRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/developer': {
@@ -1866,6 +1885,7 @@ const AuthenticatedAdminUsersRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedChangePasswordRoute: typeof AuthenticatedChangePasswordRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
+  AuthenticatedCopierRoute: typeof AuthenticatedCopierRoute
   AuthenticatedDeveloperRoute: typeof AuthenticatedDeveloperRoute
   AuthenticatedMessengerRoute: typeof AuthenticatedMessengerRoute
   AuthenticatedPortalsRoute: typeof AuthenticatedPortalsRoute
@@ -1906,6 +1926,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChangePasswordRoute: AuthenticatedChangePasswordRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
+  AuthenticatedCopierRoute: AuthenticatedCopierRoute,
   AuthenticatedDeveloperRoute: AuthenticatedDeveloperRoute,
   AuthenticatedMessengerRoute: AuthenticatedMessengerRoute,
   AuthenticatedPortalsRoute: AuthenticatedPortalsRoute,

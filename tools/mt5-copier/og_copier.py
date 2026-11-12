@@ -422,7 +422,9 @@ def fetch():
     body = r.json()
     access = body.get("access")
     ACCESS = access if isinstance(access, dict) else None
-    note = access.get("message") if isinstance(access, dict) and not access.get("ok") else None
+    note = None
+    if isinstance(access, dict) and (not access.get("ok") or access.get("paused")):
+        note = access.get("message")
     if note != ACCESS_NOTE:
         log(note or "Access is active again.")
         ACCESS_NOTE = note
