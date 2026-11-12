@@ -468,6 +468,8 @@ export type TradePlan = {
   hedge?: boolean;
   /** A range hedge (rangeHedgePlan): a hedge fading one edge of a ranging market. */
   rangeHedge?: boolean;
+  /** A proven setup posted beside the engine's own trade (patterns alongside). */
+  alongside?: boolean;
   score: number;
   maxScore: number;
   reasons: string[];

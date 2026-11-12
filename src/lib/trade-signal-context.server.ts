@@ -825,7 +825,12 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // "range:BUY" / "range:SELL" (the scan's range-hedge step, Boss switch
   // "rangeHedge"): only the range fade on that edge (rangeHedgePlan).
   const rangeSide = /\brange:(BUY|SELL)\b/.exec(userText)?.[1] as "BUY" | "SELL" | undefined;
-  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}`;
+  // "alongside" (the scan's patterns-alongside step, Boss switch
+  // "patternsAlongside"): the proven setups even when the engine has a trade,
+  // and only them (a wait when none shows), so the engine's own trade is never
+  // posted twice.
+  const alongside = /\balongside\b/.test(userText);
+  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}${alongside ? ":alongside" : ""}`;
   const hit = cache.get(key);
   // Not past the close of a new entry candle, so a fresh setup is never hidden.
   if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
@@ -1052,7 +1057,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       waitReason: `No ${SETUP_NAMES[forced as keyof typeof SETUP_NAMES] ?? "such setup"} showing`,
     };
   } else if (
-    plan.verdict === "wait" &&
+    (plan.verdict === "wait" || alongside) &&
     SETUP_FRAMES.includes(entryIv) &&
     !spotUnconfirmed &&
     !sitOut &&
@@ -1083,8 +1088,13 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         .sort((x, y) => y.confidencePct - x.confidencePct)
         .find((h) => h.confidencePct >= floor);
       const fromSetup = hit ? setupPlan(plan, hit, live, tuning ?? DEFAULT_TUNING) : null;
-      if (fromSetup) plan = fromSetup;
+      if (fromSetup) plan = alongside ? { ...fromSetup, alongside: true } : fromSetup;
     }
+    // Alongside: only a proven setup, never the engine's own trade again.
+    if (alongside && !plan.alongside)
+      plan = { ...plan, verdict: "wait", waitReason: "No proven pattern showing" };
+  } else if (alongside) {
+    plan = { ...plan, verdict: "wait", waitReason: "No proven pattern showing" };
   }
   // Live trial: what drives each pair, beside the chart. Gold against the US
   // dollar and yields; bitcoin against who's hitting the market (taker flow).
@@ -1360,6 +1370,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       // the copier's own-ticket handling read this.
       ...(plan.hedge ? { hedge: true } : {}),
       ...(plan.rangeHedge ? { rangeHedge: true } : {}),
+      // Posted beside the engine's own trade (patterns alongside).
+      ...(plan.alongside ? { alongside: true } : {}),
       // A learned-off filter that let this one through (its live record decides if it stays off).
       ...(relaxedBy && plan.verdict === "trade" ? { relaxed: relaxedBy } : {}),
       // What the live-trial pair checks said (the Boss's report groups by it).

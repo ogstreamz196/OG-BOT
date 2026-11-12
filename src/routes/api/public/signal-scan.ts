@@ -23,6 +23,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           maybeRandomSignal,
           maybeHedgeSignal,
           maybeRangeHedge,
+          maybeAlongside,
           postToSignalsChannel,
           signalsChannelReady,
         } = await import("@/lib/signal-broadcast.server");
@@ -86,7 +87,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           // soon as it appears rather than at the next minute. Alongside it,
           // every 10 minutes, the AI desk scouts both markets (posts only when
           // every AI agrees), and a random strategy fires every 10–25 minutes.
-          const [passes, desk, random, hedges, rangeHedges] = await Promise.all([
+          const [passes, desk, random, hedges, rangeHedges, alongside] = await Promise.all([
             repeatWithin(
               () =>
                 scanAndBroadcast(supabaseAdmin, {
@@ -136,6 +137,16 @@ export const Route = createFileRoute("/api/public/signal-scan")({
               follow: deps.follow,
               now: deps.now,
             }),
+            // Proven patterns beside the engine's own trades (Boss switch "patternsAlongside", off by default).
+            maybeAlongside(supabaseAdmin, {
+              build: deps.build,
+              paper: deps.paper,
+              gate: deps.gate,
+              shadow: deps.shadow,
+              post: deps.post,
+              follow: deps.follow,
+              now: deps.now,
+            }),
           ]);
           const result = {
             checked: passes.reduce((n, p) => n + p.checked, 0),
@@ -145,6 +156,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             random,
             hedges,
             rangeHedges,
+            alongside,
             aiRunsToday: await deskRunsToday(supabaseAdmin),
             alertBars: {
               BTCUSD: await deps.alertBar("BTCUSD"),

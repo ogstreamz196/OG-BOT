@@ -943,3 +943,63 @@ export async function maybeRangeHedge(
     return "failed: error";
   }
 }
+
+/* ── Patterns alongside (the Boss's "patternsAlongside" switch, off by default) ── */
+
+const alongsideTryKey = (market: string) => `signals.alongside.lastTry.${market}`;
+
+/** The alongside card's line, naming the pattern. Pure. */
+export function tagAlongside(card: string, setup?: unknown): string {
+  const name = typeof setup === "string" && setup ? setup : "a proven pattern";
+  return `${card}\n➕ Alongside the engine: ${name}, proven on this chart`;
+}
+
+/**
+ * The patterns-alongside step, once a scan run (the Boss's switch: "run the
+ * proven patterns next to the main engine, not only when it says wait"). With
+ * "patternsAlongside" on, each market's 5-minute chart is read at most once a
+ * minute for a setup the learning loop has proven there (buildTradeSignal
+ * "alongside": only a proven setup, never the engine's own trade) and what
+ * shows is posted through postOnce with the normal gate, so it runs beside
+ * whatever the engine has open. Never throws.
+ */
+export async function maybeAlongside(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const cfg = await engineConfig().catch(() => null);
+    if (!cfg?.strategies?.patternsAlongside) return "off";
+    const now = deps.now();
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", alongsideTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < HEDGE_EVERY_MS) continue;
+      const at = new Date(now).toISOString();
+      await admin
+        .from("site_content")
+        .upsert({ key: alongsideTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
+      const signal = await deps.build(`${signalRequest(pair, "5m")} alongside`);
+      const plan = signal.plan;
+      if (!plan?.feeds?.alongside) {
+        out.push(`${market}: no proven pattern`);
+        continue;
+      }
+      const posted = await postOnce(admin, deps, signal, (s) =>
+        tagAlongside(compactCard(s.reply), s.plan?.feeds?.setup),
+      );
+      out.push(`${market} ${plan.direction}: ${posted ? "posted" : "not posted"}`);
+    }
+    return out.length ? out.join("; ") : "not due";
+  } catch (e) {
+    console.warn("[signals] alongside step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
