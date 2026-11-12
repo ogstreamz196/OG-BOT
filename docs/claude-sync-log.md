@@ -293,7 +293,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Copier sign-in (step 2). `POST
+- **Boss's Claude · 2026-11-13 · #292** · Copier sign-in (step 2). `POST
   /api/public/copier-login` { username, password } → `copierLogin`: checks the
   ogbot password server-side, finds the key the Boss added under that username
   (`key.user`, tied to the account as `key.userId` on first sign-in) and
