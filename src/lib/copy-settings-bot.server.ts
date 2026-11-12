@@ -7,9 +7,26 @@
 // site_content "copy.settings", which every Python copier reads on each check
 // (copySettings in copy-feed.ts); each change is audit-logged. Typed commands
 // (/lot 0.1, /maxopen 6 …) still work for values the buttons don't offer.
-import { copySettings, MULTIPLIERS, multLabel, type CopySettings } from "./copy-feed";
+import {
+  copySettings,
+  MULTIPLIERS,
+  multLabel,
+  LOT_BAND_ORDER,
+  lotBandLabel,
+  type CopySettings,
+  type LotBand,
+} from "./copy-feed";
+import { STRATEGY_KEYS, type EngineConfig, type StrategyToggles } from "./engine-config";
 
 type Admin = any;
+
+/** Short labels for the strategy switches shown in the copier card. */
+const STRATEGY_LABEL: Record<keyof StrategyToggles, string> = {
+  sniper: "🎯 Sniper entries",
+  hedges: "⚖️ Counter-trend hedges",
+  rangeHedge: "🔁 Range hedging",
+  patternsAlongside: "➕ Patterns alongside",
+};
 
 export const SETTINGS_KEY = "copy.settings";
 
@@ -46,13 +63,27 @@ const marketsOf = (s: CopySettings) => s.markets ?? ALL_MARKETS;
 const maxOpenOf = (s: CopySettings) => s.maxOpen ?? DEFAULTS.maxOpen;
 const lateOf = (s: CopySettings) => s.maxLateMinutes ?? DEFAULTS.maxLateMinutes;
 const lotIsBot = (s: CopySettings) => s.lot === undefined || s.lot === "bot";
+const bandOf = (s: CopySettings): LotBand => s.lotBand ?? "small";
+/** Off (all switches off) unless the engine config says otherwise. */
+const noStrategies: StrategyToggles = {
+  sniper: false,
+  hedges: false,
+  rangeHedge: false,
+  patternsAlongside: false,
+};
 
 /** The settings card's text: what each setting means, in plain words. Pure. */
-export function panelText(s: CopySettings, note?: string): string {
+export function panelText(
+  s: CopySettings,
+  strategies: StrategyToggles = noStrategies,
+  note?: string,
+): string {
   const markets = marketsOf(s);
-  const lot = lotIsBot(s)
-    ? "same as the bot (0.05 to 0.3, bigger when it's surer)"
-    : `${s.lot} on every trade`;
+  // A fixed lot still shows (set by the /lot command); the bands are the buttons.
+  const lot =
+    typeof s.lot === "number"
+      ? `${s.lot} on every trade`
+      : `${lotBandLabel(bandOf(s))} (bigger when the signal's surer)`;
   return [
     ...(note ? [note, ""] : []),
     "⚙️ COPIER SETTINGS",
@@ -62,16 +93,16 @@ export function panelText(s: CopySettings, note?: string): string {
       ? "⏸ PAUSED: no new trades. Open trades are still managed and closed."
       : "▶️ COPYING: new trades are copied.",
     `📏 Lot size: ${lot}`,
-    `🎯 Risk multiplier: ${multLabel(s.multiplier ?? 1)}`,
-    s.hft
-      ? "⚡ High-frequency: ON (checks every second, up to 20 trades open)"
-      : "⚡ High-frequency: OFF",
     `📈 Markets: ${markets.length ? markets.map((m) => MARKET_LABEL[m] ?? m).join(" and ") : "none (nothing new is copied)"}`,
     `🔢 Max trades open at once: ${maxOpenOf(s)}`,
     `⏱ Joins a trade up to ${lateOf(s)} min after it opens`,
     s.useBrokerStop
       ? "🛑 Safety stop on the broker: ON (the bot's stop sits on the broker too, in case the laptop goes off)"
       : "🛑 Safety stop on the broker: OFF (the copier closes trades itself, so keep it running)",
+    "",
+    "🎛 STRATEGIES (several run at once)",
+    `⚡ High-frequency: ${s.hft ? "ON" : "OFF"}`,
+    ...STRATEGY_KEYS.map((k) => `${strategies[k] ? "✅ ON" : "⬜️ OFF"} — ${STRATEGY_LABEL[k]}`),
     "",
     "Tap a button to change it.",
   ].join("\n");
@@ -80,9 +111,13 @@ export function panelText(s: CopySettings, note?: string): string {
 type Button = { text: string; callback_data: string };
 
 /** The card's tap buttons; ✅ marks what's chosen. Pure. */
-export function panelKeyboard(s: CopySettings): { inline_keyboard: Button[][] } {
+export function panelKeyboard(
+  s: CopySettings,
+  strategies: StrategyToggles = noStrategies,
+): { inline_keyboard: Button[][] } {
   const tick = (on: boolean, label: string) => `${on ? "✅ " : ""}${label}`;
   const markets = marketsOf(s);
+  const band = bandOf(s);
   return {
     inline_keyboard: [
       [
@@ -90,17 +125,11 @@ export function panelKeyboard(s: CopySettings): { inline_keyboard: Button[][] } 
           ? { text: "▶️ Resume copying", callback_data: "cs:resume" }
           : { text: "⏸ Pause copying", callback_data: "cs:pause" },
       ],
-      [{ text: tick(lotIsBot(s), "📏 Lot: same as the bot"), callback_data: "cs:lot:bot" }],
-      MULTIPLIERS.map((m) => ({
-        text: tick((s.multiplier ?? 1) === m, multLabel(m)),
-        callback_data: `cs:mult:${m}`,
+      // Lot size: three clear bands (replaces "same as the bot" + the multiplier).
+      LOT_BAND_ORDER.map((b) => ({
+        text: tick(typeof s.lot !== "number" && band === b, `📏 ${lotBandLabel(b)}`),
+        callback_data: `cs:band:${b}`,
       })),
-      [
-        {
-          text: s.hft ? "⚡ High-frequency: ON · tap to turn off" : "⚡ High-frequency: OFF · tap to turn on",
-          callback_data: s.hft ? "cs:hft:off" : "cs:hft:on",
-        },
-      ],
       [
         { text: tick(markets.includes("XAUUSD"), "🥇 Gold"), callback_data: "cs:mk:XAUUSD" },
         { text: tick(markets.includes("BTCUSD"), "₿ Bitcoin"), callback_data: "cs:mk:BTCUSD" },
@@ -123,6 +152,21 @@ export function panelKeyboard(s: CopySettings): { inline_keyboard: Button[][] } 
           callback_data: s.useBrokerStop ? "cs:stop:off" : "cs:stop:on",
         },
       ],
+      // Strategies: high-frequency plus the signal strategy switches.
+      [
+        {
+          text: s.hft
+            ? "⚡ High-frequency: ON · tap to turn off"
+            : "⚡ High-frequency: OFF · tap to turn on",
+          callback_data: s.hft ? "cs:hft:off" : "cs:hft:on",
+        },
+      ],
+      ...STRATEGY_KEYS.map((k) => [
+        {
+          text: `${STRATEGY_LABEL[k]}: ${strategies[k] ? "ON · tap off" : "OFF · tap on"}`,
+          callback_data: `es:${k}:${strategies[k] ? "off" : "on"}`,
+        },
+      ]),
       [{ text: "🔄 Refresh", callback_data: "cs:refresh" }],
     ],
   };
@@ -146,6 +190,14 @@ export function applyPanelAction(
       return save({ paused: true }, "⏸ Paused: no new trades");
     case "resume":
       return save({ paused: false }, "▶️ Copying new trades again");
+    case "band": {
+      if (!LOT_BAND_ORDER.includes(val as LotBand)) return { next: null, toast: "" };
+      // Picking a band clears any fixed lot so the band is in charge.
+      return save(
+        { lotBand: val as LotBand, lot: undefined },
+        `📏 Lot ${lotBandLabel(val as LotBand)}`,
+      );
+    }
     case "lot": {
       if (val === "bot") return save({ lot: "bot" }, "📏 Lot: same as the bot");
       const n = Number(val);
@@ -344,6 +396,20 @@ async function saveSettings(
 
 export type Panel = { text: string; reply_markup: { inline_keyboard: Button[][] } };
 
+/** The engine strategy switches, shown in the copier card's Strategies section. */
+async function loadStrategies(admin: Admin): Promise<StrategyToggles> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    return (await engineConfig()).strategies;
+  } catch {
+    return noStrategies;
+  }
+}
+const card = (s: CopySettings, strat: StrategyToggles, note?: string): Panel => ({
+  text: panelText(s, strat, note),
+  reply_markup: panelKeyboard(s, strat),
+});
+
 /**
  * The copy bot's answer to a settings message from a private chat (the
  * settings card, after applying a typed command), or null when it isn't one
@@ -362,16 +428,13 @@ export async function copySettingsReply(
   );
   if (!boss.ok) return null;
   const current = await loadSettings(admin);
-  if (cmd === "settings" || cmd === "copysettings")
-    return { text: panelText(current), reply_markup: panelKeyboard(current) };
+  const strat = await loadStrategies(admin);
+  if (cmd === "settings" || cmd === "copysettings") return card(current, strat);
   const { next, reply } = applyCommand(current, text);
-  if (!next) return { text: panelText(current, reply), reply_markup: panelKeyboard(current) };
+  if (!next) return card(current, strat, reply);
   const saved = await saveSettings(admin, boss.userId, next, cmd);
   const shown = saved ? next : current;
-  return {
-    text: panelText(shown, saved ? reply : "⚠️ Couldn't save that. Try again in a minute."),
-    reply_markup: panelKeyboard(shown),
-  };
+  return card(shown, strat, saved ? reply : "⚠️ Couldn't save that. Try again in a minute.");
 }
 
 /**
@@ -387,15 +450,29 @@ export async function copySettingsTap(
     () => ({ ok: false }) as { ok: boolean; userId?: string },
   );
   if (!boss.ok) return { toast: "Only the Boss can change these.", panel: null };
+
+  // A strategy switch (es:…) edits the engine config, not the copier settings.
+  if (data.startsWith("es:")) {
+    const { engineConfig, saveEngineConfig } = await import("./engine-config.server");
+    const { applyStrategyTap } = await import("./engine-strategies-bot.server");
+    const cfg: EngineConfig = await engineConfig();
+    const { next: nextCfg, toast } = applyStrategyTap(cfg, data);
+    const settings = await loadSettings(admin);
+    if (!nextCfg) return { toast: toast || "Up to date", panel: card(settings, cfg.strategies) };
+    const saved = await saveEngineConfig(admin, nextCfg, boss.userId).catch(() => null);
+    const strat = (saved ?? cfg).strategies;
+    return {
+      toast: saved ? `✅ ${toast}` : "⚠️ Couldn't save that. Try again.",
+      panel: card(settings, strat),
+    };
+  }
+
   const current = await loadSettings(admin);
+  const strat = await loadStrategies(admin);
   const { next, toast } = applyPanelAction(current, data);
-  if (data === "cs:refresh")
-    return { toast, panel: { text: panelText(current), reply_markup: panelKeyboard(current) } };
+  if (data === "cs:refresh") return { toast, panel: card(current, strat) };
   if (!next) return { toast, panel: null };
   if (!(await saveSettings(admin, boss.userId, next, data)))
     return { toast: "⚠️ Couldn't save that. Try again.", panel: null };
-  return {
-    toast: `✅ ${toast}`,
-    panel: { text: panelText(next), reply_markup: panelKeyboard(next) },
-  };
+  return { toast: `✅ ${toast}`, panel: card(next, strat) };
 }

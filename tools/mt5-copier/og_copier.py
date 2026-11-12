@@ -42,6 +42,10 @@ TOKEN = c.get("token", "").strip()
 # that lot on every trade.
 LOT_SETTING = c.get("lot", "bot").strip().lower()
 LOT = 0.02 if LOT_SETTING == "bot" else float(LOT_SETTING)
+# Lot-size bands (set remotely): the copier takes a lot inside the band, bigger
+# the surer the signal. The band replaces the old lot + multiplier controls.
+LOT_BANDS = {"small": (0.01, 0.05), "medium": (0.02, 0.1), "large": (0.1, 0.5)}
+LOT_BAND = "small"
 
 DRY_RUN = c.getboolean("dry_run", True)
 USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
@@ -136,7 +140,19 @@ def send(request, what):
 
 
 def lot_for(sig):
-    """The Copy Trader B0T's lot for this signal when lot = bot, else the fixed lot."""
+    """The lot for this signal: inside the chosen band (bigger when surer), or
+    the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
+    risk multiplier only still applies to the bot/fixed modes."""
+    if LOT_SETTING == "band":
+        lo, hi = LOT_BANDS[LOT_BAND]
+        t = 0.0
+        try:
+            conf = sig.get("confidence")
+            if conf is not None:
+                t = max(0.0, min(1.0, (float(conf) - 55) / 35))
+        except (TypeError, ValueError):
+            t = 0.0
+        return round(lo + (hi - lo) * t, 2)
     mult = REMOTE.get("multiplier", 1) if isinstance(REMOTE, dict) else 1
     base = float(sig["lots"]) if LOT_SETTING == "bot" else LOT
     return base * float(mult or 1)
@@ -216,14 +232,19 @@ def move_stop(ticket, sym, stop):
 # ── the loop ───────────────────────────────────────────────────────────────
 def apply_remote(settings):
     """Settings set on the server (site_content copy.settings) win over config.ini."""
-    global PAUSED, LOT_SETTING, LOT, MARKETS, MAX_OPEN, MAX_LATE_MINUTES, USE_BROKER_STOP, REMOTE
+    global PAUSED, LOT_SETTING, LOT, LOT_BAND, MARKETS, MAX_OPEN, MAX_LATE_MINUTES
+    global USE_BROKER_STOP, REMOTE
     settings = settings or {}
     if settings == REMOTE:
         return
     REMOTE = settings
     PAUSED = bool(settings.get("paused", False))
+    band = settings.get("lotBand")
     lot = settings.get("lot")
-    if lot == "bot":
+    # A band is the lot control on the card; a fixed lot or "bot" still work too.
+    if band in LOT_BANDS:
+        LOT_SETTING, LOT_BAND = "band", band
+    elif lot == "bot":
         LOT_SETTING, LOT = "bot", 0.02
     elif isinstance(lot, (int, float)) and lot > 0:
         LOT_SETTING, LOT = str(lot), float(lot)
@@ -241,7 +262,12 @@ def apply_remote(settings):
         USE_BROKER_STOP = settings["useBrokerStop"]
     if settings.get("hft") is True:
         MAX_OPEN = max(MAX_OPEN, 20)
-    size = "the bot's lot" if LOT_SETTING == "bot" else f"{LOT} lots"
+    if LOT_SETTING == "band":
+        size = f"the {LOT_BAND} lot band {LOT_BANDS[LOT_BAND]}"
+    elif LOT_SETTING == "bot":
+        size = "the bot's lot"
+    else:
+        size = f"{LOT} lots"
     log(
         f"Remote settings: {'PAUSED (managing open trades only), ' if PAUSED else ''}"
         f"{', '.join(MARKETS) or 'no markets'} at {size}, max {MAX_OPEN} open, "
