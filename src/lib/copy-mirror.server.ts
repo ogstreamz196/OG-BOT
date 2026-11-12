@@ -7,7 +7,7 @@
 // is posted when a setting changes: the next trades simply follow it. The
 // bot's own lot is kept as feeds.paper.botLots, which the copy feed sends,
 // so the copier never applies its multiplier twice. Never throws.
-import { copierLot, copierSkips, copySettings } from "./copy-feed";
+import { copierBalance, copierLot, copierSkips, copySettings } from "./copy-feed";
 
 type Admin = any;
 
@@ -72,7 +72,15 @@ export async function mirrorCopier(
     ).length;
     const skip = copierSkips(s, o.market, openCopied);
     if (skip) return { lots: 0, why: `not copied: ${skip}` };
-    return { lots: copierLot(s, o) };
+    // The gold balance rule on the real account's balance when the copier has
+    // reported it lately, else the test account's.
+    const { data: bal } = await admin
+      .from("site_content")
+      .select("value")
+      .eq("key", "copy.balance")
+      .maybeSingle();
+    const real = copierBalance((bal as { value?: string } | null)?.value, Date.now());
+    return { lots: copierLot(s, { ...o, balance: real ?? o.balance }) };
   } catch {
     return { lots: o.botLots };
   }

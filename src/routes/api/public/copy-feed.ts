@@ -4,6 +4,10 @@ import { createFileRoute } from "@tanstack/react-router";
 // the OG Trade Bot's signals from the last day, with the level the bot would
 // close at now. Read-only. Needs the header x-copy-token matching site_content
 // "copy.feedToken" (24+ characters); without that token set, it's off (403).
+// The last balance stored, so a copier polling twice a second writes at most
+// once a minute (or when the balance moves a dollar).
+let lastBalance: { value: number; at: number } | null = null;
+
 export const Route = createFileRoute("/api/public/copy-feed")({
   server: {
     handlers: {
@@ -12,6 +16,32 @@ export const Route = createFileRoute("/api/public/copy-feed")({
         const { copyTokenOk } = await import("@/lib/mt5-account.server");
         if (!(await copyTokenOk(supabaseAdmin, request)))
           return new Response("Forbidden", { status: 403 });
+        // The copier reports its MT5 balance (x-copy-balance), so the signals
+        // chat's test account applies the gold balance rule on the real one.
+        try {
+          const { balanceHeader } = await import("@/lib/copy-feed");
+          const reported = balanceHeader(request.headers.get("x-copy-balance"));
+          const nowMs = Date.now();
+          if (
+            reported != null &&
+            (!lastBalance ||
+              nowMs - lastBalance.at > 60_000 ||
+              Math.abs(reported - lastBalance.value) >= 1)
+          ) {
+            lastBalance = { value: reported, at: nowMs };
+            const at = new Date(nowMs).toISOString();
+            await supabaseAdmin.from("site_content").upsert(
+              {
+                key: "copy.balance",
+                value: JSON.stringify({ balance: reported, at }),
+                updated_at: at,
+              },
+              { onConflict: "key" },
+            );
+          }
+        } catch {
+          // Never blocks the feed.
+        }
         const { signalsChatId } = await import("@/lib/signal-chat.server");
         const chat = await signalsChatId();
         if (chat == null) return Response.json({ ok: true, now: Date.now(), signals: [] });

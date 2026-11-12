@@ -293,6 +293,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #290** · The signals chat follows the
+  copier's rules on the real balance. It already used `copierLot` /
+  `copierSkips` (bands, HFT top of band, no cap); the gold $400 rule was
+  checked on the test account's balance. Now `og_copier.py` sends its MT5
+  balance on each feed poll (`x-copy-balance`), the copy-feed route stores
+  site_content `copy.balance` (at most once a minute), and `mirrorCopier` uses
+  it while under 15 minutes old. No migrations. The laptop copier needs the
+  new `og_copier.py`.
+
 - **Boss's Claude · 2026-11-13 · #289** · HFT lots stay inside the band set
   on the card (the Boss: "bigger lots" = the top of the range, e.g. 0.05 on
   0.01–0.05, not a bigger range). `hftLotSpot` replaces `hftBand` and
