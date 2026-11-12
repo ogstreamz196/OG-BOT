@@ -172,7 +172,7 @@ export function safeTuning(t: Partial<Tuning>): Tuning {
   return {
     stopPad: Number(round(clamp(Number(t.stopPad), BOUNDS.stopPad), 0.05).toFixed(2)),
     tpPad: Number(switchable(Number(t.tpPad), BOUNDS.tpPad, 0.05).toFixed(2)),
-    entryStyle: [0, 1, 2, 3].includes(Math.round(Number(t.entryStyle)))
+    entryStyle: [0, 1, 2, 3, 4].includes(Math.round(Number(t.entryStyle)))
       ? Math.round(Number(t.entryStyle))
       : 0,
     // Retired: every trade has the Boss's profit lock instead.
@@ -227,6 +227,27 @@ export function applyTuning(s: LearnSample, tune: Tuning, tpToStop?: number) {
   const pull = s.raw.pull;
   const alt = s.raw.alt;
   const style = alt ? tune.entryStyle : 0;
+  // Sniper (entryStyle 4): a limit at the setup's stored FVG-50%/retest level,
+  // with its own tight structure stop (no stop-room widening) and clean 1/2/3R
+  // targets, so it replays the same way the live sniper plan is built.
+  const sn = s.raw.sniper;
+  if (style === 4 && sn) {
+    const entry = sn.entry;
+    const risk4 = Math.max(Math.abs(entry - sn.stop), s.raw.atr * 0.1);
+    const raw4 = [entry + side * risk4, entry + side * risk4 * 2, entry + side * risk4 * 3] as [
+      number,
+      number,
+      number,
+    ];
+    const tp = scaleTargets(s.direction, entry, raw4, s.raw.atr * 0.05, tune.scale)[0];
+    return {
+      entry,
+      type: "limit" as const,
+      stop: sn.stop,
+      targets: exitTargets(entry, tp, tune.runner),
+      ...lockLevels(s.direction, entry, tp),
+    };
+  }
   // The engine's own entry (a pullback moves with the learned depth), or the
   // learned entry style on the same setup: pullback, break or now.
   let entry = pull ? pull.price + (pull.mean - pull.price) * tune.pullback : s.entry;
@@ -292,6 +313,8 @@ export function evaluate(
   for (const s of samples) {
     if (s.verdict !== "trade" || s.confidencePct < tune.minConfidence || !(s.raw.risk > 0))
       continue;
+    // The sniper style can only play a setup that had an FVG-50%/retest level.
+    if (tune.entryStyle === 4 && !s.raw.sniper) continue;
     // Too quiet, or a time of day it sits out (unknown readings never filter).
     if (s.raw.vol != null && s.raw.vol < tune.minVol) continue;
     if (s.raw.block != null && tune.skipBlocks.includes(s.raw.block)) continue;
@@ -406,8 +429,8 @@ export function candidates(current: Tuning, rand: () => number, count = 48): Tun
         beAt: 0,
         runner:
           rand() < 0.25 ? (current.runner ? 0 : 1.5 + rand() * 1.5) : nudge(current.runner, 0.4),
-        // Now and then another way in.
-        entryStyle: rand() < 0.2 ? Math.floor(rand() * 4) : current.entryStyle,
+        // Now and then another way in (0–3, or 4 the sniper limit).
+        entryStyle: rand() < 0.2 ? Math.floor(rand() * 5) : current.entryStyle,
         stopPad: nudge(current.stopPad, 0.15),
         tpPad: rand() < 0.2 ? (current.tpPad ? 0 : 0.1 + rand() * 0.5) : nudge(current.tpPad, 0.1),
       }),
@@ -429,7 +452,7 @@ const describe = (t: Tuning) =>
     ? `, cancelling an entry not filled within ${t.fillWithin} minutes`
     : "") +
   (t.entryStyle
-    ? `, entering ${["", "on a pullback", "on a break", "at the price now"][t.entryStyle]} every time`
+    ? `, entering ${["", "on a pullback", "on a break", "at the price now", "with a sniper limit into the last gap"][t.entryStyle]} every time`
     : "") +
   (t.stopPad !== 0.25 ? `, the stop ${t.stopPad} ATR beyond the swing` : "") +
   (t.tpPad ? `, taking profit ${t.tpPad} ATR short of the next level or round number` : "") +

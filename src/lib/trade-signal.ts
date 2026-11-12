@@ -482,6 +482,12 @@ export type TradePlan = {
      * the learning loop try another entry style on the same setup.
      */
     alt?: { price: number; mean: number; breakAt: number };
+    /**
+     * The sniper entry for this setup (entryStyle 4): the limit price (50% of
+     * the last FVG or the retest level) and its tight structure stop, so the
+     * learning loop can try the sniper style on the same setup.
+     */
+    sniper?: { entry: number; stop: number };
     /** The first level in the trade's way (support/resistance or a round number). */
     ahead?: number;
     /** The risk came from a swing plus the stop pad (so a learned pad can move it). */
@@ -761,6 +767,63 @@ export function scaleTargets(
   return [entry + quick * s, entry + potentially * s, entry + runner * s];
 }
 
+/** Fewest closed entry-frame candles a sniper entry is read from. */
+const SNIPER_MIN_CANDLES = 80;
+
+/**
+ * Sniper entry (entryStyle 4): a limit back into the market, not a chase.
+ * First choice is the 50% of the last unfilled fair value gap on the entry
+ * frame, the trade's way; failing that, the retest of the level price just
+ * broke. The stop sits just behind what proves it wrong — the gap's origin or
+ * the swept wick/structure — plus a small spread pad (ATRs), never the wide
+ * ATR stop. Returns the limit price and that stop, or null when there's no
+ * such level or it isn't on the right side of the price to rest a limit on.
+ * Pure: the backtest and the live path read it from the same closed candles.
+ */
+export function sniperEntry(
+  cs: Candle[],
+  side: 1 | -1,
+  a: number,
+  pad: number,
+  price: number,
+): { entry: number; stop: number; basis: "fvg" | "retest" } | null {
+  if (cs.length < SNIPER_MIN_CANDLES || !(a > 0) || !(price > 0)) return null;
+  const n = cs.length;
+  // 1) The last unfilled FVG, newest first (candle 3 a couple back from the last).
+  for (let k = n - 4; k >= Math.max(0, n - 22); k--) {
+    const c1 = cs[k];
+    const c3 = cs[k + 2];
+    const gap = side === 1 ? c3.l - c1.h : c1.l - c3.h;
+    if (gap < a * 0.2) continue;
+    // Still open: no close since has gone back through the gap's far edge.
+    const far = side === 1 ? c1.h : c1.l;
+    const after = cs.slice(k + 3);
+    if (after.some((c) => (side === 1 ? c.c < far : c.c > far))) continue;
+    const entryPx = side === 1 ? (c1.h + c3.l) / 2 : (c1.l + c3.h) / 2;
+    const origin = side === 1 ? c1.l : c1.h;
+    const stop = origin - side * a * pad;
+    // A limit rests on the far side of the price, the stop beyond the entry.
+    if ((price - entryPx) * side > 0 && (entryPx - stop) * side > 0)
+      return { entry: entryPx, stop, basis: "fvg" };
+  }
+  // 2) Retest of the level price just broke.
+  const form = cs.slice(-8, -2);
+  const last = cs[n - 1];
+  if (form.length >= 4) {
+    const level = side === 1 ? Math.max(...form.map((c) => c.h)) : Math.min(...form.map((c) => c.l));
+    if ((last.c - level) * side > a * 0.1) {
+      const swept =
+        side === 1
+          ? Math.min(...cs.slice(-5).map((c) => c.l))
+          : Math.max(...cs.slice(-5).map((c) => c.h));
+      const stop = swept - side * a * pad;
+      if ((price - level) * side > 0 && (level - stop) * side > 0)
+        return { entry: level, stop, basis: "retest" };
+    }
+  }
+  return null;
+}
+
 export function buildPlan(
   higher: FrameRead,
   middle: FrameRead,
@@ -870,9 +933,24 @@ export function buildPlan(
     : Math.min(price, ...lastTwoBars.map((c) => c.l)) - a * 0.1;
   // A learned entry style overrides the engine's choice (classic never does).
   const style = classic ? 0 : (tune.entryStyle ?? 0);
+  // The sniper entry (50% of the last FVG or the retest level) and its tight
+  // structure stop. Worked out for every setup so the learner can try the
+  // sniper style on it, used live only when the style is set to it (4).
+  const snipe = classic ? null : sniperEntry(entryCandles, long ? 1 : -1, a, tune.stopPad ?? 0.25, price);
   const wantPull = style === 1 || (style === 0 && (stretchedNow || farFromMean));
   const wantBreak = style === 2 || (style === 0 && !wantPull && momentumAgainst);
-  if (style === 3) {
+  // Style 4 with no FVG/retest level to rest a limit on: nothing is posted.
+  let sniperMiss = false;
+  const sniperActive = style === 4 && !!snipe;
+  if (style === 4) {
+    if (snipe) {
+      entryPx = snipe.entry;
+      entryType = "limit";
+      entryNote = `Sniper limit at the ${snipe.basis === "fvg" ? "50% of the last fair value gap" : "retest of the level price just broke"}`;
+    } else {
+      sniperMiss = true;
+    }
+  } else if (style === 3) {
     // At the price now.
   } else if (wantPull) {
     // Part of the way back to the 20 EMA (all the way under the classic
@@ -898,10 +976,13 @@ export function buildPlan(
   if (classic) risk = Math.min(Math.max(risk, a * 1), a * 3);
   else risk = risk > a * MAX_STOP_ATR ? a * 2 : Math.max(risk, a * 0.8);
   const padded = structure != null && risk === swingRisk;
+  // The sniper carries its own tight stop just behind the structure/wick, so it
+  // skips the swing/ATR risk and the members' stop-room widening entirely.
+  if (sniperActive) risk = Math.abs(entryPx - snipe!.stop);
   // Members' stop sits 20% further from the entry than the engine's risk, so
   // the trade has room to breathe; the targets keep the engine's R spacing.
-  const stopDistance = classic ? risk : risk * tune.stopRoom * SL_WIDEN;
-  const stop = long ? entryPx - stopDistance : entryPx + stopDistance;
+  const stopDistance = classic || sniperActive ? risk : risk * tune.stopRoom * SL_WIDEN;
+  const stop = sniperActive ? snipe!.stop : long ? entryPx - stopDistance : entryPx + stopDistance;
   const at = (r: number) => (long ? entryPx + risk * r : entryPx - risk * r);
   const t1 = at(1);
   let t1s = t1;
@@ -928,6 +1009,7 @@ export function buildPlan(
     targets: [t1, t2, t3] as [number, number, number],
     atr: a,
     ...(pull ? { pull } : {}),
+    ...(snipe ? { sniper: { entry: snipe.entry, stop: snipe.stop } } : {}),
     alt: { price, mean: entry.ema20, breakAt },
     padded,
     vol: volRatioNow,
@@ -980,7 +1062,9 @@ export function buildPlan(
   // When to sit it out rather than trade.
   let waitReason: string | undefined;
   if (!classic) {
-    if (session?.closed) waitReason = session.closed;
+    if (sniperMiss)
+      waitReason = "No sniper entry: price isn't set up for a limit back into a gap or a level right now.";
+    else if (session?.closed) waitReason = session.closed;
     else if (choppy) waitReason = "No real trend right now, price is ranging.";
     else if (!aligned && momentumAgainst)
       waitReason = "The timeframes disagree and short-term momentum is against the trade.";

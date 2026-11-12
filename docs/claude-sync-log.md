@@ -7,6 +7,17 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+- Boss's Claude · `sniper-hedge-engine` · Sniper entries (entryStyle 4, FVG-50%
+  limit / structure retest, tight structure stop, lapse if unfilled) + counter-
+  trend hedges (sweep_reclaim/wick_rejection/exhaustion_reversal, `feeds.hedge`,
+  1R, BE at 0.5R, own-side concurrency, Boss `hedges` switch default off) + run
+  proven patterns alongside the main engine (same gate/room/70% bar) + copy feed
+  passes `hedge`/`entryType`, og_copier keeps hedges as separate tickets. Gold &
+  BTC only; confidence floor unchanged; no data deleted. Touches
+  `trade-tweaker.ts`, `trade-signal.ts`, `trade-setups.ts`,
+  `signal-learning.server.ts`, `signal-broadcast.server.ts`, `engine-config.ts`,
+  `copy-feed.ts`, `tools/mt5-copier/og_copier.py`, tests.
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
