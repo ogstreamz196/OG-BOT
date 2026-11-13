@@ -1,15 +1,12 @@
 import { Copy, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { copyText } from "@/lib/copy-text";
 
 export function OgVipIdCard({ id }: { id: string }) {
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(id);
-      toast.success("OG VIP ID copied");
-    } catch {
-      toast.error("Couldn't copy — write it down instead.");
-    }
+    if (await copyText(id)) toast.success("OG VIP ID copied");
+    else toast.error("Couldn't copy — write it down instead.");
   };
   return (
     <div className="rounded-2xl border-2 border-coin/60 bg-coin/10 p-4 text-left shadow-glow">

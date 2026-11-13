@@ -62,6 +62,7 @@ import {
 } from "@/lib/telegram-admin.functions";
 import { Wrench, Flame } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/copy-text";
 
 export const Route = createFileRoute("/_authenticated/admin/users/$userId")({
   component: UserSettingsRoute,
@@ -290,7 +291,11 @@ function UserSettingsPage() {
           <InfoCard
             icon={<Calendar className="h-4 w-4" />}
             label="Joined"
-            value={new Date(profile.created_at).toLocaleDateString()}
+            value={
+              profile.created_at && !Number.isNaN(Date.parse(profile.created_at))
+                ? new Date(profile.created_at).toLocaleDateString("en-GB")
+                : "—"
+            }
           />
         </section>
 
@@ -604,7 +609,7 @@ function TelegramDmCard({
   const copy = async () => {
     try {
       if (!connectLink) return toast.error("Create a link first");
-      await navigator.clipboard.writeText(connectLink);
+      if (!(await copyText(connectLink))) throw new Error("copy");
       toast.success("Registration link copied");
     } catch {
       toast.error("Couldn't copy — long-press to copy");

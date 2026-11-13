@@ -36,7 +36,7 @@ function TermsPage() {
     <main className="safe-top safe-bottom safe-x mx-auto max-w-3xl px-5 py-12 text-foreground">
       <Link
         to="/welcome"
-        className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground"
+        className="-ml-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground"
       >
         ← Back
       </Link>

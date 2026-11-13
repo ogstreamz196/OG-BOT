@@ -299,6 +299,17 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #302** · Every-page, every-browser scan.
+  Playwright opened all 72 pages at phone, tablet and desktop sizes, signed
+  out and as a stand-in Boss (fake session, empty data, nothing real
+  touched): no page wider than the screen, no script errors. Fixes: shared
+  `copyText()` (works in Telegram's in-app browser and older Safari, never
+  says "copied" when it didn't; 18 call sites), `newId()` (the welcome
+  page's guest battle crashed where `crypto.randomUUID` is missing), a
+  "Loading OG B0T…" screen instead of a blank background while the app
+  starts, bigger "← Back" on Terms/Privacy/Trust, a plain message when the
+  beats list fails, and "—" instead of "Invalid Date" on a member page.
+
 - **Boss's Claude · 2026-11-13 · #301** · Settings page regrouped: Profile
   (profile, VIP ID, Vault login, Telegram link), VIP & coins (VIP plan,
   coin activity, invites), Preferences (OG B0T, memory, look), Security,

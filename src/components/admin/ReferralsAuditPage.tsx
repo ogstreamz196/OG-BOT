@@ -8,6 +8,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { copyText } from "@/lib/copy-text";
 
 type AuditUser = {
   id: string;
@@ -36,10 +37,7 @@ type LedgerRow = {
 };
 
 function copy(text: string, label = "Copied") {
-  navigator.clipboard?.writeText(text).then(
-    () => toast.success(label),
-    () => toast.error("Copy failed"),
-  );
+  void copyText(text).then((ok) => (ok ? toast.success(label) : toast.error("Copy failed")));
 }
 
 export function ReferralsAuditPage() {

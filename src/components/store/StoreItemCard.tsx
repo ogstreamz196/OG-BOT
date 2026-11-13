@@ -20,6 +20,7 @@ import type { StoreItem } from "@/lib/store.functions";
 import { cn } from "@/lib/utils";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import vaultArt from "@/assets/og-bot-vault.webp";
+import { copyText } from "@/lib/copy-text";
 
 const RARITY: Record<StoreItem["rarity"], { label: string; icon: ReactNode }> = {
   common: {
@@ -274,11 +275,9 @@ export function StoreItemCard({
                 size="icon-sm"
                 variant="ghost"
                 aria-label={`Copy ${label.toLowerCase()}`}
-                onClick={() => {
-                  navigator.clipboard?.writeText(value).then(
-                    () => toast.success(`${label} copied`),
-                    () => toast.error("Couldn’t copy — select it manually"),
-                  );
+                onClick={async () => {
+                  if (await copyText(value)) toast.success(`${label} copied`);
+                  else toast.error("Couldn’t copy — select it manually");
                 }}
               >
                 <Copy className="h-3.5 w-3.5" />

@@ -13,6 +13,7 @@ import sportsGuideLogo from "@/assets/og-bot-sports-guide-900.webp";
 import sportsGuideIcon from "@/assets/og-bot-sports-guide-160.webp";
 import { getSportsGuideHub, syncSportsGuide, type SportsGuidePost } from "@/lib/sports-guide.functions";
 import { purchaseSportsGuideAccess } from "@/lib/store.functions";
+import { copyText } from "@/lib/copy-text";
 
 export const Route = createFileRoute("/_authenticated/sports")({
   head: () => ({
@@ -431,9 +432,9 @@ function ListingCard({ listing: l, terms }: { listing: Listing; terms: string[] 
           size="sm"
           variant="ghost"
           className="h-8 text-xs"
-          onClick={() => {
-            navigator.clipboard?.writeText(text);
-            toast.success("Copied");
+          onClick={async () => {
+            if (await copyText(text)) toast.success("Copied");
+            else toast.error("Couldn't copy. Press and hold to copy instead.");
           }}
         >
           <Copy className="mr-1 h-3.5 w-3.5" /> Copy

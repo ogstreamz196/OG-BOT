@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { BindReferrerCard } from "@/components/referrals/BindReferrerCard";
 import { Lock, ShieldAlert } from "lucide-react";
+import { copyText } from "@/lib/copy-text";
 
 export const Route = createFileRoute("/_authenticated/referrals")({
   component: ReferralsPage,
@@ -72,31 +73,6 @@ type Summary = {
   }[];
 };
 
-async function copyTextWithFallback(text: string): Promise<boolean> {
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* fall through */
-  }
-  try {
-    if (typeof document === "undefined") return false;
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.setAttribute("readonly", "");
-    el.style.position = "fixed";
-    el.style.opacity = "0";
-    document.body.appendChild(el);
-    el.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(el);
-    return ok;
-  } catch {
-    return false;
-  }
-}
 
 function ReferralsPage() {
   const { user } = useAuth();
@@ -229,7 +205,7 @@ function ReferralsPage() {
   }, [user, qc]);
 
   const handleCopy = async (label = "Referral link copied") => {
-    const ok = await copyTextWithFallback(link);
+    const ok = await copyText(link);
     if (ok) {
       setCopied(true);
       toast.success(label);
@@ -427,7 +403,7 @@ function ReferralsPage() {
                     disabled={!myCode}
                     onClick={async () => {
                       if (!myCode) return;
-                      const ok = await copyTextWithFallback(myCode);
+                      const ok = await copyText(myCode);
                       if (ok) toast.success(`Code ${myCode} copied`);
                       else toast.error("Couldn't copy");
                     }}
@@ -482,7 +458,7 @@ function ReferralsPage() {
                 className="mt-2 h-8 gap-1.5 text-xs"
                 onClick={async () => {
                   const msg = `Join me on OG Streamz to make AI music! Sign up with my link ${link} — or open the Earn tab, tap "Bind your OG Leader" and enter my code ${myCode}.`;
-                  const ok = await copyTextWithFallback(msg);
+                  const ok = await copyText(msg);
                   if (ok) toast.success("Invite message copied");
                   else toast.error("Couldn't copy");
                 }}

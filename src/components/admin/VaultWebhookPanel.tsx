@@ -18,12 +18,14 @@ import {
   testVaultWebhook,
 } from "@/lib/vault.functions";
 import { buildVaultReceiverPrompt } from "@/lib/vault-prompt";
+import { copyText } from "@/lib/copy-text";
 
 const fmt = (s: string | null) => (s ? new Date(s).toLocaleString("en-GB") : "Never");
 const copy = (text: string, label: string) =>
-  navigator.clipboard.writeText(text).then(
-    () => toast.success(`${label} copied`),
-    () => toast.error("Couldn't copy — long-press to select instead"),
+  copyText(text).then((ok) =>
+    ok
+      ? toast.success(`${label} copied`)
+      : toast.error("Couldn't copy — long-press to select instead"),
   );
 const hookToast = (h?: { ok: boolean; message: string }) => {
   if (h && !h.ok && h.message !== "Webhook is switched off" && !h.message.startsWith("Add a target"))

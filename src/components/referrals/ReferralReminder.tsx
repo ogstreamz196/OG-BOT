@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { copyText } from "@/lib/copy-text";
 
 /**
  * Compact, share-first reminder: shows the user's OG referral code and the
@@ -40,7 +41,7 @@ export function ReferralReminder({ className }: { className?: string }) {
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      if (!(await copyText(shareUrl))) throw new Error("copy");
       setCopied(true);
       toast.success("Link copied — share it to earn up to 13% cashback");
       setTimeout(() => setCopied(false), 1800);

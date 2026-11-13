@@ -42,6 +42,7 @@ import { MemoryCard } from "@/components/settings/MemoryCard";
 import { SettingRow, SettingsCard } from "@/components/settings/SettingsCard";
 import { TelegramConnectCard } from "@/components/profile/TelegramConnectCard";
 import { DeleteMyAccount } from "@/components/DeleteMyAccount";
+import { copyText } from "@/lib/copy-text";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -499,9 +500,9 @@ function SettingsPage() {
                   variant="outline"
                   size="icon"
                   aria-label="Copy invite link"
-                  onClick={() => {
-                    navigator.clipboard.writeText(referralLink);
-                    toast.success("Invite link copied");
+                  onClick={async () => {
+                    if (await copyText(referralLink)) toast.success("Invite link copied");
+                    else toast.error("Couldn't copy. Press and hold the link to copy it.");
                   }}
                 >
                   <Copy className="h-4 w-4" />
