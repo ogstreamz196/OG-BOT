@@ -390,9 +390,10 @@ function SettingsPage() {
           {extras.data?.og_vip_id && <OgVipIdCard id={extras.data.og_vip_id} />}
           {/* The Vault Pass (IPTV logins, apps outside the store) stays out of the phone apps. */}
           {!native && <OgVaultPassCard />}
+          <TelegramConnectCard />
         </Group>
 
-        {/* 2. Membership & integrations */}
+        {/* 2. VIP, coins & invites */}
         <Group section="membership">
           {native ? (
             <Paywall />
@@ -400,42 +401,6 @@ function SettingsPage() {
             <VipStatusCard className="border-rose-400/40 border-l-4 border-l-rose-400 bg-gradient-to-br from-rose-500/[0.2] via-card to-card" />
           )}
           {hasVipRole && <VipRequestCard />}
-          <TelegramConnectCard />
-          {referralLink && (
-            <SettingsCard
-              icon={<Gift className="h-5 w-5" />}
-              title="Invite friends"
-              tone="emerald"
-              hint="You earn coins when friends join and spend."
-            >
-              <div className="flex gap-2">
-                <Input readOnly value={referralLink} aria-label="Invite link" />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Copy invite link"
-                  onClick={() => {
-                    navigator.clipboard.writeText(referralLink);
-                    toast.success("Invite link copied");
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-              <Link
-                to="/referrals"
-                className="inline-block text-xs font-semibold text-foreground underline-offset-4 hover:underline"
-              >
-                See my earnings
-              </Link>
-            </SettingsCard>
-          )}
-        </Group>
-
-        {/* 3. Preferences & coins */}
-        <Group section="preferences">
-          <PreferencesPanel />
-          <MemoryCard />
           <SettingsCard
             icon={<Coins className="h-5 w-5 text-coin" />}
             title="Coin activity"
@@ -521,6 +486,41 @@ function SettingsPage() {
               </Button>
             </div>
           </SettingsCard>
+          {referralLink && (
+            <SettingsCard
+              icon={<Gift className="h-5 w-5" />}
+              title="Invite friends"
+              tone="emerald"
+              hint="You earn coins when friends join and spend."
+            >
+              <div className="flex gap-2">
+                <Input readOnly value={referralLink} aria-label="Invite link" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy invite link"
+                  onClick={() => {
+                    navigator.clipboard.writeText(referralLink);
+                    toast.success("Invite link copied");
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <Link
+                to="/referrals"
+                className="inline-block text-xs font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                See my earnings
+              </Link>
+            </SettingsCard>
+          )}
+        </Group>
+
+        {/* 3. Preferences */}
+        <Group section="preferences">
+          <PreferencesPanel />
+          <MemoryCard />
         </Group>
 
         {/* 4. Security & danger zone */}
@@ -631,23 +631,23 @@ const SECTIONS: {
     id: "profile",
     short: "Profile",
     title: "Profile & identity",
-    about: "How you show up, plus your VIP ID and Vault login.",
+    about: "How you show up, your VIP ID, Vault login and Telegram link.",
     icon: <UserRound className="h-3.5 w-3.5" />,
     chip: "border-violet-400/40 bg-violet-500/15",
   },
   {
     id: "membership",
-    short: "Membership",
-    title: "Membership & integrations",
-    about: "Your VIP plan, Telegram and your invite link.",
+    short: "VIP & coins",
+    title: "VIP, coins & invites",
+    about: "Your VIP plan, your coins and your invite link.",
     icon: <Crown className="h-3.5 w-3.5" />,
     chip: "border-rose-400/40 bg-rose-500/15",
   },
   {
     id: "preferences",
     short: "Preferences",
-    title: "Preferences & coins",
-    about: "How OG B0T talks, what it remembers, how the app looks, and your coins.",
+    title: "Preferences",
+    about: "How OG B0T talks, what it remembers and how the app looks.",
     icon: <SlidersHorizontal className="h-3.5 w-3.5" />,
     chip: "border-orange-400/40 bg-orange-500/15",
   },
