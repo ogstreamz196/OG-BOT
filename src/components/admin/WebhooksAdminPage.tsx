@@ -175,7 +175,7 @@ export function WebhooksAdminPage() {
             )}
             <Link
               to="/admin/system"
-              search={{ tab: "setup" }}
+              search={{ tab: "developer" }}
               className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
               Open setup checklist <ExternalLink className="h-3 w-3" />

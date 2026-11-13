@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
-import { ClipboardCheck, KeyRound, ToggleRight, Wrench } from "lucide-react";
+import { Code2, KeyRound, ToggleRight, Wrench } from "lucide-react";
 import { TransferReadiness } from "@/components/admin/TransferReadiness";
 import { ApiHub } from "@/components/admin/ApiHub";
 import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
@@ -28,14 +28,15 @@ export const Route = createFileRoute("/_authenticated/admin/system")({
     if (search.tab === "tests" || search.tab === "actions") {
       throw redirect({ to: "/admin/system", search: { tab: "tools" } });
     }
+    // The setup checklist moved into the Developer tab.
+    if (search.tab === "setup") {
+      throw redirect({ to: "/admin/system", search: { tab: "developer" } });
+    }
   },
   component: AdminSystemHub,
 });
 
-/**
- * Checks, the Boss log and the rarely needed tools, on one tab so the tab bar
- * stays short. Each panel is the same one it always was, just stacked.
- */
+/** The checks to run when something feels off, and the log of what the Boss did. */
 function ToolsAndLogs() {
   return (
     <div className="space-y-8">
@@ -46,10 +47,30 @@ function ToolsAndLogs() {
         <E2ESmokeTest />
         <TelegramSmokeTest />
         <FoulMouthSmokeTest />
-        <HardwiredCapabilities />
       </ToolSection>
       <ToolSection title="Boss actions" desc="Everything done from Boss controls, newest first.">
         <BossAuditLog />
+      </ToolSection>
+    </div>
+  );
+}
+
+/**
+ * The developer's corner (the Boss, 2026-11-13: keep these out of the daily
+ * controls): one-off setup and the tools only needed when building or moving
+ * the app. Each panel is the same one it always was.
+ */
+function Developer() {
+  return (
+    <div className="space-y-8">
+      <ToolSection
+        title="Setup checklist"
+        desc="Step-by-step check that every connector and secret is in place."
+      >
+        <OnboardingWizard />
+      </ToolSection>
+      <ToolSection title="Built-in abilities" desc="What OG B0T can do without any switch.">
+        <HardwiredCapabilities />
       </ToolSection>
       <ToolSection title="Route map" desc="Every page in the app.">
         <RouteMapPage />
@@ -89,13 +110,6 @@ function ToolSection({
 
 const TABS: readonly BossTab[] = [
   {
-    value: "access",
-    label: "Free access",
-    Icon: ToggleRight,
-    hint: "Switch VIP features on for everyone for a while.",
-    Panel: FreeAccessPanel,
-  },
-  {
     value: "apis",
     label: "API keys",
     Icon: KeyRound,
@@ -103,18 +117,28 @@ const TABS: readonly BossTab[] = [
     Panel: ApiHub,
   },
   {
-    value: "setup",
-    label: "Setup checklist",
-    Icon: ClipboardCheck,
-    hint: "Step-by-step check that every connector and secret is in place.",
-    Panel: OnboardingWizard,
-  },
-  {
     value: "tools",
     label: "Tools & logs",
     Icon: Wrench,
-    hint: "Diagnostics, the Boss actions log, route map, lyric debug and transfer readiness.",
+    hint: "Diagnostics and the Boss actions log.",
     Panel: ToolsAndLogs,
+  },
+  {
+    value: "developer",
+    label: "Developer",
+    Icon: Code2,
+    hint: "One-off setup and build tools: the setup checklist, route map, lyric debug and transfer readiness.",
+    Panel: Developer,
+  },
+  {
+    // The switch itself is on the dashboard bar; this is the full version
+    // (a custom end time), opened from "All free access settings" there.
+    value: "access",
+    label: "Free access",
+    Icon: ToggleRight,
+    hint: "Switch VIP features on for everyone for a while.",
+    Panel: FreeAccessPanel,
+    hidden: true,
   },
 ];
 

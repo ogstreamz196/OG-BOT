@@ -24,7 +24,7 @@ describe("the copy bot's settings card", () => {
   it("says in plain words what each setting does, defaults when nothing's set", () => {
     const t = panelText({});
     expect(t).toContain("▶️ COPYING: new trades are copied.");
-    expect(t).toContain("Lot size: 0.01 – 0.05");
+    expect(t).toContain("Lot size: the bot's own lot");
     expect(t).toContain("Markets: Gold and Bitcoin");
     expect(t).toContain("Max trades open at once: 6");
     expect(t).toContain("Joins a trade up to 10 min after it opens");
@@ -34,7 +34,7 @@ describe("the copy bot's settings card", () => {
     );
   });
   it("ticks what's chosen, and every button fits Telegram's 64-byte limit", () => {
-    expect(texts({})).toContain("✅ 📏 0.01 – 0.05");
+    expect(texts({ lotBand: "small" })).toContain("✅ 📏 0.01 – 0.05");
     expect(texts({ markets: ["BTCUSD"] })).toEqual(
       expect.arrayContaining(["🥇 Gold", "✅ ₿ Bitcoin"]),
     );
@@ -96,9 +96,14 @@ describe("typed commands still work", () => {
 
 describe("lot bands, strategies and high-frequency", () => {
   it("offers the three lot bands and picks one (clearing any fixed lot)", () => {
+    // Nothing is ticked until a range is picked: the lot is then the bot's own.
     expect(texts({})).toEqual(
-      expect.arrayContaining(["✅ 📏 0.01 – 0.05", "📏 0.02 – 0.1", "📏 0.1 – 0.5"]),
+      expect.arrayContaining(["📏 0.01 – 0.05", "📏 0.02 – 0.1", "📏 0.1 – 0.5"]),
     );
+    expect(panelText({})).toContain("the bot's own lot. Tap a range");
+    expect(panelText({ multiplier: 2 })).toContain("the bot's own lot × 2.");
+    expect(texts({ lotBand: "small" })).toContain("✅ 📏 0.01 – 0.05");
+    expect(panelText({ lotBand: "small" })).toContain("0.01 – 0.05 (bigger");
     expect(applyPanelAction({}, "cs:band:medium").next).toMatchObject({ lotBand: "medium" });
     expect(applyPanelAction({ lot: 0.1 }, "cs:band:large").next).toMatchObject({
       lotBand: "large",

@@ -226,7 +226,7 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   // System
   {
     title: "Free access for everyone",
-    where: area("System", "Free access"),
+    where: "Dashboard › Free VIP for all",
     to: "/admin/system",
     tab: "access",
     keywords: "vip for all switch promo open",
@@ -261,9 +261,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Setup checklist",
-    where: area("System", "Setup checklist"),
+    where: area("System", "Developer"),
     to: "/admin/system",
-    tab: "setup",
+    tab: "developer",
     keywords: "onboarding connectors secrets",
   },
   {
@@ -282,9 +282,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Route map, lyric debug & transfer",
-    where: area("System", "Tools & logs"),
+    where: area("System", "Developer"),
     to: "/admin/system",
-    tab: "tools",
+    tab: "developer",
     keywords: "route map lyric debug transfer readiness",
   },
 

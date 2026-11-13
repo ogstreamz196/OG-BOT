@@ -63,7 +63,6 @@ const marketsOf = (s: CopySettings) => s.markets ?? ALL_MARKETS;
 const maxOpenOf = (s: CopySettings) => s.maxOpen ?? DEFAULTS.maxOpen;
 const lateOf = (s: CopySettings) => s.maxLateMinutes ?? DEFAULTS.maxLateMinutes;
 const lotIsBot = (s: CopySettings) => s.lot === undefined || s.lot === "bot";
-const bandOf = (s: CopySettings): LotBand => s.lotBand ?? "small";
 /** Off (all switches off) unless the engine config says otherwise. */
 const noStrategies: StrategyToggles = {
   sniper: false,
@@ -83,7 +82,12 @@ export function panelText(
   const lot =
     typeof s.lot === "number"
       ? `${s.lot} on every trade`
-      : `${lotBandLabel(bandOf(s))} (bigger when the signal's surer)`;
+      : s.lotBand
+        ? `${lotBandLabel(s.lotBand)} (bigger when the signal's surer)`
+        : // No range picked yet: say what really happens instead of ticking one.
+          `the bot's own lot${
+            Number(s.multiplier) > 0 && Number(s.multiplier) !== 1 ? ` × ${s.multiplier}` : ""
+          }. Tap a range below to set yours.`;
   return [
     ...(note ? [note, ""] : []),
     "⚙️ COPIER SETTINGS",
@@ -119,7 +123,6 @@ export function panelKeyboard(
 ): { inline_keyboard: Button[][] } {
   const tick = (on: boolean, label: string) => `${on ? "✅ " : ""}${label}`;
   const markets = marketsOf(s);
-  const band = bandOf(s);
   return {
     inline_keyboard: [
       [
@@ -129,7 +132,7 @@ export function panelKeyboard(
       ],
       // Lot size: three clear bands (replaces "same as the bot" + the multiplier).
       LOT_BAND_ORDER.map((b) => ({
-        text: tick(typeof s.lot !== "number" && band === b, `📏 ${lotBandLabel(b)}`),
+        text: tick(typeof s.lot !== "number" && s.lotBand === b, `📏 ${lotBandLabel(b)}`),
         callback_data: `cs:band:${b}`,
       })),
       [
