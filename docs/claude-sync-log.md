@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Switch audit + **Every switch**
+- **Boss's Claude · 2026-11-13 · #299** · Switch audit + **Every switch**
   on the Boss dashboard. Traced all 24 switches (website, Members, Settings
   and the Copy Trader B0T card) to the code that obeys them: every one is
   wired, none dead. New `src/lib/boss-switches.ts` (plain-words on/off/where
