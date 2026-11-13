@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Every-page, every-browser scan.
+- **Boss's Claude · 2026-11-13 · #302** · Every-page, every-browser scan.
   Playwright opened all 72 pages at phone, tablet and desktop sizes, signed
   out and as a stand-in Boss (fake session, empty data, nothing real
   touched): no page wider than the screen, no script errors. Fixes: shared
