@@ -299,6 +299,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #PRNUM** · Signals: **Trading switches** on
+  the website (Controls): copying, markets, broker stop, lot range, trade
+  limit, HFT and the four strategies, sent as the Copy Trader B0T card's own
+  `cs:`/`es:` actions through the same code (`applyCopierAction`), so web and
+  Telegram always match. Report folded into Results (`?tab=report`
+  redirects); TradeTweaker renamed Tuning (tab value unchanged). Every switch
+  list now links the copier switches to Controls.
+
 - **Boss's Claude · 2026-11-13 · #299** · Switch audit + **Every switch**
   on the Boss dashboard. Traced all 24 switches (website, Members, Settings
   and the Copy Trader B0T card) to the code that obeys them: every one is

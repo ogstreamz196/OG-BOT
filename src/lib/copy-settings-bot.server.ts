@@ -419,6 +419,49 @@ const card = (s: CopySettings, strat: StrategyToggles, note?: string): Panel => 
   reply_markup: panelKeyboard(s, strat),
 });
 
+/** The copier settings and the strategy switches, for the website's Trading switches card. */
+export async function copierState(
+  admin: Admin,
+): Promise<{ settings: CopySettings; strategies: StrategyToggles }> {
+  return { settings: await loadSettings(admin), strategies: await loadStrategies(admin) };
+}
+
+/**
+ * A switch flipped on the website (Signals › Controls): exactly the same
+ * actions as the copier card's buttons ("cs:…" copier settings, "es:…"
+ * strategies), through the same pure functions, so the two never disagree.
+ * The caller checks the Boss. Returns the toast and the state now.
+ */
+export async function applyCopierAction(
+  admin: Admin,
+  userId: string,
+  data: string,
+): Promise<{ ok: boolean; toast: string; settings: CopySettings; strategies: StrategyToggles }> {
+  if (data.startsWith("es:")) {
+    const { engineConfig, saveEngineConfig } = await import("./engine-config.server");
+    const { applyStrategyTap } = await import("./engine-strategies-bot.server");
+    const cfg: EngineConfig = await engineConfig();
+    const { next, toast } = applyStrategyTap(cfg, data);
+    const settings = await loadSettings(admin);
+    if (!next)
+      return { ok: false, toast: toast || "No change", settings, strategies: cfg.strategies };
+    const saved = await saveEngineConfig(admin, next, userId).catch(() => null);
+    return {
+      ok: !!saved,
+      toast: saved ? toast : "Couldn't save that. Try again.",
+      settings,
+      strategies: (saved ?? cfg).strategies,
+    };
+  }
+  const current = await loadSettings(admin);
+  const strategies = await loadStrategies(admin);
+  const { next, toast } = applyPanelAction(current, data);
+  if (!next) return { ok: false, toast: toast || "No change", settings: current, strategies };
+  if (!(await saveSettings(admin, userId, next, data)))
+    return { ok: false, toast: "Couldn't save that. Try again.", settings: current, strategies };
+  return { ok: true, toast, settings: next, strategies };
+}
+
 /**
  * The copy bot's answer to a settings message from a private chat (the
  * settings card, after applying a typed command), or null when it isn't one

@@ -188,9 +188,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Signal report",
-    where: area("Signals", "Report"),
+    where: area("Signals", "Results › Report"),
     to: "/admin/signals",
-    tab: "report",
+    tab: "results",
     keywords: "breakdown by chart session check timing strategies",
   },
   {
