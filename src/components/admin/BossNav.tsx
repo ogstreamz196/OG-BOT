@@ -64,7 +64,7 @@ export const BOSS_AREAS = [
   {
     to: "/admin/system",
     label: "System",
-    desc: "Free access, API keys, diagnostics and the Boss actions log",
+    desc: "API keys, diagnostics, the Boss actions log and developer tools",
     icon: Settings2,
     group: "check",
   },

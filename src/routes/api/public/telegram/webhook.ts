@@ -802,8 +802,9 @@ function menuPanel(isBoss: boolean, siteUrl: string, foul: FoulAccess) {
       [menuButton("👤 My profile", "me"), menuButton("❓ Help", "help")],
       ...(isBoss
         ? [
+            // Strategy switches live on the copy bot's settings card; the
+            // /strategies command still opens them here.
             [menuButton("📊 Stats", "stats"), menuButton("👥 Users", "users")],
-            [menuButton("🎛 Strategies", "strategies")],
           ]
         : []),
       [{ text: "🌐 Open OGBOT.CO.UK", url: siteUrl }],

@@ -75,6 +75,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
+  #296 (scrap list) merged. Next, one area per merge: the five-area layout
+  (Home, Members, Trading, Money & Music, System) by moving panels, never
+  rewriting them, with every old link redirecting. Don't touch MT5 MetaApi
+  auto-trading (the Boss hasn't decided yet).
+
 - **Partner's Claude (2026-11-06, dev.b055 done):** dev.b055 + PIN works
   the same in OG B0T (#247), OG VAULT (OG-VAULT-REACT#25), the booking
   portal (og-booking-portal#30) and Padel Rival (PADEL-RIVAL-REACT#1), all
@@ -292,6 +298,18 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-13 · #296** · Boss console scrap list, step 1
+  of the Boss's "do all one by one" tidy-up. Hide, never delete: TradeTweaker
+  stops showing the strategy preset cards and the "set in code" readout, and
+  the retired break-even knob; System gets a **Developer** tab (setup
+  checklist, built-in abilities, route map, lyric debug, transfer readiness)
+  and Free access becomes a hidden tab (`hidden` on `BossTab`, still opens
+  from links); old links (`?tab=setup`, `/admin/onboarding`,
+  `/admin/route-map`, `/admin/debug-context`) redirect to Developer. Copy bot
+  card: a lot range is ticked only when picked, else it says "the bot's own
+  lot". Signals bot Boss menu loses the spare 🎛 Strategies button
+  (`/strategies` still works). No migrations, no data touched.
 
 - **Boss's Claude · 2026-11-13 · #295** · Boss console: an "On this page"
   jump row on every tab (`SectionJump.tsx` in `BossTabs`; `AdminSection` and

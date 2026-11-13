@@ -1,4 +1,9 @@
-import { TWEAK_FIELDS, ENTRY_STYLES, UK_BLOCKS, type TweakField } from "@/lib/trade-tweaker";
+import {
+  SHOWN_TWEAK_FIELDS,
+  ENTRY_STYLES,
+  UK_BLOCKS,
+  type TweakField,
+} from "@/lib/trade-tweaker";
 import type { Tuning } from "@/lib/trade-signal";
 
 type Pair = readonly [number, number];
@@ -55,7 +60,7 @@ export function TuningFields({
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {TWEAK_FIELDS.map((f) => {
+      {SHOWN_TWEAK_FIELDS.map((f) => {
         if (f.kind === "number") {
           return (
             <NumberField
