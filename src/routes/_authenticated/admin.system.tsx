@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { Code2, KeyRound, ToggleRight, Wrench } from "lucide-react";
+import { ToolSection } from "@/components/admin/ToolSection";
 import { TransferReadiness } from "@/components/admin/TransferReadiness";
 import { ApiHub } from "@/components/admin/ApiHub";
 import { E2ESmokeTest } from "@/components/admin/E2ESmokeTest";
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/admin/system")({
   // Diagnostics and Boss actions into Tools & logs.
   beforeLoad: ({ search }) => {
     if (search.tab === "webhooks") {
-      throw redirect({ to: "/admin/coins", search: { tab: "webhooks" } });
+      throw redirect({ to: "/admin/coins", search: { tab: "payments" } });
     }
     if (search.tab === "tests" || search.tab === "actions") {
       throw redirect({ to: "/admin/system", search: { tab: "tools" } });
@@ -85,26 +86,6 @@ function Developer() {
         <TransferReadiness />
       </ToolSection>
     </div>
-  );
-}
-
-function ToolSection({
-  title,
-  desc,
-  children,
-}: {
-  title: string;
-  desc: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section data-boss-section={title} className="min-w-0 scroll-mt-36 space-y-3">
-      <div>
-        <h2 className="text-lg leading-tight">{title}</h2>
-        <p className="text-xs text-muted-foreground">{desc}</p>
-      </div>
-      {children}
-    </section>
   );
 }
 

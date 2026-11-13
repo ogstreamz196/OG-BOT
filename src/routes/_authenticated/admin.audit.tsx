@@ -5,9 +5,9 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
  * actions log went to System. Old links (including ?tab=) land in the right place.
  */
 const MONEY_TABS: Record<string, string> = {
-  card: "card",
-  coins: "coin-check",
-  referrals: "referrals",
+  card: "payments",
+  coins: "checks",
+  referrals: "checks",
 };
 
 export const Route = createFileRoute("/_authenticated/admin/audit")({

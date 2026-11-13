@@ -76,7 +76,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
 - **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
-  #296 (scrap list) merged. Next, one area per merge: the five-area layout
+  #296 (scrap list) and #297 (Money in four tabs) merged. Next, one area per merge: the five-area layout
   (Home, Members, Trading, Money & Music, System) by moving panels, never
   rewriting them, with every old link redirecting. Don't touch MT5 MetaApi
   auto-trading (the Boss hasn't decided yet).
@@ -298,6 +298,12 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-13 · #297** · Boss console step 2: Money
+  goes from seven tabs to four (Overview; Prices & store; Payments = card
+  payments + Stripe events; Checks = coin check + referrals). Same panels,
+  just grouped; every old `?tab=` and old Money page redirects to its new
+  tab. `ToolSection` moved to its own file so System and Money share it.
 
 - **Boss's Claude · 2026-11-13 · #296** · Boss console scrap list, step 1
   of the Boss's "do all one by one" tidy-up. Hide, never delete: TradeTweaker
