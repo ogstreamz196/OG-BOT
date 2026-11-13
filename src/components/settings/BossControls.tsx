@@ -8,9 +8,9 @@ import { SettingsCard } from "./SettingsCard";
 /** The five Boss tasks done most, one tap each. */
 const JUMPS = [
   { emoji: "👥", label: "Members & Coins", to: "/admin/users" },
-  { emoji: "📈", label: "Signals & Demo", to: "/admin/signals", tab: "controls" },
+  { emoji: "📈", label: "Trading switches", to: "/admin/signals", tab: "controls" },
   { emoji: "🤖", label: "Telegram Fleet", to: "/admin/signals", tab: "bots" },
-  { emoji: "💰", label: "Prices & Limits", to: "/admin/coins", tab: "prices" },
+  { emoji: "💰", label: "Prices & store", to: "/admin/coins", tab: "prices" },
   { emoji: "⚡", label: "Boss Dashboard", to: "/admin" },
 ] as const;
 

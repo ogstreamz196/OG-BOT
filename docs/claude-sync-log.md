@@ -76,7 +76,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
 - **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
-  #296 (scrap list) #297 (Money in four tabs) and #298 (OG B0T folded into System) merged. Next, one area per merge: the five-area layout
+  #296 (scrap list) #297 (Money in four tabs), #298 (OG B0T folded into System), #299 (Every switch), #300 (Trading switches on the web) and #301 (Settings regrouped) merged. Next, one area per merge: the five-area layout
   (Home, Members, Trading, Money & Music, System) by moving panels, never
   rewriting them, with every old link redirecting. Don't touch MT5 MetaApi
   auto-trading (the Boss hasn't decided yet).
@@ -298,6 +298,12 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-13 · #301** · Settings page regrouped: Profile
+  (profile, VIP ID, Vault login, Telegram link), VIP & coins (VIP plan,
+  coin activity, invites), Preferences (OG B0T, memory, look), Security,
+  Boss. Section ids unchanged so every link still works. Boss switchboard
+  shortcuts renamed to match (Trading switches, Prices & store).
 
 - **Boss's Claude · 2026-11-13 · #300** · Signals: **Trading switches** on
   the website (Controls): copying, markets, broker stop, lot range, trade
