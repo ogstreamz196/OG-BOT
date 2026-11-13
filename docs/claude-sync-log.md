@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Signals: **Trading switches** on
+- **Boss's Claude · 2026-11-13 · #300** · Signals: **Trading switches** on
   the website (Controls): copying, markets, broker stop, lot range, trade
   limit, HFT and the four strategies, sent as the Copy Trader B0T card's own
   `cs:`/`es:` actions through the same code (`applyCopierAction`), so web and
