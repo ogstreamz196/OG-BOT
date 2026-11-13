@@ -55,16 +55,9 @@ export const BOSS_AREAS = [
     group: "bot",
   },
   {
-    to: "/admin/bot",
-    label: "OG B0T",
-    desc: "Persona, health, your alerts and live users",
-    icon: Bot,
-    group: "bot",
-  },
-  {
     to: "/admin/system",
     label: "System",
-    desc: "API keys, diagnostics, the Boss actions log and developer tools",
+    desc: "OG B0T's persona and alerts, health and API keys, logs and developer tools",
     icon: Settings2,
     group: "check",
   },

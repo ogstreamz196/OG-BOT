@@ -10,7 +10,6 @@ export type BossPath =
   | "/admin/music"
   | "/admin/coins"
   | "/admin/signals"
-  | "/admin/bot"
   | "/admin/system"
   | "/settings";
 
@@ -133,9 +132,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   // OG B0T
   {
     title: "OG B0T persona",
-    where: area("OG B0T", "Persona"),
-    to: "/admin/bot",
-    tab: "persona",
+    where: area("System", "OG B0T"),
+    to: "/admin/system",
+    tab: "bot",
     keywords: "script system prompt voice dictionary how it talks",
   },
   {
@@ -161,9 +160,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Your Telegram alerts",
-    where: area("OG B0T", "Your alerts"),
-    to: "/admin/bot",
-    tab: "alerts",
+    where: area("System", "OG B0T"),
+    to: "/admin/system",
+    tab: "bot",
     keywords: "notifications notify events switches",
   },
   {
@@ -210,15 +209,15 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Live users",
-    where: area("OG B0T", "Live users"),
-    to: "/admin/bot",
-    tab: "live",
+    where: area("System", "Health"),
+    to: "/admin/system",
+    tab: "health",
     keywords: "online now speak as og bot",
   },
   {
     title: "Bot health & AI usage",
-    where: area("OG B0T", "Health & usage"),
-    to: "/admin/bot",
+    where: area("System", "Health"),
+    to: "/admin/system",
     tab: "health",
     keywords: "ping gemini cost answering",
   },
@@ -233,30 +232,30 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "API keys",
-    where: area("System", "API keys"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "services connectors ping secrets",
   },
   {
     title: "API vault (extra free AI keys)",
-    where: area("System", "API keys"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "add key pollinations openrouter gemini free ai more keys",
   },
   {
     title: "Ledgerly",
-    where: area("System", "API keys › Payments"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "accounts bookkeeping switch",
   },
   {
     title: "OG Vault webhook",
-    where: area("System", "API keys › Payments"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "vault pass sync switch",
   },
   {
