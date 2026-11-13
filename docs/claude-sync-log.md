@@ -76,7 +76,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
 - **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
-  #PRNUM (scrap list) merged. Next, one area per merge: the five-area layout
+  #296 (scrap list) merged. Next, one area per merge: the five-area layout
   (Home, Members, Trading, Money & Music, System) by moving panels, never
   rewriting them, with every old link redirecting. Don't touch MT5 MetaApi
   auto-trading (the Boss hasn't decided yet).
@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Boss console scrap list, step 1
+- **Boss's Claude · 2026-11-13 · #296** · Boss console scrap list, step 1
   of the Boss's "do all one by one" tidy-up. Hide, never delete: TradeTweaker
   stops showing the strategy preset cards and the "set in code" readout, and
   the retired break-even knob; System gets a **Developer** tab (setup
