@@ -50,7 +50,7 @@ function TrustPage() {
         <header className="space-y-3">
           <Link
             to="/welcome"
-            className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground sm:text-sm"
+            className="-ml-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground sm:text-sm"
           >
             ← Back
           </Link>

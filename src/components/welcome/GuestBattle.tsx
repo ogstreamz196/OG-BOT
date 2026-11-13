@@ -25,6 +25,7 @@ import {
   ArenaTyping,
   heatTier,
 } from "@/components/battle/Arena";
+import { newId } from "@/lib/copy-text";
 
 const GUEST_KEY = "og-guest-id";
 const CLEARED_KEY = "og-guest-cleared-at";
@@ -36,12 +37,12 @@ function useGuestId() {
     try {
       let g = localStorage.getItem(GUEST_KEY);
       if (!g) {
-        g = crypto.randomUUID();
+        g = newId();
         localStorage.setItem(GUEST_KEY, g);
       }
       setId(g);
     } catch {
-      setId(crypto.randomUUID());
+      setId(newId());
     }
   }, []);
   return id;

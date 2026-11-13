@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/layout/AppShell";
 import { SignInTracker } from "@/components/auth/SignInTracker";
@@ -11,6 +12,20 @@ import { RoyaltyCelebration } from "@/components/celebration/RoyaltyCelebration"
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
+  // Shown (also in the server's first HTML) while the app starts and checks the
+  // sign-in, instead of a blank background on slow phones.
+  pendingComponent: () => (
+    <div
+      role="status"
+      aria-live="polite"
+      className="grid min-h-dvh place-items-center bg-background text-muted-foreground"
+    >
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-7 w-7 animate-spin" />
+        <span className="text-sm font-semibold tracking-wide">Loading OG B0T…</span>
+      </div>
+    </div>
+  ),
   beforeLoad: async () => {
     // The saved session (no network call): this runs on every navigation and
     // link hover. Every server function still verifies the token itself.

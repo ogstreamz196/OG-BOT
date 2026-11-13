@@ -6,16 +6,13 @@ import { Copy, Eye, EyeOff, Loader2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getVipPassStatus } from "@/lib/vip-pass.functions";
+import { copyText } from "@/lib/copy-text";
 
 const MASK = "••••••••";
 
 async function copy(value: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(value);
-    toast.success(`${label} copied`);
-  } catch {
-    toast.error("Couldn't copy. Long-press to copy instead.");
-  }
+  if (await copyText(value)) toast.success(`${label} copied`);
+  else toast.error("Couldn't copy. Long-press to copy instead.");
 }
 
 /** The member's OG Vault login. The server picks the current 2-hour credential. */

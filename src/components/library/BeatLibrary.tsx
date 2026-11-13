@@ -105,8 +105,9 @@ export function BeatLibrary({
             size: (f.metadata as { size?: number } | null)?.size ?? 0,
           })),
       );
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't load your beats");
+    } catch {
+      // A plain message: storage errors ("Not Found" etc.) mean nothing to members.
+      toast.error("Couldn't load your beats right now. Try again in a minute.");
     } finally {
       setLoading(false);
     }
