@@ -58,7 +58,7 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <QuickAction to="/admin/users" Icon={UserSearch} label="Find a member" />
               <QuickAction to="/admin/system" tab="access" Icon={ToggleRight} label="Free access" />
-              <QuickAction to="/admin/bot" tab="persona" Icon={Sparkles} label="OG B0T persona" />
+              <QuickAction to="/admin/system" tab="bot" Icon={Sparkles} label="OG B0T persona" />
               <QuickAction
                 to="/admin/system"
                 tab="tools"
@@ -112,7 +112,7 @@ function QuickAction({
   Icon,
   label,
 }: {
-  to: "/admin/users" | "/admin/coins" | "/admin/signals" | "/admin/bot" | "/admin/system";
+  to: "/admin/users" | "/admin/coins" | "/admin/signals" | "/admin/system";
   tab?: string;
   Icon: typeof ToggleRight;
   label: string;
