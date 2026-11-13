@@ -17,6 +17,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BOSS_AREAS, BossNav } from "@/components/admin/BossNav";
 import { BossKpiStrip, ProviderPulse } from "@/components/admin/BossOverview";
 import { BossCommandBar } from "@/components/admin/BossCommandBar";
+import { EverySwitch } from "@/components/admin/EverySwitch";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
@@ -90,6 +91,14 @@ function AdminDashboard() {
                 ),
               )}
             </div>
+          </section>
+
+          <section data-boss-section="Every switch" className="scroll-mt-36 space-y-3">
+            <SectionHeading
+              title="Every switch"
+              desc="What each one does on and off, and where it lives. Tap Open to change it."
+            />
+            <EverySwitch />
           </section>
         </div>
       </div>

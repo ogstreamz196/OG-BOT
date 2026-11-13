@@ -299,6 +299,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-13 · #PRNUM** · Switch audit + **Every switch**
+  on the Boss dashboard. Traced all 24 switches (website, Members, Settings
+  and the Copy Trader B0T card) to the code that obeys them: every one is
+  wired, none dead. New `src/lib/boss-switches.ts` (plain-words on/off/where
+  for each, with a test that every link lands on a real tab) and
+  `EverySwitch.tsx`, read-only. Add a line there with any new switch.
+
 - **Boss's Claude · 2026-11-13 · #298** · Boss console step 3: the OG B0T
   area folds into System, so the top bar has six areas. System's tabs are now
   OG B0T (persona + your alerts), Health (bot health & AI usage, live users,
