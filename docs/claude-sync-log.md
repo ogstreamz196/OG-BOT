@@ -76,7 +76,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
 - **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
-  #296 (scrap list) #297 (Money in four tabs) and #PRNUM (OG B0T folded into System) merged. Next, one area per merge: the five-area layout
+  #296 (scrap list) #297 (Money in four tabs) and #298 (OG B0T folded into System) merged. Next, one area per merge: the five-area layout
   (Home, Members, Trading, Money & Music, System) by moving panels, never
   rewriting them, with every old link redirecting. Don't touch MT5 MetaApi
   auto-trading (the Boss hasn't decided yet).
@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-13 · #PRNUM** · Boss console step 3: the OG B0T
+- **Boss's Claude · 2026-11-13 · #298** · Boss console step 3: the OG B0T
   area folds into System, so the top bar has six areas. System's tabs are now
   OG B0T (persona + your alerts), Health (bot health & AI usage, live users,
   API keys), Tools & logs, Developer (+ hidden Free access). `/admin/bot` is a
