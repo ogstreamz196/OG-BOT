@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Bot, FlaskConical, LineChart, SlidersHorizontal, Trophy, Wrench } from "lucide-react";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
+import { Bot, FlaskConical, SlidersHorizontal, Trophy, Wrench } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -8,6 +8,8 @@ import { BossTabs, type BossTab } from "@/components/admin/BossTabs";
 import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 import { SignalsChatResetPanel } from "@/components/admin/SignalsChatResetPanel";
 import { Mt5Panel } from "@/components/admin/Mt5Panel";
+import { TradingSwitchesPanel } from "@/components/admin/TradingSwitchesPanel";
+import { ToolSection } from "@/components/admin/ToolSection";
 import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
 import { StrategyBoardPanel } from "@/components/admin/StrategyBoardPanel";
 import { TargetComparePanel } from "@/components/admin/TargetComparePanel";
@@ -21,6 +23,11 @@ import { TelegramGroupsPanel } from "@/components/admin/TelegramGroupsPanel";
 export const Route = createFileRoute("/_authenticated/admin/signals")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
     typeof s.tab === "string" ? { tab: s.tab } : {},
+  // Report joined Results (the Boss, 2026-11-13): old links follow.
+  beforeLoad: ({ search }) => {
+    if (search.tab === "report")
+      throw redirect({ to: "/admin/signals", search: { tab: "results" } });
+  },
   head: () => ({
     meta: [
       { title: "Signals | OG B0T Boss" },
@@ -43,10 +50,14 @@ const SignalsBacktestPanel = lazy(() =>
   })),
 );
 
-/** The switches: the web portal, the demo account and MT5 auto-trading. */
+/**
+ * The switches: trading (the copier and strategies, same as Telegram), the web
+ * portal, the demo account and MT5 auto-trading.
+ */
 function Controls() {
   return (
     <>
+      <TradingSwitchesPanel />
       <SignalsPortalPanel />
       <SignalsChatResetPanel />
       <Mt5Panel />
@@ -54,13 +65,24 @@ function Controls() {
   );
 }
 
-/** The record, then how each strategy is doing. */
+/** The record and how each strategy is doing, then the full breakdown (was Report). */
 function Results() {
   return (
-    <>
-      <SignalRecordPanel />
-      <StrategyBoardPanel />
-    </>
+    <div className="space-y-8">
+      <ToolSection
+        title="Record"
+        desc="Streak, win rate, the latest results and each strategy's scoreboard."
+      >
+        <SignalRecordPanel />
+        <StrategyBoardPanel />
+      </ToolSection>
+      <ToolSection
+        title="Report"
+        desc="The deep breakdown: by chart, by session, by check and timing."
+      >
+        <SignalReportPanel />
+      </ToolSection>
+    </div>
   );
 }
 
@@ -94,12 +116,12 @@ const SIGNALS_TABS: readonly BossTab[] = [
     value: "controls",
     label: "Controls",
     Icon: SlidersHorizontal,
-    hint: "The web signals portal, the demo account (start fresh) and MT5 auto-trading.",
+    hint: "Trading switches (copier, lot range, strategies, HFT), the web signals portal, the demo account (start fresh) and MT5 auto-trading.",
     Panel: Controls,
   },
   {
     value: "tweaker",
-    label: "TradeTweaker",
+    label: "Tuning",
     Icon: Wrench,
     hint: "Every signal knob, strategy and the learning data in one place. Edit a market's settings; the tuner can still move them.",
     Panel: TradeTweakerPanel,
@@ -108,15 +130,8 @@ const SIGNALS_TABS: readonly BossTab[] = [
     value: "results",
     label: "Results",
     Icon: Trophy,
-    hint: "The record: streak, win rate and the latest results, then each strategy's scoreboard.",
+    hint: "The record, each strategy's scoreboard, and the deep report by chart, session and timing.",
     Panel: Results,
-  },
-  {
-    value: "report",
-    label: "Report",
-    Icon: LineChart,
-    hint: "The deep breakdown: by chart, by session, by check and timing.",
-    Panel: SignalReportPanel,
   },
   {
     value: "backtest",
