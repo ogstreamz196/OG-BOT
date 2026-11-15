@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-15 · #PRNUM** · Signals: HFT lab and "Why
+- **Boss's Claude · 2026-11-15 · #303** · Signals: HFT lab and "Why
   trades lost". Research on two days of 1-second prices with Vantage costs:
   10-15 second trades lose after the spread on gold and bitcoin (bitcoin's
   typical 15 s move is one spread); only gold held 2-5 min stayed positive
