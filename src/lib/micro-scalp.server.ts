@@ -8,7 +8,12 @@ import { cleanLab, scoreWindow, type MicroLabState, type Sec } from "./micro-sca
 
 type Admin = { from: (t: string) => any };
 
-export const MICROLAB_KEY = "signals.microlab";
+/**
+ * The scorecard. "signals.microlab" was the first version (counted with half
+ * a spread too much credit and instant fills); it's kept as it is, never
+ * deleted, and this one starts fresh with the corrected rules.
+ */
+export const MICROLAB_KEY = "signals.microlab.v2";
 
 /** Each market's 1-second feed: bitcoin itself, and the gold token the tracker already uses for gold. */
 export const MICRO_FEEDS: Record<string, string> = { BTCUSD: "BTCUSDT", XAUUSD: "PAXGUSDT" };

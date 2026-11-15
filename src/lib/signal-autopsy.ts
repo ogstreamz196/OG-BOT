@@ -79,7 +79,9 @@ export function lossAutopsy(x: LossInput): AutopsyKind | null {
   let worstAfter = -1;
   let reached = false;
   for (const c of x.candles) {
-    if (c.t < x.closedAt || c.t > x.closedAt + x.lookMs) continue;
+    // From the minute the stop was hit (its earlier part was above the stop
+    // for a buy, so it can't fake a deeper dip or the target, which wasn't hit).
+    if (c.t + 60_000 <= x.closedAt || c.t > x.closedAt + x.lookMs) continue;
     worstAfter = Math.min(worstAfter, inR(buy ? c.l : c.h));
     if (inR(buy ? c.h : c.l) >= target) {
       reached = true;
@@ -89,6 +91,21 @@ export function lossAutopsy(x: LossInput): AutopsyKind | null {
   if (reached) return -worstAfter - 1 <= NEAR_STOP_R ? "stop_was_entry" : "stop_too_tight";
   if (bestBefore >= GAVE_BACK_R) return "gave_back";
   return "wrong_way";
+}
+
+/**
+ * The gap between the chart and the trade's prices (chart + gap = trade
+ * price) for one filled trade: the gap the signal was saved with, nudged just
+ * enough that the entry sits inside the high-low of the minute it filled in
+ * (it traded there, so it must). Works whichever chart a gold signal used
+ * (the futures or the gold token) and for bitcoin (no gap). Pure.
+ */
+export function entryGap(entry: number, stored: number, fill: Candle1m | undefined): number {
+  const s = Number.isFinite(stored) ? stored : 0;
+  if (!fill) return s;
+  const onChart = entry - s;
+  const clamped = Math.min(fill.h, Math.max(fill.l, onChart));
+  return entry - clamped;
 }
 
 export type AutopsyTally = Record<AutopsyKind, number>;
