@@ -194,6 +194,20 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "breakdown by chart session check timing strategies",
   },
   {
+    title: "HFT lab (quick-trade strategies)",
+    where: area("Signals", "Results › HFT lab"),
+    to: "/admin/signals",
+    tab: "results",
+    keywords: "hft scalp 15 seconds seconds strategy streak wins in a row tournament",
+  },
+  {
+    title: "Why trades lost",
+    where: area("Signals", "Results › Why trades lost"),
+    to: "/admin/signals",
+    tab: "results",
+    keywords: "losses stop too tight stop loss entry wrong direction autopsy lessons",
+  },
+  {
     title: "Signal backtest",
     where: area("Signals", "Backtest"),
     to: "/admin/signals",

@@ -299,6 +299,18 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-15 · #PRNUM** · Signals: HFT lab and "Why
+  trades lost". Research on two days of 1-second prices with Vantage costs:
+  10-15 second trades lose after the spread on gold and bitcoin (bitcoin's
+  typical 15 s move is one spread); only gold held 2-5 min stayed positive
+  on the unseen day. So no live 10-15 s mode; instead a live lab scores nine
+  strategies (incl. the opposite/fade ones and a coin-flip yardstick) at
+  15 s / 1 / 2 / 5 min every minute, per-strategy wins, runs and money
+  after spread in `signals.microlab`, with a strict "proven" rule. Plus a
+  post-mortem of every stopped-out signal (stop was the entry / too tight /
+  gave back / wrong way) per strategy in `signals.autopsy`. Both read-only
+  and on Signals › Results. No migrations.
+
 - **Boss's Claude · 2026-11-13 · #302** · Every-page, every-browser scan.
   Playwright opened all 72 pages at phone, tablet and desktop sizes, signed
   out and as a stand-in Boss (fake session, empty data, nothing real
