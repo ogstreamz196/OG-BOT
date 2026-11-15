@@ -42,7 +42,7 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "grant coins mint balance adjust add remove set balance",
   },
   {
-    title: "VIP, Boss and Dev roles",
+    title: "PRO, Boss and Dev roles",
     where: "Members › pick a member",
     to: "/admin/users",
     keywords: "vip switch admin role boss dev trial vault access",
@@ -239,7 +239,7 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   // System
   {
     title: "Free access for everyone",
-    where: "Dashboard › Free VIP for all",
+    where: "Dashboard › Free PRO for all",
     to: "/admin/system",
     tab: "access",
     keywords: "vip for all switch promo open",

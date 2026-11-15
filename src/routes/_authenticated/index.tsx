@@ -62,6 +62,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyTelegramStatus } from "@/lib/telegram-admin.functions";
 import { isValidUsername } from "@/components/auth/UsernamePrompt";
 import { DailyDrop } from "@/components/dashboard/DailyDrop";
+import { useMemberBadge } from "@/hooks/use-member-badge";
 
 export const Route = createFileRoute("/_authenticated/")({
   component: DashboardHome,
@@ -71,7 +72,7 @@ export const Route = createFileRoute("/_authenticated/")({
       {
         name: "description",
         content:
-          "Your OG B0T studio: cook AI songs, cuss the bot in Battle Zone, and keep track of your coins and VIP.",
+          "Your OG B0T studio: cook AI songs, cuss the bot in Battle Zone, and keep track of your coins and PRO.",
       },
       { property: "og:title", content: "AI Music Studio | OG B0T — AI Songs & Diss Tracks" },
       {
@@ -129,6 +130,7 @@ function DashboardHome() {
   const dev = useDevMode();
   const { data: profile } = useProfile();
   const { isVip, hasVipRole, isTrial } = useRole();
+  const badge = useMemberBadge();
   const navigate = useNavigate();
   const carrom = useCarromLink();
   const signalsPortal = useSignalsPortal();
@@ -221,11 +223,16 @@ function DashboardHome() {
           {hasVipRole ? (
             <Link
               to="/settings"
-              aria-label="You are an OG VIP member"
+              aria-label={
+                badge === "REAL OG"
+                  ? "You are a REAL OG: OG B0T PRO and the Vault pass"
+                  : "You are an OG B0T PRO member"
+              }
+              title={profile?.og_vip_id ?? undefined}
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/60 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-black shadow-[0_0_16px_rgba(251,191,36,0.45)] sm:px-3.5 sm:text-xs"
             >
               <Crown className="h-3.5 w-3.5 fill-current" />
-              {profile?.og_vip_id ?? "VIP"}
+              {badge === "REAL OG" ? "REAL OG" : (profile?.og_vip_id ?? "PRO")}
             </Link>
           ) : (
             <Link
@@ -234,7 +241,7 @@ function DashboardHome() {
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/50 bg-amber-500/10 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wider text-amber-300 transition hover:bg-amber-500/20 sm:px-3.5 sm:text-xs"
             >
               <Crown className="h-3.5 w-3.5" />
-              {isTrial ? "VIP trial" : "Get VIP"}
+              {isTrial ? "PRO trial" : "Get PRO"}
             </Link>
           )}
         </div>
@@ -319,12 +326,12 @@ function DashboardHome() {
               imageAlt="OG B0T Battle Zone badge"
               eyebrow="Live now"
               live
-              badge={isVip ? "VIP unlocked" : "Free entry"}
+              badge={isVip ? "PRO unlocked" : "Free entry"}
               title="Battle Zone"
               description={
                 isVip
                   ? "Cuss OG B0T. Bank coins for every hit."
-                  : "Cuss OG B0T. VIP lets him swear back."
+                  : "Cuss OG B0T. PRO lets him swear back."
               }
               cta="Enter Battle Zone"
               onClick={() => navigate({ to: "/messenger", search: { live: true } })}
@@ -527,7 +534,7 @@ function DashboardHome() {
                 />
                 <ChecklistItem done={hasSongs} label="Create your first song" to="/library" />
                 <ChecklistItem done={saidHi} label="Say hi in OG B0T" to="/messenger" />
-                <ChecklistItem done={isVip} label="Unlock VIP perks" to="/buy-coins" />
+                <ChecklistItem done={isVip} label="Unlock PRO perks" to="/buy-coins" />
               </CardContent>
             </Card>
           </div>

@@ -185,7 +185,7 @@ export const createVipCheckoutSession = createServerFn({ method: "POST" })
     try {
       const stripe = createStripeClient(data.environment);
       const prices = await stripe.prices.list({ lookup_keys: [plan.priceId], active: true });
-      if (!prices.data.length) throw new Error("VIP price not found");
+      if (!prices.data.length) throw new Error("PRO price not found");
       const stripePrice = prices.data[0];
 
       let email: string | undefined;
@@ -809,7 +809,7 @@ export const refundCoinPurchase = createServerFn({ method: "POST" })
         _role: "vip",
       });
       if (roleErr) return { error: roleErr.message };
-      if (!isVip) return { error: "VIP membership required for instant refunds" };
+      if (!isVip) return { error: "PRO membership required for instant refunds" };
 
       const stripe = createStripeClient(data.environment);
       const session = await stripe.checkout.sessions.retrieve(data.sessionId, {

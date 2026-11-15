@@ -76,7 +76,7 @@ export function WelcomeSeoFallback() {
         <section className="mt-8">
           <h2 className="text-xl font-bold">Your next prompt could be a hit.</h2>
           <p className="text-muted-foreground">
-            Free account in seconds. 15 days of VIP on us, no card needed.
+            Free account in seconds. 15 days of PRO on us, no card needed.
           </p>
         </section>
 

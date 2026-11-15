@@ -17,7 +17,7 @@ function PurchaseHistoryPage() {
           <div>
             <h1 className="text-2xl font-bold">Purchase history</h1>
             <p className="text-sm text-muted-foreground">
-              Orders, coin packs, and VIP membership changes.
+              Orders, coin packs, and PRO membership changes.
             </p>
           </div>
         </header>

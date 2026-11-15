@@ -299,6 +299,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-15 · #304** · VIP renamed OG B0T PRO in
+  everything users and the Boss see (242 lines over 62 files, store first;
+  a browser audit of the store, home, settings, chat, Battle Zone, sports,
+  referrals, purchases, terms and Boss pages found no "VIP" left). Code
+  names, Stripe/RevenueCat ids and issued IDs unchanged; `/pro` added
+  beside `/vip`. New REAL OG badge for members with both PRO and the Vault
+  pass. Coin pack "Pro" → "Mega". House rule added to CLAUDE.md.
+
 - **Boss's Claude · 2026-11-15 · #303** · Signals: HFT lab and "Why
   trades lost". Research on two days of 1-second prices with Vantage costs:
   10-15 second trades lose after the spread on gold and bitcoin (bitcoin's

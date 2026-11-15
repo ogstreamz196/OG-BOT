@@ -168,7 +168,7 @@ const TABS: readonly BossTab[] = [
     value: "access",
     label: "Free access",
     Icon: ToggleRight,
-    hint: "Switch VIP features on for everyone for a while.",
+    hint: "Switch PRO features on for everyone for a while.",
     Panel: FreeAccessPanel,
     hidden: true,
   },

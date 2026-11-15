@@ -29,7 +29,7 @@ export function BossControls() {
     <SettingsCard
       icon={<ShieldCheck className="h-5 w-5" />}
       title="Boss switchboard"
-      hint="Live switches at a glance. Your coins, VIP and roles are changed in Members, like anyone else's."
+      hint="Live switches at a glance. Your coins, PRO and roles are changed in Members, like anyone else's."
       tone="violet"
     >
       <div className="space-y-3">

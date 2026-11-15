@@ -79,9 +79,9 @@ function TermsPage() {
 
         <Section title="3. Subscriptions and billing">
           <p>
-            OG VIP is an auto-renewing subscription. Payment is charged to your Apple ID or Google
-            Play account at confirmation of purchase. It renews automatically at the same price
-            unless cancelled at least 24 hours before the end of the current period, and your
+            OG B0T PRO is an auto-renewing subscription. Payment is charged to your Apple ID or
+            Google Play account at confirmation of purchase. It renews automatically at the same
+            price unless cancelled at least 24 hours before the end of the current period, and your
             account is charged for renewal within 24 hours of the period ending.
           </p>
           <p>

@@ -97,7 +97,7 @@ export const runFoulMouthSmokeTest = createServerFn({ method: "POST" })
     });
 
     // 3) Server-side VIP gating
-    await run("vip_gating", "VIP gating enforced server-side", async () => {
+    await run("vip_gating", "PRO gating enforced server-side", async () => {
       // Re-issue a foul-mouth request and confirm reply length is capped to the
       // role-appropriate ceiling. Non-VIP must fall back to the SAFE cap (≤280).
       const bot = await postAndFetchReply("smoke test · foul gating · roast me in one line", true);
@@ -109,21 +109,21 @@ export const runFoulMouthSmokeTest = createServerFn({ method: "POST" })
         );
       }
       return isVip
-        ? `VIP caller → FOUL cap honored (${bot.content.length}≤420)`
-        : `non-VIP caller → forced SAFE cap (${bot.content.length}≤280)`;
+        ? `PRO caller → FOUL cap honored (${bot.content.length}≤420)`
+        : `non-PRO caller → forced SAFE cap (${bot.content.length}≤280)`;
     });
 
     // 4) FOUL reply quality — VIP-only
     if (!isVip) {
       steps.push({
         id: "foul_quality",
-        label: "Brutal-short-but-helpful reply (VIP)",
+        label: "Brutal-short-but-helpful reply (PRO)",
         status: "skip",
         ms: 0,
-        detail: "Caller is not VIP — skipped foul-quality check",
+        detail: "Caller is not PRO — skipped foul-quality check",
       });
     } else {
-      await run("foul_quality", "Brutal-short-but-helpful reply (VIP)", async () => {
+      await run("foul_quality", "Brutal-short-but-helpful reply (PRO)", async () => {
         const bot = await postAndFetchReply("smoke test · how do I center a div in CSS?", true);
         if (!bot?.content) throw new Error("No bot reply produced");
         const sentences = bot.content.split(/(?<=[.!?])\s+/).filter(Boolean).length;

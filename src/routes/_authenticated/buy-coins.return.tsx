@@ -104,7 +104,7 @@ function BuyCoinsReturn() {
                 : state.kind === "pending"
                   ? "Payment still processing"
                   : state.kind === "vip"
-                    ? "VIP unlocked"
+                    ? "PRO unlocked"
                     : state.kind === "item"
                       ? "Purchase complete"
                       : "Payment complete"}
@@ -115,7 +115,7 @@ function BuyCoinsReturn() {
             {state.kind === "error" && state.message}
             {state.kind === "pending" &&
               "Your coins land as soon as the bank confirms. Check back in a minute."}
-            {state.kind === "vip" && "Your VIP perks are active across the whole hub."}
+            {state.kind === "vip" && "Your PRO perks are active across the whole hub."}
             {state.kind === "item" &&
               "Payment received — your item unlocks in a few seconds. Find it on its card in the Store."}
             {state.kind === "done" &&

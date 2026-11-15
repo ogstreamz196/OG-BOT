@@ -34,9 +34,9 @@ export type BossSwitch = {
 export const BOSS_SWITCHES: readonly BossSwitch[] = [
   // Everyone
   {
-    name: "Free VIP for all",
-    on: "Every signed-in member gets VIP features (songs, foul mouth, VIP chat), until the end time if you set one.",
-    off: "Only real VIPs, trials and admins get VIP features.",
+    name: "Free PRO for all",
+    on: "Every signed-in member gets PRO features (songs, foul mouth, PRO chat), until the end time if you set one.",
+    off: "Only real PRO members, trials and admins get PRO features.",
     area: "Everyone",
     where: "Dashboard bar (full version with a custom end time: System › Free access)",
     to: "/admin/system",
@@ -175,16 +175,16 @@ export const BOSS_SWITCHES: readonly BossSwitch[] = [
 
   // Members
   {
-    name: "VIP (one member)",
-    on: "That member gets VIP, until the end date you choose.",
-    off: "Their VIP is taken away.",
+    name: "PRO (one member)",
+    on: "That member gets PRO, until the end date you choose.",
+    off: "Their PRO is taken away.",
     area: "Members",
     where: "Members › open the member",
     to: "/admin/users",
   },
   {
     name: "OG Vault access (one member)",
-    on: "That member gets a free OG Vault pass, separate from VIP.",
+    on: "That member gets a free OG Vault pass, separate from PRO.",
     off: "Their Vault pass is taken away.",
     area: "Members",
     where: "Members › open the member",
@@ -234,7 +234,7 @@ export const BOSS_SWITCHES: readonly BossSwitch[] = [
   // You (your own account, like any member)
   {
     name: "OG B0T foul mouth",
-    on: "OG B0T swears at you in chat (VIP only).",
+    on: "OG B0T swears at you in chat (PRO only).",
     off: "OG B0T keeps it clean with you.",
     area: "You",
     where: "Settings › Preferences",

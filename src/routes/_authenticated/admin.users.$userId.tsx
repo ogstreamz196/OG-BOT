@@ -349,13 +349,13 @@ function UserSettingsPage() {
           <header>
             <h3 className="font-semibold">Roles & access</h3>
             <p className="text-sm text-muted-foreground">
-              VIP, Vault, Dev and Boss access. Every change asks first and is logged.
+              PRO, Vault, Dev and Boss access. Every change asks first and is logged.
             </p>
           </header>
 
           <RoleToggleRow
             icon={<Crown className="h-5 w-5 text-amber-500" />}
-            title="VIP member"
+            title="PRO member"
             description="Unlocks premium tiers and bonus features."
             checked={isVip}
             userId={profile.id}
@@ -363,7 +363,7 @@ function UserSettingsPage() {
             rpc="set_vip_admin"
             paramKey="make_vip"
             vipExpiry
-            confirm={{ revoke: "Remove VIP from this member now?" }}
+            confirm={{ revoke: "Remove PRO from this member now?" }}
           />
 
           <VaultToggleRow
@@ -856,7 +856,7 @@ function VaultToggleRow({
         <div>
           <Label className="text-sm font-medium">OG Vault access</Label>
           <p className="text-xs text-muted-foreground">
-            Grants the Vault pass for free — independent of VIP.
+            Grants the Vault pass for free — independent of PRO.
           </p>
         </div>
       </div>

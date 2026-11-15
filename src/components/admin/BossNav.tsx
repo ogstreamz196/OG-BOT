@@ -29,7 +29,7 @@ export const BOSS_AREAS = [
   {
     to: "/admin/users",
     label: "Members",
-    desc: "Find people, give or take coins, VIP and roles",
+    desc: "Find people, give or take coins, PRO and roles",
     icon: Users,
     group: "run",
   },

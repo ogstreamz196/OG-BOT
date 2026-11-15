@@ -45,7 +45,7 @@ export function FoulMouthSmokeTest() {
             <Flame className="h-4 w-4 text-orange-400" /> Live Chat foul-mouth smoke test
           </h3>
           <p className="text-xs text-muted-foreground">
-            Verifies safe-prompt path, server-side VIP gating, and brutal-short-but-helpful reply
+            Verifies safe-prompt path, server-side PRO gating, and brutal-short-but-helpful reply
             quality.
           </p>
         </div>
@@ -62,7 +62,7 @@ export function FoulMouthSmokeTest() {
       {result && (
         <div className="mt-4 space-y-2">
           <p className="text-xs text-muted-foreground">
-            Caller VIP: <span className="font-semibold">{result.isVip ? "yes" : "no"}</span>
+            Caller PRO: <span className="font-semibold">{result.isVip ? "yes" : "no"}</span>
           </p>
           {result.steps.map((s) => {
             const Icon =

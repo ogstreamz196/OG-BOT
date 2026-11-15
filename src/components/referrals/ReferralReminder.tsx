@@ -92,7 +92,8 @@ export function ReferralReminder({ className }: { className?: string }) {
               className="text-foreground [overflow-wrap:anywhere]"
               style={{ fontSize: "clamp(0.8125rem, 2.6vw, 0.9375rem)", lineHeight: 1.35 }}
             >
-              Share your code and bank 6% of every coin they burn — 13% as an OG VIP. Forever.
+              Share your code and bank 6% of every coin they burn — 13% as an OG B0T PRO member.
+              Forever.
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
               <code

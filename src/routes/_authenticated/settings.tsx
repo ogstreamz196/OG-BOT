@@ -43,6 +43,7 @@ import { SettingRow, SettingsCard } from "@/components/settings/SettingsCard";
 import { TelegramConnectCard } from "@/components/profile/TelegramConnectCard";
 import { DeleteMyAccount } from "@/components/DeleteMyAccount";
 import { copyText } from "@/lib/copy-text";
+import { useMemberBadge } from "@/hooks/use-member-badge";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -50,12 +51,12 @@ export const Route = createFileRoute("/_authenticated/settings")({
       { title: "Settings | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
-        content: "Your OG B0T account: profile, VIP, Vault pass, coins and preferences.",
+        content: "Your OG B0T account: profile, PRO, Vault pass, coins and preferences.",
       },
       { property: "og:title", content: "Settings | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Your OG B0T account: profile, VIP, Vault pass, coins and preferences.",
+        content: "Your OG B0T account: profile, PRO, Vault pass, coins and preferences.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -99,7 +100,7 @@ function txLabel(type: string, ref: string | null): string {
     t.includes("pack")
   )
     return "Bought coins";
-  if (t.includes("vip")) return "VIP";
+  if (t.includes("vip")) return "PRO";
   if (t.includes("sports")) return "OG Sports Guide";
   if (t.includes("vault")) return "OG Vault pass";
   if (t.includes("download") || t.includes("community")) return "Community track download";
@@ -112,6 +113,7 @@ function SettingsPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const { hasVipRole, isAdmin } = useRole();
+  const badge = useMemberBadge();
   const qc = useQueryClient();
 
   const [native, setNative] = useState(false);
@@ -274,7 +276,12 @@ function SettingsPage() {
               <h1 className="flex items-center gap-1.5 truncate font-display text-xl font-bold">
                 <span className="truncate">{profile?.display_name || "OG Member"}</span>
                 {hasVipRole && (
-                  <Crown className="h-4 w-4 shrink-0 fill-current text-coin" aria-label="VIP" />
+                  <Crown className="h-4 w-4 shrink-0 fill-current text-coin" aria-label="PRO" />
+                )}
+                {badge === "REAL OG" && (
+                  <span className="shrink-0 rounded-full border border-amber-300/60 bg-amber-400/15 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-wider text-amber-300">
+                    REAL OG
+                  </span>
                 )}
               </h1>
               {extras.data?.created_at && (
@@ -632,15 +639,15 @@ const SECTIONS: {
     id: "profile",
     short: "Profile",
     title: "Profile & identity",
-    about: "How you show up, your VIP ID, Vault login and Telegram link.",
+    about: "How you show up, your PRO ID, Vault login and Telegram link.",
     icon: <UserRound className="h-3.5 w-3.5" />,
     chip: "border-violet-400/40 bg-violet-500/15",
   },
   {
     id: "membership",
-    short: "VIP & coins",
-    title: "VIP, coins & invites",
-    about: "Your VIP plan, your coins and your invite link.",
+    short: "PRO & coins",
+    title: "PRO, coins & invites",
+    about: "Your PRO plan, your coins and your invite link.",
     icon: <Crown className="h-3.5 w-3.5" />,
     chip: "border-rose-400/40 bg-rose-500/15",
   },

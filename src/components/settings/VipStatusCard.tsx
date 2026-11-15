@@ -58,7 +58,7 @@ export function VipStatusCard({ className }: { className?: string } = {}) {
     <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Crown className="h-4 w-4 text-primary" /> OG VIP membership
+          <Crown className="h-4 w-4 text-primary" /> OG B0T PRO membership
         </CardTitle>
         <CardDescription>
           £5 / month — foul-mouth OG B0T, priority replies, and a 10-coin daily safety net.
@@ -71,7 +71,7 @@ export function VipStatusCard({ className }: { className?: string } = {}) {
             <Badge variant="secondary">Checking…</Badge>
           ) : isVip ? (
             <Badge className="bg-gradient-brand text-primary-foreground shadow-glow">
-              <Crown className="mr-1 h-3 w-3" /> VIP active
+              <Crown className="mr-1 h-3 w-3" /> PRO active
             </Badge>
           ) : (
             <Badge variant="outline">Not subscribed</Badge>
@@ -109,7 +109,7 @@ export function VipStatusCard({ className }: { className?: string } = {}) {
               className="h-auto min-h-11 w-full whitespace-normal bg-gradient-brand py-2 text-center leading-tight text-primary-foreground shadow-glow min-[430px]:w-auto"
             >
               <Link to="/buy-coins" search={{ flow: "vip" } as never}>
-                <Crown className="mr-2 h-4 w-4" /> Upgrade to OG VIP — £5/month
+                <Crown className="mr-2 h-4 w-4" /> Upgrade to OG B0T PRO — £5/month
               </Link>
             </Button>
           )}

@@ -88,7 +88,7 @@ export function useSetFreeAccess() {
             : "Free access ON for all users",
         );
       } else {
-        toast.success("Free access OFF — VIP-only restored");
+        toast.success("Free access OFF — PRO-only restored");
       }
     },
     onError: (e: Error) => toast.error(e.message),

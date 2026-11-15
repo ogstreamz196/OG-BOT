@@ -38,9 +38,9 @@ export async function queueYearlyVipAck(admin: any, userId: string, ogVipId: str
 
   const tgUser = member?.telegram_username as string | null;
   const text =
-    `<b>👑 New OG VIP Yearly member!</b>\n` +
+    `<b>👑 New OG B0T PRO Yearly member!</b>\n` +
     `Name: <b>${esc(member?.display_name ?? "Unknown")}</b>\n` +
-    `OG VIP ID: <code>${esc(ogVipId ?? "—")}</code>\n` +
+    `OG PRO ID: <code>${esc(ogVipId ?? "—")}</code>\n` +
     `Telegram: ${tgUser ? `@${esc(tgUser)}` : member?.telegram_chat_id ? "linked (no @username)" : "not linked"}`;
 
   const buttons: Array<Array<Record<string, string>>> = [

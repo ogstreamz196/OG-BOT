@@ -51,7 +51,7 @@ function Summary({ c, label }: { c: MergeCandidate; label: string }) {
         {c.telegram_linked
           ? `Telegram ${c.telegram_username ? "@" + c.telegram_username : "linked"}`
           : "No Telegram"}
-        {c.roles.includes("vip") ? " · VIP" : ""}
+        {c.roles.includes("vip") ? " · PRO" : ""}
         {c.activeSubscription ? " · Subscription" : ""}
       </p>
       <p className="text-xs text-muted-foreground">
