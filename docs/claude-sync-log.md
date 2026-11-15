@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-15 · #PRNUM** · Signals group switchboard on the
+- **Boss's Claude · 2026-11-15 · #306** · Signals group switchboard on the
   Copy Trader B0T card (and the website): group posting, gold, bitcoin and
   the AI desk check (`EngineConfig.group`, taps `eg:`), obeyed by postOnce
   for every post. High-frequency now skips the desk wait (floor and gate
