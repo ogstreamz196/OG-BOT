@@ -9,7 +9,7 @@ const PERKS = [
   "🤬 Foul Mouth OG B0T",
   "⚡ Priority AI",
   "🎛️ Every music style",
-  "👑 Gold badge + OG VIP ID",
+  "👑 Gold badge + OG PRO ID",
   "💸 13% referral cashback",
   "🪙 10 free coins a day",
 ] as const;
@@ -47,14 +47,14 @@ export function VipYearlyTeaser() {
       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
         <div className="min-w-0">
           <p className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.25em] og-vip-teaser__eyebrow sm:text-sm">
-            <Crown className="h-4 w-4 fill-current" /> OG VIP Yearly
+            <Crown className="h-4 w-4 fill-current" /> OG B0T PRO Yearly
           </p>
           <h2
             id="vip-yearly-title"
             className="font-display mt-2 text-balance text-3xl font-black leading-[0.95] tracking-tight sm:text-4xl"
           >
             {daysLeft
-              ? `Your free VIP ends in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`
+              ? `Your free PRO ends in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`
               : "Let OG B0T off the leash"}
           </h2>
           <p className="mt-2 max-w-xl text-sm text-foreground/85 sm:text-base">
@@ -89,7 +89,7 @@ export function VipYearlyTeaser() {
             hash={native ? undefined : "section-vip"}
             className="mt-1 inline-flex min-h-12 items-center justify-center gap-2 og-vip-teaser__btn rounded-xl px-5 text-sm font-black uppercase tracking-wide transition focus-visible:outline-none"
           >
-            <Crown className="h-4 w-4" /> Go VIP Yearly
+            <Crown className="h-4 w-4" /> Go PRO Yearly
           </Link>
           <p className="text-[0.7rem] text-foreground/65">
             Or {CURRENCY_SYMBOL}

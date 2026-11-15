@@ -52,7 +52,7 @@ export function VipNamePrompt() {
       toast.error(error.message.includes("duplicate") ? "That one's taken — try another." : error.message);
       return;
     }
-    toast.success(`Locked in. You're ${username} for the whole of your VIP.`);
+    toast.success(`Locked in. You're ${username} for as long as you stay PRO.`);
     await qc.invalidateQueries({ queryKey: ["vip-name"] });
     await qc.invalidateQueries({ queryKey: ["profile"] });
   };
@@ -73,16 +73,16 @@ export function VipNamePrompt() {
           <span className="grid h-14 w-14 place-items-center rounded-full bg-coin/20 text-coin">
             <Crown className="h-7 w-7" />
           </span>
-          <DialogTitle className="mt-3 font-display text-xl uppercase">Welcome to VIP 👑</DialogTitle>
+          <DialogTitle className="mt-3 font-display text-xl uppercase">Welcome to PRO 👑</DialogTitle>
           <DialogDescription className="mt-1 text-sm">
-            As a VIP your username becomes your VIP ID. Once you confirm, it{" "}
-            <b>can't be changed for as long as your VIP lasts</b>.
+            As a PRO member your username becomes your PRO ID. Once you confirm, it{" "}
+            <b>can't be changed for as long as your PRO membership lasts</b>.
           </DialogDescription>
         </div>
         {!choosing ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-coin/50 bg-coin/10 p-3 text-center">
-              <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">Proposed VIP ID</div>
+              <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">Proposed PRO ID</div>
               <div className="font-mono text-2xl font-black tracking-widest">{proposed}</div>
             </div>
             <Button className="h-12 w-full" disabled={busy} onClick={() => void save(proposed)}>
@@ -95,7 +95,7 @@ export function VipNamePrompt() {
         ) : (
           <form onSubmit={submit} className="space-y-3">
             <p className="text-center text-xs text-muted-foreground">
-              Choose wisely — this is your final pick for the length of your VIP.
+              Choose wisely — this is your final pick for the length of your PRO membership.
             </p>
             <Input
               autoFocus
@@ -107,7 +107,7 @@ export function VipNamePrompt() {
             />
             {name && (
               <p className="text-center text-sm">
-                Your VIP ID will be <b className="font-mono">{vipIdFor(name)}</b>
+                Your PRO ID will be <b className="font-mono">{vipIdFor(name)}</b>
               </p>
             )}
             <Button type="submit" className="h-12 w-full" disabled={busy || !isValidUsername(name)}>

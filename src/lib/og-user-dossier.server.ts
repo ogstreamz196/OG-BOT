@@ -81,7 +81,7 @@ export async function loadUserDossier(admin: AnyClient, userId: string): Promise
   const p = prof.data ?? {};
   const roleList: string[] = (roles.data ?? []).map((r: { role: string }) => r.role);
   const lines: string[] = [
-    "LIVE ACCOUNT FACTS for this user (authoritative — use these to answer account, VIP, coin and track questions; never invent beyond them):",
+    "LIVE ACCOUNT FACTS for this user (authoritative — use these to answer account, PRO, coin and track questions; never invent beyond them):",
   ];
 
   lines.push(`- Name: ${p.display_name ?? "unknown"} · Member since ${fmtDate(p.created_at)}`);
@@ -89,18 +89,18 @@ export async function loadUserDossier(admin: AnyClient, userId: string): Promise
     `- Recovery email on file: ${p.email && !String(p.email).endsWith("@ogstreamz.app") ? "yes" : "no — suggest adding one in Profile"}`,
   );
   lines.push(`- OG Coins balance: ${p.coin_balance ?? 0}`);
-  if (p.og_vip_id) lines.push(`- OG VIP ID (their yearly VIP verification code): ${p.og_vip_id}`);
+  if (p.og_vip_id) lines.push(`- OG PRO ID (their yearly PRO verification code): ${p.og_vip_id}`);
   lines.push(
-    "- VIP cancellation rule: cancelling any time only stops auto-renew; VIP stays active until the paid month/year ends.",
+    "- PRO cancellation rule: cancelling any time only stops auto-renew; PRO stays active until the paid month/year ends.",
   );
 
   // VIP
   const sub = subs.data?.[0];
   const hasVipRole = roleList.includes("vip");
   if (sub && ["active", "trialing", "past_due"].includes(sub.status)) {
-    const plan = /year/i.test(sub.price_id ?? "") ? "OG VIP Yearly" : "OG VIP Monthly";
+    const plan = /year/i.test(sub.price_id ?? "") ? "OG B0T PRO Yearly" : "OG B0T PRO Monthly";
     lines.push(
-      `- VIP: ${plan}, status ${sub.status}. ${sub.cancel_at_period_end ? `Auto-renew is OFF — VIP ends on ${fmtDate(sub.current_period_end)}.` : `Renews on ${fmtDate(sub.current_period_end)}.`} Billed via web card payment.`,
+      `- PRO: ${plan}, status ${sub.status}. ${sub.cancel_at_period_end ? `Auto-renew is OFF — PRO ends on ${fmtDate(sub.current_period_end)}.` : `Renews on ${fmtDate(sub.current_period_end)}.`} Billed via web card payment.`,
     );
   } else if (hasVipRole) {
     const vipRow = (roles.data ?? []).find((r: { role: string }) => r.role === "vip") as
@@ -108,12 +108,12 @@ export async function loadUserDossier(admin: AnyClient, userId: string): Promise
       | undefined;
     lines.push(
       vipRow?.expires_at
-        ? `- VIP: active, granted by the Boss. VIP ends on ${fmtDate(vipRow.expires_at)} (no auto-renew).`
-        : "- VIP: active with no end date (lifetime, Boss-granted or app store subscription).",
+        ? `- PRO: active, granted by the Boss. PRO ends on ${fmtDate(vipRow.expires_at)} (no auto-renew).`
+        : "- PRO: active with no end date (lifetime, Boss-granted or app store subscription).",
     );
   } else {
     lines.push(
-      `- VIP: not a VIP${sub ? ` (last web subscription ${sub.status}, ended ${fmtDate(sub.current_period_end)})` : ""}. VIP is £4.99/month or £50/year in the Store.`,
+      `- PRO: not a PRO${sub ? ` (last web subscription ${sub.status}, ended ${fmtDate(sub.current_period_end)})` : ""}. PRO is £4.99/month or £50/year in the Store.`,
     );
   }
   if (roleList.includes("admin") || roleList.includes("boss")) lines.push("- Role: Boss/admin.");
@@ -175,7 +175,7 @@ export async function loadUserDossier(admin: AnyClient, userId: string): Promise
   );
   const earned = (refEarn?.data ?? []).reduce((a: number, r: any) => a + Number(r.amount || 0), 0);
   lines.push(
-    `- Referral circle: ${refs?.count ?? 0} friends invited, ${earned} coins earned lifetime (rate: ${isVipNow ? "13% VIP" : "6% free"} of friends' coin spends)`,
+    `- Referral circle: ${refs?.count ?? 0} friends invited, ${earned} coins earned lifetime (rate: ${isVipNow ? "13% PRO" : "6% free"} of friends' coin spends)`,
   );
   const b = battle?.data;
   lines.push(

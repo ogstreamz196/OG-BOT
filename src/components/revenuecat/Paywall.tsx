@@ -89,17 +89,17 @@ function useStoreName() {
 }
 
 const MONTHLY_PLAN = {
-  title: "OG VIP Monthly",
+  title: "OG B0T PRO Monthly",
   price: "£4.99",
   period: "/month",
-  description: "Full VIP access, billed monthly. Cancel any time.",
+  description: "Full PRO access, billed monthly. Cancel any time.",
 };
 
 const YEARLY_PLAN = {
-  title: "VIP Yearly",
+  title: "PRO Yearly",
   price: "£50",
   period: "/year",
-  description: "Full VIP access for a whole year — two months free versus monthly.",
+  description: "Full PRO access for a whole year — two months free versus monthly.",
 };
 
 export function Paywall() {
@@ -139,7 +139,7 @@ export function Paywall() {
       <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Crown className="h-4 w-4 text-primary" /> You are VIP
+            <Crown className="h-4 w-4 text-primary" /> You are PRO
           </CardTitle>
           <CardDescription>Enjoy your premium features.</CardDescription>
         </CardHeader>
@@ -171,7 +171,7 @@ export function Paywall() {
     setPurchasing(pkg.identifier);
     try {
       const success = await purchasePackage(pkg);
-      if (success) toast.success("Welcome to VIP!");
+      if (success) toast.success("Welcome to PRO!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Purchase failed or cancelled.");
     } finally {
@@ -183,7 +183,7 @@ export function Paywall() {
     <Card>
       <CardHeader className="text-center">
         <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-          <Crown className="h-5 w-5 text-primary" /> Unlock OG VIP Pass
+          <Crown className="h-5 w-5 text-primary" /> Unlock OG B0T PRO
         </CardTitle>
         <CardDescription>Get unlimited access to all premium features.</CardDescription>
       </CardHeader>

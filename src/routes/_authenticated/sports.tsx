@@ -173,7 +173,7 @@ function SportsGuidePage() {
               to="/buy-coins"
               className="block rounded-xl border border-coin/40 bg-coin/10 px-4 py-3 text-center text-xs font-bold text-coin"
             >
-              👑 Free for VIP members — including the 15-day free trial. Go VIP →
+              👑 Free for PRO members — including the 15-day free trial. Go PRO →
             </Link>
           </div>
         </div>

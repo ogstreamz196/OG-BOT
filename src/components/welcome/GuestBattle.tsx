@@ -266,6 +266,7 @@ export function GuestBattle({ onNeedAccount }: { onNeedAccount: () => void }) {
                   content={m.content}
                   vip={!isBot && m.vip}
                   vipId={m.vip_id}
+                  realOg={!isBot && !!m.real_og}
                   scoreTenths={isBot && prev?.role === "user" ? prev.score_tenths : null}
                   heat={isBot && prev?.role === "user" ? heatTier(prev.score_tenths) : null}
                   menu={

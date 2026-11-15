@@ -208,7 +208,9 @@ export function CommunityRoom() {
               const known = row.user_id
                 ? existing.find((m) => m.user_id === row.user_id && m.vip !== undefined)
                 : undefined;
-              const withBadge = known ? { ...row, vip: known.vip, vip_id: known.vip_id } : row;
+              const withBadge = known
+                ? { ...row, vip: known.vip, vip_id: known.vip_id, real_og: known.real_og }
+                : row;
               return { messages: [...existing, withBadge] };
             },
           );
@@ -641,6 +643,7 @@ export function CommunityRoom() {
                         content={m.content}
                         vip={!isBot && !!m.vip}
                         vipId={m.vip_id}
+                        realOg={!isBot && !!m.real_og}
                         scoreTenths={isBot && prev?.role === "user" ? prev.score_tenths : null}
                         heat={isBot && prev?.role === "user" ? heatTier(prev.score_tenths) : null}
                         onVipClick={hasVipRole ? undefined : () => setVipPromoOpen(true)}

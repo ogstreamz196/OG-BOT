@@ -101,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           name: "description",
           content:
-            "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+            "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, PRO on us.",
         },
         { name: "author", content: "OG Streamz" },
         { property: "og:site_name", content: "OG Streamz" },
@@ -112,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           property: "og:description",
           content:
-            "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+            "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, PRO on us.",
         },
         { property: "og:type", content: "website" },
         { property: "og:url", content: canonical ?? `${SITE_URL}${pathname}` },
@@ -134,7 +134,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         {
           name: "twitter:description",
           content:
-            "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+            "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, PRO on us.",
         },
         {
           name: "google-site-verification",
@@ -190,7 +190,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         // Styles for older TVs, car screens and phones (no CSS layers).
         { children: LEGACY_CSS_LOADER },
         ...siteJsonLd(
-          "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, VIP on us.",
+          "Type an idea and OG B0T cooks a full song with real vocals, cover art and foul-mouth diss tracks if you want them. Battle the bot, earn OG Coins, PRO on us.",
         ).map((data) => ({ type: "application/ld+json", children: JSON.stringify(data) })),
       ],
     };

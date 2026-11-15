@@ -302,13 +302,13 @@ async function handleCallbackQuery(cq: {
     const siteLink = telegramSignInLinker(admin, me.id);
     const foul = await foulAccess(admin, me.id, roles);
     if (!foul.allowed) {
-      await answer("Foul mouth is a VIP perk");
+      await answer("Foul mouth is a PRO perk");
       await screen(
         chatHere,
-        "🔒 <b>Foul mouth is a VIP perk.</b>\nVIP lets OG B0T swear back, no filter.",
+        "🔒 <b>Foul mouth is a PRO perk.</b>\nPRO lets OG B0T swear back, no filter.",
         withMenuBack({
           reply_markup: {
-            inline_keyboard: [[{ text: "👑 Get VIP", url: await siteLink("/store") }]],
+            inline_keyboard: [[{ text: "👑 Get PRO", url: await siteLink("/store") }]],
           },
         }),
       );
@@ -414,7 +414,7 @@ async function handleCallbackQuery(cq: {
     .update({ acknowledged_at: new Date().toISOString(), acknowledged_by: me.id })
     .eq("user_id", m[1])
     .is("acknowledged_at", null);
-  await answer("Added to verified OG VIPs ✅");
+  await answer("Added to verified PRO members ✅");
   if (cq.message?.chat?.id && cq.message.message_id) {
     await tg("editMessageReplyMarkup", {
       chat_id: cq.message.chat.id,
@@ -751,7 +751,7 @@ const UNLINKED_KEYBOARD = kb([[GENERATE_SIGNAL_TEXT], [CLEAR, SITE]]);
 const OLD_MENU_BUTTONS = new Set([
   "🔙 Categories",
   "💷 Coins & Store",
-  "🎧 Music & VIP",
+  "🎧 Music & PRO",
   "🔐 Access",
   "🛠 Boss tools",
 ]);
@@ -789,14 +789,14 @@ function withMenuBack(extra: Record<string, unknown> | undefined) {
 
 function menuPanel(isBoss: boolean, siteUrl: string, foul: FoulAccess) {
   const foulText = !foul.allowed
-    ? "🔒 Foul mouth (VIP)"
+    ? "🔒 Foul mouth (PRO)"
     : foul.on
       ? "🤬 Foul mouth: ON · tap to turn off"
       : "😇 Foul mouth: OFF · tap to turn on";
   return {
     inline_keyboard: [
       [{ text: foulText, callback_data: "menu:foul" }],
-      [menuButton("👑 VIP expiry", "vip"), menuButton("🔐 Vault pass", "vault")],
+      [menuButton("👑 PRO expiry", "vip"), menuButton("🔐 Vault pass", "vault")],
       [menuButton("🎧 My tracks", "tracks"), menuButton("💰 Balance", "balance")],
       [menuButton("🛒 Buy coins", "buy"), menuButton("⚽ Sports Guide", "sports")],
       [menuButton("👤 My profile", "me"), menuButton("❓ Help", "help")],
@@ -820,9 +820,9 @@ Just type to chat with me, same brain as the in-app messenger. Or use the button
 /balance  your OG coin balance
 /buy  top up OG coins
 
-🎧 <b>Music, VIP & Vault</b>
+🎧 <b>Music, PRO & Vault</b>
 /tracks  your latest tracks to download and share
-/vip  your VIP status and expiry date
+/vip  your PRO status and expiry date
 /vault  your OG Vault login
 
 📈 <b>Signals & sports</b>
@@ -1815,7 +1815,7 @@ async function freeGroupSignal(
 
 const GROUP_NOTE =
   "\n\nGROUP CHAT: you're answering one person in a Telegram group, and everyone in it can read your reply. " +
-  "Never mention their coins, VIP status, account, email, purchases or anything else private; if they ask, tell them to DM you. " +
+  "Never mention their coins, PRO status, account, email, purchases or anything else private; if they ask, tell them to DM you. " +
   "Keep it short and punchy, a few lines at most.";
 
 const GROUP_HELP =
@@ -1825,7 +1825,7 @@ const GROUP_HELP =
   "👋 New members get initiated the second they walk in\n" +
   "💬 <b>og</b> then a proper question\n" +
   "📈 <b>signal btc</b> for a scalp, add <b>holding</b> for 1-hour\n\n" +
-  "📈 Signals are free for everyone in the group. For the rest I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, VIP, the Vault and your tracks stay private in my DM.";
+  "📈 Signals are free for everyone in the group. For the rest I only answer people connected to OG B0T. Not connected? I'll give you the link. Coins, PRO, the Vault and your tracks stay private in my DM.";
 
 const CONNECT_NUDGE =
   "👋 I don't know you yet. Connect your Telegram to OG B0T and I'm all yours. " +
@@ -2575,6 +2575,7 @@ async function handleTelegramUpdate(
       "🛒 Buy Coins": "/buy",
       "👤 My Profile": "/me",
       "👑 VIP Status": "/vip",
+      "👑 PRO Status": "/vip",
       "❓ Help": "/help",
       "⚽ Sports Guide": "/sports",
       [CLEAR]: "/clear",
@@ -2766,7 +2767,7 @@ async function handleTelegramUpdate(
         telegramCoinPacks(admin).catch(() => []),
       ]);
       await show(
-        `💰 You've got <b>${p?.coin_balance ?? 0}</b> OG coins.\n\n🪙 <b>Top up</b>: pick a pack and pay by card. Coins land the second it goes through.\nVIP and the Vault pass are in the Store.`,
+        `💰 You've got <b>${p?.coin_balance ?? 0}</b> OG coins.\n\n🪙 <b>Top up</b>: pick a pack and pay by card. Coins land the second it goes through.\nPRO and the Vault pass are in the Store.`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -2842,7 +2843,8 @@ async function handleTelegramUpdate(
       );
       return Response.json({ ok: true, vault: true });
     }
-    if (/^\/vip\b/i.test(trimmed)) {
+    // /pro is the new name; /vip still works for old menus and habits.
+    if (/^\/(vip|pro)\b/i.test(trimmed)) {
       const [{ data: p }, { data: sub }, { data: vipRow }] = await Promise.all([
         admin
           .from("profiles")
@@ -2884,17 +2886,17 @@ async function handleTelegramUpdate(
       let body: string;
       if (paidEnd && paidEnd > now) {
         body =
-          `👑 <b>You're OG VIP!</b>\n\n` +
+          `👑 <b>You're OG B0T PRO!</b>\n\n` +
           vipId +
           `📅 Renews/expires: <b>${fmtDate(new Date(paidEnd).toISOString())}</b>` +
-          (sub?.cancel_at_period_end ? " (cancelled — VIP ends on this date)" : " (auto-renews)");
+          (sub?.cancel_at_period_end ? " (cancelled — PRO ends on this date)" : " (auto-renews)");
       } else if (trialEnd) {
         const daysLeft = Math.ceil((trialEnd - now) / 86400000);
         body =
-          `👑 <b>Free VIP trial active!</b>\n\n` +
+          `👑 <b>Free PRO trial active!</b>\n\n` +
           vipId +
           `📅 Trial ends: <b>${fmtDate(new Date(trialEnd).toISOString())}</b> (${daysLeft} day${daysLeft === 1 ? "" : "s"} left)\n\n` +
-          `Upgrade in the app to keep VIP after the trial.`;
+          `Upgrade in the app to keep PRO after the trial.`;
       } else if (
         roles.includes("vip") &&
         vipRow?.expires_at &&
@@ -2902,19 +2904,19 @@ async function handleTelegramUpdate(
       ) {
         const daysLeft = Math.ceil((new Date(vipRow.expires_at).getTime() - now) / 86400000);
         body =
-          `👑 <b>You're OG VIP!</b>\n\n` +
+          `👑 <b>You're OG B0T PRO!</b>\n\n` +
           vipId +
-          `📅 VIP ends: <b>${fmtDate(vipRow.expires_at)}</b> (${daysLeft} day${daysLeft === 1 ? "" : "s"} left)`;
+          `📅 PRO ends: <b>${fmtDate(vipRow.expires_at)}</b> (${daysLeft} day${daysLeft === 1 ? "" : "s"} left)`;
       } else if (isVipRole) {
-        body = `👑 <b>You're OG VIP!</b>\n\n` + vipId + `📅 No expiry — lifetime/boss VIP.`;
+        body = `👑 <b>You're OG B0T PRO!</b>\n\n` + vipId + `📅 No expiry — lifetime/boss PRO.`;
       } else {
         body =
-          `🆓 <b>Free plan</b>, no active VIP.\n\n` +
-          `VIP unlocks every style, Foul Mouth mode and your own OG VIP ID.`;
+          `🆓 <b>Free plan</b>, no active PRO.\n\n` +
+          `PRO unlocks every style, Foul Mouth mode and your own OG PRO ID.`;
       }
       await show(body, {
         reply_markup: {
-          inline_keyboard: [[{ text: "👑 Open VIP Store", url: await siteLink("/store") }]],
+          inline_keyboard: [[{ text: "👑 Open PRO Store", url: await siteLink("/store") }]],
         },
       });
       return Response.json({ ok: true, vip: true });

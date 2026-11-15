@@ -43,7 +43,7 @@ async function ensureCoupon(stripe: ReturnType<typeof createStripeClient>) {
   }
   await stripe.coupons.create({
     id: COUPON_ID,
-    name: "OG B0T secret £10 off Yearly VIP",
+    name: "OG B0T secret £10 off Yearly PRO",
     amount_off: DISCOUNT_PENCE,
     currency: "gbp",
     duration: "once",
@@ -114,7 +114,7 @@ export async function getOrCreateVipPromo(
       .slice(0, 10) || "OG";
     let lastErr: unknown;
     for (let i = 0; i < 3; i++) {
-      const code = `OG-VIP-${name}-${randomSuffix()}`;
+      const code = `OG-PRO-${name}-${randomSuffix()}`;
       try {
         const pc = await stripe.promotionCodes.create({
           promotion: { type: "coupon", coupon: COUPON_ID },
@@ -155,16 +155,16 @@ export async function getOrCreateVipPromo(
 /** Extra system-prompt block so OG Bot replies in character with the facts. */
 export function promoPromptNote(r: PromoResult): string {
   const how =
-    "To use it: open the Store (ogbot.co.uk/store), pick VIP Yearly, pay by card and tap 'Add promotion code' on the payment screen. Price drops from £50 to £40 for the first year.";
+    "To use it: open the Store (ogbot.co.uk/store), pick PRO Yearly, pay by card and tap 'Add promotion code' on the payment screen. Price drops from £50 to £40 for the first year.";
   switch (r.status) {
     case "issued":
-      return `\n\nPROMO CODE (just created for this user — you MUST include it exactly): ${r.code}. £10 off Yearly VIP, single-use, never expires until used, locked to them. ${how} Hype it up in character, tell them not to share it.`;
+      return `\n\nPROMO CODE (just created for this user — you MUST include it exactly): ${r.code}. £10 off Yearly PRO, single-use, never expires until used, locked to them. ${how} Hype it up in character, tell them not to share it.`;
     case "existing":
       return `\n\nPROMO CODE: this user already has an unused personal code: ${r.code}. Remind them (include it exactly), say it's still waiting until they use it, only one per person. ${how}`;
     case "redeemed":
       return `\n\nPROMO CODE: this user already used their one-time code (${r.code}). Tell them in character it's burnt — one per person, no more codes.`;
     case "already_vip":
-      return `\n\nPROMO CODE: user is already a paid VIP, so no discount code — tell them they're already eating good.`;
+      return `\n\nPROMO CODE: user is already a paid PRO, so no discount code — tell them they're already eating good.`;
     default:
       return `\n\nPROMO CODE: the code machine is offline right now; tell them to try again a bit later.`;
   }
@@ -173,7 +173,7 @@ export function promoPromptNote(r: PromoResult): string {
 /** Guarantees the exact code reaches the user even if the AI paraphrases. */
 export function ensureCodeInReply(reply: string, r: PromoResult): string {
   if ((r.status === "issued" || r.status === "existing") && !reply.includes(r.code)) {
-    return `${reply}\n\n🎫 Your code: **${r.code}** — £10 off Yearly VIP (£50 → £40). Single-use, never expires. Add it at checkout via "Add promotion code".`;
+    return `${reply}\n\n🎫 Your code: **${r.code}** — £10 off Yearly PRO (£50 → £40). Single-use, never expires. Add it at checkout via "Add promotion code".`;
   }
   return reply;
 }

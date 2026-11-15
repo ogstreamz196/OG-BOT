@@ -5,13 +5,13 @@ import { copyText } from "@/lib/copy-text";
 
 export function OgVipIdCard({ id }: { id: string }) {
   const copy = async () => {
-    if (await copyText(id)) toast.success("OG VIP ID copied");
+    if (await copyText(id)) toast.success("OG PRO ID copied");
     else toast.error("Couldn't copy — write it down instead.");
   };
   return (
     <div className="rounded-2xl border-2 border-coin/60 bg-coin/10 p-4 text-left shadow-glow">
       <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-coin">
-        <Crown className="h-4 w-4" /> OG VIP ID
+        <Crown className="h-4 w-4" /> OG PRO ID
       </p>
       <div className="mt-2 flex items-center justify-between gap-3">
         <span className="font-mono text-3xl font-black tracking-widest">{id}</span>
@@ -20,7 +20,7 @@ export function OgVipIdCard({ id }: { id: string }) {
         </Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Your yearly VIP verification code. Keep it safe for VIP access and support.
+        Your yearly PRO verification code. Keep it safe for PRO access and support.
       </p>
     </div>
   );

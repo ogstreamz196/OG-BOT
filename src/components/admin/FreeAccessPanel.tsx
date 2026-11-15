@@ -71,8 +71,8 @@ export function FreeAccessPanel() {
           <div className="min-w-0">
             <h3 className="font-semibold">Free access for all users</h3>
             <p className="text-sm text-muted-foreground">
-              Limited-time promo: every signed-in user gets VIP-only features, including OG B0T
-              foul-mouth mode. Turn off to restore VIP-only access.
+              Limited-time promo: every signed-in user gets PRO-only features, including OG B0T
+              foul-mouth mode. Turn off to restore PRO-only access.
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Status:{" "}
@@ -91,7 +91,7 @@ export function FreeAccessPanel() {
                     ? "ON — everyone unlocked"
                     : expired && rawEnabled
                       ? "AUTO-OFF — expiry reached"
-                      : "OFF — VIP only"}
+                      : "OFF — PRO only"}
               </span>
             </p>
           </div>
@@ -113,7 +113,7 @@ export function FreeAccessPanel() {
           Auto-revert expiry (optional)
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pick a date/time when free access automatically reverts to VIP-only. Leave empty for no
+          Pick a date/time when free access automatically reverts to PRO-only. Leave empty for no
           expiry.
         </p>
 

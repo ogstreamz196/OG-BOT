@@ -60,6 +60,11 @@ sync. Follow this every time.
   do nothing, never crash. Migrations are idempotent (`IF NOT EXISTS`).
 - Brand: **OG B0T** (letter O, zero only in B0T). Never "Supabase" in
   anything users see. No blue text: foreground, muted, emerald, rose, amber.
+- **The paid subscription is OG B0T PRO, never "VIP" in anything users see
+  (the Boss, 2026-11-15).** Say PRO / OG B0T PRO / PRO ID. Members who own
+  both PRO and the OG Vault pass get the **REAL OG** badge. Code names stay
+  as they are (`vip` role, `og_vip_*` Stripe lookup keys, `og_vip_id`,
+  `isVip`), and the OG VAULT app's own "VIP" tier is separate.
 - **Never use the word "roast" (the Boss's rule, 2026-11-03).** Say **cuss
   battle** (to cuss = to diss someone for fun) in anything you write: app
   copy, bot replies, cards, docs and messages to the Boss. Old "roast" text

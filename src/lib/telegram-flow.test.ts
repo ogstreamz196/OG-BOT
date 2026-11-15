@@ -453,11 +453,11 @@ describe("telegram bot flow", () => {
     who.foulAllowed = false;
     await type("📂 Menu");
     const locked = lastSent();
-    expect(buttons(locked)[0].text).toContain("🔒 Foul mouth (VIP)");
+    expect(buttons(locked)[0].text).toContain("🔒 Foul mouth (PRO)");
     await tap("menu:foul", locked.id);
     const perk = lastSent();
-    expect(perk.text).toContain("VIP perk");
-    expect(buttons(perk).map((b) => b.text)).toEqual(["👑 Get VIP", "⬅️ Menu"]);
+    expect(perk.text).toContain("PRO perk");
+    expect(buttons(perk).map((b) => b.text)).toEqual(["👑 Get PRO", "⬅️ Menu"]);
     await tap("menu:open", perk.id);
     expect(lastSent().text).toContain("OG Menu");
   });
@@ -723,7 +723,7 @@ describe("telegram bot flow", () => {
       expect(prompt).not.toContain("PRIVATE-DOSSIER");
       expect(prompt).not.toContain("PAID-SPORTS-GUIDE");
       expect(prompt).toContain("User is currently on: a Telegram group chat.");
-      expect(prompt).toContain("User role: VIP.");
+      expect(prompt).toContain("User role: PRO.");
       // Nothing from the group goes into the member's private history or memory.
       expect(loadUserDossier).not.toHaveBeenCalled();
       expect(buildSportsGuideContext).not.toHaveBeenCalled();

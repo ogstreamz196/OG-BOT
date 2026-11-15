@@ -837,11 +837,11 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                             aria-pressed={on}
                             onClick={() => {
                               if (locked) {
-                                toast(`👑 ${s} is an OG VIP style`, {
+                                toast(`👑 ${s} is an OG B0T PRO style`, {
                                   description:
                                     "Unlock all 50+ styles & moods, plus custom requests.",
                                   action: {
-                                    label: "Get VIP",
+                                    label: "Get PRO",
                                     onClick: () => void navigate({ to: "/buy-coins" }),
                                   },
                                 });

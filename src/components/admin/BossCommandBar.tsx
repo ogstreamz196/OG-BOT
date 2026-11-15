@@ -42,7 +42,7 @@ export function BossCommandBar() {
           <button type="button" className={pill(free.enabled ? "amber" : "muted")}>
             <Gift className="h-4 w-4 shrink-0" />
             <span className="min-w-0 truncate">
-              Free VIP for all:{" "}
+              Free PRO for all:{" "}
               {free.isLoading
                 ? "…"
                 : free.enabled
@@ -53,12 +53,12 @@ export function BossCommandBar() {
         </PopoverTrigger>
         <PopoverContent className="w-72 space-y-3" align="start">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-bold text-foreground">Free VIP for everyone</span>
+            <span className="text-sm font-bold text-foreground">Free PRO for everyone</span>
             <Switch
               checked={free.enabled}
               disabled={setFree.isPending}
               onCheckedChange={(on) => setFree.mutate({ enabled: on, expiresAt: null })}
-              aria-label="Free VIP for everyone"
+              aria-label="Free PRO for everyone"
             />
           </div>
           <div className="flex flex-wrap gap-2">

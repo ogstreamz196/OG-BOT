@@ -44,8 +44,8 @@ const fmtDay = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
-const SPORTS_LOCKED_PROMPT = `SPORTS GUIDE LOCKED — HARD RULE: This user has NOT unlocked the OG Sports Guide and is not VIP. Do NOT give ANY fixtures, kick-off times, dates, channels, broadcasters or Telegram links — not from the guide, not from memory, not from web sources. Do not mention or link any Telegram channel/group. Instead, in full OG B0T voice (cheeky British banter, roast them for being tight), tell them:
-1. The OG Sports Guide is locked — unlock it in the Store for just 10 OG Coins, or go VIP and it's included free (VIP includes it during the 15-day free trial too).
+const SPORTS_LOCKED_PROMPT = `SPORTS GUIDE LOCKED — HARD RULE: This user has NOT unlocked the OG Sports Guide and is not PRO. Do NOT give ANY fixtures, kick-off times, dates, channels, broadcasters or Telegram links — not from the guide, not from memory, not from web sources. Do not mention or link any Telegram channel/group. Instead, in full OG B0T voice (cheeky British banter, roast them for being tight), tell them:
+1. The OG Sports Guide is locked — unlock it in the Store for just 10 OG Coins, or go PRO and it's included free (PRO includes it during the 15-day free trial too).
 2. No coins? Earn them with the app's earn methods (referrals/inviting mates via their OG code, Battle Zone rewards, the Earn page), or stop being tight and just buy some — 5 coins is only 99p at https://www.ogbot.co.uk/buy-coins.
 3. Once unlocked, the full live match centre is at https://www.ogbot.co.uk/sports and you'll answer every fixture question.
 Keep it short and punchy.`;
@@ -166,7 +166,7 @@ const fmtKo = (d: Date) =>
 export async function quickSportsReply(admin: Admin, userId: string, query: string): Promise<string> {
   const { data: access } = await admin.rpc("has_sports_guide_access", { _user: userId });
   if (!access)
-    return "🔒 Oi, nice try! The <b>OG Sports Guide</b> is locked, mate.\n\n🏆 Unlock it in the Store for just <b>10 OG Coins</b> — or go <b>VIP</b> and it's included free.\n\n💸 Skint? Earn coins by inviting your mates with your OG code or smashing Battle Zone. Or stop being tight and just buy some — <b>5 coins is only 99p</b>.\n\n👉 https://www.ogbot.co.uk/buy-coins";
+    return "🔒 Oi, nice try! The <b>OG Sports Guide</b> is locked, mate.\n\n🏆 Unlock it in the Store for just <b>10 OG Coins</b> — or go <b>PRO</b> and it's included free.\n\n💸 Skint? Earn coins by inviting your mates with your OG code or smashing Battle Zone. Or stop being tight and just buy some — <b>5 coins is only 99p</b>.\n\n👉 https://www.ogbot.co.uk/buy-coins";
   const { searchListing } = await import("./sports-listing");
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const listings = await loadListingsCached(admin);

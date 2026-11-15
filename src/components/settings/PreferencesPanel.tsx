@@ -98,13 +98,13 @@ export function PreferencesPanel() {
             "Let OG B0T swear and go fully savage in replies."
           ) : (
             <>
-              VIP only.{" "}
+              PRO only.{" "}
               <Link
                 to="/buy-coins"
                 search={{ flow: "vip" } as never}
                 className="font-semibold text-primary underline-offset-4 hover:underline"
               >
-                Unlock with OG VIP
+                Unlock with OG B0T PRO
               </Link>
             </>
           )

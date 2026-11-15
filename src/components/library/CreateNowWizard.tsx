@@ -573,11 +573,11 @@ export function CreateNowWizard({
                         aria-pressed={selected}
                         onClick={() => {
                           if (locked) {
-                            toast(`👑 ${s} is an OG VIP style`, {
+                            toast(`👑 ${s} is an OG B0T PRO style`, {
                               description:
                                 "Unlock all 50+ styles & moods, plus custom style and language requests.",
                               action: {
-                                label: "Get VIP",
+                                label: "Get PRO",
                                 onClick: () => void navigateVip({ to: "/buy-coins" }),
                               },
                             });
@@ -609,7 +609,7 @@ export function CreateNowWizard({
                       >
                         {locked && (
                           <span
-                            aria-label="VIP only"
+                            aria-label="PRO only"
                             className="mr-1 inline-flex items-end text-xs"
                           >
                             <span className="relative">
