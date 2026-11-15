@@ -29,7 +29,7 @@ describe("searchSettings", () => {
     expect(searchSettings("mt5")[0].tab).toBe("controls");
     expect(searchSettings("mt5")[0].to).toBe("/admin/signals");
     expect(searchSettings("foul")[0].to).toBe("/settings");
-    expect(searchSettings("stripe")[0].tab).toBe("webhooks");
+    expect(searchSettings("stripe")[0].tab).toBe("payments");
   });
 
   test("every word has to match, and an empty box finds nothing", () => {

@@ -3,6 +3,7 @@ import { centerActiveChild } from "@/components/admin/BossNav";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SectionJump } from "@/components/admin/SectionJump";
 
 export type BossTab = {
   value: string;
@@ -11,6 +12,11 @@ export type BossTab = {
   /** One line under the tab bar saying what this tab is for. */
   hint?: string;
   Panel: ComponentType;
+  /**
+   * Left out of the tab bar and the phone dropdown, but still opens from a
+   * link (?tab=…), so a parked tab's old links and search results keep working.
+   */
+  hidden?: boolean;
 };
 
 /** Where the last open tab of each Boss area is remembered (this browser only). */
@@ -44,13 +50,18 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   });
   const path = useRouterState({ select: (s) => s.location.pathname });
   const pick = (t: unknown) =>
-    typeof t === "string" && tabs.some((x) => x.value === t) ? t : tabs[0].value;
+    typeof t === "string" && tabs.some((x) => x.value === t)
+      ? t
+      : (tabs.find((x) => !x.hidden) ?? tabs[0]).value;
   const [tab, setTab] = useState(() => pick(routerTab));
   // Follow ?tab= when a link (e.g. the Boss search) opens another tab on this page.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => setTab(pick(routerTab)), [routerTab]);
   const current = tabs.find((t) => t.value === tab) ?? tabs[0];
+  // A hidden tab shows in the bar only while it's the one open.
+  const shown = tabs.filter((t) => !t.hidden || t.value === tab);
   const listRef = useRef<HTMLDivElement>(null);
+  const panelsRef = useRef<HTMLDivElement>(null);
   useEffect(() => centerActiveChild(listRef.current, '[data-state="active"]'), [tab]);
   const navigate = useNavigate();
 
@@ -59,7 +70,7 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
   useEffect(() => {
     if (routerTab !== undefined) return;
     const last = readLastTab(path);
-    if (last && last !== tab && tabs.some((t) => t.value === last)) select(last);
+    if (last && last !== tab && tabs.some((t) => t.value === last && !t.hidden)) select(last);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 
@@ -85,7 +96,7 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
           onChange={(e) => select(e.target.value)}
           className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm font-bold text-foreground"
         >
-          {tabs.map(({ value, label }) => (
+          {shown.map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>
@@ -96,7 +107,7 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
         ref={listRef}
         className="relative mb-2 hidden h-auto sm:flex w-full justify-start gap-4 overflow-x-auto whitespace-nowrap rounded-none border-0 border-b border-border/60 bg-transparent p-0 [scrollbar-width:none]"
       >
-        {tabs.map(({ value, label, Icon }) => (
+        {shown.map(({ value, label, Icon }) => (
           <TabsTrigger
             key={value}
             value={value}
@@ -108,11 +119,15 @@ export function BossTabs({ tabs, intro }: { tabs: readonly BossTab[]; intro?: Re
         ))}
       </TabsList>
       {current.hint && <p className="mb-4 text-sm text-muted-foreground">{current.hint}</p>}
-      {tabs.map(({ value, Panel }) => (
-        <TabsContent key={value} value={value} className="mt-0 min-w-0 space-y-4">
-          <Panel />
-        </TabsContent>
-      ))}
+      {/* Jump chips for the open tab's sections (only when it has three or more). */}
+      <SectionJump key={tab} within={panelsRef} />
+      <div ref={panelsRef}>
+        {tabs.map(({ value, Panel }) => (
+          <TabsContent key={value} value={value} className="mt-0 min-w-0 space-y-4">
+            <Panel />
+          </TabsContent>
+        ))}
+      </div>
     </Tabs>
   );
 }

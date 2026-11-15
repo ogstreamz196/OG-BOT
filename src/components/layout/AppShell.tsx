@@ -37,6 +37,7 @@ import { BackgroundMusicHeaderControl } from "@/components/PersistentBackgroundM
 // 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
 import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
 import { ogBotLogo } from "@/assets/ogbot-logo";
+import { useMemberBadge } from "@/hooks/use-member-badge";
 
 function BrandLockup({ compact = false }: { compact?: boolean }) {
   return (
@@ -67,8 +68,14 @@ const routeTitles: Record<string, string> = {
   "/library": "Music",
   "/messenger": "OG B0T",
   "/buy-coins": "Buy Coins",
+  "/store": "OG Store",
+  "/signals": "OG Signals",
+  "/sports": "Sports Guide",
+  "/referrals": "Earnings",
+  "/purchase-history": "Purchase History",
   "/settings": "Settings",
   "/profile": "Settings",
+  "/change-password": "Change Password",
   "/admin": "Admin Controls",
 };
 
@@ -78,7 +85,7 @@ function getRouteTitle(pathname: string) {
       path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(path + "/"),
     )
     .sort((a, b) => b.length - a.length)[0];
-  return match ? routeTitles[match] : "PORTAL";
+  return match ? routeTitles[match] : "OG B0T";
 }
 
 function AdminEditHint() {
@@ -100,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const dev = useDevMode();
   const { isAdmin, isVip, isLoading: roleLoading } = useRole();
+  const badge = useMemberBadge();
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -159,11 +167,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {!roleLoading && isVip && (
                   <Link
                     to="/settings"
-                    title="VIP membership — manage subscription"
+                    title={
+                      badge === "REAL OG"
+                        ? "REAL OG: PRO and the Vault pass — manage subscription"
+                        : "PRO membership — manage subscription"
+                    }
                     className="hidden items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-brand px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-primary-foreground shadow-glow hover:opacity-90 md:flex"
                   >
                     <Crown className="h-3 w-3" />
-                    VIP
+                    {badge === "REAL OG" ? "REAL OG" : "PRO"}
                   </Link>
                 )}
                 <AdminEditModeToggle className="hidden md:inline-flex" />
@@ -239,7 +251,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {!roleLoading && isVip && (
                       <DropdownMenuItem asChild>
                         <Link to="/settings">
-                          <Crown className="mr-2 h-4 w-4" /> VIP membership
+                          <Crown className="mr-2 h-4 w-4" /> PRO membership
                         </Link>
                       </DropdownMenuItem>
                     )}

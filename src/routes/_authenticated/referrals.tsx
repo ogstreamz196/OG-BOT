@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { BindReferrerCard } from "@/components/referrals/BindReferrerCard";
 import { Lock, ShieldAlert } from "lucide-react";
+import { copyText } from "@/lib/copy-text";
 
 export const Route = createFileRoute("/_authenticated/referrals")({
   component: ReferralsPage,
@@ -72,31 +73,6 @@ type Summary = {
   }[];
 };
 
-async function copyTextWithFallback(text: string): Promise<boolean> {
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* fall through */
-  }
-  try {
-    if (typeof document === "undefined") return false;
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.setAttribute("readonly", "");
-    el.style.position = "fixed";
-    el.style.opacity = "0";
-    document.body.appendChild(el);
-    el.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(el);
-    return ok;
-  } catch {
-    return false;
-  }
-}
 
 function ReferralsPage() {
   const { user } = useAuth();
@@ -229,7 +205,7 @@ function ReferralsPage() {
   }, [user, qc]);
 
   const handleCopy = async (label = "Referral link copied") => {
-    const ok = await copyTextWithFallback(link);
+    const ok = await copyText(link);
     if (ok) {
       setCopied(true);
       toast.success(label);
@@ -303,7 +279,7 @@ function ReferralsPage() {
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" /> Live
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-orange-900/30">
-            <Sparkles className="h-3 w-3" /> {ratePct}% Lifetime{isVip ? " · VIP" : ""}
+            <Sparkles className="h-3 w-3" /> {ratePct}% Lifetime{isVip ? " · PRO" : ""}
           </span>
           {myRefQ.data?.has_referrer ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[0.7rem] font-black uppercase tracking-[0.2em] text-emerald-300">
@@ -333,7 +309,7 @@ function ReferralsPage() {
             Get {ratePct}% of every coin your friends spend — forever.
             {!isVip && (
               <span className="mt-1 block text-sm font-sans font-bold text-amber-300">
-                OG VIPs earn 13% — upgrade to boost your cut.
+                PRO members earn 13% — upgrade to boost your cut.
               </span>
             )}
           </h2>
@@ -375,7 +351,7 @@ function ReferralsPage() {
           </div>
           <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
             <PiggyBank className="h-3.5 w-3.5 text-amber-300" />
-            Example: a friend uses 100 coins → you get +{ratePct} OG{isVip ? "" : " (+13 as VIP)"}.
+            Example: a friend uses 100 coins → you get +{ratePct} OG{isVip ? "" : " (+13 as PRO)"}.
           </p>
         </section>
 
@@ -427,7 +403,7 @@ function ReferralsPage() {
                     disabled={!myCode}
                     onClick={async () => {
                       if (!myCode) return;
-                      const ok = await copyTextWithFallback(myCode);
+                      const ok = await copyText(myCode);
                       if (ok) toast.success(`Code ${myCode} copied`);
                       else toast.error("Couldn't copy");
                     }}
@@ -482,7 +458,7 @@ function ReferralsPage() {
                 className="mt-2 h-8 gap-1.5 text-xs"
                 onClick={async () => {
                   const msg = `Join me on OG Streamz to make AI music! Sign up with my link ${link} — or open the Earn tab, tap "Bind your OG Leader" and enter my code ${myCode}.`;
-                  const ok = await copyTextWithFallback(msg);
+                  const ok = await copyText(msg);
                   if (ok) toast.success("Invite message copied");
                   else toast.error("Couldn't copy");
                 }}

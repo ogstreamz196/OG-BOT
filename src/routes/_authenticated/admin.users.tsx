@@ -100,7 +100,7 @@ const onTrial = (m: ProfileRow) =>
 const FILTERS: { key: MemberFilter; label: string; test: (m: ProfileRow) => boolean }[] = [
   { key: "all", label: "All", test: () => true },
   { key: "member", label: "Members", test: (m) => !hasBoss(m.roles) && !m.roles.includes("vip") },
-  { key: "vip", label: "VIP", test: (m) => m.roles.includes("vip") },
+  { key: "vip", label: "PRO", test: (m) => m.roles.includes("vip") },
   { key: "trial", label: "On trial", test: onTrial },
   { key: "vault", label: "Vault", test: (m) => m.has_vault },
   { key: "telegram", label: "Telegram", test: (m) => m.telegram_linked },
@@ -208,7 +208,7 @@ function AdminUsersPage() {
             />
             <StatCard
               icon={<Crown className="h-4 w-4" />}
-              label="VIP members"
+              label="PRO members"
               value={counts.vip ?? 0}
               accent="amber"
             />
@@ -228,7 +228,7 @@ function AdminUsersPage() {
                 <Input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search name, email, Telegram, VIP ID or account id"
+                  placeholder="Search name, email, Telegram, PRO ID or account id"
                   className="pl-9"
                 />
                 {q && (
@@ -586,7 +586,7 @@ function AccessChips({ user }: { user: ProfileRow }) {
     <div className="flex flex-wrap items-center gap-1">
       {isBossUser && <RoleChip label="Boss" tone="primary" />}
       {isDev && <RoleChip label="Dev" tone="primary-soft" />}
-      {isVip && <RoleChip label="VIP" tone="amber" />}
+      {isVip && <RoleChip label="PRO" tone="amber" />}
       {trial && <RoleChip label="Trial" tone="amber" />}
       {user.has_vault && <RoleChip label="Vault" tone="amber" />}
       {user.telegram_linked && <RoleChip label="Telegram" tone="primary-soft" />}
@@ -817,7 +817,7 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
       return next;
     },
     onSuccess: (next) => {
-      toast.success(next ? "VIP granted" : "VIP revoked");
+      toast.success(next ? "PRO granted" : "PRO revoked");
       qc.invalidateQueries({ queryKey: ["admin-users-list"] });
       qc.invalidateQueries({ queryKey: ["user-role"] });
     },
@@ -831,13 +831,13 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
           <span
             className={`whitespace-nowrap ${checked ? "text-amber-400" : "text-muted-foreground"}`}
           >
-            VIP
+            PRO
           </span>
           <Switch
             checked={checked}
             disabled={mut.isPending}
             onCheckedChange={(v) => (v ? setDialogOpen(true) : setConfirmRevoke(true))}
-            aria-label="Toggle VIP"
+            aria-label="Toggle PRO"
           />
           {checked && (
             <button
@@ -847,14 +847,14 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
                 setDialogOpen(true);
               }}
               className="text-xs text-amber-400 underline-offset-2 hover:underline"
-              title="Adjust VIP expiry"
+              title="Adjust PRO expiry"
             >
               {expiry.isLoading ? "…" : formatVipExpiry(expiry.data)}
             </button>
           )}
         </div>
       </TooltipTrigger>
-      <TooltipContent>{checked ? "Revoke VIP or tap date to adjust" : "Grant VIP"}</TooltipContent>
+      <TooltipContent>{checked ? "Revoke PRO or tap date to adjust" : "Grant PRO"}</TooltipContent>
       <VipExpiryDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -865,9 +865,9 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
       <AlertDialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove VIP?</AlertDialogTitle>
+            <AlertDialogTitle>Remove PRO?</AlertDialogTitle>
             <AlertDialogDescription>
-              This member loses VIP perks straight away.
+              This member loses PRO perks straight away.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -879,7 +879,7 @@ function VipQuickToggle({ userId, checked }: { userId: string; checked: boolean 
                 mut.mutate(false);
               }}
             >
-              Remove VIP
+              Remove PRO
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -933,7 +933,7 @@ function VaultQuickToggle({ userId, checked }: { userId: string; checked: boolea
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        {checked ? "Revoke OG Vault access" : "Grant OG Vault access (free, independent of VIP)"}
+        {checked ? "Revoke OG Vault access" : "Grant OG Vault access (free, independent of PRO)"}
       </TooltipContent>
     </Tooltip>
   );

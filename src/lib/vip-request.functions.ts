@@ -35,7 +35,7 @@ export const sendVipRequest = createServerFn({ method: "POST" })
       vip_trial_ends_at?: string | null;
     } | null;
     const onTrial = !!p?.vip_trial_ends_at && new Date(p.vip_trial_ends_at).getTime() > Date.now();
-    if (!isVipRole && !isAdmin && !onTrial) throw new Error("Requests are a VIP feature");
+    if (!isVipRole && !isAdmin && !onTrial) throw new Error("Requests are a PRO feature");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { telegramApi } = await import("./telegram-api.server");
@@ -54,7 +54,7 @@ export const sendVipRequest = createServerFn({ method: "POST" })
 
     const label = { style: "🎵 Style", language: "🌍 Language", other: "💡 Other" }[data.kind];
     const text =
-      `<b>👑 VIP request — ${label}</b>\n` +
+      `<b>👑 PRO request — ${label}</b>\n` +
       `From: <b>${esc(p?.display_name ?? "Unknown")}</b>` +
       (p?.og_vip_id ? ` (<code>${esc(p.og_vip_id)}</code>)` : "") +
       (p?.telegram_username ? `\nTelegram: @${esc(p.telegram_username)}` : "") +

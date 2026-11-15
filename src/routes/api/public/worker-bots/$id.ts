@@ -31,6 +31,12 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             reply_to_message?: { from?: { id?: number } };
             message_thread_id?: number;
           };
+          callback_query?: {
+            id: string;
+            from: { id: number };
+            data?: string;
+            message?: { message_id: number; chat: { id: number; type: string } };
+          };
           my_chat_member?: {
             chat: { id: number; type: string };
             new_chat_member?: { status?: string };
@@ -38,6 +44,84 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
         } | null;
         if (!Number.isSafeInteger(update?.update_id))
           return new Response("Invalid update", { status: 400 });
+        // A tap on the copy bot's settings card (Boss only): edit the card in place.
+        const press = update?.callback_query;
+        if (press) {
+          if (
+            bot.role === "copy" &&
+            (press.data?.startsWith("cs:") ||
+              press.data?.startsWith("es:") ||
+              press.data?.startsWith("eg:") ||
+              press.data?.startsWith("mt:") ||
+              press.data?.startsWith("ck:")) &&
+            press.message
+          ) {
+            const { error: dup } = await admin
+              .from("telegram_worker_updates")
+              .insert({ worker_id: bot.id, update_id: update?.update_id as number });
+            if (dup) return Response.json({ ok: true });
+            const fallback: {
+              toast: string;
+              panel: { text: string; reply_markup: unknown } | null;
+              extra?: string;
+            } = { toast: "⚠️ Something went wrong. Try again.", panel: null };
+            // "mt:" is the manual trade card; "ck:" the copier users cards;
+            // "cs:"/"es:"/"eg:" the settings card (eg: the signals group switchboard).
+            // "ck:me:" is a user's own copier card (anyone with access, not only the Boss).
+            const res: typeof fallback = press.data.startsWith("ck:me:")
+              ? await (
+                  await import("@/lib/copier-keys.server")
+                )
+                  .myCopierTap(admin, press.from.id, press.data)
+                  .catch(() => fallback)
+              : press.data.startsWith("ck:")
+                ? await (
+                    await import("@/lib/copier-keys.server")
+                  )
+                    .copierKeysTap(admin, press.from.id, press.data)
+                    .catch(() => fallback)
+                : press.data.startsWith("mt:")
+                  ? await (
+                      await import("@/lib/manual-trade.server")
+                    )
+                      .manualTradeTap(admin, press.from.id, press.data)
+                      .catch(() => fallback)
+                  : await (
+                      await import("@/lib/copy-settings-bot.server")
+                    )
+                      .copySettingsTap(admin, press.from.id, press.data)
+                      .catch(() => fallback);
+            await f.fleetApi(
+              bot.id,
+              "answerCallbackQuery",
+              { callback_query_id: press.id, text: res.toast.slice(0, 190) },
+              key,
+            );
+            if (res.panel)
+              await f.fleetApi(
+                bot.id,
+                "editMessageText",
+                {
+                  chat_id: press.message.chat.id,
+                  message_id: press.message.message_id,
+                  text: res.panel.text,
+                  reply_markup: res.panel.reply_markup,
+                },
+                key,
+              );
+            // A new user key is shown once, in its own message.
+            if (res.extra)
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: press.message.chat.id, text: res.extra },
+                key,
+              );
+          } else {
+            await f.fleetApi(bot.id, "answerCallbackQuery", { callback_query_id: press.id }, key);
+          }
+          return Response.json({ ok: true });
+        }
         const joined = update?.my_chat_member;
         if (joined && joined.chat.type !== "private") {
           const { managedGroup, WORKER_REFUSAL } = await import("@/lib/telegram-worker.server");
@@ -136,6 +220,79 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             });
           }
         } else if (bot.role === "copy") {
+          // The Boss's copier settings (/settings, /pause, /lot …), Boss only.
+          if (!group) {
+            // A user's own copier card (/mycopier): access, running, pause.
+            const { myCopierReply } = await import("@/lib/copier-keys.server");
+            const mine = await myCopierReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (mine) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: mine.text, reply_markup: mine.reply_markup },
+                key,
+              );
+              return Response.json({ ok: true });
+            }
+            // The Boss's copier users (/users, 👥 Copier users, /adduser Name 30).
+            const { copierKeysReply } = await import("@/lib/copier-keys.server");
+            const users = await copierKeysReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (users) {
+              for (const m of users)
+                await f.fleetApi(
+                  bot.id,
+                  "sendMessage",
+                  {
+                    chat_id: msg.chat.id,
+                    text: m.text,
+                    ...(m.reply_markup ? { reply_markup: m.reply_markup } : {}),
+                  },
+                  key,
+                );
+              return Response.json({ ok: true });
+            }
+            // The Boss's manual trade card (/trade or ✋ Manual trade).
+            const { manualTradeReply } = await import("@/lib/manual-trade.server");
+            const manual = await manualTradeReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (manual) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: manual.text, reply_markup: manual.reply_markup },
+                key,
+              );
+              return Response.json({ ok: true });
+            }
+            const { copySettingsReply } = await import("@/lib/copy-settings-bot.server");
+            const settings = await copySettingsReply(admin, msg.chat.id, msg.text).catch(
+              () => null,
+            );
+            if (settings) {
+              // On /start, the Boss's keyboard first (⚙️ Copier settings
+              // beside the ⚡ signal button), then the settings card.
+              if (/^\/start/i.test(msg.text.trim())) {
+                const { bossKeyboard } = await import("@/lib/copy-settings-bot.server");
+                const { GENERATE_SIGNAL_TEXT } = await import("@/lib/telegram-signals");
+                await f.fleetApi(
+                  bot.id,
+                  "sendMessage",
+                  {
+                    chat_id: msg.chat.id,
+                    text: "👋 Boss controls ready. Tap ⚙️ Copier settings any time.",
+                    reply_markup: bossKeyboard(GENERATE_SIGNAL_TEXT),
+                  },
+                  key,
+                );
+              }
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: settings.text, reply_markup: settings.reply_markup },
+                key,
+              );
+              return Response.json({ ok: true });
+            }
+          }
           // The copy-trade bot: how to copy the Boss's trades, with the link.
           const { copyBotReply } = await import("@/lib/mt5-autotrade.server");
           const copy = await copyBotReply(admin);

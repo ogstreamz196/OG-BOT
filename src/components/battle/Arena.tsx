@@ -222,6 +222,7 @@ export function ArenaMessage({
   content,
   vip,
   vipId,
+  realOg,
   scoreTenths,
   heat,
   onVipClick,
@@ -234,6 +235,8 @@ export function ArenaMessage({
   content: string;
   vip?: boolean;
   vipId?: string | null;
+  /** Owns both PRO and the Vault pass: a REAL OG tag beside the name. */
+  realOg?: boolean;
   scoreTenths?: number | null;
   /** Heat of a bot clapback: "hot" kicks once, "savage" also keeps a heat aura. */
   heat?: "hot" | "savage" | null;
@@ -263,7 +266,7 @@ export function ArenaMessage({
                 type="button"
                 className="ar-name-vip"
                 onClick={onVipClick}
-                aria-label={`${shownName}, OG VIP member`}
+                aria-label={`${shownName}, OG B0T PRO member`}
               >
                 <Crown className="h-3 w-3" aria-hidden />
                 {shownName}
@@ -277,6 +280,11 @@ export function ArenaMessage({
           ) : (
             <span className={isBot ? "ar-red" : mine ? "ar-white" : undefined}>{shownName}</span>
           )}
+          {realOg && !isBot ? (
+            <span className="rounded-full border border-amber-300/60 bg-amber-400/15 px-1.5 text-[0.6rem] font-black uppercase tracking-wider text-amber-300">
+              REAL OG
+            </span>
+          ) : null}
           {time ? <span aria-hidden>·</span> : null}
           {time ? <span>{time}</span> : null}
         </p>
@@ -386,7 +394,7 @@ export function ArenaVipPromo({ open, onClose }: { open: boolean; onClose: () =>
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="OG VIP"
+      aria-label="OG B0T PRO"
       className="og-arena-vars fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
@@ -395,16 +403,16 @@ export function ArenaVipPromo({ open, onClose }: { open: boolean; onClose: () =>
         onClick={(e) => e.stopPropagation()}
       >
         <Crown className="ar-gold mx-auto h-9 w-9" aria-hidden />
-        <h3 className="ar-white mt-2 font-display text-xl uppercase">Go OG VIP</h3>
-        <p className="ar-silver mt-1 text-sm">The gold crown is for OG VIP members.</p>
+        <h3 className="ar-white mt-2 font-display text-xl uppercase">Go OG B0T PRO</h3>
+        <p className="ar-silver mt-1 text-sm">The gold crown is for OG B0T PRO members.</p>
         <ul className="ar-white mt-3 space-y-1.5 text-left text-sm">
-          <li>👑 Your own gold OG VIP ID in the Battle Zone</li>
+          <li>👑 Your own gold OG PRO ID in the Battle Zone</li>
           <li>💸 13% lifetime cashback when your referrals spend coins</li>
           <li>🤬 Foul-mouth OG B0T, unfiltered</li>
         </ul>
         <div className="mt-4 grid gap-2">
           <Link to="/store" hash="section-vip" className="ar-vip-cta" onClick={onClose}>
-            See OG VIP · from £4.99
+            See OG B0T PRO · from £4.99
           </Link>
           <button type="button" onClick={onClose} className="ar-silver h-9 text-xs font-bold">
             Maybe later

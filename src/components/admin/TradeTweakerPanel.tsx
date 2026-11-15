@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, RotateCcw, Save, SlidersHorizontal, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { getTweaker, saveTweaker } from "@/lib/signal-tuning.functions";
-import { TWEAK_FIELDS, ENTRY_STYLES, UK_BLOCKS, type TweakField } from "@/lib/trade-tweaker";
+import { SHOWN_TWEAK_FIELDS, ENTRY_STYLES, UK_BLOCKS, type TweakField } from "@/lib/trade-tweaker";
 import type { Tuning } from "@/lib/trade-signal";
 import { Button } from "@/components/ui/button";
 import { AdminSection } from "./AdminSection";
@@ -114,7 +114,7 @@ function MarketEditor({
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TWEAK_FIELDS.map((f) => {
+        {SHOWN_TWEAK_FIELDS.map((f) => {
           if (f.kind === "number") {
             return (
               <NumberField
@@ -238,6 +238,13 @@ function MarketEditor({
   );
 }
 
+/**
+ * Parked (the Boss, 2026-11-13: the console was overwhelming): the strategy
+ * preset cards, which don't post live yet, and the read-only "set in code"
+ * reference. Hidden, not deleted, so they come back by flipping this.
+ */
+const SHOW_PARKED: boolean = false;
+
 function EngineReadout({ engine }: { engine: Loaded["engine"] }) {
   const Row = ({ label, value }: { label: string; value: string }) => (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-1.5 text-sm last:border-0">
@@ -342,13 +349,15 @@ export function TradeTweakerPanel() {
 
       <SendSignalPanel />
 
-      {data ? <StrategyStudio bounds={data.bounds} defaults={data.defaults} /> : null}
+      {SHOW_PARKED && data ? (
+        <StrategyStudio bounds={data.bounds} defaults={data.defaults} />
+      ) : null}
 
       <SignalDataRoom />
 
       <EngineConfigEditor />
 
-      {data ? (
+      {SHOW_PARKED && data ? (
         <AdminSection
           icon={<SlidersHorizontal className="h-4 w-4 text-muted-foreground" />}
           title="Reference · set in code"

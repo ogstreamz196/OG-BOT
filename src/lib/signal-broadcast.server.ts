@@ -84,6 +84,13 @@ type PostDeps = {
   shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
   follow?: (signal: Built, messageId: number, card: string) => Promise<void>;
   now: () => number;
+  /**
+   * After this time the AI desk isn't asked in this run (it would overrun the
+   * cron's time); an alert that needed it is noted as "desk_late".
+   */
+  deskUntil?: number;
+  /** Notes what happened to each setup, for the scan log (signal-scan-log.ts). */
+  note?: (n: import("./signal-scan-log").ScanNote) => void;
 };
 
 export type ScanDeps = PostDeps & {
@@ -144,6 +151,7 @@ export async function scanAndBroadcast(
       signal = await deps.build(signalRequest(pair, frame));
     } catch (e) {
       console.warn(`[signals] scan of ${pair} ${frame} failed`, e);
+      deps.note?.({ market: pair, frame, outcome: "build_failed" });
       continue;
     }
     checked++;
@@ -153,6 +161,12 @@ export async function scanAndBroadcast(
       const { waitReasonKind } = await import("./signal-shadows.server");
       const why = waitReasonKind(signal.summary?.waitReason);
       if (why && deps.shadow) await deps.shadow(signal, why);
+      deps.note?.({
+        market: pair,
+        frame,
+        outcome: "waiting",
+        detail: (signal.summary?.waitReason ?? why ?? "no setup").slice(0, 120),
+      });
       continue;
     }
     const bar = deps.alertBar
@@ -160,6 +174,13 @@ export async function scanAndBroadcast(
       : BROADCAST_MIN_CONFIDENCE;
     if (plan.confidencePct < bar) {
       if (deps.shadow) await deps.shadow(signal, "below_alert");
+      deps.note?.({
+        market: plan.market,
+        frame,
+        outcome: "below_bar",
+        confidence: plan.confidencePct,
+        detail: `needs ${bar}%`,
+      });
       continue;
     }
     if (await postOnce(admin, deps, signal, (s) => channelCard(s.reply, plan.confidencePct), true))
@@ -279,9 +300,11 @@ async function roomForAnother(
   );
   const running = posts.filter((_, i) => states[i] === "running");
   if (running.length >= cfg.perMarket) return false;
-  // The more already running, the surer this one has to be.
-  if (plan.confidencePct < concurrencyBar(running.length, cfg)) return false;
   const same = (p: PostRow) => p.direction === plan.direction;
+  // The more already running on its side, the surer this one has to be. A
+  // hedge (the other side) only counts trades on its own side, so it goes out
+  // at the base bar (the Boss, 2026-11-11: "try increase hedging").
+  if (plan.confidencePct < concurrencyBar(running.filter(same).length, cfg)) return false;
   if (posts.some((p, i) => same(p) && states[i] === "stopped_recently")) return false;
   const risk = stop != null ? Math.abs(plan.entry - stop) : NaN;
   const sameSideGapMs = cfg.sameSideGapMins * 60_000;
@@ -313,6 +336,24 @@ async function postOnce(
   let signal = found;
   const plan = signal.plan;
   if (!plan) return false;
+  const note = (outcome: import("./signal-scan-log").ScanOutcome, detail?: string) =>
+    deps.note?.({
+      market: plan.market,
+      frame: frameOf(signal.summary?.timeframe),
+      outcome,
+      confidence: plan.confidencePct,
+      ...(detail ? { detail: detail.slice(0, 120) } : {}),
+    });
+  // The engine config: the posting limits and the signals group's switchboard
+  // (set from the Copy Trader B0T's card or the website).
+  const engineCfg = await import("./engine-config.server")
+    .then((m) => m.engineConfig())
+    .catch(() => DEFAULT_ENGINE_CONFIG);
+  const { groupAllows } = await import("./engine-config");
+  if (!groupAllows(engineCfg.group, plan.market)) {
+    note("switched_off");
+    return false;
+  }
   const nowIso = new Date(deps.now()).toISOString();
   // Alerts from before the Boss's last purge of the chat don't count any more.
   const { chatPurgedAt } = await import("./signal-chat.server");
@@ -324,18 +365,20 @@ async function postOnce(
     .gt("expires_at", nowIso)
     .gte("created_at", new Date(purgedAt ?? 0).toISOString())
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(100);
   // Without the table there's no way to tell repeats apart: post nothing.
   if (error) {
     console.warn("[signals] broadcast check failed", error.message);
+    note("check_failed");
     return false;
   }
   // Several trades can run at once, but not the same setup twice. The limits
   // (per-market cap, concurrency bar, gaps, cooldown) come from the Boss's
   // engine config, falling back to the defaults = the original constants.
-  const engineCfg = await import("./engine-config.server")
-    .then((m) => m.engineConfig())
-    .catch(() => DEFAULT_ENGINE_CONFIG);
+  // High-frequency mode (the copier card's switch): no cap on trades at once
+  // and shorter waits; the gate and "not the same setup twice" stay.
+  const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+  const { hftConcurrency } = await import("./engine-config");
   if (
     !(await roomForAnother(
       admin,
@@ -343,10 +386,12 @@ async function postOnce(
       signal.summary?.stop,
       (live ?? []) as PostRow[],
       deps.now(),
-      engineCfg.concurrency,
+      hft ? hftConcurrency(engineCfg.concurrency) : engineCfg.concurrency,
     ))
-  )
+  ) {
+    note("no_room");
     return false;
+  }
 
   // Only what's most likely to win goes out (signal-gate.ts); the rest is
   // followed silently, so learning still sees it. Before the desk, so a
@@ -354,19 +399,33 @@ async function postOnce(
   const held = deps.gate ? await deps.gate(signal).catch(() => null) : null;
   if (held) {
     await deps.shadow?.(signal, "losing_record").catch(() => undefined);
+    note("held", held);
     return false;
   }
-  // Every AI works with the chart engine: an engine alert only goes out when
-  // the desk backs it (asked only now, so repeats never cost an AI call).
-  if (askDesk && deps.confirm) {
+  // Every AI works with the chart engine: an engine alert goes out when the
+  // desk backs it (asked only now, so repeats never cost an AI call). The
+  // Boss can switch the double-check off, and high-frequency mode skips it
+  // (it takes 10-20 seconds); the floor and the gate above always apply.
+  if (askDesk && deps.confirm && engineCfg.group.deskCheck && !hft) {
+    if (deps.deskUntil && deps.now() > deps.deskUntil) {
+      note("desk_late");
+      return false;
+    }
     const backed = await deps.confirm(signal);
-    if (!backed?.plan || backed.plan.direction !== plan.direction) return false;
+    if (!backed?.plan || backed.plan.direction !== plan.direction) {
+      note("desk_no");
+      return false;
+    }
     signal = backed;
   }
   if (deps.paper) signal = await deps.paper(signal).catch(() => signal);
   const text = card(signal);
   const messageId = await deps.post(text);
-  if (messageId === null) return false;
+  if (messageId === null) {
+    note("not_sent");
+    return false;
+  }
+  note("posted");
   await deps.follow?.(signal, messageId, text);
   await admin.from(POSTS).insert({
     market: plan.market,
@@ -732,6 +791,287 @@ export async function maybeRandomSignal(admin: Admin, deps: RandomDeps): Promise
     return `posted ${strategy} ${pair} ${frame}`;
   } catch (e) {
     console.warn("[signals] random signal failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
+
+/* ── Hedges (the Boss's "hedges" strategy switch, off by default) ─────────── */
+
+/** A hedge's own confidence floor: counter-trend reversals score lower by design. */
+export const HEDGE_MIN_CONFIDENCE = 55;
+/** How often each market is checked for a hedge (a chart read each time). */
+export const HEDGE_EVERY_MS = 60_000;
+const hedgeTryKey = (market: string) => `signals.hedge.lastTry.${market}`;
+
+/**
+ * Which side a hedge would take for a market, from its running trades: the
+ * other side of the trend trades, when they all lean one way and no hedge is
+ * running there already (one hedge per market at a time). Null otherwise. Pure.
+ */
+export function hedgeSideFor(
+  running: { direction: "BUY" | "SELL"; hedge?: boolean }[],
+  /** Hedges allowed at once (more in high-frequency mode), never more than the trend trades. */
+  maxHedges = 1,
+): "BUY" | "SELL" | null {
+  const trend = running.filter((r) => !r.hedge);
+  const hedges = running.length - trend.length;
+  if (hedges >= Math.min(maxHedges, Math.max(1, trend.length))) return null;
+  const sides = new Set(trend.map((r) => r.direction));
+  if (sides.size !== 1) return null;
+  return sides.has("BUY") ? "SELL" : "BUY";
+}
+
+/** The hedge's line on its card. Pure. */
+export function tagHedge(card: string): string {
+  return `${card}\n🛡 Hedge: against the running trade, one 1R target, stop to my entry at 0.5R`;
+}
+
+/**
+ * The hedge step, once a scan run (the Boss, 2026-11-12: "more hedging, buys
+ * and sells against each other"). Only with the "hedges" strategy switch on.
+ * For each market whose running trend trades all lean one way, at most once
+ * a minute, it asks the chart for a counter-trend reversal on the other side
+ * (buildTradeSignal "hedge:<side>", hedgePlan) and posts it through postOnce,
+ * so it faces the same cap, repeat checks and gate (at HEDGE_MIN_CONFIDENCE)
+ * and is followed, copied and counted like any alert. Never throws.
+ */
+export async function maybeHedgeSignal(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const cfg = await engineConfig().catch(() => null);
+    if (!cfg?.strategies?.hedges) return "off";
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const { hedgesPerMarket, stepEveryMs } = await import("./engine-config");
+    const now = deps.now();
+    const { chatPurgedAt } = await import("./signal-chat.server");
+    const purgedAt = await chatPurgedAt().catch(() => null);
+    const purgedMs = purgedAt == null ? 0 : new Date(purgedAt).getTime() || 0;
+    const since = Math.max(purgedMs, now - 12 * 3600_000);
+    const { data } = await admin
+      .from("trade_signals")
+      .select("market, direction, feeds")
+      .eq("sender_worker", "trade")
+      .in("status", ["open", "tp1", "tp2"])
+      .gte("created_at", new Date(since).toISOString())
+      .limit(100);
+    const rows = (
+      (data ?? []) as {
+        market: string;
+        direction: "BUY" | "SELL";
+        feeds: { hedge?: boolean; bias?: boolean } | null;
+      }[]
+    ).filter((r) => !r.feeds?.bias);
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      const side = hedgeSideFor(
+        rows
+          .filter((r) => r.market === market)
+          .map((r) => ({ direction: r.direction, hedge: !!r.feeds?.hedge })),
+        hedgesPerMarket(hft),
+      );
+      if (!side) continue;
+      // At most one chart read a minute per market.
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", hedgeTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(hft)) continue;
+      await admin.from("site_content").upsert(
+        {
+          key: hedgeTryKey(market),
+          value: new Date(now).toISOString(),
+          updated_at: new Date(now).toISOString(),
+        },
+        { onConflict: "key" },
+      );
+      const signal = await deps.build(`${signalRequest(pair, "5m")} hedge:${side}`);
+      const plan = signal.plan;
+      if (!plan?.feeds?.hedge || plan.direction !== side) {
+        out.push(`${market} ${side}: no hedge setup`);
+        continue;
+      }
+      if (plan.confidencePct < HEDGE_MIN_CONFIDENCE) {
+        out.push(`${market} ${side}: only ${plan.confidencePct}%`);
+        continue;
+      }
+      const posted = await postOnce(admin, deps, signal, (s) => tagHedge(compactCard(s.reply)));
+      out.push(`${market} ${side}: ${posted ? "posted" : "not posted"}`);
+    }
+    return out.length ? out.join("; ") : "no running trend trade to hedge";
+  } catch (e) {
+    console.warn("[signals] hedge step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
+
+/* ── Range hedging (the Boss's "rangeHedge" strategy switch, off by default) ── */
+
+const rangeTryKey = (market: string) => `signals.rangeHedge.lastTry.${market}`;
+
+/**
+ * The edges a range hedge may still take for a market: each side that has no
+ * range hedge running there already (at most one buy and one sell at a time,
+ * fighting each other). Pure.
+ */
+export function rangeSidesFree(
+  running: { direction: "BUY" | "SELL"; rangeHedge?: boolean }[],
+  /** Range hedges allowed per side (two in high-frequency mode). */
+  perSide = 1,
+): ("BUY" | "SELL")[] {
+  const count = (s: "BUY" | "SELL") =>
+    running.filter((r) => r.rangeHedge && r.direction === s).length;
+  return (["BUY", "SELL"] as const).filter((s) => count(s) < perSide);
+}
+
+/** The range hedge's line on its card. Pure. */
+export function tagRangeHedge(card: string): string {
+  return `${card}\n🔁 Range hedge: fading the edge of a ranging market, one target at the middle, stop to my entry halfway there`;
+}
+
+/**
+ * The range-hedge step, once a scan run (the Boss, 2026-11-12: "when a market
+ * is just ranging, buys and sells that fight each other instead of chasing
+ * take-profit"). Only with the "rangeHedge" switch on. For each market, at
+ * most once a minute, it asks the chart for the range fade on each edge that
+ * has no range hedge running (buildTradeSignal "range:<side>", rangeHedgePlan)
+ * and posts what shows through postOnce (cap, repeats, the gate at the hedge
+ * floor, the demo account, follow, copy), so a buy at the bottom and a sell at
+ * the top can run together. Never throws.
+ */
+export async function maybeRangeHedge(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const cfg = await engineConfig().catch(() => null);
+    if (!cfg?.strategies?.rangeHedge) return "off";
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const { rangeHedgesPerSide, stepEveryMs } = await import("./engine-config");
+    const now = deps.now();
+    const { chatPurgedAt } = await import("./signal-chat.server");
+    const purgedAt = await chatPurgedAt().catch(() => null);
+    const purgedMs = purgedAt == null ? 0 : new Date(purgedAt).getTime() || 0;
+    const since = Math.max(purgedMs, now - 12 * 3600_000);
+    const { data } = await admin
+      .from("trade_signals")
+      .select("market, direction, feeds")
+      .eq("sender_worker", "trade")
+      .in("status", ["pending", "open", "tp1", "tp2"])
+      .gte("created_at", new Date(since).toISOString())
+      .limit(100);
+    const rows = (data ?? []) as {
+      market: string;
+      direction: "BUY" | "SELL";
+      feeds: { rangeHedge?: boolean } | null;
+    }[];
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      const free = rangeSidesFree(
+        rows
+          .filter((r) => r.market === market)
+          .map((r) => ({ direction: r.direction, rangeHedge: !!r.feeds?.rangeHedge })),
+        rangeHedgesPerSide(hft),
+      );
+      if (!free.length) continue;
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", rangeTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(hft)) continue;
+      const at = new Date(now).toISOString();
+      await admin
+        .from("site_content")
+        .upsert({ key: rangeTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
+      for (const side of free) {
+        const signal = await deps.build(`${signalRequest(pair, "5m")} range:${side}`);
+        const plan = signal.plan;
+        if (!plan?.feeds?.rangeHedge || plan.direction !== side) continue;
+        if (plan.confidencePct < HEDGE_MIN_CONFIDENCE) {
+          out.push(`${market} ${side}: only ${plan.confidencePct}%`);
+          continue;
+        }
+        const posted = await postOnce(admin, deps, signal, (s) =>
+          tagRangeHedge(compactCard(s.reply)),
+        );
+        out.push(`${market} ${side}: ${posted ? "posted" : "not posted"}`);
+      }
+      if (!out.some((o) => o.startsWith(market))) out.push(`${market}: not ranging at an edge`);
+    }
+    return out.length ? out.join("; ") : "range hedges running on both edges";
+  } catch (e) {
+    console.warn("[signals] range hedge step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
+
+/* ── Patterns alongside (the Boss's "patternsAlongside" switch, off by default) ── */
+
+const alongsideTryKey = (market: string) => `signals.alongside.lastTry.${market}`;
+
+/** The alongside card's line, naming the pattern. Pure. */
+export function tagAlongside(card: string, setup?: unknown): string {
+  const name = typeof setup === "string" && setup ? setup : "a proven pattern";
+  return `${card}\n➕ Alongside the engine: ${name}, proven on this chart`;
+}
+
+/**
+ * The patterns-alongside step, once a scan run (the Boss's switch: "run the
+ * proven patterns next to the main engine, not only when it says wait"). With
+ * "patternsAlongside" on, each market's 5-minute chart is read at most once a
+ * minute for a setup the learning loop has proven there (buildTradeSignal
+ * "alongside": only a proven setup, never the engine's own trade) and what
+ * shows is posted through postOnce with the normal gate, so it runs beside
+ * whatever the engine has open. Never throws.
+ */
+export async function maybeAlongside(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const cfg = await engineConfig().catch(() => null);
+    if (!cfg?.strategies?.patternsAlongside) return "off";
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const { stepEveryMs } = await import("./engine-config");
+    const now = deps.now();
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", alongsideTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(hft)) continue;
+      const at = new Date(now).toISOString();
+      await admin
+        .from("site_content")
+        .upsert({ key: alongsideTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
+      const signal = await deps.build(`${signalRequest(pair, "5m")} alongside`);
+      const plan = signal.plan;
+      if (!plan?.feeds?.alongside) {
+        out.push(`${market}: no proven pattern`);
+        continue;
+      }
+      const posted = await postOnce(admin, deps, signal, (s) =>
+        tagAlongside(compactCard(s.reply), s.plan?.feeds?.setup),
+      );
+      out.push(`${market} ${plan.direction}: ${posted ? "posted" : "not posted"}`);
+    }
+    return out.length ? out.join("; ") : "not due";
+  } catch (e) {
+    console.warn("[signals] alongside step failed", e instanceof Error ? e.message : "error");
     return "failed: error";
   }
 }

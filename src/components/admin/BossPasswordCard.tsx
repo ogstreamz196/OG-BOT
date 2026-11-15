@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { setUserPassword } from "@/lib/admin-set-password.functions";
 import { ConfirmAction } from "@/components/admin/ConfirmAction";
+import { copyText } from "@/lib/copy-text";
 
 /** Easy to read out or type: no 0/O, 1/l/I. */
 function generatePassword() {
@@ -49,12 +50,8 @@ export function BossPasswordCard({ userId, name }: { userId: string; name: strin
   });
 
   const copy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success("Password copied");
-    } catch {
-      toast.error("Couldn't copy. Select it and copy by hand.");
-    }
+    if (await copyText(value)) toast.success("Password copied");
+    else toast.error("Couldn't copy. Select it and copy by hand.");
   };
 
   return (
@@ -227,10 +224,9 @@ export function BossPasswordInline({ userId, name }: { userId: string; name: str
             variant="ghost"
             className="h-7 px-2"
             onClick={() =>
-              navigator.clipboard
-                .writeText(lastSet)
-                .then(() => toast.success("Password copied"))
-                .catch(() => toast.error("Couldn't copy"))
+              copyText(lastSet).then((ok) =>
+                ok ? toast.success("Password copied") : toast.error("Couldn't copy"),
+              )
             }
           >
             <Copy className="h-3.5 w-3.5" />

@@ -292,9 +292,18 @@ export function trailOf(row: { feeds: { trail?: { risk: number; stop?: number } 
 /** The signal's profit lock levels, when it has the lock. */
 export function lockOf(
   row: Pick<Row, "direction" | "entry" | "tp1"> & {
-    feeds: { lock?: boolean; tp0?: number } | null;
+    feeds: { lock?: boolean; tp0?: number; hedge?: boolean } | null;
   },
 ): { trigger: number; stop: number } | null {
+  // A hedge moves its stop to break-even at 0.5R. Its take profit is exactly
+  // 1R out, so the half-R trigger is halfway from the entry to it.
+  if (row.feeds?.hedge) {
+    const entry = Number(row.entry);
+    const side = row.direction === "BUY" ? 1 : -1;
+    const r = Math.abs(Number(row.tp1) - entry);
+    if (!(r > 0)) return null;
+    return { trigger: entry + side * r * 0.5, stop: entry };
+  }
   // Always from the take profit it was sent with, so moving it doesn't move the lock.
   const tp = Number(row.feeds?.tp0 ?? row.tp1);
   return row.feeds?.lock ? profitLock(row.direction, Number(row.entry), tp) : null;
@@ -880,7 +889,16 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         // and the rest trails on to a far cap at 3x (TP2/TP3).
         // Said once; the stop then follows quietly and the MT5 trade with it.
         let armed = false;
-        if (status === "open" && singleTarget(row) && enteredMs != null && !row.feeds?.trail) {
+        // A hedge keeps its one fixed 1R target (its break-even is measured
+        // from it), so it never turns into a trail or moves its take profit.
+        const isHedge = !!(row.feeds as { hedge?: boolean } | null)?.hedge;
+        if (
+          status === "open" &&
+          singleTarget(row) &&
+          enteredMs != null &&
+          !row.feeds?.trail &&
+          !isHedge
+        ) {
           const since = closed.filter((c) => c.t >= Math.floor(enteredMs / MINUTE) * MINUTE);
           const buy = row.direction === "BUY";
           const bestPx = since.length
@@ -929,7 +947,8 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
           status === "open" &&
           singleTarget(row) &&
           enteredMs != null &&
-          !row.feeds?.trail
+          !row.feeds?.trail &&
+          !isHedge
         ) {
           const moves = (row.feeds.tpMoves ?? []) as NonNullable<SignalFeeds["tpMoves"]>;
           const from = Number(row.tp1);

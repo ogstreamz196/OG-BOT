@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { chargeDissTrack, refundDissTrack } from "@/lib/diss-track.functions";
 import { DISS_STYLES, DISS_TRACK_COST, DISS_TRACK_PRICE_GBP, collectAmmo } from "@/lib/diss-ambush";
 import type { OgChatMessage } from "@/lib/og-messenger.functions";
+import { newId } from "@/lib/copy-text";
 
 export function DissAmbushCard({
   balance,
@@ -36,7 +37,7 @@ export function DissAmbushCard({
   async function cook() {
     if (busy) return;
     setBusy(true);
-    const attemptId = crypto.randomUUID();
+    const attemptId = newId();
     let charged = false;
     try {
       await charge({ data: { attemptId } });

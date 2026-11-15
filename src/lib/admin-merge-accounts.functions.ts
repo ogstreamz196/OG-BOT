@@ -252,12 +252,12 @@ export const mergeAccounts = createServerFn({ method: "POST" })
 
     if (duplicate.roles.includes("vip") && !primary.roles.includes("vip")) {
       notes.push(
-        "The duplicate had VIP. Turn VIP on for the main account if it should carry over.",
+        "The duplicate had PRO. Turn PRO on for the main account if it should carry over.",
       );
     }
     if (duplicate.activeSubscription) {
       notes.push(
-        "The duplicate has an active VIP subscription. It still bills that account; cancel or move it in Stripe.",
+        "The duplicate has an active PRO subscription. It still bills that account; cancel or move it in Stripe.",
       );
     }
 

@@ -25,7 +25,95 @@ export type ConcurrencyConfig = {
   afterStopMins: number;
   sameSetupR: number;
 };
-export type EngineConfig = { gate: GateConfig; concurrency: ConcurrencyConfig };
+/**
+ * The Boss's strategy on/off toggles (Telegram buttons, like the copier's
+ * high-frequency switch). Several strategies run at once; these turn each one
+ * on or off without a code change. All off by default, so live posting is
+ * exactly as it was until the Boss flips one.
+ */
+export type StrategyToggles = {
+  /** Force the sniper entry (entryStyle 4) on every market, over the learner. */
+  sniper: boolean;
+  /** Counter-trend hedges (the other side) while a trend trade still runs. */
+  hedges: boolean;
+  /** Extra buy/sell hedges that fight each other when a market is ranging. */
+  rangeHedge: boolean;
+  /** Run the proven patterns alongside the engine, not only when it says wait. */
+  patternsAlongside: boolean;
+};
+/**
+ * The signals group's switchboard (the Boss, 2026-11-15: "make the copy trade
+ * bot act like the switchboard for the signal group"). Set from the Copy
+ * Trader B0T's card or the website; every post goes through postOnce, which
+ * obeys these. All on by default, so posting is unchanged until one is
+ * flipped.
+ */
+export type GroupSwitches = {
+  /** The signals bot posts to the group at all. */
+  posting: boolean;
+  /** Gold alerts. */
+  gold: boolean;
+  /** Bitcoin alerts. */
+  bitcoin: boolean;
+  /**
+   * Engine alerts wait for the AI desk to back them. High-frequency mode skips
+   * the wait either way (it takes 10-20 seconds). The confidence floor and the
+   * posting gate never change.
+   */
+  deskCheck: boolean;
+};
+export type EngineConfig = {
+  gate: GateConfig;
+  concurrency: ConcurrencyConfig;
+  strategies: StrategyToggles;
+  group: GroupSwitches;
+};
+
+/** The group switches in the order the card shows them. */
+export const GROUP_KEYS: readonly (keyof GroupSwitches)[] = [
+  "posting",
+  "gold",
+  "bitcoin",
+  "deskCheck",
+];
+export const GROUP_LABEL: Record<keyof GroupSwitches, string> = {
+  posting: "📡 Signals group posting",
+  gold: "🥇 Gold signals",
+  bitcoin: "₿ Bitcoin signals",
+  deskCheck: "🧠 AI desk double-check",
+};
+
+/** Whether the group switches let an alert for this market out now. Pure. */
+export function groupAllows(g: GroupSwitches, market: string): boolean {
+  if (!g.posting) return false;
+  if (market.startsWith("XAU")) return g.gold;
+  if (market.startsWith("BTC")) return g.bitcoin;
+  return true;
+}
+
+/**
+ * One tap on a group switch ("eg:<key>:on|off"): the new config and the toast,
+ * or next null when nothing changes. Pure.
+ */
+export function applyGroupTap(
+  current: EngineConfig,
+  data: string,
+): { next: EngineConfig | null; toast: string } {
+  const [, key, val] = data.split(":");
+  if (!(GROUP_KEYS as readonly string[]).includes(key) || (val !== "on" && val !== "off"))
+    return { next: null, toast: "" };
+  const on = val === "on";
+  const next = cleanEngineConfig({ ...current, group: { ...current.group, [key]: on } });
+  return { next, toast: `${GROUP_LABEL[key as keyof GroupSwitches]}: ${on ? "ON" : "OFF"}` };
+}
+
+/** The strategy toggles in the order the Telegram card shows them. */
+export const STRATEGY_KEYS: readonly (keyof StrategyToggles)[] = [
+  "sniper",
+  "hedges",
+  "rangeHedge",
+  "patternsAlongside",
+];
 
 /** Defaults = the current code constants. Changing these changes live defaults. */
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -46,7 +134,38 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     afterStopMins: 3,
     sameSetupR: 0.3,
   },
+  // All off: live posting is unchanged until the Boss turns one on.
+  strategies: {
+    sniper: false,
+    hedges: false,
+    rangeHedge: false,
+    patternsAlongside: false,
+  },
+  // All on: the group posts as it always has until the Boss flips one.
+  group: { posting: true, gold: true, bitcoin: true, deskCheck: true },
 };
+
+/**
+ * High-frequency mode (the copier card's switch) for the posting limits: no
+ * cap on trades per market, no rising confidence bar as more run, and shorter
+ * waits (30s between same-side entries, 1 minute after a stop). The posting
+ * gate, the room checks and "not the same setup twice" all stay. Pure.
+ */
+export function hftConcurrency(c: ConcurrencyConfig): ConcurrencyConfig {
+  return {
+    ...c,
+    free: Number.POSITIVE_INFINITY,
+    perMarket: Number.POSITIVE_INFINITY,
+    sameSideGapMins: Math.min(c.sameSideGapMins, 0.5),
+    afterStopMins: Math.min(c.afterStopMins, 1),
+  };
+}
+/** Hedges a market may run at once: one normally, up to three in high-frequency mode. */
+export const hedgesPerMarket = (hft: boolean) => (hft ? 3 : 1);
+/** Range hedges per side of a market: one normally, two in high-frequency mode. */
+export const rangeHedgesPerSide = (hft: boolean) => (hft ? 2 : 1);
+/** How often the hedge, range and alongside steps may read a market's chart. */
+export const stepEveryMs = (hft: boolean) => (hft ? 20_000 : 60_000);
 
 type Range = readonly [number, number];
 export const ENGINE_BOUNDS: {
@@ -79,14 +198,20 @@ const clamp = (v: unknown, [lo, hi]: Range, fallback: number) => {
 };
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+
 /** Merge a loose/partial config over the defaults and clamp every value. */
 export function cleanEngineConfig(input: unknown): EngineConfig {
   const src = (input ?? {}) as {
     gate?: Record<string, unknown>;
     concurrency?: Record<string, unknown>;
+    strategies?: Record<string, unknown>;
+    group?: Record<string, unknown>;
   };
   const g = src.gate ?? {};
   const c = src.concurrency ?? {};
+  const st = src.strategies ?? {};
+  const gr = src.group ?? {};
   const d = DEFAULT_ENGINE_CONFIG;
   const gb = ENGINE_BOUNDS.gate;
   const cb = ENGINE_BOUNDS.concurrency;
@@ -111,6 +236,18 @@ export function cleanEngineConfig(input: unknown): EngineConfig {
       ),
       afterStopMins: round2(clamp(c.afterStopMins, cb.afterStopMins, d.concurrency.afterStopMins)),
       sameSetupR: round2(clamp(c.sameSetupR, cb.sameSetupR, d.concurrency.sameSetupR)),
+    },
+    strategies: {
+      sniper: bool(st.sniper, d.strategies.sniper),
+      hedges: bool(st.hedges, d.strategies.hedges),
+      rangeHedge: bool(st.rangeHedge, d.strategies.rangeHedge),
+      patternsAlongside: bool(st.patternsAlongside, d.strategies.patternsAlongside),
+    },
+    group: {
+      posting: bool(gr.posting, d.group.posting),
+      gold: bool(gr.gold, d.group.gold),
+      bitcoin: bool(gr.bitcoin, d.group.bitcoin),
+      deskCheck: bool(gr.deskCheck, d.group.deskCheck),
     },
   };
 }

@@ -29,7 +29,7 @@ export const BOSS_AREAS = [
   {
     to: "/admin/users",
     label: "Members",
-    desc: "Find people, give or take coins, VIP and roles",
+    desc: "Find people, give or take coins, PRO and roles",
     icon: Users,
     group: "run",
   },
@@ -55,16 +55,9 @@ export const BOSS_AREAS = [
     group: "bot",
   },
   {
-    to: "/admin/bot",
-    label: "OG B0T",
-    desc: "Persona, health, your alerts and live users",
-    icon: Bot,
-    group: "bot",
-  },
-  {
     to: "/admin/system",
     label: "System",
-    desc: "Free access, API keys, diagnostics and the Boss actions log",
+    desc: "OG B0T's persona and alerts, health and API keys, logs and developer tools",
     icon: Settings2,
     group: "check",
   },

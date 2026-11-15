@@ -39,10 +39,11 @@ safety stop at the broker in case the PC goes off.
    row with key `copy.feedToken` and copy its value into `token =` in
    `config.ini`. Fix `symbol_XAUUSD` / `symbol_BTCUSD` if your names differ.
    Keep `dry_run = true` for now. Save.
-5. **Dry run.** `python og_copier.py`. It should say "Connected to …" and,
+5. **Dry run.** Double-click `start_copier.bat` (or run `py -3.14 og_copier.py`). It should say "Connected to …" and,
    when the bot posts and a signal fills, print "(dry run) would open …".
 6. **Live (demo first).** Set `dry_run = false`, run it again, and watch a
-   few trades copy on the demo. Then log MT5 in to the real account (same
+   few trades copy on the demo. (Dry runs remember their pretend trades in
+   `copier_state_dry.json`, separate from live, so nothing carries over.) Then log MT5 in to the real account (same
    PC) and run it.
 7. **Keep it running.** Leave the window open; Windows sleep off
    (Settings → System → Power → Never). If it stops, start it again: it
@@ -52,11 +53,43 @@ safety stop at the broker in case the PC goes off.
 
 ## Settings (`config.ini`)
 
-- `lot`: lots per trade. 0.02 by default so half (0.01) can close at TP1.
-  At 0.01 it can't split, so the whole lot rides the trailing stop.
+- `lot`: `bot` (default): exactly the lot the Copy Trader B0T shows for
+  each signal (0.05 to 0.3, bigger when it's surer); a signal it takes no
+  lot on isn't copied. Or a number (e.g.
+  `0.02`) for a fixed lot; at 0.01 it can't split at TP1. Nothing about
+  your account is sent to the bot: anyone with the token just runs the
+  copier and copies.
 - `max_late_minutes`: don't jump into a signal that filled longer ago.
 - `max_open`: most copied trades open at once.
 - `markets`: `XAUUSD,BTCUSD`, or just one.
+
+## Remote settings
+
+Every copier also follows settings saved on the server (site_content
+`copy.settings`, JSON), read on every check, so they can be changed without
+touching the laptop. Anything set there wins over `config.ini`; anything not
+set keeps `config.ini`. Keys:
+
+- `paused`: `true` stops new trades (open ones are still managed and closed).
+- `lot`: `"bot"` or a fixed lot (0.01 to 5).
+- `markets`: e.g. `["XAUUSD","BTCUSD"]`. A market switched off takes no new
+  trades; its open trades are still managed. Symbol names stay in
+  `config.ini` (`symbol_XAUUSD`, `symbol_BTCUSD`).
+- `maxOpen`, `maxLateMinutes`, `useBrokerStop`.
+
+The Boss can change them from Telegram too: in a private chat with the Copy
+Trader B0T, `/settings` shows them and `/pause`, `/resume`, `/lot bot` or
+`/lot 0.05`, `/markets gold btc`, `/maxopen 6`, `/late 10` and
+`/brokerstop on|off` change them.
+
+The token and `dry_run` stay on the laptop only. The copier logs
+"Remote settings: …" each time they change.
+
+## On a USB stick, for other people
+
+See `STICK.md`: a small app (`og_stick.py` → `OGCopier.exe`) with a sign-in
+screen, a dashboard and a Start button, MT5 in portable mode on the stick,
+and per-user keys the Boss manages from the Copy Trader B0T.
 
 ## Safety
 

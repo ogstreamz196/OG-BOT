@@ -42,7 +42,8 @@ export function VipRequestCard() {
         <Crown className="h-4 w-4 text-coin" /> Request a style or language
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Want a sound, dialect or language we don't have yet? VIPs can message the Boss directly.
+        Want a sound, dialect or language we don't have yet? PRO members can message the Boss
+        directly.
       </p>
       {isVip ? (
         <div className="mt-3 space-y-3">
@@ -76,7 +77,7 @@ export function VipRequestCard() {
       ) : (
         <Button asChild variant="outline" className="mt-3 w-full gap-2 font-bold">
           <Link to="/buy-coins">
-            <Lock className="h-4 w-4" /> Unlock with OG VIP
+            <Lock className="h-4 w-4" /> Unlock with OG B0T PRO
           </Link>
         </Button>
       )}

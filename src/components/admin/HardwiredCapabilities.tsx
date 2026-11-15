@@ -30,7 +30,7 @@ const CAPABILITIES = [
   "Persona Override Engine",
   "Foul-Mouth Filter Toggle",
   "Background Make a Track Sync",
-  "VIP Privilege Detection",
+  "PRO Privilege Detection",
   "Boss-Only Override Mode",
   "Encrypted Token Rotation",
 ];

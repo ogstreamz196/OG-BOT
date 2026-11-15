@@ -57,6 +57,7 @@ import {
   suggestTrackTitle,
   fallbackTitle as localFallbackTitle,
 } from "@/lib/track-title.functions";
+import { newId } from "@/lib/copy-text";
 
 /** Song designed on the welcome page before sign-up, picked up after login. */
 export { GUEST_PENDING_SONG_KEY } from "@/lib/guest-pending-song";
@@ -401,7 +402,7 @@ export function CreateNowWizard({
       const uid = auth.user?.id;
       if (!uid) throw new Error("You need to be signed in to upload a beat");
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
-      const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+      const path = `${uid}/${newId()}.${ext}`;
       const { error } = await supabase.storage
         .from("beats")
         .upload(path, file, { contentType: file.type, upsert: false });
@@ -572,11 +573,11 @@ export function CreateNowWizard({
                         aria-pressed={selected}
                         onClick={() => {
                           if (locked) {
-                            toast(`👑 ${s} is an OG VIP style`, {
+                            toast(`👑 ${s} is an OG B0T PRO style`, {
                               description:
                                 "Unlock all 50+ styles & moods, plus custom style and language requests.",
                               action: {
-                                label: "Get VIP",
+                                label: "Get PRO",
                                 onClick: () => void navigateVip({ to: "/buy-coins" }),
                               },
                             });
@@ -608,7 +609,7 @@ export function CreateNowWizard({
                       >
                         {locked && (
                           <span
-                            aria-label="VIP only"
+                            aria-label="PRO only"
                             className="mr-1 inline-flex items-end text-xs"
                           >
                             <span className="relative">

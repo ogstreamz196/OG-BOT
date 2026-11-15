@@ -39,6 +39,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
+import { Route as AuthenticatedCopierRouteImport } from './routes/_authenticated/copier'
 import { Route as AuthenticatedDeveloperRouteImport } from './routes/_authenticated/developer'
 import { Route as AuthenticatedMessengerRouteImport } from './routes/_authenticated/messenger'
 import { Route as AuthenticatedPortalsRouteImport } from './routes/_authenticated/portals'
@@ -80,6 +81,7 @@ import { Route as AuthenticatedAdminWebhooksRouteImport } from './routes/_authen
 import { Route as AuthenticatedBuyCoinsIndexRouteImport } from './routes/_authenticated/buy-coins.index'
 import { Route as AuthenticatedBuyCoinsReturnRouteImport } from './routes/_authenticated/buy-coins.return'
 import { Route as AuthenticatedLibrarySongIdRouteImport } from './routes/_authenticated/library.$songId'
+import { Route as ApiPublicCopierLoginRouteImport } from './routes/api/public/copier-login'
 import { Route as ApiPublicCopyFeedRouteImport } from './routes/api/public/copy-feed'
 import { Route as ApiPublicNewUserAlertRouteImport } from './routes/api/public/new-user-alert'
 import { Route as ApiPublicSignalScanRouteImport } from './routes/api/public/signal-scan'
@@ -245,6 +247,11 @@ const AuthenticatedChangePasswordRoute =
 const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
   id: '/community',
   path: '/community',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCopierRoute = AuthenticatedCopierRouteImport.update({
+  id: '/copier',
+  path: '/copier',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDeveloperRoute = AuthenticatedDeveloperRouteImport.update({
@@ -478,6 +485,11 @@ const AuthenticatedLibrarySongIdRoute =
     path: '/library/$songId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCopierLoginRoute = ApiPublicCopierLoginRouteImport.update({
+  id: '/api/public/copier-login',
+  path: '/api/public/copier-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCopyFeedRoute = ApiPublicCopyFeedRouteImport.update({
   id: '/api/public/copy-feed',
   path: '/api/public/copy-feed',
@@ -615,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/community': typeof AuthenticatedCommunityRoute
+  '/copier': typeof AuthenticatedCopierRoute
   '/developer': typeof AuthenticatedDeveloperRoute
   '/messenger': typeof AuthenticatedMessengerRoute
   '/portals': typeof AuthenticatedPortalsRoute
@@ -654,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copier-login': typeof ApiPublicCopierLoginRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
@@ -705,6 +719,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/community': typeof AuthenticatedCommunityRoute
+  '/copier': typeof AuthenticatedCopierRoute
   '/developer': typeof AuthenticatedDeveloperRoute
   '/messenger': typeof AuthenticatedMessengerRoute
   '/portals': typeof AuthenticatedPortalsRoute
@@ -745,6 +760,7 @@ export interface FileRoutesByTo {
   '/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copier-login': typeof ApiPublicCopierLoginRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
@@ -798,6 +814,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/change-password': typeof AuthenticatedChangePasswordRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRoute
+  '/_authenticated/copier': typeof AuthenticatedCopierRoute
   '/_authenticated/developer': typeof AuthenticatedDeveloperRoute
   '/_authenticated/messenger': typeof AuthenticatedMessengerRoute
   '/_authenticated/portals': typeof AuthenticatedPortalsRoute
@@ -838,6 +855,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/webhooks': typeof AuthenticatedAdminWebhooksRoute
   '/_authenticated/buy-coins/return': typeof AuthenticatedBuyCoinsReturnRoute
   '/_authenticated/library/$songId': typeof AuthenticatedLibrarySongIdRoute
+  '/api/public/copier-login': typeof ApiPublicCopierLoginRoute
   '/api/public/copy-feed': typeof ApiPublicCopyFeedRoute
   '/api/public/new-user-alert': typeof ApiPublicNewUserAlertRoute
   '/api/public/signal-scan': typeof ApiPublicSignalScanRoute
@@ -892,6 +910,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/change-password'
     | '/community'
+    | '/copier'
     | '/developer'
     | '/messenger'
     | '/portals'
@@ -931,6 +950,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/copier-login'
     | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
@@ -982,6 +1002,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/change-password'
     | '/community'
+    | '/copier'
     | '/developer'
     | '/messenger'
     | '/portals'
@@ -1022,6 +1043,7 @@ export interface FileRouteTypes {
     | '/admin/webhooks'
     | '/buy-coins/return'
     | '/library/$songId'
+    | '/api/public/copier-login'
     | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
@@ -1074,6 +1096,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/change-password'
     | '/_authenticated/community'
+    | '/_authenticated/copier'
     | '/_authenticated/developer'
     | '/_authenticated/messenger'
     | '/_authenticated/portals'
@@ -1114,6 +1137,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/webhooks'
     | '/_authenticated/buy-coins/return'
     | '/_authenticated/library/$songId'
+    | '/api/public/copier-login'
     | '/api/public/copy-feed'
     | '/api/public/new-user-alert'
     | '/api/public/signal-scan'
@@ -1173,6 +1197,7 @@ export interface RootRouteChildren {
   TrackSongIdRoute: typeof TrackSongIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicCopierLoginRoute: typeof ApiPublicCopierLoginRoute
   ApiPublicCopyFeedRoute: typeof ApiPublicCopyFeedRoute
   ApiPublicNewUserAlertRoute: typeof ApiPublicNewUserAlertRoute
   ApiPublicSignalScanRoute: typeof ApiPublicSignalScanRoute
@@ -1390,6 +1415,13 @@ declare module '@tanstack/react-router' {
       path: '/community'
       fullPath: '/community'
       preLoaderRoute: typeof AuthenticatedCommunityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/copier': {
+      id: '/_authenticated/copier'
+      path: '/copier'
+      fullPath: '/copier'
+      preLoaderRoute: typeof AuthenticatedCopierRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/developer': {
@@ -1686,6 +1718,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLibrarySongIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/copier-login': {
+      id: '/api/public/copier-login'
+      path: '/api/public/copier-login'
+      fullPath: '/api/public/copier-login'
+      preLoaderRoute: typeof ApiPublicCopierLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/copy-feed': {
       id: '/api/public/copy-feed'
       path: '/api/public/copy-feed'
@@ -1846,6 +1885,7 @@ const AuthenticatedAdminUsersRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedChangePasswordRoute: typeof AuthenticatedChangePasswordRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
+  AuthenticatedCopierRoute: typeof AuthenticatedCopierRoute
   AuthenticatedDeveloperRoute: typeof AuthenticatedDeveloperRoute
   AuthenticatedMessengerRoute: typeof AuthenticatedMessengerRoute
   AuthenticatedPortalsRoute: typeof AuthenticatedPortalsRoute
@@ -1886,6 +1926,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChangePasswordRoute: AuthenticatedChangePasswordRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
+  AuthenticatedCopierRoute: AuthenticatedCopierRoute,
   AuthenticatedDeveloperRoute: AuthenticatedDeveloperRoute,
   AuthenticatedMessengerRoute: AuthenticatedMessengerRoute,
   AuthenticatedPortalsRoute: AuthenticatedPortalsRoute,
@@ -1961,6 +2002,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrackSongIdRoute: TrackSongIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicCopierLoginRoute: ApiPublicCopierLoginRoute,
   ApiPublicCopyFeedRoute: ApiPublicCopyFeedRoute,
   ApiPublicNewUserAlertRoute: ApiPublicNewUserAlertRoute,
   ApiPublicSignalScanRoute: ApiPublicSignalScanRoute,

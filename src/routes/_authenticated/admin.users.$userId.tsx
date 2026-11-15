@@ -62,6 +62,7 @@ import {
 } from "@/lib/telegram-admin.functions";
 import { Wrench, Flame } from "lucide-react";
 import { toast } from "sonner";
+import { copyText } from "@/lib/copy-text";
 
 export const Route = createFileRoute("/_authenticated/admin/users/$userId")({
   component: UserSettingsRoute,
@@ -290,7 +291,11 @@ function UserSettingsPage() {
           <InfoCard
             icon={<Calendar className="h-4 w-4" />}
             label="Joined"
-            value={new Date(profile.created_at).toLocaleDateString()}
+            value={
+              profile.created_at && !Number.isNaN(Date.parse(profile.created_at))
+                ? new Date(profile.created_at).toLocaleDateString("en-GB")
+                : "—"
+            }
           />
         </section>
 
@@ -344,13 +349,13 @@ function UserSettingsPage() {
           <header>
             <h3 className="font-semibold">Roles & access</h3>
             <p className="text-sm text-muted-foreground">
-              VIP, Vault, Dev and Boss access. Every change asks first and is logged.
+              PRO, Vault, Dev and Boss access. Every change asks first and is logged.
             </p>
           </header>
 
           <RoleToggleRow
             icon={<Crown className="h-5 w-5 text-amber-500" />}
-            title="VIP member"
+            title="PRO member"
             description="Unlocks premium tiers and bonus features."
             checked={isVip}
             userId={profile.id}
@@ -358,7 +363,7 @@ function UserSettingsPage() {
             rpc="set_vip_admin"
             paramKey="make_vip"
             vipExpiry
-            confirm={{ revoke: "Remove VIP from this member now?" }}
+            confirm={{ revoke: "Remove PRO from this member now?" }}
           />
 
           <VaultToggleRow
@@ -604,7 +609,7 @@ function TelegramDmCard({
   const copy = async () => {
     try {
       if (!connectLink) return toast.error("Create a link first");
-      await navigator.clipboard.writeText(connectLink);
+      if (!(await copyText(connectLink))) throw new Error("copy");
       toast.success("Registration link copied");
     } catch {
       toast.error("Couldn't copy — long-press to copy");
@@ -851,7 +856,7 @@ function VaultToggleRow({
         <div>
           <Label className="text-sm font-medium">OG Vault access</Label>
           <p className="text-xs text-muted-foreground">
-            Grants the Vault pass for free — independent of VIP.
+            Grants the Vault pass for free — independent of PRO.
           </p>
         </div>
       </div>

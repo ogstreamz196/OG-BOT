@@ -7,6 +7,7 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- One line per open task: who · branch · what · files it touches -->
 
+
 - Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
   `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
   the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
@@ -73,6 +74,12 @@ add to it before merging. See `CLAUDE.md` for the routine.
 ## Where things stand (handover)
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
+
+- **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
+  #296 (scrap list) #297 (Money in four tabs), #298 (OG B0T folded into System), #299 (Every switch), #300 (Trading switches on the web) and #301 (Settings regrouped) merged. Next, one area per merge: the five-area layout
+  (Home, Members, Trading, Money & Music, System) by moving panels, never
+  rewriting them, with every old link redirecting. Don't touch MT5 MetaApi
+  auto-trading (the Boss hasn't decided yet).
 
 - **Partner's Claude (2026-11-06, dev.b055 done):** dev.b055 + PIN works
   the same in OG B0T (#247), OG VAULT (OG-VAULT-REACT#25), the booking
@@ -291,6 +298,223 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-15 · #306** · Signals group switchboard on the
+  Copy Trader B0T card (and the website): group posting, gold, bitcoin and
+  the AI desk check (`EngineConfig.group`, taps `eg:`), obeyed by postOnce
+  for every post. High-frequency now skips the desk wait (floor and gate
+  unchanged); the desk window is 28 s per run and late setups are logged,
+  not silently dropped. New scan log (`signals.scanlog`) with each setup's
+  outcome per run, shown as status lines on the card, so "why no signals"
+  has an answer. No migrations.
+
+- **Boss's Claude · 2026-11-15 · #305** · Re-check of #303 (the Boss
+  asked). Found and fixed: the lab credited half a spread too much on every
+  take profit and stop (a buy fills at the ask and closes at the bid: tp
+  needs tp+1 spreads of move, the stop hits after sl-1), opened trades
+  instantly (now 2 s after the signal, like a copied trade), and used
+  1-spread stops that hit at once (now 1.5+). With that, three days of data
+  show nothing makes money reliably at any hold; #303's "gold at 2-5 min is
+  positive" was wrong. Loss post-mortem: reads the tracker's own chart (gold
+  futures when set), lines levels up with the saved gap checked against the
+  fill minute, and counts the stop minute. Fresh `signals.microlab.v2` and
+  `signals.autopsy.v2`; the first versions kept untouched.
+
+- **Boss's Claude · 2026-11-15 · #304** · VIP renamed OG B0T PRO in
+  everything users and the Boss see (242 lines over 62 files, store first;
+  a browser audit of the store, home, settings, chat, Battle Zone, sports,
+  referrals, purchases, terms and Boss pages found no "VIP" left). Code
+  names, Stripe/RevenueCat ids and issued IDs unchanged; `/pro` added
+  beside `/vip`. New REAL OG badge for members with both PRO and the Vault
+  pass. Coin pack "Pro" → "Mega". House rule added to CLAUDE.md.
+
+- **Boss's Claude · 2026-11-15 · #303** · Signals: HFT lab and "Why
+  trades lost". Research on two days of 1-second prices with Vantage costs:
+  10-15 second trades lose after the spread on gold and bitcoin (bitcoin's
+  typical 15 s move is one spread); only gold held 2-5 min stayed positive
+  on the unseen day. So no live 10-15 s mode; instead a live lab scores nine
+  strategies (incl. the opposite/fade ones and a coin-flip yardstick) at
+  15 s / 1 / 2 / 5 min every minute, per-strategy wins, runs and money
+  after spread in `signals.microlab`, with a strict "proven" rule. Plus a
+  post-mortem of every stopped-out signal (stop was the entry / too tight /
+  gave back / wrong way) per strategy in `signals.autopsy`. Both read-only
+  and on Signals › Results. No migrations.
+
+- **Boss's Claude · 2026-11-13 · #302** · Every-page, every-browser scan.
+  Playwright opened all 72 pages at phone, tablet and desktop sizes, signed
+  out and as a stand-in Boss (fake session, empty data, nothing real
+  touched): no page wider than the screen, no script errors. Fixes: shared
+  `copyText()` (works in Telegram's in-app browser and older Safari, never
+  says "copied" when it didn't; 18 call sites), `newId()` (the welcome
+  page's guest battle crashed where `crypto.randomUUID` is missing), a
+  "Loading OG B0T…" screen instead of a blank background while the app
+  starts, bigger "← Back" on Terms/Privacy/Trust, a plain message when the
+  beats list fails, and "—" instead of "Invalid Date" on a member page.
+
+- **Boss's Claude · 2026-11-13 · #301** · Settings page regrouped: Profile
+  (profile, VIP ID, Vault login, Telegram link), VIP & coins (VIP plan,
+  coin activity, invites), Preferences (OG B0T, memory, look), Security,
+  Boss. Section ids unchanged so every link still works. Boss switchboard
+  shortcuts renamed to match (Trading switches, Prices & store).
+
+- **Boss's Claude · 2026-11-13 · #300** · Signals: **Trading switches** on
+  the website (Controls): copying, markets, broker stop, lot range, trade
+  limit, HFT and the four strategies, sent as the Copy Trader B0T card's own
+  `cs:`/`es:` actions through the same code (`applyCopierAction`), so web and
+  Telegram always match. Report folded into Results (`?tab=report`
+  redirects); TradeTweaker renamed Tuning (tab value unchanged). Every switch
+  list now links the copier switches to Controls.
+
+- **Boss's Claude · 2026-11-13 · #299** · Switch audit + **Every switch**
+  on the Boss dashboard. Traced all 24 switches (website, Members, Settings
+  and the Copy Trader B0T card) to the code that obeys them: every one is
+  wired, none dead. New `src/lib/boss-switches.ts` (plain-words on/off/where
+  for each, with a test that every link lands on a real tab) and
+  `EverySwitch.tsx`, read-only. Add a line there with any new switch.
+
+- **Boss's Claude · 2026-11-13 · #298** · Boss console step 3: the OG B0T
+  area folds into System, so the top bar has six areas. System's tabs are now
+  OG B0T (persona + your alerts), Health (bot health & AI usage, live users,
+  API keys), Tools & logs, Developer (+ hidden Free access). `/admin/bot` is a
+  redirect-only route; every old link (`/admin/bot?tab=…`, `/admin/og-persona`,
+  `/developer`, `/admin/health`, `/admin/api-keys`, `system?tab=apis`) lands on
+  the matching tab. Same panels, nothing rewritten.
+
+- **Boss's Claude · 2026-11-13 · #297** · Boss console step 2: Money
+  goes from seven tabs to four (Overview; Prices & store; Payments = card
+  payments + Stripe events; Checks = coin check + referrals). Same panels,
+  just grouped; every old `?tab=` and old Money page redirects to its new
+  tab. `ToolSection` moved to its own file so System and Money share it.
+
+- **Boss's Claude · 2026-11-13 · #296** · Boss console scrap list, step 1
+  of the Boss's "do all one by one" tidy-up. Hide, never delete: TradeTweaker
+  stops showing the strategy preset cards and the "set in code" readout, and
+  the retired break-even knob; System gets a **Developer** tab (setup
+  checklist, built-in abilities, route map, lyric debug, transfer readiness)
+  and Free access becomes a hidden tab (`hidden` on `BossTab`, still opens
+  from links); old links (`?tab=setup`, `/admin/onboarding`,
+  `/admin/route-map`, `/admin/debug-context`) redirect to Developer. Copy bot
+  card: a lot range is ticked only when picked, else it says "the bot's own
+  lot". Signals bot Boss menu loses the spare 🎛 Strategies button
+  (`/strategies` still works). No migrations, no data touched.
+
+- **Boss's Claude · 2026-11-13 · #295** · Boss console: an "On this page"
+  jump row on every tab (`SectionJump.tsx` in `BossTabs`; `AdminSection` and
+  System's `ToolSection` mark themselves with `data-boss-section`). Additive:
+  nothing moved or removed. Checked in a browser with a small test page, not
+  on the real Boss pages (no Boss login here). The Boss was also given a
+  written review of the console (what to merge, which switches to drop);
+  nothing from it is built until he picks.
+
+- **Boss's Claude · 2026-11-13 · #294** · The user's own copier view
+  (step 4, the last of the USB copier plan). `key.paused` (their own pause;
+  the feed serves it paused). Website `/copier` (website only; no nav link
+  added) with `getMyCopier` / `setMyCopierPause`; Telegram `/mycopier` in the
+  Copy Trader B0T with pause / resume / refresh (`ck:me:` taps). Never shows
+  the token or the stick. The page hasn't been looked at in a browser (needs
+  a signed-in account with a key). No migrations. **Left for the Boss:**
+  publish, build `OGCopier.exe` on a Windows PC and try a stick end to end
+  (see `tools/mt5-copier/STICK.md`).
+
+- **Boss's Claude · 2026-11-13 · #293** · The stick app (step 3).
+  `tools/mt5-copier/og_stick.py` (tkinter: sign in, dashboard, Start/Stop,
+  practice mode, MT5 account dialog), `stick_core.py` (+ `test_stick_core.py`),
+  `build_stick.bat` (PyInstaller → `OGCopier.exe`), `STICK.md` (how to make
+  and hand out a stick). `og_copier.py`: `OG_COPIER_HOME`, relative
+  `mt5_path` + `mt5_portable`, one-start MT5 login from env, and
+  `copier_status.json` for the dashboard. Tools only: nothing in the site
+  changed. Dry-run on Linux with stand-in MT5; **not yet run on Windows with
+  a real terminal**. **Next:** (4) the user's own view on the web and in
+  Telegram.
+
+- **Boss's Claude · 2026-11-13 · #292** · Copier sign-in (step 2). `POST
+  /api/public/copier-login` { username, password } → `copierLogin`: checks the
+  ogbot password server-side, finds the key the Boss added under that username
+  (`key.user`, tied to the account as `key.userId` on first sign-in) and
+  returns a fresh token (old one stops; expiry and lock carry over). Rate
+  limited; the email is never returned. New route file → `routeTree.gen.ts`
+  regenerated by the build. No migrations. **Next:** (3) the Windows app on
+  the stick, (4) the user's own view on the web and in Telegram.
+
+- **Boss's Claude · 2026-11-13 · #291** · Per-user copier keys + the Boss's
+  users card (step 1 of the Boss's "copier on a USB for several people").
+  `copier-keys.ts` / `copier-keys.server.ts`: one site_content row per key
+  (`copy.key.<hash>`, no migration), an expiry, locked on first use to one USB
+  stick and one MT5 account, one copy running at a time; expired/off keys get
+  the feed paused. The feed's check is `copyAccess` (the Boss's own token
+  unchanged). Cards in the Copy Trader B0T: 👥 Copier users, `/adduser Name
+  30`, per-user extend / off / reset lock / new key / remove. `og_copier.py`
+  sends stick, account and instance. **Next, in order:** (2) sign-in endpoint
+  so a user's ogbot login fetches their key, (3) the Windows app on the stick
+  (login, dashboard, Start/Stop, MT5 portable), (4) the user's own view on the
+  web and in Telegram.
+
+- **Boss's Claude · 2026-11-13 · #290** · The signals chat follows the
+  copier's rules on the real balance. It already used `copierLot` /
+  `copierSkips` (bands, HFT top of band, no cap); the gold $400 rule was
+  checked on the test account's balance. Now `og_copier.py` sends its MT5
+  balance on each feed poll (`x-copy-balance`), the copy-feed route stores
+  site_content `copy.balance` (at most once a minute), and `mirrorCopier` uses
+  it while under 15 minutes old. No migrations. The laptop copier needs the
+  new `og_copier.py`.
+
+- **Boss's Claude · 2026-11-13 · #289** · HFT lots stay inside the band set
+  on the card (the Boss: "bigger lots" = the top of the range, e.g. 0.05 on
+  0.01–0.05, not a bigger range). `hftLotSpot` replaces `hftBand` and
+  `effectiveBand`: bitcoin the top of the band; gold the top from $400 and the
+  bottom of the band under it. `og_copier.py` matches. No migrations. The
+  laptop copier needs the new `og_copier.py`.
+
+- **Boss's Claude · 2026-11-13 · #288** · High-frequency mode now changes
+  posting too (the Boss: more trades at once when HFT is on, no max, bigger
+  lots, bitcoin favoured, gold big only from $400). `hftOn()` reads the copier
+  card's switch; `postOnce` uses `hftConcurrency` (no per-market cap, no rising
+  bar, 30s same-side gap, 1 min after a stop; gate, desk, alert bar and
+  same-setup rule unchanged). Hedge/range/alongside steps keep their own
+  switches; with HFT on they look every 20s, up to 3 hedges a market (never
+  more than the trend trades) and 2 range hedges a side. Lots: `hftBand`
+  (copy-feed.ts) + `og_copier.py`: bitcoin a band up, gold a band up from $400
+  and the small band under it. No cap on open trades with HFT on. Tests:
+  `hft-mode.test.ts`. No migrations. The laptop copier needs the new
+  `og_copier.py`.
+
+- **Boss's Claude (session 0133i9…) · 2026-11-12 · #281–#285** · The
+  partner's #280 to-do, done one at a time at the Boss's ask ("do 1 thru 4
+  slowly"), every new behaviour behind its switch (all off by default) and
+  published after each merge:
+  - #281 copier risk multiplier capped at 4x (10x dropped; the copier clamps too).
+  - #282 hedge auto-posting (`maybeHedgeSignal`, `hedge:<side>` ask →
+    `hedgePlan`, 55% hedge gate floor). Also fixed: `plan.hedge` never reached
+    `feeds.hedge`, so #280's 0.5R break-even and the copier's hedge ticket
+    weren't firing; hedges never trail or move their take profit.
+  - #283 range hedging (`maybeRangeHedge`, `range:<side>` → new
+    `rangeHedgePlan`: one quick target at the middle of the range; one buy and
+    one sell at a time).
+  - #284 patterns alongside (`maybeAlongside`, `alongside` ask: only a proven
+    setup, never the engine's own trade twice).
+  - #285 manual-trade command in the Copy Trader B0T (✋ Manual trade card,
+    two-tap place, `manual:` ask, posted and followed like any alert, copied at
+    exactly the Boss's lot).
+  Nothing from #280's to-do list is left. The Boss's laptop copier needs the
+  latest `og_copier.py` for the multiplier cap, hedges and manual lots.
+
+- **Boss's Claude · 2026-11-12 · #280** · Sniper entry + strategy toggles +
+  hedge mechanism + clearer copier card + HFT (Gold & BTC; all new behaviour
+  off by default). Sniper is entryStyle 4 (limit at the 50% of the last FVG or
+  the retest, tight structure stop; no level → nothing posted); the learner can
+  try it per market (20+ trades, walk-forward) and a Boss switch forces it on.
+  Four Boss strategy switches (`sniper`/`hedges`/`rangeHedge`/`patternsAlongside`)
+  in `engine-config`, tappable in the signals bot (`/strategies`) and in a new
+  Strategies section on the Copy Trader B0T card. Hedge machinery: `hedgePlan()`
+  (counter-trend, 1R, `feeds.hedge`), tracker BE at 0.5R (`lockOf`), copy feed +
+  `og_copier` carry hedges as their own MT5 tickets. Copier card: three lot-size
+  bands replace "same as bot" + multiplier; HFT bumps the band up a notch and
+  checks twice a second. Manual-trade sizing core (`manual-trade.ts`, gold
+  tighter). No migrations. **Still on the to-do list (the Boss, 2026-11-12, do
+  later):** hedge auto-posting (scan fires the opposite side — watch on paper
+  first), the range-hedging behaviour, the patterns-alongside wiring, and the
+  manual-trade Telegram command. The machinery and toggles for all of these are
+  already in; only the live posting/command wiring is left.
 
 - **Boss's Claude · 2026-11-10 · #268** · Copy feed + Python MT5 copier.
   `GET /api/public/copy-feed` (token: site_content `copy.feedToken`, off when

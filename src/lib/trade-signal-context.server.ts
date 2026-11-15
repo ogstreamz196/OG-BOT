@@ -819,7 +819,22 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // A strategy tried on purpose (random signals, signal-random.server.ts):
   // "setup:<id>" reads only that setup, proven or not. Members never send it.
   const forced = /\bsetup:([a-z_]+)\b/.exec(userText)?.[1];
-  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}`;
+  // "hedge:BUY" / "hedge:SELL" (the scan's hedge step, Boss switch "hedges"):
+  // reads only a counter-trend reversal on that side (hedgePlan). Members never send it.
+  const hedgeSide = /\bhedge:(BUY|SELL)\b/.exec(userText)?.[1] as "BUY" | "SELL" | undefined;
+  // "range:BUY" / "range:SELL" (the scan's range-hedge step, Boss switch
+  // "rangeHedge"): only the range fade on that edge (rangeHedgePlan).
+  const rangeSide = /\brange:(BUY|SELL)\b/.exec(userText)?.[1] as "BUY" | "SELL" | undefined;
+  // "alongside" (the scan's patterns-alongside step, Boss switch
+  // "patternsAlongside"): the proven setups even when the engine has a trade,
+  // and only them (a wait when none shows), so the engine's own trade is never
+  // posted twice.
+  const alongside = /\balongside\b/.test(userText);
+  // "manual:<BUY|SELL>:<stop distance>:<target distance>" (the Boss's manual
+  // trade from the Copy Trader B0T, manual-trade.server.ts): a market trade
+  // at the price now with those distances. Members never send it.
+  const manualAsk = /\bmanual:(BUY|SELL):([\d.]+):([\d.]+)\b/.exec(userText);
+  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}${alongside ? ":alongside" : ""}${manualAsk ? `:${manualAsk[0]}` : ""}`;
   const hit = cache.get(key);
   // Not past the close of a new entry candle, so a fresh setup is never hidden.
   if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
@@ -934,11 +949,18 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
           ),
         }
       : learned;
+  // The Boss's strategy switches (engine config). The sniper switch forces the
+  // sniper entry (entryStyle 4) over the learner; off (default) changes nothing.
+  const strategies = await import("./engine-config.server")
+    .then((m) => m.engineConfig())
+    .then((c) => c.strategies)
+    .catch(() => null);
+  const tuningFx = strategies?.sniper ? { ...(tuning ?? DEFAULT_TUNING), entryStyle: 4 } : tuning;
   let plan = buildPlan(hi, mid, lo, entryCandles, middleCandles, live, {
     volumeRatio: volume,
     session: sessionRead(inst),
     roundStep: roundStepFor(inst.code),
-    tuning,
+    tuning: tuningFx,
     flow: flow ?? undefined,
   });
   // A proxy chart (gold from PAX Gold) without a confirmed spot price would
@@ -984,7 +1006,81 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   if (sitOut && plan.verdict === "trade") plan = { ...plan, verdict: "wait", waitReason: sitOut };
   // No engine setup right now (and the market's open): on the 5-minute chart,
   // an extra setup the learning loop has proven for this market takes its place.
-  if (forced) {
+  if (manualAsk) {
+    // The Boss's own call: no engine verdict, filters or confidence checks,
+    // only a real, open market and a confirmed price.
+    const side = manualAsk[1] === "BUY" ? 1 : -1;
+    const sl = Number(manualAsk[2]);
+    const tp = Number(manualAsk[3]);
+    const ok =
+      sl > 0 &&
+      tp > 0 &&
+      Number.isFinite(live) &&
+      live > 0 &&
+      !spotUnconfirmed &&
+      !/\bclosed\b/i.test(plan.waitReason ?? "");
+    plan = ok
+      ? {
+          ...plan,
+          direction: manualAsk[1] as "BUY" | "SELL",
+          entry: live,
+          entryType: "market",
+          entryNote: "Manual trade (the Boss's call)",
+          stop: live - side * sl,
+          targets: [live + side * tp, live + side * tp, live + side * tp],
+          rr: `1:${(tp / sl).toFixed(1).replace(/\.0$/, "")}`,
+          verdict: "trade",
+          waitReason: undefined,
+          caution: undefined,
+          cautions: [],
+          setup: undefined,
+          manual: true,
+        }
+      : {
+          ...plan,
+          verdict: "wait",
+          waitReason: /\bclosed\b/i.test(plan.waitReason ?? "")
+            ? plan.waitReason
+            : "Can't get a confirmed price right now",
+        };
+  } else if (rangeSide) {
+    // A range hedge on that edge: the range fade showing on this chart now
+    // (a ranging market, price at the edge), as rangeHedgePlan builds it.
+    const { findSetups, rangeHedgePlan } = await import("./trade-setups");
+    const { chartTrend } = await import("./signal-frame-setups.server");
+    const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
+    const trend = entryIv === "5m" ? hi.bias : chartTrend(closed);
+    const open =
+      SETUP_FRAMES.includes(entryIv) &&
+      !spotUnconfirmed &&
+      !sitOut &&
+      !/\bclosed\b/i.test(plan.waitReason ?? "");
+    const hit = open
+      ? findSetups(closed, trend).find((h) => h.id === "range_fade" && h.direction === rangeSide)
+      : undefined;
+    const fromRange = hit ? rangeHedgePlan(plan, hit, live) : null;
+    plan = fromRange ?? { ...plan, verdict: "wait", waitReason: "Not ranging at that edge" };
+  } else if (hedgeSide) {
+    // A counter-trend hedge on that side: the surest reversal setup showing
+    // on this chart now (HEDGE_SETUPS), as hedgePlan builds it (market entry,
+    // one 1R target, break-even at 0.5R from feeds.hedge). Else a wait.
+    const { findSetups, hedgePlan, HEDGE_SETUPS } = await import("./trade-setups");
+    const { chartTrend } = await import("./signal-frame-setups.server");
+    const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
+    const trend = entryIv === "5m" ? hi.bias : chartTrend(closed);
+    const open =
+      SETUP_FRAMES.includes(entryIv) &&
+      !spotUnconfirmed &&
+      !sitOut &&
+      !/\bclosed\b/i.test(plan.waitReason ?? "");
+    const hit = open
+      ? findSetups(closed, trend)
+          .filter((h) => HEDGE_SETUPS.includes(h.id) && h.direction === hedgeSide)
+          .sort((x, y) => y.confidencePct - x.confidencePct)[0]
+      : undefined;
+    const fromHedge = hit ? hedgePlan(plan, hit, live) : null;
+    plan = fromHedge ?? { ...plan, verdict: "wait", waitReason: "No hedge setup showing" };
+  } else if (forced) {
     // Only the one setup asked for, if it's showing on this chart right now.
     const { findSetups, setupPlan, SETUP_NAMES } = await import("./trade-setups");
     const { chartTrend } = await import("./signal-frame-setups.server");
@@ -1002,7 +1098,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       waitReason: `No ${SETUP_NAMES[forced as keyof typeof SETUP_NAMES] ?? "such setup"} showing`,
     };
   } else if (
-    plan.verdict === "wait" &&
+    (plan.verdict === "wait" || alongside) &&
     SETUP_FRAMES.includes(entryIv) &&
     !spotUnconfirmed &&
     !sitOut &&
@@ -1033,8 +1129,13 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         .sort((x, y) => y.confidencePct - x.confidencePct)
         .find((h) => h.confidencePct >= floor);
       const fromSetup = hit ? setupPlan(plan, hit, live, tuning ?? DEFAULT_TUNING) : null;
-      if (fromSetup) plan = fromSetup;
+      if (fromSetup) plan = alongside ? { ...fromSetup, alongside: true } : fromSetup;
     }
+    // Alongside: only a proven setup, never the engine's own trade again.
+    if (alongside && !plan.alongside)
+      plan = { ...plan, verdict: "wait", waitReason: "No proven pattern showing" };
+  } else if (alongside) {
+    plan = { ...plan, verdict: "wait", waitReason: "No proven pattern showing" };
   }
   // Live trial: what drives each pair, beside the chart. Gold against the US
   // dollar and yields; bitcoin against who's hitting the market (taker flow).
@@ -1042,7 +1143,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // off, and a setup pushed under the floor waits. Kept with the trade.
   const checks: { dollar?: CheckVerdict; flow?: CheckVerdict; round?: CheckVerdict } = {};
   const checkNotes: string[] = [];
-  if (plan.verdict === "trade") {
+  if (plan.verdict === "trade" && !plan.manual) {
     const dollarData = await dollarJob;
     const dollar = dollarData ? dollarRead(dollarData.eurusd, dollarData.yields) : null;
     if (dollar) {
@@ -1184,7 +1285,11 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     lines.push("", "MARKET HEADLINES (Yahoo Finance; for context and news risk only):", news);
 
   const value = `${HOW_TO_ANSWER}\n\n${lines.join("\n")}`;
-  const expiresAt = valid.until.toISOString();
+  // A manual trade runs until it hits its stop or target (24 hours at most),
+  // not the scalp's short validity.
+  const expiresAt = plan.manual
+    ? new Date(Date.now() + 24 * 3600_000).toISOString()
+    : valid.until.toISOString();
   // Telegram gets the engine's actual card, not model-authored levels or a refusal.
   // A brief card: the levels first, one per line, then only what changes
   // the decision (cautions, trend, when to bail).
@@ -1258,6 +1363,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   const { TRAIL, trailsThis } = await import("./trade-signal-outcome");
   const trailRisk = Math.abs(plan.entry - plan.stop);
   const trails =
+    !plan.manual &&
     plan.verdict === "trade" &&
     trailRisk > 0 &&
     trailsThis(plan.confidencePct, plan.direction, hi.bias);
@@ -1306,12 +1412,20 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
         : {}),
       ...(plan.entryType === "stop" ? { entry: "stop" as const } : {}),
       ...(plan.setup ? { setup: plan.setup } : {}),
+      // A counter-trend hedge: the tracker's break-even at 0.5R (lockOf) and
+      // the copier's own-ticket handling read this.
+      ...(plan.hedge ? { hedge: true } : {}),
+      ...(plan.rangeHedge ? { rangeHedge: true } : {}),
+      // Posted beside the engine's own trade (patterns alongside).
+      ...(plan.alongside ? { alongside: true } : {}),
+      // The Boss's manual trade (the copier takes its lot as it is).
+      ...(plan.manual ? { manual: true } : {}),
       // A learned-off filter that let this one through (its live record decides if it stays off).
       ...(relaxedBy && plan.verdict === "trade" ? { relaxed: relaxedBy } : {}),
       // What the live-trial pair checks said (the Boss's report groups by it).
       ...(Object.keys(checks).length ? { checks } : {}),
       // The learned time limits (5-minute scalps): the tracker applies them.
-      ...timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING),
+      ...(plan.manual ? {} : timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING)),
       // The profit lock (the tracker works out its levels from the entry and TP1).
       // The profit lock, or (trailing trades) the trailing stop.
       ...(trails ? { trail: { risk: trailRisk } } : { lock: true }),
@@ -1324,7 +1438,11 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     stop: plan.stop,
     // One take profit: all three levels on it, so one hit closes the trade;
     // with a learned runner, a third there and the rest further on.
-    targets: trails ? [trailCap, trailCap, trailCap] : targetsFor(plan.targets[0]),
+    targets: trails
+      ? [trailCap, trailCap, trailCap]
+      : plan.manual
+        ? [plan.targets[0], plan.targets[0], plan.targets[0]]
+        : targetsFor(plan.targets[0]),
     confidencePct: plan.confidencePct,
     quality: plan.quality,
     decimals: dp,

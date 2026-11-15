@@ -184,7 +184,7 @@ export function CoinStore({
         ? "coins_custom"
         : selected.pack.bundleId;
     const returnUrl = `${window.location.origin}/buy-coins/return?session_id={CHECKOUT_SESSION_ID}&pack=${returnUrlPack}`;
-    const headline = isVipFlow ? "Join OG VIP" : `Buy ${coinsForOrder} OG Coins`;
+    const headline = isVipFlow ? "Join OG B0T PRO" : `Buy ${coinsForOrder} OG Coins`;
     const perCoin = !isVipFlow && coinsForOrder > 0 ? totalCents / 100 / coinsForOrder : 0;
     const savingsPct =
       !isVipFlow && basePerCoin > 0 && perCoin > 0
@@ -265,7 +265,7 @@ export function CoinStore({
                         {isCustomFlow
                           ? "Custom stack locked in"
                           : isVipFlow
-                            ? "VIP plan selected"
+                            ? "PRO plan selected"
                             : "Pack selected"}
                       </p>
                       <p className="mt-0.5 truncate font-display text-lg font-black sm:text-xl">
@@ -331,8 +331,8 @@ export function CoinStore({
                     </p>
                     <p className="mt-1 text-foreground/90">
                       {vipYearly
-                        ? `Cancel whenever you like. You'll still keep VIP and every perk until your full year is up (${new Date(Date.now() + 365 * 864e5).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}). Renews yearly unless cancelled. You'll also get your own OG VIP ID.`
-                        : "Cancel whenever you like. You'll keep VIP until the end of the month you've paid for. Renews monthly unless cancelled."}
+                        ? `Cancel whenever you like. You'll still keep PRO and every perk until your full year is up (${new Date(Date.now() + 365 * 864e5).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}). Renews yearly unless cancelled. You'll also get your own OG PRO ID.`
+                        : "Cancel whenever you like. You'll keep PRO until the end of the month you've paid for. Renews monthly unless cancelled."}
                     </p>
                     {vipYearly && !Capacitor.isNativePlatform() && (
                       <label className="mt-3 flex cursor-pointer items-start gap-2.5 border-t border-coin/25 pt-3 text-xs text-muted-foreground">
@@ -344,7 +344,7 @@ export function CoinStore({
                         />
                         <span>
                           <span className="font-semibold text-foreground">Don't auto-renew</span> —
-                          pay once for the year. VIP stays on until it ends, with no renewal charge.
+                          pay once for the year. PRO stays on until it ends, with no renewal charge.
                         </span>
                       </label>
                     )}
@@ -367,10 +367,10 @@ export function CoinStore({
                   />
                   <NextStep
                     n={2}
-                    title={isVipFlow ? "VIP unlocks instantly" : "Coins land in your wallet"}
+                    title={isVipFlow ? "PRO unlocks instantly" : "Coins land in your wallet"}
                     body={
                       isVipFlow
-                        ? "All VIP perks activate the moment payment confirms."
+                        ? "All PRO perks activate the moment payment confirms."
                         : `${coinsForOrder} OG Coins credited within seconds — no waiting.`
                     }
                   />
@@ -620,7 +620,7 @@ export function CoinStore({
         <StoreNav
           items={[
             { id: "section-bundles", label: "Coins", icon: <Coins className="h-4 w-4" /> },
-            { id: "section-vip", label: "VIP", icon: <Crown className="h-4 w-4" /> },
+            { id: "section-vip", label: "PRO", icon: <Crown className="h-4 w-4" /> },
             { id: "section-unlocks", label: "Unlocks", icon: <Lock className="h-4 w-4" /> },
             { id: "section-account", label: "History", icon: <Wallet className="h-4 w-4" /> },
           ]}
@@ -642,9 +642,9 @@ export function CoinStore({
                 <Crown className="h-7 w-7" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="og-store__eyebrow og-st-purple">Featured · VIP Yearly</span>
+                <span className="og-store__eyebrow og-st-purple">Featured · PRO Yearly</span>
                 <span className="og-store__title mt-1 block text-xl sm:text-2xl">
-                  A full year of VIP
+                  A full year of PRO
                 </span>
                 <span className="og-st-muted mt-1 block text-sm">
                   {CURRENCY_SYMBOL}
@@ -666,7 +666,7 @@ export function CoinStore({
                 <Crown className="h-7 w-7" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="og-store__eyebrow og-st-purple">You're VIP</span>
+                <span className="og-store__eyebrow og-st-purple">You're PRO</span>
                 <span className="og-store__title mt-1 block text-xl sm:text-2xl">
                   Browse member unlocks
                 </span>
@@ -759,7 +759,7 @@ export function CoinStore({
           <StoreSectionHead
             id="section-vip-title"
             eyebrow="Monthly or yearly · cancel any time"
-            title="OG VIP"
+            title="OG B0T PRO"
             accent="purple"
           />
           <div className="og-store-panel og-store-panel--purple overflow-hidden">
@@ -768,9 +768,9 @@ export function CoinStore({
             <div className="relative p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="og-store__eyebrow og-st-purple">👑 OG VIP membership</p>
+                  <p className="og-store__eyebrow og-st-purple">👑 OG B0T PRO membership</p>
                   <h3 className="og-store__chrome mt-1 text-2xl sm:text-3xl">
-                    {hasVipRole ? "You're VIP 👑" : "Unlock the premium OG experience"}
+                    {hasVipRole ? "You're PRO 👑" : "Unlock the premium OG experience"}
                   </h3>
                   <p className="og-st-muted mt-1 text-xs sm:text-sm">
                     {hasVipRole
@@ -822,7 +822,7 @@ export function CoinStore({
                         {(VIP_PLAN_YEARLY.priceCents / 1200).toFixed(2)}/mo
                       </span>
                       <span className="og-store-btn og-store-btn--purple mt-2 w-full whitespace-nowrap px-2">
-                        <Crown className="hidden h-3.5 w-3.5 min-[420px]:inline" /> Go OG VIP
+                        <Crown className="hidden h-3.5 w-3.5 min-[420px]:inline" /> Go OG B0T PRO
                       </span>
                     </button>
                   )}
@@ -843,7 +843,7 @@ export function CoinStore({
                       className="og-store-btn mt-2 w-full whitespace-nowrap px-2"
                       style={{ "--a1": "var(--st-purple)" } as React.CSSProperties}
                     >
-                      Go OG VIP
+                      Go OG B0T PRO
                     </span>
                   </button>
                 </div>
@@ -853,7 +853,7 @@ export function CoinStore({
               <details className="group overflow-hidden rounded-xl border border-border">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold [&::-webkit-details-marker]:hidden">
                   <span className="inline-flex items-center gap-1.5">
-                    <Crown className="og-st-purple h-4 w-4" /> Everything VIP unlocks
+                    <Crown className="og-st-purple h-4 w-4" /> Everything PRO unlocks
                   </span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
                 </summary>
@@ -861,7 +861,7 @@ export function CoinStore({
                   <span>Feature</span>
                   <span className="text-center">Free</span>
                   <span className="og-st-purple inline-flex items-center justify-center gap-1">
-                    <Crown className="h-3 w-3" /> VIP
+                    <Crown className="h-3 w-3" /> PRO
                   </span>
                 </div>
                 <div className="divide-y divide-border">
@@ -871,7 +871,7 @@ export function CoinStore({
                     ["Request styles/languages", "🔒", "✓"],
                     ["Foul-mouth OG B0T", "🔒", "✓"],
                     ["Priority replies", "🔒", "✓"],
-                    ["OG VIP ID + gold badge", "🔒", "✓"],
+                    ["OG PRO ID + gold badge", "🔒", "✓"],
                     ["Daily 10-coin safety net", "🔒", "✓"],
                     ["Referral cashback", "6%", "13%"],
                   ].map(([f, a, b]) => (

@@ -36,7 +36,7 @@ function TermsPage() {
     <main className="safe-top safe-bottom safe-x mx-auto max-w-3xl px-5 py-12 text-foreground">
       <Link
         to="/welcome"
-        className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground"
+        className="-ml-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground"
       >
         ← Back
       </Link>
@@ -79,9 +79,9 @@ function TermsPage() {
 
         <Section title="3. Subscriptions and billing">
           <p>
-            OG VIP is an auto-renewing subscription. Payment is charged to your Apple ID or Google
-            Play account at confirmation of purchase. It renews automatically at the same price
-            unless cancelled at least 24 hours before the end of the current period, and your
+            OG B0T PRO is an auto-renewing subscription. Payment is charged to your Apple ID or
+            Google Play account at confirmation of purchase. It renews automatically at the same
+            price unless cancelled at least 24 hours before the end of the current period, and your
             account is charged for renewal within 24 hours of the period ending.
           </p>
           <p>

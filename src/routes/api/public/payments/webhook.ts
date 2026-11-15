@@ -580,7 +580,7 @@ export async function handleEvent(
           const item =
             kind === "track_unlock" ? "Track unlock"
             : bundleId?.startsWith("store:") ? `Store item ${bundleId.slice(6)}`
-            : isVipBundle(bundleId) ? "VIP subscription"
+            : isVipBundle(bundleId) ? "PRO subscription"
             : (findCoinPackByBundleId(bundleId ?? "") as { label?: string } | undefined)?.label ?? bundleId ?? "Digital Purchase";
           const { syncSaleToLedgerly } = await import("@/lib/ledgerly.server");
           await syncSaleToLedgerly({
@@ -600,7 +600,7 @@ export async function handleEvent(
         const { syncSaleToLedgerly } = await import("@/lib/ledgerly.server");
         await syncSaleToLedgerly({
           amount: Number(inv.amount_paid) / 100,
-          description: "Sale: VIP subscription renewal",
+          description: "Sale: PRO subscription renewal",
           reference: String(inv.number ?? inv.id),
           externalId: String(inv.id),
         });

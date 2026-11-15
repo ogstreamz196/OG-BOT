@@ -128,7 +128,7 @@ function RefundButton({ row }: { row: PurchaseRow }) {
         onClick={() => setOpen(true)}
         disabled={loading || already}
         className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 px-2.5 py-1 text-xs font-bold text-amber-300 shadow-[0_0_18px_-6px_theme(colors.amber.400)] hover:from-amber-500/30 hover:to-yellow-500/30 disabled:opacity-50"
-        title={already ? "Already refunded" : "VIP instant refund"}
+        title={already ? "Already refunded" : "PRO instant refund"}
       >
         {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3 w-3" />}
         <Undo2 className="h-3 w-3" />

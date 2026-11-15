@@ -54,7 +54,7 @@ export function VipAcknowledgements() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Added to verified OG VIPs");
+      toast.success("Added to verified PRO members");
       qc.invalidateQueries({ queryKey: ["vip-acks"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -108,7 +108,7 @@ export function VipAcknowledgements() {
   return (
     <section className="og-panel mb-5 rounded-xl border border-border bg-card p-3 sm:p-4">
       <h2 className="flex items-center gap-2 text-lg">
-        <Crown className="h-5 w-5 text-coin" /> Yearly VIPs to acknowledge
+        <Crown className="h-5 w-5 text-coin" /> Yearly PRO members to acknowledge
         {pending.length > 0 && (
           <span className="rounded-full bg-destructive px-2 text-xs text-destructive-foreground">
             {pending.length}
@@ -131,7 +131,7 @@ export function VipAcknowledgements() {
           {verified.length > 0 && (
             <details className="mt-3">
               <summary className="cursor-pointer text-sm text-muted-foreground">
-                Verified OG VIP list ({verified.length})
+                Verified OG B0T PRO list ({verified.length})
               </summary>
               <ul className="mt-2 rounded-lg border border-border">
                 {verified.map((r) => (

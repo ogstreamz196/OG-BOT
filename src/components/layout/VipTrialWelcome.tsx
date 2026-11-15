@@ -14,7 +14,7 @@ const PERKS = [
   ["⚡", "Priority AI", "Fast-lane replies and song writing"],
   ["🪙", "Daily safety net", "10 free coins a day if you run low"],
   ["🖼️", "Free image edits", "1 free private-chat edit every 4 hours"],
-  ["👑", "Gold VIP badge", "Stand out in Battle Zone and releases"],
+  ["👑", "Gold PRO badge", "Stand out in Battle Zone and releases"],
 ] as const;
 
 function fmt(ms: number) {
@@ -73,14 +73,14 @@ export function VipTrialWelcome() {
             <Crown className="h-7 w-7" />
           </span>
           <DialogTitle className="mt-3 font-display text-xl uppercase">
-            You've got 15 days of free OG VIP
+            You've got 15 days of free OG B0T PRO
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm">
             Your upgraded membership is live. Here's everything unlocked:
           </DialogDescription>
           <div className="mt-3 rounded-xl border border-coin/40 bg-coin/10 px-4 py-2">
             <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">
-              VIP time left
+              PRO time left
             </div>
             <div className="font-mono text-2xl font-black tabular-nums">{fmt(ms)}</div>
           </div>
@@ -103,7 +103,7 @@ export function VipTrialWelcome() {
             Let's cook 🔥
           </Button>
           <Button asChild variant="ghost" size="sm" onClick={() => setOpen(false)}>
-            <Link to="/buy-coins">Keep VIP after the trial</Link>
+            <Link to="/buy-coins">Keep PRO after the trial</Link>
           </Button>
         </div>
       </DialogContent>

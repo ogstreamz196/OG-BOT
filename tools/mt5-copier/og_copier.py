@@ -19,18 +19,66 @@ Settings live in config.ini next to this file (see config.example.ini).
 """
 
 import configparser
+import math
 import json
 import os
+import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 
 import MetaTrader5 as mt5
 import requests
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-STATE_FILE = os.path.join(HERE, "copier_state.json")
+# Where config.ini, the trade memory and the status file live: next to this
+# file, or the folder the stick's app (og_stick.py) names.
+HERE = os.environ.get("OG_COPIER_HOME") or os.path.dirname(os.path.abspath(__file__))
 MAGIC = 196196
+# One id per start of the copier, so the server can tell a second copy of the
+# same key from this one.
+INSTANCE = uuid.uuid4().hex
+
+
+def stick_id():
+    """The drive this copier lives on: the disk's hardware serial when Windows
+    gives one, else the volume's serial. A user's key locks to it on first use."""
+    drive = os.path.splitdrive(HERE)[0].rstrip(":")
+    if os.name != "nt" or not drive:
+        return "no-drive"
+    try:
+        out = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"(Get-Partition -DriveLetter {drive} | Get-Disk).SerialNumber",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        ).stdout.strip()
+        serial = "".join(ch for ch in out if ch.isalnum())
+        if len(serial) >= 4:
+            return f"disk-{serial}"[:80]
+    except Exception:
+        pass
+    try:
+        import ctypes
+
+        vol = ctypes.c_ulong(0)
+        ok = ctypes.windll.kernel32.GetVolumeInformationW(
+            f"{drive}:\\", None, 0, ctypes.byref(vol), None, None, None, 0
+        )
+        if ok:
+            return f"vol-{vol.value:08X}"
+    except Exception:
+        pass
+    return "no-drive"
+
+
+STICK = stick_id()
+ACCESS_NOTE = None
 
 # ── settings ────────────────────────────────────────────────────────────────
 cfg = configparser.ConfigParser()
@@ -39,15 +87,44 @@ if not cfg.read(os.path.join(HERE, "config.ini")):
 c = cfg["copier"]
 FEED_URL = c.get("feed_url", "https://ogbot.co.uk/api/public/copy-feed")
 TOKEN = c.get("token", "").strip()
-LOT = c.getfloat("lot", 0.02)
+# "bot": the same lot the bot's test account takes on each signal; a number:
+# that lot on every trade.
+LOT_SETTING = c.get("lot", "bot").strip().lower()
+LOT = 0.02 if LOT_SETTING == "bot" else float(LOT_SETTING)
+# Lot-size bands (set remotely): the copier takes a lot inside the band, bigger
+# the surer the signal. The band replaces the old lot + multiplier controls.
+LOT_BANDS = {"small": (0.01, 0.05), "medium": (0.02, 0.1), "large": (0.1, 0.5)}
+LOT_BAND = "small"
+
 DRY_RUN = c.getboolean("dry_run", True)
 USE_BROKER_STOP = c.getboolean("use_broker_stop", False)
 POLL_SECONDS = c.getfloat("poll_seconds", 3)
 MAX_LATE_MINUTES = c.getfloat("max_late_minutes", 10)
 MAX_OPEN = c.getint("max_open", 6)
-MARKETS = [m.strip() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
-SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in MARKETS}
+# The max-open the settings ask for, before high-frequency mode lifts it.
+BASE_MAX_OPEN = MAX_OPEN
+MARKETS = [m.strip().upper() for m in c.get("markets", "XAUUSD,BTCUSD").split(",") if m.strip()]
+# Symbol names for every market the bot trades (your broker's names), so a
+# market switched on remotely is ready, and one switched off is still managed.
+KNOWN_MARKETS = sorted(set(MARKETS) | {"XAUUSD", "BTCUSD"})
+SYMBOLS = {m: c.get(f"symbol_{m}", m) for m in KNOWN_MARKETS}
+PAUSED = False
+# High-frequency mode (set remotely): bigger lots, quicker checks, more open.
+HFT = False
+MAX_MULTIPLIER = 4.0
+REMOTE = {}
 MT5_PATH = c.get("mt5_path", "").strip() or None
+# A path that isn't absolute is from this folder, so a USB stick works whatever
+# drive letter the PC gives it.
+if MT5_PATH and not os.path.isabs(MT5_PATH):
+    MT5_PATH = os.path.join(HERE, MT5_PATH)
+# Portable MT5 (keeps its login and data in its own folder, e.g. on the stick).
+MT5_PORTABLE = c.getboolean("mt5_portable", False)
+STATUS_FILE = os.path.join(HERE, "copier_status.json")
+ACCESS = None
+
+# Dry runs keep their own memory, so pretend trades never reach a live run.
+STATE_FILE = os.path.join(HERE, "copier_state_dry.json" if DRY_RUN else "copier_state.json")
 
 if len(TOKEN) < 24:
     sys.exit("Put the copy feed token (24+ characters) in config.ini.")
@@ -76,7 +153,19 @@ def save_state(state):
 
 # ── MT5 helpers ────────────────────────────────────────────────────────────
 def connect():
-    ok = mt5.initialize(path=MT5_PATH) if MT5_PATH else mt5.initialize()
+    kwargs = {}
+    if MT5_PATH:
+        kwargs["path"] = MT5_PATH
+    if MT5_PORTABLE:
+        kwargs["portable"] = True
+    # A first-time login handed over by the stick's app for this start only
+    # (never written to disk here; the MT5 terminal remembers it afterwards).
+    login = os.environ.get("OG_MT5_LOGIN", "").strip()
+    if login.isdigit() and os.environ.get("OG_MT5_PASSWORD") and os.environ.get("OG_MT5_SERVER"):
+        kwargs["login"] = int(login)
+        kwargs["password"] = os.environ["OG_MT5_PASSWORD"]
+        kwargs["server"] = os.environ["OG_MT5_SERVER"].strip()
+    ok = mt5.initialize(**kwargs)
     if not ok:
         sys.exit(f"Can't reach MetaTrader 5: {mt5.last_error()}. Is the terminal open and logged in?")
     info = mt5.account_info()
@@ -85,7 +174,8 @@ def connect():
     if not mt5.terminal_info().trade_allowed:
         sys.exit("Turn on Algo Trading in MetaTrader 5 (the button in the toolbar).")
     log(f"Connected to {info.server}, account {info.login}, balance {info.balance} {info.currency}")
-    for m, sym in SYMBOLS.items():
+    for m in MARKETS:
+        sym = SYMBOLS[m]
         if not mt5.symbol_select(sym, True):
             sys.exit(f"Symbol {sym} (for {m}) not found. Set symbol_{m} in config.ini to the name in Market Watch.")
 
@@ -102,7 +192,9 @@ def filling(sym):
 def round_volume(sym, vol):
     info = mt5.symbol_info(sym)
     step = info.volume_step or 0.01
-    vol = round(round(vol / step) * step, 8)
+    # Halves round up (0.045 -> 0.05), the same as the bot's own sums, so the
+    # test account in the signals group trades exactly this lot.
+    vol = round(math.floor(vol / step + 0.5 + 1e-9) * step, 8)
     return max(info.volume_min, min(info.volume_max, vol))
 
 
@@ -123,19 +215,73 @@ def send(request, what):
     return True, res
 
 
+GOLD_BIG_LOT_BALANCE = 400
+
+
+def account_balance():
+    """The MT5 account's balance, or None when it can't be read."""
+    try:
+        info = mt5.account_info()
+        return float(info.balance) if info else None
+    except Exception:
+        return None
+
+
+def lot_for(sig):
+    """The lot for this signal: inside the chosen band (bigger when surer), or
+    the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
+    risk multiplier only still applies to the bot/fixed modes."""
+    # The Boss's manual trade: exactly the lot he chose, whatever the mode.
+    if sig.get("manual") and sig.get("lots"):
+        return float(sig["lots"])
+    if LOT_SETTING == "band":
+        # The lot always stays inside the band set on the card.
+        lo, hi = LOT_BANDS[LOT_BAND]
+        if HFT:
+            # High-frequency mode trades bigger: the top of the band. Bitcoin
+            # always; gold only with $400 or more on the account, and the
+            # bottom of the band under that (gold ties up more margin).
+            if sig.get("market") != "XAUUSD":
+                return hi
+            bal = account_balance()
+            if bal is not None:
+                return hi if bal >= GOLD_BIG_LOT_BALANCE else lo
+        t = 0.0
+        try:
+            conf = sig.get("confidence")
+            if conf is not None:
+                t = max(0.0, min(1.0, (float(conf) - 55) / 35))
+        except (TypeError, ValueError):
+            t = 0.0
+        return math.floor((lo + (hi - lo) * t) * 100 + 0.5 + 1e-9) / 100
+    mult = REMOTE.get("multiplier", 1) if isinstance(REMOTE, dict) else 1
+    try:
+        mult = float(mult or 1)
+    except (TypeError, ValueError):
+        mult = 1.0
+    # Never more than 4x, whatever the server says (10x was dropped as too risky).
+    mult = max(0.25, min(MAX_MULTIPLIER, mult))
+    base = float(sig["lots"]) if LOT_SETTING == "bot" else LOT
+    return base * mult
+
+
 def open_trade(sig, sym):
     buy = sig["direction"] == "BUY"
+    # A counter-trend hedge keeps its own ticket (the account is in hedging mode,
+    # so a BUY and a SELL on one symbol sit side by side); the H mark makes it
+    # easy to spot in MT5. The risk multiplier applies to it like any other.
+    hedge = bool(sig.get("hedge"))
     tick = mt5.symbol_info_tick(sym)
     price = tick.ask if buy else tick.bid
     req = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": sym,
-        "volume": round_volume(sym, LOT),
+        "volume": round_volume(sym, lot_for(sig)),
         "type": mt5.ORDER_TYPE_BUY if buy else mt5.ORDER_TYPE_SELL,
         "price": price,
         "deviation": 50,
         "magic": MAGIC,
-        "comment": f"OG {sig['id'][:8]}",
+        "comment": f"OG {sig['id'][:8]}{' H' if hedge else ''}",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": filling(sym),
     }
@@ -155,6 +301,8 @@ def open_trade(sig, sym):
 
 
 def close(ticket, sym, volume, why):
+    if ticket <= 0 and not DRY_RUN:
+        return True  # a pretend trade from a dry run: nothing to close
     p = position(ticket) if ticket > 0 else None
     if ticket > 0 and p is None:
         return True  # already gone (closed by hand or by a broker stop)
@@ -189,12 +337,99 @@ def move_stop(ticket, sym, stop):
 
 
 # ── the loop ───────────────────────────────────────────────────────────────
+def apply_remote(settings):
+    """Settings set on the server (site_content copy.settings) win over config.ini."""
+    global PAUSED, LOT_SETTING, LOT, LOT_BAND, MARKETS, MAX_OPEN, BASE_MAX_OPEN, MAX_LATE_MINUTES
+    global USE_BROKER_STOP, REMOTE, HFT
+    settings = settings or {}
+    if settings == REMOTE:
+        return
+    REMOTE = settings
+    PAUSED = bool(settings.get("paused", False))
+    band = settings.get("lotBand")
+    lot = settings.get("lot")
+    # A band is the lot control on the card; a fixed lot or "bot" still work too.
+    if band in LOT_BANDS:
+        LOT_SETTING, LOT_BAND = "band", band
+    elif lot == "bot":
+        LOT_SETTING, LOT = "bot", 0.02
+    elif isinstance(lot, (int, float)) and lot > 0:
+        LOT_SETTING, LOT = str(lot), float(lot)
+    if isinstance(settings.get("markets"), list):
+        wanted = [str(m).upper() for m in settings["markets"]]
+        for m in wanted:
+            if m not in SYMBOLS:
+                SYMBOLS[m] = c.get(f"symbol_{m}", m)
+        MARKETS = [m for m in wanted if mt5.symbol_select(SYMBOLS[m], True) or DRY_RUN]
+    if isinstance(settings.get("maxOpen"), int):
+        BASE_MAX_OPEN = settings["maxOpen"]
+    if isinstance(settings.get("maxLateMinutes"), (int, float)):
+        MAX_LATE_MINUTES = settings["maxLateMinutes"]
+    if isinstance(settings.get("useBrokerStop"), bool):
+        USE_BROKER_STOP = settings["useBrokerStop"]
+    HFT = settings.get("hft") is True
+    # High-frequency mode lifts it to at least 20; turned off, it's back.
+    # High-frequency mode: no cap on open trades.
+    MAX_OPEN = float("inf") if HFT else BASE_MAX_OPEN
+    if LOT_SETTING == "band":
+        size = f"the {LOT_BAND} lot band {LOT_BANDS[LOT_BAND]}"
+    elif LOT_SETTING == "bot":
+        size = "the bot's lot"
+    else:
+        size = f"{LOT} lots"
+    log(
+        f"Remote settings: {'PAUSED (managing open trades only), ' if PAUSED else ''}"
+        f"{', '.join(MARKETS) or 'no markets'} at {size}, {'no cap on' if HFT else f'max {MAX_OPEN}'} open, "
+        f"broker stop {'on' if USE_BROKER_STOP else 'off'}"
+    )
+
+
 def fetch():
-    r = requests.get(FEED_URL, headers={"x-copy-token": TOKEN}, timeout=10)
+    headers = {"x-copy-token": TOKEN}
+    # Tell the server this account's balance, so the signals chat sizes gold
+    # by the same balance this copier does.
+    bal = account_balance()
+    if bal is not None:
+        headers["x-copy-balance"] = f"{bal:.2f}"
+    # Which stick, MT5 account and copy this is (a user's key is locked to one
+    # stick and one account, and runs one copy at a time).
+    headers["x-copy-stick"] = STICK
+    headers["x-copy-instance"] = INSTANCE
+    try:
+        info = mt5.account_info()
+        if info:
+            headers["x-copy-account"] = str(info.login)
+    except Exception:
+        pass
+    global ACCESS_NOTE, ACCESS
+    r = requests.get(FEED_URL, headers=headers, timeout=10)
     if r.status_code == 403:
-        sys.exit("The feed said Forbidden: check the token in config.ini.")
+        try:
+            refused = r.json()
+        except ValueError:
+            sys.exit("The feed said Forbidden: check the token in config.ini.")
+        message = refused.get("message") or "Access refused."
+        if refused.get("reason") == "running_elsewhere":
+            # Most likely this copier was just restarted: wait for the old
+            # check-in to lapse, then carry on.
+            if ACCESS_NOTE != message:
+                log(f"{message} Waiting...")
+                ACCESS_NOTE = message
+            time.sleep(15)
+            return None
+        sys.exit(message)
     r.raise_for_status()
-    return r.json()["signals"]
+    body = r.json()
+    access = body.get("access")
+    ACCESS = access if isinstance(access, dict) else None
+    note = None
+    if isinstance(access, dict) and (not access.get("ok") or access.get("paused")):
+        note = access.get("message")
+    if note != ACCESS_NOTE:
+        log(note or "Access is active again.")
+        ACCESS_NOTE = note
+    apply_remote(body.get("settings"))
+    return body["signals"]
 
 
 def minutes_since(iso):
@@ -211,6 +446,8 @@ def hit_stop(sig, sym):
 
 def step(state):
     signals = fetch()
+    if signals is None:  # waiting for access: nothing to do this pass
+        return
     by_id = {s["id"]: s for s in signals}
     for sig in reversed(signals):  # oldest first
         if sig["market"] not in SYMBOLS:
@@ -220,8 +457,18 @@ def step(state):
         if mine is None:
             if not (sig["active"] and sig["filled"]):
                 continue
+            # Paused, or a market switched off: no new trades (open ones are
+            # still managed below). Not marked, so it's taken if resumed in time.
+            if PAUSED or sig["market"] not in MARKETS:
+                continue
             if sig["halfClosed"] or minutes_since(sig["createdAt"]) > MAX_LATE_MINUTES:
                 state[sig["id"]] = {"skipped": True}
+                continue
+            # lot = bot copies exactly what the Copy Trader B0T copies: a
+            # signal the bot took no lot on isn't copied here either.
+            if LOT_SETTING == "bot" and not sig.get("lots"):
+                state[sig["id"]] = {"skipped": True}
+                log(f"skip {sig['direction']} {sig['market']}: the bot took no lot on it")
                 continue
             if sum(1 for v in state.values() if v.get("ticket") and not v.get("closed")) >= MAX_OPEN:
                 continue
@@ -265,18 +512,63 @@ def step(state):
     save_state(state)
 
 
+def today_profit():
+    """What this copier's closed trades made today (profit, swap and commission)."""
+    try:
+        start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        deals = mt5.history_deals_get(start, datetime.now()) or []
+        return round(sum(d.profit + d.swap + d.commission for d in deals if d.magic == MAGIC), 2)
+    except Exception:
+        return None
+
+
+def write_status(state, error=None):
+    """A small file the stick's app reads for its dashboard. Never raises."""
+    try:
+        info = mt5.account_info()
+        status = {
+            "at": datetime.now(timezone.utc).isoformat(),
+            "account": str(info.login) if info else None,
+            "server": info.server if info else None,
+            "balance": round(float(info.balance), 2) if info else None,
+            "equity": round(float(info.equity), 2) if info else None,
+            "currency": info.currency if info else None,
+            "open": sum(1 for v in state.values() if v.get("ticket") and not v.get("closed")),
+            "today": today_profit(),
+            "paused": bool(PAUSED),
+            "dry_run": bool(DRY_RUN),
+            "access": ACCESS,
+            "note": ACCESS_NOTE,
+            "error": error,
+        }
+        tmp = STATUS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(status, f)
+        os.replace(tmp, STATUS_FILE)
+    except Exception:
+        pass
+
+
 def main():
     connect()
     state = load_state()
-    log(f"Copying {', '.join(MARKETS)} at {LOT} lots, every {POLL_SECONDS}s. Ctrl+C to stop.")
+    size = "the bot's lot for each signal" if LOT_SETTING == "bot" else f"{LOT} lots"
+    log(f"Copying {', '.join(MARKETS)} at {size}, every {POLL_SECONDS}s. Ctrl+C to stop.")
+    last_status = 0.0
     while True:
+        error = None
         try:
             step(state)
         except requests.RequestException as e:
+            error = "The signal feed can't be reached. Trying again."
             log(f"feed not reachable ({e.__class__.__name__}), trying again")
         except Exception as e:  # keep going: one bad pass must not stop the copier
+            error = str(e)
             log(f"error: {e}")
-        time.sleep(POLL_SECONDS)
+        if time.time() - last_status >= 2:
+            write_status(state, error)
+            last_status = time.time()
+        time.sleep(0.5 if HFT else POLL_SECONDS)
 
 
 if __name__ == "__main__":

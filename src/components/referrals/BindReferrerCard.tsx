@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { copyText } from "@/lib/copy-text";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CODE_RE = /^OG-[A-Z0-9]{6}$/i;
@@ -139,9 +140,9 @@ export function BindReferrerCard() {
                       variant="ghost"
                       size="sm"
                       className="h-6 gap-1 px-1.5 text-[0.7rem]"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(id);
-                        toast.success("Leader ID copied");
+                      onClick={async () => {
+                        if (await copyText(id)) toast.success("Leader ID copied");
+                        else toast.error("Couldn't copy. Write it down instead.");
                       }}
                     >
                       <Copy className="h-3 w-3" /> Copy
@@ -158,10 +159,10 @@ export function BindReferrerCard() {
                   size="sm"
                   variant="secondary"
                   className="h-8 gap-1.5"
-                  onClick={() => {
+                  onClick={async () => {
                     const url = `https://ogbot.co.uk/r/${code}`;
-                    navigator.clipboard?.writeText(url);
-                    toast.success("Referrer link copied");
+                    if (await copyText(url)) toast.success("Referrer link copied");
+                    else toast.error("Couldn't copy. Press and hold to copy instead.");
                   }}
                 >
                   <Copy className="h-3.5 w-3.5" /> Copy referrer link
@@ -173,9 +174,9 @@ export function BindReferrerCard() {
                   size="sm"
                   variant="ghost"
                   className="h-8 gap-1.5"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(id);
-                    toast.success("Leader ID copied");
+                  onClick={async () => {
+                    if (await copyText(id)) toast.success("Leader ID copied");
+                    else toast.error("Couldn't copy. Write it down instead.");
                   }}
                 >
                   <Copy className="h-3.5 w-3.5" /> Copy Leader ID

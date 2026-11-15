@@ -10,7 +10,6 @@ export type BossPath =
   | "/admin/music"
   | "/admin/coins"
   | "/admin/signals"
-  | "/admin/bot"
   | "/admin/system"
   | "/settings";
 
@@ -43,7 +42,7 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
     keywords: "grant coins mint balance adjust add remove set balance",
   },
   {
-    title: "VIP, Boss and Dev roles",
+    title: "PRO, Boss and Dev roles",
     where: "Members › pick a member",
     to: "/admin/users",
     keywords: "vip switch admin role boss dev trial vault access",
@@ -89,53 +88,53 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Prices & limits",
-    where: area("Money", "Prices & limits"),
+    where: area("Money", "Prices & store"),
     to: "/admin/coins",
     tab: "prices",
     keywords: "cost charge pricing song price limits",
   },
   {
     title: "OG Store",
-    where: area("Money", "Store"),
+    where: area("Money", "Prices & store"),
     to: "/admin/coins",
-    tab: "store",
+    tab: "prices",
     keywords: "shop items stock categories products",
   },
   {
     title: "Card payments",
-    where: area("Money", "Card payments"),
+    where: area("Money", "Payments"),
     to: "/admin/coins",
-    tab: "card",
+    tab: "payments",
     keywords: "stripe refunds accountant purchases",
   },
   {
     title: "Stripe payments webhook",
-    where: area("Money", "Stripe events"),
+    where: area("Money", "Payments"),
     to: "/admin/coins",
-    tab: "webhooks",
+    tab: "payments",
     keywords: "payments webhook stripe events credited",
   },
   {
     title: "Coin check",
-    where: area("Money", "Coin check"),
+    where: area("Money", "Checks"),
     to: "/admin/coins",
-    tab: "coin-check",
+    tab: "checks",
     keywords: "audit mismatch balance history reconcile",
   },
   {
     title: "Referrals",
-    where: area("Money", "Referrals"),
+    where: area("Money", "Checks"),
     to: "/admin/coins",
-    tab: "referrals",
+    tab: "checks",
     keywords: "invite codes leaders",
   },
 
   // OG B0T
   {
     title: "OG B0T persona",
-    where: area("OG B0T", "Persona"),
-    to: "/admin/bot",
-    tab: "persona",
+    where: area("System", "OG B0T"),
+    to: "/admin/system",
+    tab: "bot",
     keywords: "script system prompt voice dictionary how it talks",
   },
   {
@@ -161,9 +160,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Your Telegram alerts",
-    where: area("OG B0T", "Your alerts"),
-    to: "/admin/bot",
-    tab: "alerts",
+    where: area("System", "OG B0T"),
+    to: "/admin/system",
+    tab: "bot",
     keywords: "notifications notify events switches",
   },
   {
@@ -189,10 +188,24 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Signal report",
-    where: area("Signals", "Report"),
+    where: area("Signals", "Results › Report"),
     to: "/admin/signals",
-    tab: "report",
+    tab: "results",
     keywords: "breakdown by chart session check timing strategies",
+  },
+  {
+    title: "HFT lab (quick-trade strategies)",
+    where: area("Signals", "Results › HFT lab"),
+    to: "/admin/signals",
+    tab: "results",
+    keywords: "hft scalp 15 seconds seconds strategy streak wins in a row tournament",
+  },
+  {
+    title: "Why trades lost",
+    where: area("Signals", "Results › Why trades lost"),
+    to: "/admin/signals",
+    tab: "results",
+    keywords: "losses stop too tight stop loss entry wrong direction autopsy lessons",
   },
   {
     title: "Signal backtest",
@@ -210,15 +223,15 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Live users",
-    where: area("OG B0T", "Live users"),
-    to: "/admin/bot",
-    tab: "live",
+    where: area("System", "Health"),
+    to: "/admin/system",
+    tab: "health",
     keywords: "online now speak as og bot",
   },
   {
     title: "Bot health & AI usage",
-    where: area("OG B0T", "Health & usage"),
-    to: "/admin/bot",
+    where: area("System", "Health"),
+    to: "/admin/system",
     tab: "health",
     keywords: "ping gemini cost answering",
   },
@@ -226,44 +239,44 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   // System
   {
     title: "Free access for everyone",
-    where: area("System", "Free access"),
+    where: "Dashboard › Free PRO for all",
     to: "/admin/system",
     tab: "access",
     keywords: "vip for all switch promo open",
   },
   {
     title: "API keys",
-    where: area("System", "API keys"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "services connectors ping secrets",
   },
   {
     title: "API vault (extra free AI keys)",
-    where: area("System", "API keys"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "add key pollinations openrouter gemini free ai more keys",
   },
   {
     title: "Ledgerly",
-    where: area("System", "API keys › Payments"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "accounts bookkeeping switch",
   },
   {
     title: "OG Vault webhook",
-    where: area("System", "API keys › Payments"),
+    where: area("System", "Health › API keys"),
     to: "/admin/system",
-    tab: "apis",
+    tab: "health",
     keywords: "vault pass sync switch",
   },
   {
     title: "Setup checklist",
-    where: area("System", "Setup checklist"),
+    where: area("System", "Developer"),
     to: "/admin/system",
-    tab: "setup",
+    tab: "developer",
     keywords: "onboarding connectors secrets",
   },
   {
@@ -282,9 +295,9 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Route map, lyric debug & transfer",
-    where: area("System", "Tools & logs"),
+    where: area("System", "Developer"),
     to: "/admin/system",
-    tab: "tools",
+    tab: "developer",
     keywords: "route map lyric debug transfer readiness",
   },
 

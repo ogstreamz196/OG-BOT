@@ -127,7 +127,7 @@ export function VipExpiryDialog({
       return expires;
     },
     onSuccess: (expires) => {
-      toast.success(`VIP ${isVip ? "updated" : "granted"} · ${formatVipExpiry(expires)}`);
+      toast.success(`PRO ${isVip ? "updated" : "granted"} · ${formatVipExpiry(expires)}`);
       qc.invalidateQueries({ queryKey: ["admin-vip-expiry", userId] });
       qc.invalidateQueries({ queryKey: ["admin-users-roles"] });
       qc.invalidateQueries({ queryKey: ["admin-users-list"] });
@@ -151,10 +151,10 @@ export function VipExpiryDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Crown className="h-5 w-5 text-amber-500" />
-            {isVip ? "Adjust VIP expiry" : "Grant VIP"}
+            {isVip ? "Adjust PRO expiry" : "Grant PRO"}
           </DialogTitle>
           <DialogDescription>
-            {isVip ? `Currently: ${formatVipExpiry(currentExpiry)}` : "How long should VIP last?"}
+            {isVip ? `Currently: ${formatVipExpiry(currentExpiry)}` : "How long should PRO last?"}
           </DialogDescription>
         </DialogHeader>
 
@@ -212,7 +212,7 @@ export function VipExpiryDialog({
             />
           </label>
         </RadioGroup>
-        <Label className="sr-only">VIP expiry</Label>
+        <Label className="sr-only">PRO expiry</Label>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -220,7 +220,7 @@ export function VipExpiryDialog({
           </Button>
           <Button onClick={() => mut.mutate()} disabled={mut.isPending}>
             {mut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isVip ? "Save" : "Grant VIP"}
+            {isVip ? "Save" : "Grant PRO"}
           </Button>
         </DialogFooter>
       </DialogContent>

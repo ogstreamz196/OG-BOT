@@ -14,6 +14,13 @@ type Admin = any;
  * random poster need). `chatId` is the signals chat (null when not set up).
  * `startedAt` bounds how long the AI desk may be asked, as in the cron.
  */
+/**
+ * How long into a run the AI desk may still be asked: an answer takes up to
+ * ~15 seconds and the cron gives a run 50, so 28 leaves room. Setups found
+ * later wait for the next run (noted as "desk_late" in the scan log).
+ */
+export const DESK_WINDOW_MS = 28_000;
+
 export async function buildScanDeps(
   admin: Admin,
   opts: { chatId: number | null; startedAt: number },
@@ -76,7 +83,7 @@ export async function buildScanDeps(
       desk: String(s.plan.feeds?.desk ?? ""),
     });
     const learned = await pa.lotInputs(admin, state, s.plan.market, s.plan.confidencePct);
-    const { lots, why } = pa.chooseLot({
+    const chosen = pa.chooseLot({
       market: s.plan.market,
       entry: s.plan.entry,
       stop: s.summary.stop,
@@ -85,14 +92,32 @@ export async function buildScanDeps(
       big,
       ...learned,
     });
+    // The test account trades what the Boss's copier would (its lot rule,
+    // paused / market off / max open), so the signals group shows the real
+    // account (copy-mirror.server.ts). The bot's own lot is kept as botLots.
+    const { mirrorCopier } = await import("./copy-mirror.server");
+    const mirrored = await mirrorCopier(admin, {
+      market: s.plan.market,
+      botLots: chosen.lots,
+      confidence: s.plan.confidencePct,
+      balance,
+    });
+    const lots = mirrored.lots;
+    const why = mirrored.why ?? chosen.why;
     const { CARD_LOT } = await import("./trade-bias");
     return {
       ...s,
       reply: [
-        pa.rescaleCardMoney(s.reply, CARD_LOT, lots),
+        pa.rescaleCardMoney(s.reply, CARD_LOT, lots > 0 ? lots : chosen.lots),
         ...pa.paperLines(balance, lots, why),
       ].join("\n"),
-      plan: { ...s.plan, feeds: { ...(s.plan.feeds ?? {}), paper: { lots, balance, why } } },
+      plan: {
+        ...s.plan,
+        feeds: {
+          ...(s.plan.feeds ?? {}),
+          paper: { lots, botLots: chosen.lots, balance, why },
+        },
+      },
     };
   };
 
@@ -132,7 +157,17 @@ export async function buildScanDeps(
         strategyName: rnd.STRATEGY_NAMES[strategy],
         chartName: `${s.summary.timeframe} chart`,
       },
-      cfg.gate,
+      // A hedge (Boss switch on) has its own floor: counter-trend reversals
+      // score lower by design. The losing-record checks still apply.
+      s.plan.feeds?.hedge
+        ? {
+            ...cfg.gate,
+            minConfidence: Math.min(
+              cfg.gate.minConfidence,
+              (await import("./signal-broadcast.server")).HEDGE_MIN_CONFIDENCE,
+            ),
+          }
+        : cfg.gate,
     );
     return d.post ? null : d.why;
   };
@@ -141,7 +176,7 @@ export async function buildScanDeps(
 
   const confirm = deskConfirmer(admin, (ask) => budgeted(ask, false), {
     now: Date.now,
-    askUntil: startedAt + 20_000,
+    askUntil: startedAt + DESK_WINDOW_MS,
     onVeto: (s) => recordShadow(admin, s.summary, "desk_no"),
     skipDesk: async (market) => {
       const { relaxedFilters } = await import("./signal-filter-learning.server");

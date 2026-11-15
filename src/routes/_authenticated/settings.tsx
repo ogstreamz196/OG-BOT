@@ -42,6 +42,8 @@ import { MemoryCard } from "@/components/settings/MemoryCard";
 import { SettingRow, SettingsCard } from "@/components/settings/SettingsCard";
 import { TelegramConnectCard } from "@/components/profile/TelegramConnectCard";
 import { DeleteMyAccount } from "@/components/DeleteMyAccount";
+import { copyText } from "@/lib/copy-text";
+import { useMemberBadge } from "@/hooks/use-member-badge";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -49,12 +51,12 @@ export const Route = createFileRoute("/_authenticated/settings")({
       { title: "Settings | OG B0T — AI Songs & Diss Tracks" },
       {
         name: "description",
-        content: "Your OG B0T account: profile, VIP, Vault pass, coins and preferences.",
+        content: "Your OG B0T account: profile, PRO, Vault pass, coins and preferences.",
       },
       { property: "og:title", content: "Settings | OG B0T — AI Songs & Diss Tracks" },
       {
         property: "og:description",
-        content: "Your OG B0T account: profile, VIP, Vault pass, coins and preferences.",
+        content: "Your OG B0T account: profile, PRO, Vault pass, coins and preferences.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -98,7 +100,7 @@ function txLabel(type: string, ref: string | null): string {
     t.includes("pack")
   )
     return "Bought coins";
-  if (t.includes("vip")) return "VIP";
+  if (t.includes("vip")) return "PRO";
   if (t.includes("sports")) return "OG Sports Guide";
   if (t.includes("vault")) return "OG Vault pass";
   if (t.includes("download") || t.includes("community")) return "Community track download";
@@ -111,6 +113,7 @@ function SettingsPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const { hasVipRole, isAdmin } = useRole();
+  const badge = useMemberBadge();
   const qc = useQueryClient();
 
   const [native, setNative] = useState(false);
@@ -273,7 +276,12 @@ function SettingsPage() {
               <h1 className="flex items-center gap-1.5 truncate font-display text-xl font-bold">
                 <span className="truncate">{profile?.display_name || "OG Member"}</span>
                 {hasVipRole && (
-                  <Crown className="h-4 w-4 shrink-0 fill-current text-coin" aria-label="VIP" />
+                  <Crown className="h-4 w-4 shrink-0 fill-current text-coin" aria-label="PRO" />
+                )}
+                {badge === "REAL OG" && (
+                  <span className="shrink-0 rounded-full border border-amber-300/60 bg-amber-400/15 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-wider text-amber-300">
+                    REAL OG
+                  </span>
                 )}
               </h1>
               {extras.data?.created_at && (
@@ -390,9 +398,10 @@ function SettingsPage() {
           {extras.data?.og_vip_id && <OgVipIdCard id={extras.data.og_vip_id} />}
           {/* The Vault Pass (IPTV logins, apps outside the store) stays out of the phone apps. */}
           {!native && <OgVaultPassCard />}
+          <TelegramConnectCard />
         </Group>
 
-        {/* 2. Membership & integrations */}
+        {/* 2. VIP, coins & invites */}
         <Group section="membership">
           {native ? (
             <Paywall />
@@ -400,42 +409,6 @@ function SettingsPage() {
             <VipStatusCard className="border-rose-400/40 border-l-4 border-l-rose-400 bg-gradient-to-br from-rose-500/[0.2] via-card to-card" />
           )}
           {hasVipRole && <VipRequestCard />}
-          <TelegramConnectCard />
-          {referralLink && (
-            <SettingsCard
-              icon={<Gift className="h-5 w-5" />}
-              title="Invite friends"
-              tone="emerald"
-              hint="You earn coins when friends join and spend."
-            >
-              <div className="flex gap-2">
-                <Input readOnly value={referralLink} aria-label="Invite link" />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Copy invite link"
-                  onClick={() => {
-                    navigator.clipboard.writeText(referralLink);
-                    toast.success("Invite link copied");
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-              <Link
-                to="/referrals"
-                className="inline-block text-xs font-semibold text-foreground underline-offset-4 hover:underline"
-              >
-                See my earnings
-              </Link>
-            </SettingsCard>
-          )}
-        </Group>
-
-        {/* 3. Preferences & coins */}
-        <Group section="preferences">
-          <PreferencesPanel />
-          <MemoryCard />
           <SettingsCard
             icon={<Coins className="h-5 w-5 text-coin" />}
             title="Coin activity"
@@ -521,6 +494,41 @@ function SettingsPage() {
               </Button>
             </div>
           </SettingsCard>
+          {referralLink && (
+            <SettingsCard
+              icon={<Gift className="h-5 w-5" />}
+              title="Invite friends"
+              tone="emerald"
+              hint="You earn coins when friends join and spend."
+            >
+              <div className="flex gap-2">
+                <Input readOnly value={referralLink} aria-label="Invite link" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy invite link"
+                  onClick={async () => {
+                    if (await copyText(referralLink)) toast.success("Invite link copied");
+                    else toast.error("Couldn't copy. Press and hold the link to copy it.");
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <Link
+                to="/referrals"
+                className="inline-block text-xs font-semibold text-foreground underline-offset-4 hover:underline"
+              >
+                See my earnings
+              </Link>
+            </SettingsCard>
+          )}
+        </Group>
+
+        {/* 3. Preferences */}
+        <Group section="preferences">
+          <PreferencesPanel />
+          <MemoryCard />
         </Group>
 
         {/* 4. Security & danger zone */}
@@ -631,23 +639,23 @@ const SECTIONS: {
     id: "profile",
     short: "Profile",
     title: "Profile & identity",
-    about: "How you show up, plus your VIP ID and Vault login.",
+    about: "How you show up, your PRO ID, Vault login and Telegram link.",
     icon: <UserRound className="h-3.5 w-3.5" />,
     chip: "border-violet-400/40 bg-violet-500/15",
   },
   {
     id: "membership",
-    short: "Membership",
-    title: "Membership & integrations",
-    about: "Your VIP plan, Telegram and your invite link.",
+    short: "PRO & coins",
+    title: "PRO, coins & invites",
+    about: "Your PRO plan, your coins and your invite link.",
     icon: <Crown className="h-3.5 w-3.5" />,
     chip: "border-rose-400/40 bg-rose-500/15",
   },
   {
     id: "preferences",
     short: "Preferences",
-    title: "Preferences & coins",
-    about: "How OG B0T talks, what it remembers, how the app looks, and your coins.",
+    title: "Preferences",
+    about: "How OG B0T talks, what it remembers and how the app looks.",
     icon: <SlidersHorizontal className="h-3.5 w-3.5" />,
     chip: "border-orange-400/40 bg-orange-500/15",
   },

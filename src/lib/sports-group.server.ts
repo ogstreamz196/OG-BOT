@@ -77,7 +77,7 @@ const pick = <T,>(a: T[], rand: () => number): T => a[Math.floor(rand() * a.leng
 const ROYAL_OPENERS = [
   "Say less, your majesty 👑",
   "For you? Anything, boss 🫡",
-  "The VIP treatment, as always 👑",
+  "The PRO treatment, as always 👑",
   "Rolling out the red carpet for a proper member 🔴",
   "A real one asked, so here you go 👑",
 ];
@@ -105,7 +105,7 @@ export function nonMemberLockReply(name: string | null | undefined, rand: () => 
   const who = name ? esc(name) : "mate";
   return (
     pick(NON_MEMBER_LOCK, rand).replace("{name}", who) +
-    "\n\n🏆 Unlock the <b>OG Sports Guide</b> in the Store for just <b>10 OG Coins</b> — or go <b>VIP</b> and it's included free.\n" +
+    "\n\n🏆 Unlock the <b>OG Sports Guide</b> in the Store for just <b>10 OG Coins</b> — or go <b>PRO</b> and it's included free.\n" +
     "💸 Skint? Earn coins by inviting your mates with your OG code, or 5 coins is only 99p.\n" +
     "👉 Sign up, then the whole card's yours."
   );

@@ -576,7 +576,7 @@ function EmailAuthPanel({
             htmlFor="wc-email"
             className="block text-left text-sm font-semibold text-foreground"
           >
-            {tab === "signin" ? "Username, email or VIP ID" : "Choose a username"}
+            {tab === "signin" ? "Username, email or PRO ID" : "Choose a username"}
           </Label>
           <Input
             id="wc-email"
@@ -826,7 +826,7 @@ function AuthModal() {
                   🪙 {welcomeCoins} free welcome coins
                   {freeTracks > 1 ? `, enough for ${freeTracks} tracks` : " to cook it"}
                 </li>
-                <li>👑 15 days of VIP — every style unlocked</li>
+                <li>👑 15 days of PRO — every style unlocked</li>
                 <li>💸 Earn commission when friends join</li>
               </ul>
               <p className="mt-3 text-xs font-medium text-card-foreground/80">
@@ -843,7 +843,7 @@ function AuthModal() {
               </p>
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
                 <li>🪙 Free welcome coins</li>
-                <li>👑 15 days of VIP on us</li>
+                <li>👑 15 days of PRO on us</li>
               </ul>
             </div>
           )}
@@ -854,7 +854,7 @@ function AuthModal() {
               <ul className="mt-3 grid gap-1.5 text-sm font-semibold">
                 <li>🔒 Unlock Private chat — just you &amp; OG B0T, nobody else sees a word</li>
                 <li>🪙 Earn OG Coins for every cuss you land</li>
-                <li>👑 15 days of VIP on us</li>
+                <li>👑 15 days of PRO on us</li>
               </ul>
             </div>
           )}
@@ -1188,7 +1188,7 @@ function ClosingCta() {
             className="font-display mt-3 block text-balance text-4xl font-black leading-[0.95] tracking-[-0.04em] sm:text-6xl"
           />
           <p className="mx-auto mt-4 max-w-md text-sm text-foreground/85 sm:text-lg">
-            Free account in seconds. 15 days of VIP on us, no card needed.
+            Free account in seconds. 15 days of PRO on us, no card needed.
           </p>
           <PrimaryActions className="mt-7" />
         </div>

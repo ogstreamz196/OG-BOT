@@ -14,6 +14,7 @@ import {
   atr,
   ema,
   scaleTargets,
+  SL_WIDEN,
   type Candle,
   type FrameRead,
   type TradePlan,
@@ -456,6 +457,93 @@ export function findSetups(candles: Candle[], higher?: FrameRead["bias"]): Setup
     });
 }
 
+/** The reversal setups allowed to post as a counter-trend hedge. */
+export const HEDGE_SETUPS: SetupId[] = ["sweep_reclaim", "wick_rejection", "exhaustion_reversal"];
+
+/**
+ * A counter-trend hedge from a proven reversal setup, to run against a trend
+ * trade (the Boss, 2026-11-12: more hedging, buys and sells against each other).
+ * A market entry now, a tight 1R target on the setup's own risk (one target,
+ * so one hit closes it), and the stop just at that risk. The stop moving to
+ * break-even at 0.5R is applied by the tracker from feeds.hedge (lockOf).
+ * Null for a non-reversal setup, or when price has already run more than half
+ * the risk from the setup's close. Pure.
+ */
+export function hedgePlan(base: TradePlan, hit: SetupHit, priceNow: number): TradePlan | null {
+  if (!HEDGE_SETUPS.includes(hit.id) || !(hit.risk > 0)) return null;
+  const side = hit.direction === "BUY" ? 1 : -1;
+  const entry = Number.isFinite(priceNow) && priceNow > 0 ? priceNow : hit.entry;
+  if (Math.abs(entry - hit.entry) > hit.risk * 0.5) return null;
+  const risk = hit.risk;
+  const stop = entry - side * risk;
+  const tp = entry + side * risk; // the single 1R target
+  const pct = hit.confidencePct;
+  return {
+    ...base,
+    direction: hit.direction,
+    entry,
+    entryType: "market",
+    entryNote: `Hedge against the trend (${SETUP_NAMES[hit.id]})`,
+    stop,
+    targets: [tp, tp, tp],
+    rr: "1:1",
+    confidencePct: pct,
+    confidence: pct >= 75 ? "High" : pct >= 62 ? "Medium" : "Low",
+    quality: "Clean",
+    qualityNote: undefined,
+    caution: undefined,
+    cautions: [],
+    verdict: "trade",
+    waitReason: undefined,
+    setup: SETUP_NAMES[hit.id],
+    hedge: true,
+  };
+}
+
+/**
+ * A range hedge (the Boss's "range hedging" switch, 2026-11-12: "when a
+ * market is just ranging, buys and sells that fight each other instead of
+ * chasing take-profit"): from the range-fade setup at either edge of a
+ * ranging market, a market entry now, the setup's own stop just past the
+ * edge, and one quick target at the middle of the range (targets[0]), not the
+ * far side. Tagged as a hedge, so the tracker moves the stop to break-even at
+ * 0.5R and never trails it, and as a range hedge for the record. Null for any
+ * other setup, a target not in the trade's favour, or price already more than
+ * half the risk from the setup's close. Pure.
+ */
+export function rangeHedgePlan(base: TradePlan, hit: SetupHit, priceNow: number): TradePlan | null {
+  if (hit.id !== "range_fade" || !(hit.risk > 0)) return null;
+  const side = hit.direction === "BUY" ? 1 : -1;
+  const entry = Number.isFinite(priceNow) && priceNow > 0 ? priceNow : hit.entry;
+  if (Math.abs(entry - hit.entry) > hit.risk * 0.5) return null;
+  const stop = hit.entry - side * hit.risk;
+  const tp = hit.targets[0];
+  if (!((tp - entry) * side > 0) || !((entry - stop) * side > 0)) return null;
+  const reward = Math.abs(tp - entry) / Math.abs(entry - stop);
+  const pct = hit.confidencePct;
+  return {
+    ...base,
+    direction: hit.direction,
+    entry,
+    entryType: "market",
+    entryNote: `Range hedge (${hit.direction === "BUY" ? "bottom" : "top"} of the range)`,
+    stop,
+    targets: [tp, tp, tp],
+    rr: `1:${reward.toFixed(1).replace(/\.0$/, "")}`,
+    confidencePct: pct,
+    confidence: pct >= 75 ? "High" : pct >= 62 ? "Medium" : "Low",
+    quality: "Clean",
+    qualityNote: undefined,
+    caution: undefined,
+    cautions: [],
+    verdict: "trade",
+    waitReason: undefined,
+    setup: SETUP_NAMES[hit.id],
+    hedge: true,
+    rangeHedge: true,
+  };
+}
+
 /**
  * A live plan from an extra setup, in place of the engine's "wait": a market
  * entry at the price now, the members' stop room and target pull-in (Tuning)
@@ -473,9 +561,9 @@ export function setupPlan(
   const shift = entry - hit.entry;
   if (Math.abs(shift) > hit.risk * 0.5) return null;
   const raw = hit.targets.map((t) => t + shift) as [number, number, number];
-  const stop = entry - side * hit.risk * tune.stopRoom;
+  const stop = entry - side * hit.risk * tune.stopRoom * SL_WIDEN;
   const targets = scaleTargets(hit.direction, entry, raw, hit.atr * 0.05, tune.scale);
-  const stopDistance = hit.risk * tune.stopRoom;
+  const stopDistance = hit.risk * tune.stopRoom * SL_WIDEN;
   const r = (t: number) => (Math.abs(t - entry) / stopDistance).toFixed(1).replace(/\.0$/, "");
   const pct = hit.confidencePct;
   return {

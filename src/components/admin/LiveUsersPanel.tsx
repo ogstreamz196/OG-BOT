@@ -10,6 +10,7 @@ import { maskDevIdentity } from "@/lib/dev-identity";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { newId } from "@/lib/copy-text";
 
 type OutboundLog = {
   id: string;
@@ -51,7 +52,7 @@ export function LiveUsersPanel() {
     onSuccess: (_, vars) => {
       setLog((prev) => [
         {
-          id: crypto.randomUUID(),
+          id: newId(),
           target: vars.target,
           content: vars.content,
           at: new Date().toISOString(),

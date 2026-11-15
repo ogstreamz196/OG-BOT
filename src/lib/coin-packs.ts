@@ -54,7 +54,7 @@ export const COIN_PACKS: readonly CoinPack[] = [
     coins: 600,
     priceCents: 3999,
     currency: "gbp",
-    label: "Pro",
+    label: "Mega", // was "Pro" (renamed so PRO only means the subscription)
     description: "Serious sessions across Make a Track & Messenger.",
     bestValue: true,
   },
@@ -97,7 +97,7 @@ export const VIP_PLAN: VipPlan = {
   priceId: "og_vip_monthly",
   priceCents: 499,
   currency: "gbp",
-  label: "OG VIP Monthly",
+  label: "OG B0T PRO Monthly",
   cadence: "month",
 };
 
@@ -106,7 +106,7 @@ export const VIP_PLAN_YEARLY: VipPlan = {
   priceId: "og_vip_yearly",
   priceCents: 5000,
   currency: "gbp",
-  label: "OG VIP Yearly",
+  label: "OG B0T PRO Yearly",
   cadence: "year",
 };
 

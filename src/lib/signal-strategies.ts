@@ -96,7 +96,7 @@ const FRAME_LABEL: Record<StratFrame, string> = {
   "1M": "1-min scalp",
 };
 const MARKET_LABEL: Record<string, string> = { XAUUSD: "Gold", BTCUSD: "Bitcoin" };
-const ENTRY_LABEL = ["auto entry", "pullback", "break", "at price"];
+const ENTRY_LABEL = ["auto entry", "pullback", "break", "at price", "sniper"];
 
 /** A few headline facts for the strategy card. */
 export function strategyBrief(s: SignalStrategy): string[] {

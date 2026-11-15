@@ -38,13 +38,23 @@ export function useSettings() {
     queryKey: SETTINGS_QUERY_KEY,
     staleTime: 30_000,
     queryFn: async (): Promise<AppSettings> => {
+      const signedIn = !!(await supabase.auth.getSession()).data.session;
       const [{ data, error }, extra] = await Promise.all([
-        supabase.from("app_settings").select("key, value"),
+        // Only members can read app_settings; visitors get the public values.
+        signedIn
+          ? supabase.from("app_settings").select("key, value")
+          : Promise.resolve({ data: [] as { key: string; value: unknown }[], error: null }),
         // Prices members can't read directly (see public-settings.functions).
         getPublicAppSettings().catch(() => null),
       ]);
-      if (error) throw error;
+      // Signed-out visitors can't read app_settings (only members can), so a
+      // refused read isn't an error here: the public server values and the
+      // defaults stand in. Throwing made every guest page load retry it.
+      if (error && extra == null) throw error;
       const map: Record<string, unknown> = {};
+      if (extra?.signup_credits != null) map.signup_credits = extra.signup_credits;
+      if (extra?.coins_per_full_unlock != null)
+        map.coins_per_full_unlock = extra.coins_per_full_unlock;
       if (extra?.coins_per_remake != null) map.coins_per_remake = extra.coins_per_remake;
       if (extra?.coins_per_lyric_video != null)
         map.coins_per_lyric_video = extra.coins_per_lyric_video;

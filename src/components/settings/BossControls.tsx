@@ -8,9 +8,9 @@ import { SettingsCard } from "./SettingsCard";
 /** The five Boss tasks done most, one tap each. */
 const JUMPS = [
   { emoji: "👥", label: "Members & Coins", to: "/admin/users" },
-  { emoji: "📈", label: "Signals & Demo", to: "/admin/signals", tab: "controls" },
+  { emoji: "📈", label: "Trading switches", to: "/admin/signals", tab: "controls" },
   { emoji: "🤖", label: "Telegram Fleet", to: "/admin/signals", tab: "bots" },
-  { emoji: "💰", label: "Prices & Limits", to: "/admin/coins", tab: "prices" },
+  { emoji: "💰", label: "Prices & store", to: "/admin/coins", tab: "prices" },
   { emoji: "⚡", label: "Boss Dashboard", to: "/admin" },
 ] as const;
 
@@ -29,7 +29,7 @@ export function BossControls() {
     <SettingsCard
       icon={<ShieldCheck className="h-5 w-5" />}
       title="Boss switchboard"
-      hint="Live switches at a glance. Your coins, VIP and roles are changed in Members, like anyone else's."
+      hint="Live switches at a glance. Your coins, PRO and roles are changed in Members, like anyone else's."
       tone="violet"
     >
       <div className="space-y-3">

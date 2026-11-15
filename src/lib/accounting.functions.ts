@@ -28,7 +28,7 @@ function categorise(c: any): string {
   if (meta.kind === "track_unlock" || d.includes("track unlock")) return "Track unlock";
   if (bundle.startsWith("store:")) return "Store item";
   if (bundle.includes("vip") || d.includes("vip") || d.includes("subscription") || c.invoice)
-    return "VIP subscription";
+    return "PRO subscription";
   if (bundle.startsWith("coins") || d.includes("coin")) return "Coin pack";
   return "Other";
 }

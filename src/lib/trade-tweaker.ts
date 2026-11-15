@@ -20,14 +20,17 @@ export type TweakField = {
   offable?: boolean;
   /** Whole numbers only (minutes, confidence, block ids). */
   integer?: boolean;
+  /** The engine no longer uses this knob (it's forced off), so the panels don't show it. */
+  retired?: boolean;
 };
 
-/** The four ways in, for the entryStyle select. */
+/** The ways in, for the entryStyle select. */
 export const ENTRY_STYLES = [
   { value: 0, label: "Engine's choice" },
   { value: 1, label: "Always pullback" },
   { value: 2, label: "Always a break" },
   { value: 3, label: "Always at the price" },
+  { value: 4, label: "Always sniper limit" },
 ] as const;
 
 /** UK time-of-day blocks (ukBlock), for the skip-blocks toggles. */
@@ -100,6 +103,8 @@ export const TWEAK_FIELDS: readonly TweakField[] = [
   },
   {
     key: "beAt",
+    // Retired: every trade has the profit lock instead (safeTuning forces 0).
+    retired: true,
     label: "Break-even trigger",
     help: "Once a trade is this many times its risk in profit, the stop moves to the entry. 0 is off.",
     kind: "number",
@@ -117,7 +122,7 @@ export const TWEAK_FIELDS: readonly TweakField[] = [
   {
     key: "entryStyle",
     label: "Entry style",
-    help: "How to get in: the engine's choice, always a pullback, always a break, or always at the price now.",
+    help: "How to get in: the engine's choice, always a pullback, always a break, always at the price now, or always a sniper limit (into the last gap or a retest).",
     kind: "entryStyle",
     integer: true,
   },
@@ -144,6 +149,9 @@ export const TWEAK_FIELDS: readonly TweakField[] = [
     kind: "blocks",
   },
 ];
+
+/** The knobs the panels show: every one the engine still uses. */
+export const SHOWN_TWEAK_FIELDS: readonly TweakField[] = TWEAK_FIELDS.filter((f) => !f.retired);
 
 const finite = (v: unknown): number | null => {
   const n = typeof v === "string" ? Number(v) : (v as number);

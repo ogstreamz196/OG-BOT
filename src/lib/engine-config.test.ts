@@ -62,4 +62,20 @@ describe("cleanEngineConfig", () => {
     expect(c.gate.minConfidence).toBe(73);
     expect(c.concurrency.free).toBe(4);
   });
+  it("strategy toggles are all off by default", () => {
+    expect(DEFAULT_ENGINE_CONFIG.strategies).toEqual({
+      sniper: false,
+      hedges: false,
+      rangeHedge: false,
+      patternsAlongside: false,
+    });
+    expect(cleanEngineConfig({}).strategies).toEqual(DEFAULT_ENGINE_CONFIG.strategies);
+  });
+  it("keeps real booleans and ignores non-booleans for strategy toggles", () => {
+    const c = cleanEngineConfig({ strategies: { hedges: true, rangeHedge: "yes", sniper: 1 } });
+    expect(c.strategies.hedges).toBe(true);
+    expect(c.strategies.rangeHedge).toBe(false);
+    expect(c.strategies.sniper).toBe(false);
+    expect(c.strategies.patternsAlongside).toBe(false);
+  });
 });

@@ -60,7 +60,7 @@ export function BossKpiStrip() {
       sub: d && d.failed > 0 ? `${d.failed} failed` : undefined,
     },
     { label: "Coins held", value: d?.coins, Icon: Coins, tone: "text-coin" },
-    { label: "VIPs", value: d?.vips, Icon: Crown, tone: "text-coin" },
+    { label: "PRO members", value: d?.vips, Icon: Crown, tone: "text-coin" },
   ];
 
   return (

@@ -16,6 +16,8 @@ export type CommunityMessage = {
   vip?: boolean;
   /** Sender's public OG VIP ID, when they have one. */
   vip_id?: string | null;
+  /** Sender owns both PRO and the OG Vault pass: shown as REAL OG. */
+  real_og?: boolean;
   /** Roast score in tenths of a coin, when the round won something. */
   score_tenths?: number | null;
 };
@@ -27,9 +29,10 @@ export type CommunityMessage = {
 async function withVipBadges<T extends { user_id: string | null }>(
   admin: AdminClient,
   rows: T[],
-): Promise<(T & { vip: boolean; vip_id: string | null })[]> {
+): Promise<(T & { vip: boolean; vip_id: string | null; real_og: boolean })[]> {
   const ids = [...new Set(rows.map((r) => r.user_id).filter((v): v is string => !!v))];
   const vip = new Map<string, string | null>();
+  const vault = new Set<string>();
   if (ids.length) {
     try {
       const [{ data: roles }, { data: profiles }] = await Promise.all([
@@ -45,6 +48,15 @@ async function withVipBadges<T extends { user_id: string | null }>(
       for (const r of (roles ?? []) as { user_id: string }[]) {
         vip.set(r.user_id, idById.get(r.user_id) ?? null);
       }
+      // REAL OG: PRO members who also own the Vault pass.
+      const proIds = [...vip.keys()];
+      if (proIds.length) {
+        const { data: passes } = await admin
+          .from("vip_pass_purchases")
+          .select("user_id")
+          .in("user_id", proIds);
+        for (const p of (passes ?? []) as { user_id: string }[]) vault.add(p.user_id);
+      }
     } catch (e) {
       console.warn("battle VIP badge lookup failed", (e as Error).message);
     }
@@ -53,6 +65,7 @@ async function withVipBadges<T extends { user_id: string | null }>(
     ...r,
     vip: !!r.user_id && vip.has(r.user_id),
     vip_id: r.user_id ? (vip.get(r.user_id) ?? null) : null,
+    real_og: !!r.user_id && vip.has(r.user_id) && vault.has(r.user_id),
   }));
 }
 
@@ -781,6 +794,7 @@ export const listGuestBattleMessages = createServerFn({ method: "POST" })
         member: !!r.user_id,
         vip: r.vip,
         vip_id: r.vip_id,
+        real_og: r.real_og,
         score_tenths: (r.score_tenths as number | null) ?? null,
       })),
       remaining: Math.max(0, GUEST_MESSAGE_LIMIT - used),

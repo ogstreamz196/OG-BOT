@@ -8,6 +8,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { copyText } from "@/lib/copy-text";
 
 type AuditUser = {
   id: string;
@@ -36,10 +37,7 @@ type LedgerRow = {
 };
 
 function copy(text: string, label = "Copied") {
-  navigator.clipboard?.writeText(text).then(
-    () => toast.success(label),
-    () => toast.error("Copy failed"),
-  );
+  void copyText(text).then((ok) => (ok ? toast.success(label) : toast.error("Copy failed")));
 }
 
 export function ReferralsAuditPage() {
@@ -239,7 +237,7 @@ export function ReferralsAuditPage() {
         <section className="og-panel rounded-2xl border border-white/10 bg-card/60">
           <div className="flex items-center justify-between border-b border-white/5 p-4">
             <h2 className="font-display text-lg font-bold">
-              Top OG Leaders · total payouts (6% free · 13% VIP)
+              Top OG Leaders · total payouts (6% free · 13% PRO)
             </h2>
             <span className="text-xs text-muted-foreground">
               {leaderboard.length} leaders · {totalPaid} OG paid total
@@ -330,7 +328,7 @@ export function ReferralsAuditPage() {
             <div className="flex items-center gap-2">
               <Scale className="h-4 w-4 text-primary" />
               <h2 className="font-display text-lg font-bold">
-                Reconciliation · expected vs paid (6% free / 13% VIP)
+                Reconciliation · expected vs paid (6% free / 13% PRO)
               </h2>
             </div>
             {reconQ.data?.totals && (

@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { copyText } from "@/lib/copy-text";
 
 /**
  * Compact, share-first reminder: shows the user's OG referral code and the
@@ -40,7 +41,7 @@ export function ReferralReminder({ className }: { className?: string }) {
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      if (!(await copyText(shareUrl))) throw new Error("copy");
       setCopied(true);
       toast.success("Link copied — share it to earn up to 13% cashback");
       setTimeout(() => setCopied(false), 1800);
@@ -91,7 +92,8 @@ export function ReferralReminder({ className }: { className?: string }) {
               className="text-foreground [overflow-wrap:anywhere]"
               style={{ fontSize: "clamp(0.8125rem, 2.6vw, 0.9375rem)", lineHeight: 1.35 }}
             >
-              Share your code and bank 6% of every coin they burn — 13% as an OG VIP. Forever.
+              Share your code and bank 6% of every coin they burn — 13% as an OG B0T PRO member.
+              Forever.
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
               <code

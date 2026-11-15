@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { copyText } from "@/lib/copy-text";
 const SITE_URL = "https://ogbot.co.uk";
 
 export function trackShareUrl(songId?: string) {
@@ -81,10 +82,7 @@ export async function shareTrack({
     }
   }
 
-  try {
-    await navigator.clipboard.writeText(trackShareClipboard(title, url));
+  if (await copyText(trackShareClipboard(title, url)))
     toast.success("Share link copied — paste it anywhere");
-  } catch {
-    toast("Sharing isn't supported on this device");
-  }
+  else toast("Sharing isn't supported on this device");
 }

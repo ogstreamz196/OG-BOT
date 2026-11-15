@@ -132,7 +132,7 @@ export const Route = createFileRoute("/api/public/sports-guide-reminders")({
             const when = days <= 1 ? "tomorrow" : `in ${days} days`;
             return sendTelegramText(
               chatId,
-              `👑 <b>Heads up, VIP</b>\n\nYour OG VIP ends ${when}. Renew now to keep every style, perk and priority cooking.\n\n<a href="https://www.ogbot.co.uk/store">Renew VIP</a>`,
+              `👑 <b>Heads up, PRO member</b>\n\nYour OG B0T PRO ends ${when}. Renew now to keep every style, perk and priority cooking.\n\n<a href="https://www.ogbot.co.uk/store">Renew PRO</a>`,
             );
           });
           vipReminded = results.filter(Boolean).length;

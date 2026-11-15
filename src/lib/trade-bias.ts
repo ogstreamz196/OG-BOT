@@ -2,7 +2,7 @@
 // chart's recent highs and lows and gives the side it leans, as a risky call
 // likely to trigger within the next 5 minutes. It's labelled as bias, not a
 // signal, and never counts in the results book.
-import { atr, scaleTargets, type Candle, type Tuning } from "./trade-signal";
+import { atr, scaleTargets, SL_WIDEN, type Candle, type Tuning } from "./trade-signal";
 
 export type BiasRead = {
   direction: "BUY" | "SELL";
@@ -117,7 +117,7 @@ export function marketBias(opts: {
     : Math.max(...window.slice(-12).map((c) => c.h));
   let risk = Math.abs(entry - swing) + a * 0.1;
   risk = Math.min(Math.max(risk, a * 0.6), a * 2);
-  const stop = entry - side * risk * (opts.tuning?.stopRoom ?? ROOM);
+  const stop = entry - side * risk * (opts.tuning?.stopRoom ?? ROOM) * SL_WIDEN;
 
   // Targets: the highs and lows in the way (recent range, yesterday, engine
   // levels), else 1R / 2R / 3R, always in order and at least 0.5R apart.

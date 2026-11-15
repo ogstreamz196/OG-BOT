@@ -59,6 +59,7 @@ const TELEGRAM_FONT_STYLE: React.CSSProperties = {
   MozOsxFontSmoothing: "grayscale",
 };
 import { ogBotLogo } from "@/assets/ogbot-logo";
+import { useMemberBadge } from "@/hooks/use-member-badge";
 
 function OgAvatar({ size = 36, className = "" }: { size?: number; className?: string }) {
   return (
@@ -177,6 +178,7 @@ export function OgChat({
   const setFoulMouth = useSetFoulMouth();
 
   const { isVip } = useRole();
+  const badge = useMemberBadge();
   // shareLive removed: Loner Mode is enforced by the page mounting OgChat.
   const postCommunity = useServerFn(postCommunityMessage);
   const transcribe = useServerFn(transcribeOgAudio);
@@ -828,7 +830,7 @@ export function OgChat({
                     {isVip && (
                       <Crown
                         className="absolute -top-2 -right-1 h-4 w-4 rotate-[18deg] fill-amber-300 text-amber-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]"
-                        aria-label="VIP"
+                        aria-label="PRO"
                       />
                     )}
                   </div>
@@ -852,7 +854,9 @@ export function OgChat({
                     {isUser && isVip && (
                       <>
                         <Crown className="h-3 w-3 fill-amber-300 text-amber-500" />
-                        <span className="text-amber-400">VIP</span>
+                        <span className="text-amber-400">
+                          {badge === "REAL OG" ? "REAL OG" : "PRO"}
+                        </span>
                       </>
                     )}
                   </span>
@@ -1159,7 +1163,7 @@ function VipFoulPromo({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Unlock Foul Mouth with OG VIP"
+      aria-label="Unlock Foul Mouth with OG B0T PRO"
       className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
       onClick={() => onOpenChange(false)}
     >
@@ -1176,7 +1180,7 @@ function VipFoulPromo({
         </p>
         <ul className="mt-3 space-y-1 text-left text-xs text-foreground/90">
           <li>🔥 Unfiltered OG B0T persona</li>
-          <li>👑 Your own OG VIP ID and gold badge</li>
+          <li>👑 Your own OG PRO ID and gold badge</li>
           <li>⚡ Priority replies + daily 10-coin safety net</li>
         </ul>
         <div className="mt-4 grid gap-2">
@@ -1184,7 +1188,7 @@ function VipFoulPromo({
             href="/buy-coins?flow=vip"
             className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-brand font-bold text-primary-foreground"
           >
-            Get OG VIP · from £4.99
+            Get OG B0T PRO · from £4.99
           </a>
           <button
             type="button"
