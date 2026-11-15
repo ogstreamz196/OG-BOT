@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-15 · #PRNUM** · Re-check of #303 (the Boss
+- **Boss's Claude · 2026-11-15 · #305** · Re-check of #303 (the Boss
   asked). Found and fixed: the lab credited half a spread too much on every
   take profit and stop (a buy fills at the ask and closes at the bid: tp
   needs tp+1 spreads of move, the stop hits after sl-1), opened trades
