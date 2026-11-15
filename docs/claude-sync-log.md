@@ -299,6 +299,18 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-15 · #PRNUM** · Re-check of #303 (the Boss
+  asked). Found and fixed: the lab credited half a spread too much on every
+  take profit and stop (a buy fills at the ask and closes at the bid: tp
+  needs tp+1 spreads of move, the stop hits after sl-1), opened trades
+  instantly (now 2 s after the signal, like a copied trade), and used
+  1-spread stops that hit at once (now 1.5+). With that, three days of data
+  show nothing makes money reliably at any hold; #303's "gold at 2-5 min is
+  positive" was wrong. Loss post-mortem: reads the tracker's own chart (gold
+  futures when set), lines levels up with the saved gap checked against the
+  fill minute, and counts the stop minute. Fresh `signals.microlab.v2` and
+  `signals.autopsy.v2`; the first versions kept untouched.
+
 - **Boss's Claude · 2026-11-15 · #304** · VIP renamed OG B0T PRO in
   everything users and the Boss see (242 lines over 62 files, store first;
   a browser audit of the store, home, settings, chat, Battle Zone, sports,

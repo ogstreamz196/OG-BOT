@@ -3,6 +3,7 @@ import {
   autopsyBoard,
   cleanAutopsy,
   emptyTally,
+  entryGap,
   lossAutopsy,
   type Candle1m,
 } from "./signal-autopsy";
@@ -98,5 +99,23 @@ describe("tally and lessons", () => {
     });
     expect(board[0].lesson).toMatch(/limit order/);
     expect(board[1]).toMatchObject({ strategy: "desk", main: "wrong_way", losses: 3 });
+  });
+});
+
+describe("entryGap (lining the trade up with the chart)", () => {
+  const fill = { t: 0, l: 2000, h: 2003, c: 2001 };
+  it("keeps the saved gap when the entry sits inside the fill minute", () => {
+    // Spot entry 2015, saved gap 13.5: on the chart 2001.5, inside 2000-2003.
+    expect(entryGap(2015, 13.5, fill)).toBe(13.5);
+  });
+  it("nudges a gap that doesn't fit (measured on another chart) to the edge", () => {
+    // Saved gap 30 puts the entry at 1985 on this chart: below the low, so 2000.
+    expect(entryGap(2015, 30, fill)).toBe(15);
+  });
+  it("bitcoin: no gap, already inside", () => {
+    expect(entryGap(2001, 0, fill)).toBe(0);
+  });
+  it("no fill minute: the saved gap", () => {
+    expect(entryGap(2015, 7, undefined)).toBe(7);
   });
 });

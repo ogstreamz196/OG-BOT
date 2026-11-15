@@ -5,6 +5,7 @@
 // a setting or any stored signal.
 
 import {
+  entryGap,
   cleanAutopsy,
   emptyTally,
   lossAutopsy,
@@ -14,7 +15,12 @@ import {
 
 type Admin = { from: (t: string) => any };
 
-export const AUTOPSY_KEY = "signals.autopsy";
+/**
+ * The tally. "signals.autopsy" was the first version (it lined gold up with
+ * the chart a minute late and skipped the minute of the stop); it's kept as
+ * it is, never deleted, and this one starts fresh with the corrected method.
+ */
+export const AUTOPSY_KEY = "signals.autopsy.v2";
 const PER_RUN = 8;
 const RUN_EVERY_MS = 2 * 60_000;
 const FIRST_LOOK_DAYS = 90;
@@ -37,14 +43,14 @@ type LossRow = {
   feeds: Record<string, unknown> | null;
 };
 
-async function minutes(symbol: string, from: number): Promise<Candle1m[]> {
+async function minutes(symbol: string, from: number, futures = false): Promise<Candle1m[]> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
+  const url = futures
+    ? `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1m&limit=1000&startTime=${from}`
+    : `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=1m&limit=1000&startTime=${from}`;
   try {
-    const res = await fetch(
-      `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=1m&limit=1000&startTime=${from}`,
-      { signal: ctrl.signal },
-    );
+    const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) return [];
     const rows = (await res.json()) as unknown[][];
     return rows.map((r) => ({
@@ -109,20 +115,24 @@ export async function maybeStudyLosses(admin: Admin, now = Date.now()): Promise<
       );
       // Wait until the time to reach the target has played out.
       if (closedAt + lookMs > now) break;
+      // The chart the tracker follows: the gold futures when the signal has
+      // them (falling back to the token), else its Binance symbol.
+      const fut = typeof r.feeds?.futures === "string" ? r.feeds.futures : null;
       const symbol = typeof r.feeds?.binance === "string" ? r.feeds.binance : null;
-      const candles = symbol ? await minutes(symbol, enteredAt - 60_000) : [];
+      let candles = fut ? await minutes(fut, enteredAt - 60_000, true) : [];
+      if (!candles.length && symbol) candles = await minutes(symbol, enteredAt - 60_000);
       // The chart didn't answer: try this one again next run rather than skip it.
-      if (symbol && !candles.length) break;
+      if ((symbol || fut) && !candles.length) break;
       if (candles.length) {
-        // Move the trade's levels onto the chart's scale (a gold token sits a
-        // little off spot gold): the gap at the entry candle.
-        const at = candles.find((c) => c.t >= enteredAt - 60_000) ?? candles[0];
-        const gap = at.c - Number(r.entry);
+        // Move the trade's levels onto the chart (chart + gap = trade price):
+        // the saved gap, checked against the minute the trade filled in.
+        const fill = candles.find((c) => c.t <= enteredAt && enteredAt < c.t + 60_000);
+        const gap = entryGap(Number(r.entry), Number(r.feeds?.offset) || 0, fill);
         const kind = lossAutopsy({
           direction: r.direction === "SELL" ? "SELL" : "BUY",
-          entry: Number(r.entry) + gap,
-          stop: Number(r.stop) + gap,
-          tp1: Number(r.tp1) + gap,
+          entry: Number(r.entry) - gap,
+          stop: Number(r.stop) - gap,
+          tp1: Number(r.tp1) - gap,
           enteredAt,
           closedAt,
           lookMs,

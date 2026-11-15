@@ -9,14 +9,17 @@
 // posts: it only measures, so a strategy can be promoted once it has proved
 // itself on live prices with the broker's real costs.
 //
-// What the research said before this was built (24h + an unseen 24h of
-// Binance 1-second data, Vantage costs: gold 0.35, bitcoin 15): every
-// strategy lost after the spread at 10-15 seconds (median 15-second move on
-// bitcoin is about one spread), and only gold's breakout / trend pullback
-// held 2-5 minutes stayed positive on the unseen day (+0.1 to +0.2 spreads a
-// trade). So the lab keeps 15 seconds in the race but also scores 1, 2 and 5
-// minutes, and counts one trade per strategy at a time (overlapping trades on
-// the same move made fake 70-win "streaks").
+// What the research says (three days of Binance 1-second data, Vantage
+// costs gold 0.35 / bitcoin 15, re-checked 2026-11-15 with the honest spread
+// rule below and a 2-second delay to open): nothing made money reliably. The
+// 15-second strategies lost 0.5-0.8 of a spread a trade every day; the best
+// 5-minute ones swung between days (gold's breakout +0.18, -0.56, -0.12),
+// which is luck, not an edge. A first pass had said gold held 2-5 minutes was
+// positive: that came from crediting half a spread too much on every take
+// profit and stop, and opening instantly. The lab keeps all four holds in the
+// race on live prices so the Boss can see it for himself, and counts one
+// trade per strategy at a time (overlapping trades on the same move made fake
+// 70-win "streaks").
 
 export type Sec = {
   t: number;
@@ -53,15 +56,25 @@ export const MICRO_LABEL: Record<MicroStrategy, string> = {
   random: "Coin flip (the yardstick)",
 };
 
-/** Hold times in seconds, each with its take profit / stop in spreads (null: time exit only). */
+/**
+ * Hold times in seconds, each with its take profit / stop as the result in
+ * spreads after costs. A stop of 1 spread is hit almost at once (opening a
+ * trade already costs one spread), so the stops start at 1.5.
+ */
 export const MICRO_HOLDS = [15, 60, 120, 300] as const;
 export type MicroHold = (typeof MICRO_HOLDS)[number];
 export const MICRO_EXITS: Record<MicroHold, { tp: number; sl: number }> = {
-  15: { tp: 2, sl: 1 },
-  60: { tp: 2, sl: 1 },
-  120: { tp: 4, sl: 2 },
-  300: { tp: 4, sl: 2 },
+  15: { tp: 2, sl: 1.5 },
+  60: { tp: 2, sl: 1.5 },
+  120: { tp: 3, sl: 2 },
+  300: { tp: 4, sl: 3 },
 };
+
+/**
+ * Seconds from the signal to the fill: the alert goes out, the copier picks
+ * it up and MT5 fills it. Trades open at that later second's close.
+ */
+export const ENTRY_DELAY = 2;
 
 /** Seconds of history before a signal counts (the 300-second average needs it). */
 export const WARMUP = 600;
@@ -235,11 +248,14 @@ export function microSignals(secs: Sec[]): Record<MicroStrategy, Int8Array> {
 }
 
 /**
- * One trade's result in spreads, opened at second i's close in direction d:
- * a buy pays the ask and sells at the bid (so the spread is paid once), the
- * stop is checked before the take profit inside a second (the cautious way),
- * and whatever is open at the hold time closes there. Null when the candles
- * don't reach the hold time yet. Pure.
+ * One trade's result in spreads after costs, filled at second i's close in
+ * direction d. A buy fills at the ask (half a spread above the price) and
+ * closes at the bid (half below), so it starts one spread down: the take
+ * profit of tp spreads needs the price to move tp + 1 spreads its way, and
+ * the stop at -sl spreads is hit once the price moves sl - 1 spreads against
+ * it. The stop is checked before the take profit inside a second (the
+ * cautious way); whatever is open at the hold time closes there. Null when
+ * the candles don't reach the hold time yet. Pure.
  */
 export function tradeResult(
   secs: Sec[],
@@ -255,8 +271,8 @@ export function tradeResult(
   for (let j = i + 1; j <= last; j++) {
     const fav = d > 0 ? secs[j].h - e : e - secs[j].l;
     const adv = d > 0 ? e - secs[j].l : secs[j].h - e;
-    if (adv >= sl * cost - cost / 2) return -sl;
-    if (fav >= tp * cost + cost / 2) return tp;
+    if (adv >= (sl - 1) * cost) return -sl;
+    if (fav >= (tp + 1) * cost) return tp;
   }
   return (d * (secs[last].c - e) - cost) / cost;
 }
@@ -288,7 +304,7 @@ export function scoreWindow(state: MicroMarketState, secs: Sec[], cost: number):
   let scored = 0;
   for (const hold of MICRO_HOLDS) {
     const from = Math.max(state.done[hold] ?? 0, secs[WARMUP].t - 1);
-    const lastOpen = secs.length - 1 - hold;
+    const lastOpen = secs.length - 1 - hold - ENTRY_DELAY;
     let doneTo = state.done[hold] ?? 0;
     for (let i = WARMUP; i <= lastOpen; i++) {
       const t = secs[i].t;
@@ -300,10 +316,10 @@ export function scoreWindow(state: MicroMarketState, secs: Sec[], cost: number):
         const k = keyOf(s, hold);
         const st = (state.stats[k] ??= emptyStats());
         if (t < st.busyUntil) continue;
-        const res = tradeResult(secs, i, d as 1 | -1, hold, cost);
+        const res = tradeResult(secs, i + ENTRY_DELAY, d as 1 | -1, hold, cost);
         if (res == null) continue;
         record(st, res);
-        st.busyUntil = t + hold * 1000;
+        st.busyUntil = t + (hold + ENTRY_DELAY) * 1000;
         scored++;
       }
     }

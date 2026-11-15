@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cleanLab,
   emptyStats,
+  ENTRY_DELAY,
   keyOf,
   microBoard,
   scoreWindow,
@@ -22,22 +23,34 @@ const flat = (n: number, p = 100, t0 = 1_000_000_000_000): Sec[] =>
     tb: 0.5,
   }));
 
-describe("tradeResult (spread paid, stop before take profit)", () => {
+describe("tradeResult (the spread paid honestly, stop before take profit)", () => {
   const cost = 1;
-  it("a buy that runs reaches the take profit (2 spreads at 15s)", () => {
-    const s = flat(40);
-    s[5] = { ...s[5], h: 103 };
-    expect(tradeResult(s, 0, 1, 15, cost)).toBe(2);
+  // At 15 seconds: take profit +2 spreads, stop -1.5 spreads (after costs).
+  it("a take profit of 2 spreads needs the price to move 3 (the spread comes off)", () => {
+    const near = flat(40);
+    near[5] = { ...near[5], h: 102.99 };
+    expect(tradeResult(near, 0, 1, 15, cost)).not.toBe(2);
+    const hit = flat(40);
+    hit[5] = { ...hit[5], h: 103 };
+    expect(tradeResult(hit, 0, 1, 15, cost)).toBe(2);
   });
-  it("a buy that drops is stopped (1 spread)", () => {
+  it("a 1.5-spread stop is hit once the price moves half a spread against it", () => {
     const s = flat(40);
-    s[3] = { ...s[3], l: 99.4 };
-    expect(tradeResult(s, 0, 1, 15, cost)).toBe(-1);
+    s[3] = { ...s[3], l: 99.5 };
+    expect(tradeResult(s, 0, 1, 15, cost)).toBe(-1.5);
+    const safe = flat(40);
+    safe[3] = { ...safe[3], l: 99.51 };
+    expect(tradeResult(safe, 0, 1, 15, cost)).toBe(-1); // closes on time: just the spread
+  });
+  it("sells are mirrored", () => {
+    const s = flat(40);
+    s[5] = { ...s[5], l: 97 };
+    expect(tradeResult(s, 0, -1, 15, cost)).toBe(2);
   });
   it("both in the same second counts as the stop", () => {
     const s = flat(40);
     s[3] = { ...s[3], h: 104, l: 99 };
-    expect(tradeResult(s, 0, 1, 15, cost)).toBe(-1);
+    expect(tradeResult(s, 0, 1, 15, cost)).toBe(-1.5);
   });
   it("nothing happens: closes on time and still pays the spread", () => {
     expect(tradeResult(flat(40), 0, -1, 15, cost)).toBe(-1);
@@ -71,9 +84,9 @@ describe("scoreWindow", () => {
     const st: MicroMarketState = { done: {}, stats: {} };
     scoreWindow(st, climb(1000), 1);
     const b15 = st.stats[keyOf("breakout_60s", 15)];
-    // About (1000 - WARMUP - 15) seconds open, one trade per 15 seconds.
-    expect(b15.n).toBeGreaterThan(20);
-    expect(b15.n).toBeLessThanOrEqual(Math.ceil((1000 - WARMUP - 15) / 15) + 1);
+    // About (1000 - WARMUP - 15 - delay) seconds open, one trade per 15 + delay seconds.
+    expect(b15.n).toBeGreaterThan(15);
+    expect(b15.n).toBeLessThanOrEqual(Math.ceil((1000 - WARMUP - 15) / (15 + ENTRY_DELAY)) + 1);
     // A steady climb: the breakout wins and the fade loses, every time.
     expect(b15.wins).toBe(b15.n);
     expect(b15.bestWinStreak).toBe(b15.n);

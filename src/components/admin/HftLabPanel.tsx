@@ -30,7 +30,7 @@ export function HftLabPanel() {
     <AdminSection
       icon={<FlaskConical className="h-5 w-5 text-emerald-400" />}
       title="HFT lab"
-      subtitle="Nine quick-trade strategies at 15 seconds, 1, 2 and 5 minutes, scored every minute on live prices after Vantage's spread. It only watches: nothing here posts or copies a trade."
+      subtitle="Nine quick-trade strategies at 15 seconds, 1, 2 and 5 minutes, scored every minute on live prices after Vantage's spread, each opening 2 seconds after its signal like a real copied trade. It only watches: nothing here posts or copies a trade."
     >
       <div className="mb-3 flex flex-wrap gap-2">
         {Object.keys(MARKET_LABEL).map((m) => (
