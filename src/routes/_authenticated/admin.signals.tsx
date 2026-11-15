@@ -9,6 +9,8 @@ import { SignalsPortalPanel } from "@/components/admin/SignalsPortalPanel";
 import { SignalsChatResetPanel } from "@/components/admin/SignalsChatResetPanel";
 import { Mt5Panel } from "@/components/admin/Mt5Panel";
 import { TradingSwitchesPanel } from "@/components/admin/TradingSwitchesPanel";
+import { HftLabPanel } from "@/components/admin/HftLabPanel";
+import { LossAutopsyPanel } from "@/components/admin/LossAutopsyPanel";
 import { ToolSection } from "@/components/admin/ToolSection";
 import { SignalRecordPanel } from "@/components/admin/SignalRecordPanel";
 import { StrategyBoardPanel } from "@/components/admin/StrategyBoardPanel";
@@ -75,6 +77,18 @@ function Results() {
       >
         <SignalRecordPanel />
         <StrategyBoardPanel />
+      </ToolSection>
+      <ToolSection
+        title="Why trades lost"
+        desc="Each loss checked against what price did next, with the lesson for each strategy."
+      >
+        <LossAutopsyPanel />
+      </ToolSection>
+      <ToolSection
+        title="HFT lab"
+        desc="Quick-trade strategies scored every minute on live prices after the spread. Watch only."
+      >
+        <HftLabPanel />
       </ToolSection>
       <ToolSection
         title="Report"

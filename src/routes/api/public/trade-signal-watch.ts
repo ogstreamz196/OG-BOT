@@ -42,6 +42,10 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // The setups that weren't sent, followed silently for the Boss's report.
           const { followShadows } = await import("@/lib/signal-shadows.server");
           const shadows = await followShadows(supabaseAdmin);
+          // The HFT lab: every strategy and hold time scored on 1-second prices
+          // at Vantage's cost. Measures only, never posts.
+          const { maybeRunMicroLab } = await import("@/lib/micro-scalp.server");
+          const microlab = await maybeRunMicroLab(supabaseAdmin);
           // Signals chat quiet for an hour: OG B0T says it's bored, with a gold or BTC fact.
           const { maybeSignalsChatNudge } = await import("@/lib/og-idle-nudge.server");
           const idle = await maybeSignalsChatNudge(supabaseAdmin);
@@ -55,6 +59,10 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // market from how the setups it blocked (or let through) did.
           const { maybeStudyFilters } = await import("@/lib/signal-filter-learning.server");
           const filters = events === 0 ? await maybeStudyFilters(supabaseAdmin) : "busy";
+          // Why the losers lost: each stopped-out signal studied once its window
+          // has played out (stop too tight, stop was the entry, gave it back, wrong way).
+          const { maybeStudyLosses } = await import("@/lib/signal-autopsy.server");
+          const autopsy = events === 0 ? await maybeStudyLosses(supabaseAdmin) : "busy";
           return Response.json({
             ok: true,
             passes: passes.length,
@@ -71,6 +79,8 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             filters,
             spreads,
             shadows,
+            microlab,
+            autopsy,
           });
         } catch (e) {
           console.error("[signals] watch failed", e);
