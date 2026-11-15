@@ -14,6 +14,13 @@ type Admin = any;
  * random poster need). `chatId` is the signals chat (null when not set up).
  * `startedAt` bounds how long the AI desk may be asked, as in the cron.
  */
+/**
+ * How long into a run the AI desk may still be asked: an answer takes up to
+ * ~15 seconds and the cron gives a run 50, so 28 leaves room. Setups found
+ * later wait for the next run (noted as "desk_late" in the scan log).
+ */
+export const DESK_WINDOW_MS = 28_000;
+
 export async function buildScanDeps(
   admin: Admin,
   opts: { chatId: number | null; startedAt: number },
@@ -169,7 +176,7 @@ export async function buildScanDeps(
 
   const confirm = deskConfirmer(admin, (ask) => budgeted(ask, false), {
     now: Date.now,
-    askUntil: startedAt + 20_000,
+    askUntil: startedAt + DESK_WINDOW_MS,
     onVeto: (s) => recordShadow(admin, s.summary, "desk_no"),
     skipDesk: async (market) => {
       const { relaxedFilters } = await import("./signal-filter-learning.server");

@@ -16,7 +16,20 @@ import {
   type CopySettings,
   type LotBand,
 } from "./copy-feed";
-import { STRATEGY_KEYS, type EngineConfig, type StrategyToggles } from "./engine-config";
+import {
+  GROUP_LABEL,
+  STRATEGY_KEYS,
+  type EngineConfig,
+  type GroupSwitches,
+  type StrategyToggles,
+} from "./engine-config";
+
+/**
+ * The signals group's switchboard on this card (the Boss, 2026-11-15): the
+ * group switches and the scan log's status lines. Optional, so the card still
+ * draws without them.
+ */
+export type Board = { group: GroupSwitches; status: string[] };
 
 type Admin = any;
 
@@ -76,6 +89,7 @@ export function panelText(
   s: CopySettings,
   strategies: StrategyToggles = noStrategies,
   note?: string,
+  board?: Board,
 ): string {
   const markets = marketsOf(s);
   // A fixed lot still shows (set by the /lot command); the bands are the buttons.
@@ -90,6 +104,16 @@ export function panelText(
           }. Tap a range below to set yours.`;
   return [
     ...(note ? [note, ""] : []),
+    ...(board
+      ? [
+          "📡 SIGNALS GROUP (this card is the switchboard)",
+          `${board.group.posting ? "✅ ON" : "⛔️ OFF"} — ${GROUP_LABEL.posting}${board.group.posting ? "" : ": nothing is posted to the group"}`,
+          `${board.group.gold ? "✅ ON" : "⬜️ OFF"} — ${GROUP_LABEL.gold}   ${board.group.bitcoin ? "✅ ON" : "⬜️ OFF"} — ${GROUP_LABEL.bitcoin}`,
+          `${board.group.deskCheck ? "✅ ON" : "⬜️ OFF"} — ${GROUP_LABEL.deskCheck}${s.hft ? " (skipped while high-frequency is on)" : ""}`,
+          ...board.status.map((l) => `• ${l}`),
+          "",
+        ]
+      : []),
     "⚙️ COPIER SETTINGS",
     "Every copier using your token follows these within seconds.",
     "",
@@ -120,11 +144,29 @@ type Button = { text: string; callback_data: string };
 export function panelKeyboard(
   s: CopySettings,
   strategies: StrategyToggles = noStrategies,
+  board?: Board,
 ): { inline_keyboard: Button[][] } {
   const tick = (on: boolean, label: string) => `${on ? "✅ " : ""}${label}`;
   const markets = marketsOf(s);
+  const g = board?.group;
+  const flip = (k: keyof GroupSwitches, label: string) => ({
+    text: `${label}: ${g![k] ? "ON" : "OFF"}`,
+    callback_data: `eg:${k}:${g![k] ? "off" : "on"}`,
+  });
   return {
     inline_keyboard: [
+      // The signals group's switchboard first: what the signals bot posts.
+      ...(g
+        ? [
+            [
+              g.posting
+                ? { text: "📡 Group posting: ON · tap to stop", callback_data: "eg:posting:off" }
+                : { text: "📡 Group posting: OFF · tap to start", callback_data: "eg:posting:on" },
+            ],
+            [flip("gold", "🥇 Gold"), flip("bitcoin", "₿ Bitcoin")],
+            [flip("deskCheck", "🧠 AI desk check")],
+          ]
+        : []),
       [
         s.paused
           ? { text: "▶️ Resume copying", callback_data: "cs:resume" }
@@ -414,16 +456,32 @@ async function loadStrategies(admin: Admin): Promise<StrategyToggles> {
     return noStrategies;
   }
 }
-const card = (s: CopySettings, strat: StrategyToggles, note?: string): Panel => ({
-  text: panelText(s, strat, note),
-  reply_markup: panelKeyboard(s, strat),
+/** The switchboard: the group switches and the scan log's status. Never throws. */
+export async function loadBoard(admin: Admin, now = Date.now()): Promise<Board | undefined> {
+  try {
+    const { engineConfig } = await import("./engine-config.server");
+    const { loadScanLog } = await import("./signal-scan-log.server");
+    const { scanStatus } = await import("./signal-scan-log");
+    const [cfg, log] = await Promise.all([engineConfig(), loadScanLog(admin)]);
+    return { group: cfg.group, status: scanStatus(log, now) };
+  } catch {
+    return undefined;
+  }
+}
+const card = (s: CopySettings, strat: StrategyToggles, note?: string, board?: Board): Panel => ({
+  text: panelText(s, strat, note, board),
+  reply_markup: panelKeyboard(s, strat, board),
 });
 
 /** The copier settings and the strategy switches, for the website's Trading switches card. */
 export async function copierState(
   admin: Admin,
-): Promise<{ settings: CopySettings; strategies: StrategyToggles }> {
-  return { settings: await loadSettings(admin), strategies: await loadStrategies(admin) };
+): Promise<{ settings: CopySettings; strategies: StrategyToggles; board?: Board }> {
+  return {
+    settings: await loadSettings(admin),
+    strategies: await loadStrategies(admin),
+    board: await loadBoard(admin),
+  };
 }
 
 /**
@@ -436,7 +494,28 @@ export async function applyCopierAction(
   admin: Admin,
   userId: string,
   data: string,
-): Promise<{ ok: boolean; toast: string; settings: CopySettings; strategies: StrategyToggles }> {
+): Promise<{
+  ok: boolean;
+  toast: string;
+  settings: CopySettings;
+  strategies: StrategyToggles;
+  board?: Board;
+}> {
+  if (data.startsWith("eg:")) {
+    const { engineConfig, saveEngineConfig } = await import("./engine-config.server");
+    const { applyGroupTap } = await import("./engine-config");
+    const cfg: EngineConfig = await engineConfig();
+    const { next, toast } = applyGroupTap(cfg, data);
+    const settings = await loadSettings(admin);
+    const saved = next ? await saveEngineConfig(admin, next, userId).catch(() => null) : null;
+    return {
+      ok: !!saved,
+      toast: !next ? toast || "No change" : saved ? toast : "Couldn't save that. Try again.",
+      settings,
+      strategies: (saved ?? cfg).strategies,
+      board: await loadBoard(admin),
+    };
+  }
   if (data.startsWith("es:")) {
     const { engineConfig, saveEngineConfig } = await import("./engine-config.server");
     const { applyStrategyTap } = await import("./engine-strategies-bot.server");
@@ -481,12 +560,13 @@ export async function copySettingsReply(
   if (!boss.ok) return null;
   const current = await loadSettings(admin);
   const strat = await loadStrategies(admin);
-  if (cmd === "settings" || cmd === "copysettings") return card(current, strat);
+  const board = await loadBoard(admin);
+  if (cmd === "settings" || cmd === "copysettings") return card(current, strat, undefined, board);
   const { next, reply } = applyCommand(current, text);
-  if (!next) return card(current, strat, reply);
+  if (!next) return card(current, strat, reply, board);
   const saved = await saveSettings(admin, boss.userId, next, cmd);
   const shown = saved ? next : current;
-  return card(shown, strat, saved ? reply : "⚠️ Couldn't save that. Try again in a minute.");
+  return card(shown, strat, saved ? reply : "⚠️ Couldn't save that. Try again in a minute.", board);
 }
 
 /**
@@ -503,6 +583,21 @@ export async function copySettingsTap(
   );
   if (!boss.ok) return { toast: "Only the Boss can change these.", panel: null };
 
+  // A switchboard tap (eg:…) edits the signals group's switches in the engine config.
+  if (data.startsWith("eg:")) {
+    const { engineConfig, saveEngineConfig } = await import("./engine-config.server");
+    const { applyGroupTap } = await import("./engine-config");
+    const cfg: EngineConfig = await engineConfig();
+    const { next: nextCfg, toast } = applyGroupTap(cfg, data);
+    const settings = await loadSettings(admin);
+    if (nextCfg) await saveEngineConfig(admin, nextCfg, boss.userId).catch(() => null);
+    const board = await loadBoard(admin);
+    return {
+      toast: nextCfg ? `✅ ${toast}` : toast || "Up to date",
+      panel: card(settings, cfg.strategies, undefined, board),
+    };
+  }
+  const board = await loadBoard(admin);
   // A strategy switch (es:…) edits the engine config, not the copier settings.
   if (data.startsWith("es:")) {
     const { engineConfig, saveEngineConfig } = await import("./engine-config.server");
@@ -510,21 +605,25 @@ export async function copySettingsTap(
     const cfg: EngineConfig = await engineConfig();
     const { next: nextCfg, toast } = applyStrategyTap(cfg, data);
     const settings = await loadSettings(admin);
-    if (!nextCfg) return { toast: toast || "Up to date", panel: card(settings, cfg.strategies) };
+    if (!nextCfg)
+      return {
+        toast: toast || "Up to date",
+        panel: card(settings, cfg.strategies, undefined, board),
+      };
     const saved = await saveEngineConfig(admin, nextCfg, boss.userId).catch(() => null);
     const strat = (saved ?? cfg).strategies;
     return {
       toast: saved ? `✅ ${toast}` : "⚠️ Couldn't save that. Try again.",
-      panel: card(settings, strat),
+      panel: card(settings, strat, undefined, board),
     };
   }
 
   const current = await loadSettings(admin);
   const strat = await loadStrategies(admin);
   const { next, toast } = applyPanelAction(current, data);
-  if (data === "cs:refresh") return { toast, panel: card(current, strat) };
+  if (data === "cs:refresh") return { toast, panel: card(current, strat, undefined, board) };
   if (!next) return { toast, panel: null };
   if (!(await saveSettings(admin, boss.userId, next, data)))
     return { toast: "⚠️ Couldn't save that. Try again.", panel: null };
-  return { toast: `✅ ${toast}`, panel: card(next, strat) };
+  return { toast: `✅ ${toast}`, panel: card(next, strat, undefined, board) };
 }

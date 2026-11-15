@@ -54,6 +54,33 @@ export const BOSS_SWITCHES: readonly BossSwitch[] = [
 
   // Trading
   {
+    name: "Signals group posting",
+    on: "The signals bot posts alerts to the signals group (and so the copiers trade them).",
+    off: "Nothing is posted to the group and no new trades are copied; the scan still logs what it saw.",
+    area: "Trading",
+    where: "Copy Trader B0T card › Signals group, or Signals › Controls › Trading switches",
+    to: "/admin/signals",
+    tab: "controls",
+  },
+  {
+    name: "Gold / Bitcoin signals",
+    on: "Alerts for that market are posted to the group.",
+    off: "That market's alerts are not posted.",
+    area: "Trading",
+    where: "Copy Trader B0T card › Signals group, or Signals › Controls › Trading switches",
+    to: "/admin/signals",
+    tab: "controls",
+  },
+  {
+    name: "AI desk double-check",
+    on: "Engine alerts wait for the AI desk to agree before posting (10-20 seconds; skipped in high-frequency).",
+    off: "Engine alerts post as soon as they pass the confidence floor and the gate.",
+    area: "Trading",
+    where: "Copy Trader B0T card › Signals group, or Signals › Controls › Trading switches",
+    to: "/admin/signals",
+    tab: "controls",
+  },
+  {
     name: "MT5 auto-trade",
     on: "Signals at 70% or more are placed on your MT5 account automatically.",
     off: "Nothing is placed on MT5 by the website. Signals still post.",
@@ -73,7 +100,7 @@ export const BOSS_SWITCHES: readonly BossSwitch[] = [
   },
   {
     name: "High-frequency (HFT)",
-    on: "Faster checks, at least 10 trades running, no cap, lots at the top of your range (gold only above $400 balance).",
+    on: "No cap on trades at once, shorter waits, alerts don't wait for the AI desk, the strategy steps look three times a minute, lots at the top of your range (gold only above $400). The confidence floor stays.",
     off: "Normal pace, up to your trade limit, lot by signal strength.",
     area: "Trading",
     where: "Signals › Controls › Trading switches (also on the Copy Trader B0T card)",

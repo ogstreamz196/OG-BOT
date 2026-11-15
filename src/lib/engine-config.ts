@@ -41,11 +41,71 @@ export type StrategyToggles = {
   /** Run the proven patterns alongside the engine, not only when it says wait. */
   patternsAlongside: boolean;
 };
+/**
+ * The signals group's switchboard (the Boss, 2026-11-15: "make the copy trade
+ * bot act like the switchboard for the signal group"). Set from the Copy
+ * Trader B0T's card or the website; every post goes through postOnce, which
+ * obeys these. All on by default, so posting is unchanged until one is
+ * flipped.
+ */
+export type GroupSwitches = {
+  /** The signals bot posts to the group at all. */
+  posting: boolean;
+  /** Gold alerts. */
+  gold: boolean;
+  /** Bitcoin alerts. */
+  bitcoin: boolean;
+  /**
+   * Engine alerts wait for the AI desk to back them. High-frequency mode skips
+   * the wait either way (it takes 10-20 seconds). The confidence floor and the
+   * posting gate never change.
+   */
+  deskCheck: boolean;
+};
 export type EngineConfig = {
   gate: GateConfig;
   concurrency: ConcurrencyConfig;
   strategies: StrategyToggles;
+  group: GroupSwitches;
 };
+
+/** The group switches in the order the card shows them. */
+export const GROUP_KEYS: readonly (keyof GroupSwitches)[] = [
+  "posting",
+  "gold",
+  "bitcoin",
+  "deskCheck",
+];
+export const GROUP_LABEL: Record<keyof GroupSwitches, string> = {
+  posting: "📡 Signals group posting",
+  gold: "🥇 Gold signals",
+  bitcoin: "₿ Bitcoin signals",
+  deskCheck: "🧠 AI desk double-check",
+};
+
+/** Whether the group switches let an alert for this market out now. Pure. */
+export function groupAllows(g: GroupSwitches, market: string): boolean {
+  if (!g.posting) return false;
+  if (market.startsWith("XAU")) return g.gold;
+  if (market.startsWith("BTC")) return g.bitcoin;
+  return true;
+}
+
+/**
+ * One tap on a group switch ("eg:<key>:on|off"): the new config and the toast,
+ * or next null when nothing changes. Pure.
+ */
+export function applyGroupTap(
+  current: EngineConfig,
+  data: string,
+): { next: EngineConfig | null; toast: string } {
+  const [, key, val] = data.split(":");
+  if (!(GROUP_KEYS as readonly string[]).includes(key) || (val !== "on" && val !== "off"))
+    return { next: null, toast: "" };
+  const on = val === "on";
+  const next = cleanEngineConfig({ ...current, group: { ...current.group, [key]: on } });
+  return { next, toast: `${GROUP_LABEL[key as keyof GroupSwitches]}: ${on ? "ON" : "OFF"}` };
+}
 
 /** The strategy toggles in the order the Telegram card shows them. */
 export const STRATEGY_KEYS: readonly (keyof StrategyToggles)[] = [
@@ -81,6 +141,8 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     rangeHedge: false,
     patternsAlongside: false,
   },
+  // All on: the group posts as it always has until the Boss flips one.
+  group: { posting: true, gold: true, bitcoin: true, deskCheck: true },
 };
 
 /**
@@ -144,10 +206,12 @@ export function cleanEngineConfig(input: unknown): EngineConfig {
     gate?: Record<string, unknown>;
     concurrency?: Record<string, unknown>;
     strategies?: Record<string, unknown>;
+    group?: Record<string, unknown>;
   };
   const g = src.gate ?? {};
   const c = src.concurrency ?? {};
   const st = src.strategies ?? {};
+  const gr = src.group ?? {};
   const d = DEFAULT_ENGINE_CONFIG;
   const gb = ENGINE_BOUNDS.gate;
   const cb = ENGINE_BOUNDS.concurrency;
@@ -178,6 +242,12 @@ export function cleanEngineConfig(input: unknown): EngineConfig {
       hedges: bool(st.hedges, d.strategies.hedges),
       rangeHedge: bool(st.rangeHedge, d.strategies.rangeHedge),
       patternsAlongside: bool(st.patternsAlongside, d.strategies.patternsAlongside),
+    },
+    group: {
+      posting: bool(gr.posting, d.group.posting),
+      gold: bool(gr.gold, d.group.gold),
+      bitcoin: bool(gr.bitcoin, d.group.bitcoin),
+      deskCheck: bool(gr.deskCheck, d.group.deskCheck),
     },
   };
 }
