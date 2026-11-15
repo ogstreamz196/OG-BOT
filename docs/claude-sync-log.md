@@ -299,7 +299,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-15 · #PRNUM** · VIP renamed OG B0T PRO in
+- **Boss's Claude · 2026-11-15 · #304** · VIP renamed OG B0T PRO in
   everything users and the Boss see (242 lines over 62 files, store first;
   a browser audit of the store, home, settings, chat, Battle Zone, sports,
   referrals, purchases, terms and Boss pages found no "VIP" left). Code
