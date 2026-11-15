@@ -51,6 +51,7 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             bot.role === "copy" &&
             (press.data?.startsWith("cs:") ||
               press.data?.startsWith("es:") ||
+              press.data?.startsWith("eg:") ||
               press.data?.startsWith("mt:") ||
               press.data?.startsWith("ck:")) &&
             press.message
@@ -65,7 +66,7 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               extra?: string;
             } = { toast: "⚠️ Something went wrong. Try again.", panel: null };
             // "mt:" is the manual trade card; "ck:" the copier users cards;
-            // "cs:"/"es:" the settings card.
+            // "cs:"/"es:"/"eg:" the settings card (eg: the signals group switchboard).
             // "ck:me:" is a user's own copier card (anyone with access, not only the Boss).
             const res: typeof fallback = press.data.startsWith("ck:me:")
               ? await (

@@ -17,7 +17,11 @@ async function assertBoss(context: { supabase: unknown; userId: string }) {
   if (!admin.data && !boss.data) throw new Error("Forbidden");
 }
 
-export type TradingSwitches = { settings: CopySettings; strategies: StrategyToggles };
+export type TradingSwitches = {
+  settings: CopySettings;
+  strategies: StrategyToggles;
+  board?: import("./copy-settings-bot.server").Board;
+};
 
 /**
  * The website may only send the copier card's own switch actions: pause or
@@ -32,7 +36,8 @@ export function allowedAction(a: unknown): a is string {
       /^cs:mk:(XAUUSD|BTCUSD)$/.test(a) ||
       /^cs:open:(-1|1)$/.test(a) ||
       /^cs:(stop|hft):(on|off)$/.test(a) ||
-      /^es:(sniper|hedges|rangeHedge|patternsAlongside):(on|off)$/.test(a))
+      /^es:(sniper|hedges|rangeHedge|patternsAlongside):(on|off)$/.test(a) ||
+      /^eg:(posting|gold|bitcoin|deskCheck):(on|off)$/.test(a))
   );
 }
 

@@ -299,6 +299,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-15 · #PRNUM** · Signals group switchboard on the
+  Copy Trader B0T card (and the website): group posting, gold, bitcoin and
+  the AI desk check (`EngineConfig.group`, taps `eg:`), obeyed by postOnce
+  for every post. High-frequency now skips the desk wait (floor and gate
+  unchanged); the desk window is 28 s per run and late setups are logged,
+  not silently dropped. New scan log (`signals.scanlog`) with each setup's
+  outcome per run, shown as status lines on the card, so "why no signals"
+  has an answer. No migrations.
+
 - **Boss's Claude · 2026-11-15 · #305** · Re-check of #303 (the Boss
   asked). Found and fixed: the lab credited half a spread too much on every
   take profit and stop (a buy fills at the ask and closes at the bid: tp

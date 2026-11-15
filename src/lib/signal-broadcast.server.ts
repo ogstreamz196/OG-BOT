@@ -84,6 +84,13 @@ type PostDeps = {
   shadow?: (signal: Built, reason: ShadowReason) => Promise<void>;
   follow?: (signal: Built, messageId: number, card: string) => Promise<void>;
   now: () => number;
+  /**
+   * After this time the AI desk isn't asked in this run (it would overrun the
+   * cron's time); an alert that needed it is noted as "desk_late".
+   */
+  deskUntil?: number;
+  /** Notes what happened to each setup, for the scan log (signal-scan-log.ts). */
+  note?: (n: import("./signal-scan-log").ScanNote) => void;
 };
 
 export type ScanDeps = PostDeps & {
@@ -144,6 +151,7 @@ export async function scanAndBroadcast(
       signal = await deps.build(signalRequest(pair, frame));
     } catch (e) {
       console.warn(`[signals] scan of ${pair} ${frame} failed`, e);
+      deps.note?.({ market: pair, frame, outcome: "build_failed" });
       continue;
     }
     checked++;
@@ -153,6 +161,12 @@ export async function scanAndBroadcast(
       const { waitReasonKind } = await import("./signal-shadows.server");
       const why = waitReasonKind(signal.summary?.waitReason);
       if (why && deps.shadow) await deps.shadow(signal, why);
+      deps.note?.({
+        market: pair,
+        frame,
+        outcome: "waiting",
+        detail: (signal.summary?.waitReason ?? why ?? "no setup").slice(0, 120),
+      });
       continue;
     }
     const bar = deps.alertBar
@@ -160,6 +174,13 @@ export async function scanAndBroadcast(
       : BROADCAST_MIN_CONFIDENCE;
     if (plan.confidencePct < bar) {
       if (deps.shadow) await deps.shadow(signal, "below_alert");
+      deps.note?.({
+        market: plan.market,
+        frame,
+        outcome: "below_bar",
+        confidence: plan.confidencePct,
+        detail: `needs ${bar}%`,
+      });
       continue;
     }
     if (await postOnce(admin, deps, signal, (s) => channelCard(s.reply, plan.confidencePct), true))
@@ -315,6 +336,24 @@ async function postOnce(
   let signal = found;
   const plan = signal.plan;
   if (!plan) return false;
+  const note = (outcome: import("./signal-scan-log").ScanOutcome, detail?: string) =>
+    deps.note?.({
+      market: plan.market,
+      frame: frameOf(signal.summary?.timeframe),
+      outcome,
+      confidence: plan.confidencePct,
+      ...(detail ? { detail: detail.slice(0, 120) } : {}),
+    });
+  // The engine config: the posting limits and the signals group's switchboard
+  // (set from the Copy Trader B0T's card or the website).
+  const engineCfg = await import("./engine-config.server")
+    .then((m) => m.engineConfig())
+    .catch(() => DEFAULT_ENGINE_CONFIG);
+  const { groupAllows } = await import("./engine-config");
+  if (!groupAllows(engineCfg.group, plan.market)) {
+    note("switched_off");
+    return false;
+  }
   const nowIso = new Date(deps.now()).toISOString();
   // Alerts from before the Boss's last purge of the chat don't count any more.
   const { chatPurgedAt } = await import("./signal-chat.server");
@@ -330,14 +369,12 @@ async function postOnce(
   // Without the table there's no way to tell repeats apart: post nothing.
   if (error) {
     console.warn("[signals] broadcast check failed", error.message);
+    note("check_failed");
     return false;
   }
   // Several trades can run at once, but not the same setup twice. The limits
   // (per-market cap, concurrency bar, gaps, cooldown) come from the Boss's
   // engine config, falling back to the defaults = the original constants.
-  const engineCfg = await import("./engine-config.server")
-    .then((m) => m.engineConfig())
-    .catch(() => DEFAULT_ENGINE_CONFIG);
   // High-frequency mode (the copier card's switch): no cap on trades at once
   // and shorter waits; the gate and "not the same setup twice" stay.
   const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
@@ -351,8 +388,10 @@ async function postOnce(
       deps.now(),
       hft ? hftConcurrency(engineCfg.concurrency) : engineCfg.concurrency,
     ))
-  )
+  ) {
+    note("no_room");
     return false;
+  }
 
   // Only what's most likely to win goes out (signal-gate.ts); the rest is
   // followed silently, so learning still sees it. Before the desk, so a
@@ -360,19 +399,33 @@ async function postOnce(
   const held = deps.gate ? await deps.gate(signal).catch(() => null) : null;
   if (held) {
     await deps.shadow?.(signal, "losing_record").catch(() => undefined);
+    note("held", held);
     return false;
   }
-  // Every AI works with the chart engine: an engine alert only goes out when
-  // the desk backs it (asked only now, so repeats never cost an AI call).
-  if (askDesk && deps.confirm) {
+  // Every AI works with the chart engine: an engine alert goes out when the
+  // desk backs it (asked only now, so repeats never cost an AI call). The
+  // Boss can switch the double-check off, and high-frequency mode skips it
+  // (it takes 10-20 seconds); the floor and the gate above always apply.
+  if (askDesk && deps.confirm && engineCfg.group.deskCheck && !hft) {
+    if (deps.deskUntil && deps.now() > deps.deskUntil) {
+      note("desk_late");
+      return false;
+    }
     const backed = await deps.confirm(signal);
-    if (!backed?.plan || backed.plan.direction !== plan.direction) return false;
+    if (!backed?.plan || backed.plan.direction !== plan.direction) {
+      note("desk_no");
+      return false;
+    }
     signal = backed;
   }
   if (deps.paper) signal = await deps.paper(signal).catch(() => signal);
   const text = card(signal);
   const messageId = await deps.post(text);
-  if (messageId === null) return false;
+  if (messageId === null) {
+    note("not_sent");
+    return false;
+  }
+  note("posted");
   await deps.follow?.(signal, messageId, text);
   await admin.from(POSTS).insert({
     market: plan.market,

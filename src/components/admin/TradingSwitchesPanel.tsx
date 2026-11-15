@@ -21,6 +21,34 @@ type Row = {
   action: (next: boolean) => string;
 };
 
+/** The signals group's switchboard: what the signals bot posts at all. */
+const GROUP: Row[] = [
+  {
+    label: "Signals group posting",
+    hint: "Off stops every post to the signals group (and so every copied trade).",
+    on: (s) => s.board?.group.posting ?? true,
+    action: (v) => `eg:posting:${v ? "on" : "off"}`,
+  },
+  {
+    label: "Gold signals",
+    hint: "Post gold alerts to the group.",
+    on: (s) => s.board?.group.gold ?? true,
+    action: (v) => `eg:gold:${v ? "on" : "off"}`,
+  },
+  {
+    label: "Bitcoin signals",
+    hint: "Post bitcoin alerts to the group.",
+    on: (s) => s.board?.group.bitcoin ?? true,
+    action: (v) => `eg:bitcoin:${v ? "on" : "off"}`,
+  },
+  {
+    label: "AI desk double-check",
+    hint: "Engine alerts wait for the AI desk to agree (10-20 seconds). Skipped while high-frequency is on. The confidence floor never changes.",
+    on: (s) => s.board?.group.deskCheck ?? true,
+    action: (v) => `eg:deskCheck:${v ? "on" : "off"}`,
+  },
+];
+
 const COPYING: Row[] = [
   {
     label: "Copying new trades",
@@ -94,7 +122,11 @@ export function TradingSwitchesPanel() {
   const flip = useMutation({
     mutationFn: (action: string) => set({ data: { action } }),
     onSuccess: (r) => {
-      qc.setQueryData(KEY, { settings: r.settings, strategies: r.strategies });
+      qc.setQueryData(KEY, {
+        settings: r.settings,
+        strategies: r.strategies,
+        board: r.board ?? qc.getQueryData<TradingSwitches>(KEY)?.board,
+      });
       if (r.ok) toast.success(r.toast);
       else toast(r.toast);
     },
@@ -135,7 +167,7 @@ export function TradingSwitchesPanel() {
     <AdminSection
       icon={<SlidersHorizontal className="h-5 w-5 text-emerald-400" />}
       title="Trading switches"
-      subtitle="The same switches as the Copy Trader B0T's ⚙️ Copier settings. Changing one here changes it there too, within seconds."
+      subtitle="The switchboard for the signals group and the copier: the same switches as the Copy Trader B0T's ⚙️ Copier settings card. Changing one here changes it there too, within seconds."
       action={busy ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
     >
       {q.isError ? (
@@ -144,6 +176,25 @@ export function TradingSwitchesPanel() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <div className="space-y-5">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Signals group
+            </h3>
+            {s.board?.status.length ? (
+              <ul className="mt-1 space-y-0.5 rounded-lg border border-border bg-card/60 p-2 text-xs">
+                {s.board.status.map((l) => (
+                  <li
+                    key={l}
+                    className={l.startsWith("⚠️") ? "text-amber-300" : "text-foreground/90"}
+                  >
+                    {l}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {rows(GROUP)}
+          </div>
+
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Copying
