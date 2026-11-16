@@ -292,12 +292,12 @@ export function trailOf(row: { feeds: { trail?: { risk: number; stop?: number } 
 /** The signal's profit lock levels, when it has the lock. */
 export function lockOf(
   row: Pick<Row, "direction" | "entry" | "tp1"> & {
-    feeds: { lock?: boolean; tp0?: number; hedge?: boolean } | null;
+    feeds: { lock?: boolean; tp0?: number; hedge?: boolean; reversal?: boolean } | null;
   },
 ): { trigger: number; stop: number } | null {
   // A hedge moves its stop to break-even at 0.5R. Its take profit is exactly
   // 1R out, so the half-R trigger is halfway from the entry to it.
-  if (row.feeds?.hedge) {
+  if (row.feeds?.hedge || row.feeds?.reversal) {
     const entry = Number(row.entry);
     const side = row.direction === "BUY" ? 1 : -1;
     const r = Math.abs(Number(row.tp1) - entry);
@@ -891,7 +891,9 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         let armed = false;
         // A hedge keeps its one fixed 1R target (its break-even is measured
         // from it), so it never turns into a trail or moves its take profit.
-        const isHedge = !!(row.feeds as { hedge?: boolean } | null)?.hedge;
+        // A quick reversal keeps its one target the same way.
+        const quick = row.feeds as { hedge?: boolean; reversal?: boolean } | null;
+        const isHedge = !!(quick?.hedge || quick?.reversal);
         if (
           status === "open" &&
           singleTarget(row) &&

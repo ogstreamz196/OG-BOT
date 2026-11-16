@@ -1075,3 +1075,93 @@ export async function maybeAlongside(
     return "failed: error";
   }
 }
+
+/* ── Reversals (high-frequency mode only) ─────────────────────────────────── */
+
+const reversalTryKey = (market: string) => `signals.reversal.lastTry.${market}`;
+/** Quick reversal trades a market may run at once in high-frequency mode. */
+export const REVERSALS_PER_MARKET = 2;
+
+/** The reversal card's line. Pure. */
+export function tagReversal(card: string, setup?: unknown): string {
+  const name = typeof setup === "string" && setup ? setup : "a reversal";
+  return `${card}\n🔄 Reversal: ${name}, one 1R target, stop to my entry at 0.5R`;
+}
+
+/** Whether a market has room for another reversal (fewer than REVERSALS_PER_MARKET running). Pure. */
+export function reversalRoom(running: { reversal?: boolean }[]): boolean {
+  return running.filter((r) => r.reversal).length < REVERSALS_PER_MARKET;
+}
+
+/**
+ * The reversal step (the Boss, 2026-11-16: "include reversals … when the HFT
+ * toggle is on"). Only in high-frequency mode. For each market with room for
+ * another reversal, at most every stepEveryMs (20s), it asks the 5-minute
+ * chart for the surest reversal setup showing now on either side
+ * (buildTradeSignal "reversal": sweep & reclaim, wick rejection, exhaustion,
+ * built like a hedge with one 1R target and break-even at 0.5R) and posts it
+ * through postOnce: the same room and repeat checks and the gate, at the
+ * hedge floor since reversals score lower by design. Never throws.
+ */
+export async function maybeReversalSignal(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    if (!hft) return "off";
+    const { stepEveryMs } = await import("./engine-config");
+    const now = deps.now();
+    const { chatPurgedAt } = await import("./signal-chat.server");
+    const purgedAt = await chatPurgedAt().catch(() => null);
+    const purgedMs = purgedAt == null ? 0 : new Date(purgedAt).getTime() || 0;
+    const since = Math.max(purgedMs, now - 12 * 3600_000);
+    const { data } = await admin
+      .from("trade_signals")
+      .select("market, feeds")
+      .eq("sender_worker", "trade")
+      .in("status", ["pending", "open", "tp1", "tp2"])
+      .gte("created_at", new Date(since).toISOString())
+      .limit(200);
+    const rows = (data ?? []) as { market: string; feeds: { reversal?: boolean } | null }[];
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      if (
+        !reversalRoom(
+          rows.filter((r) => r.market === market).map((r) => ({ reversal: !!r.feeds?.reversal })),
+        )
+      )
+        continue;
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", reversalTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < stepEveryMs(true)) continue;
+      const at = new Date(now).toISOString();
+      await admin
+        .from("site_content")
+        .upsert({ key: reversalTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
+      const signal = await deps.build(`${signalRequest(pair, "5m")} reversal`);
+      const plan = signal.plan;
+      if (!plan?.feeds?.reversal) {
+        out.push(`${market}: no reversal`);
+        continue;
+      }
+      if (plan.confidencePct < HEDGE_MIN_CONFIDENCE) {
+        out.push(`${market} ${plan.direction}: only ${plan.confidencePct}%`);
+        continue;
+      }
+      const posted = await postOnce(admin, deps, signal, (s) =>
+        tagReversal(compactCard(s.reply), s.plan?.feeds?.setup),
+      );
+      out.push(`${market} ${plan.direction}: ${posted ? "posted" : "not posted"}`);
+    }
+    return out.length ? out.join("; ") : "not due";
+  } catch (e) {
+    console.warn("[signals] reversal step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}

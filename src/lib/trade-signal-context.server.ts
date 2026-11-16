@@ -830,11 +830,14 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // and only them (a wait when none shows), so the engine's own trade is never
   // posted twice.
   const alongside = /\balongside\b/.test(userText);
+  // "reversal" (the scan's reversal step, high-frequency mode): the surest
+  // reversal setup showing now, on either side, as its own quick trade.
+  const reversalAsk = /\breversal\b/.test(userText);
   // "manual:<BUY|SELL>:<stop distance>:<target distance>" (the Boss's manual
   // trade from the Copy Trader B0T, manual-trade.server.ts): a market trade
   // at the price now with those distances. Members never send it.
   const manualAsk = /\bmanual:(BUY|SELL):([\d.]+):([\d.]+)\b/.exec(userText);
-  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}${alongside ? ":alongside" : ""}${manualAsk ? `:${manualAsk[0]}` : ""}`;
+  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}${alongside ? ":alongside" : ""}${reversalAsk ? ":reversal" : ""}${manualAsk ? `:${manualAsk[0]}` : ""}`;
   const hit = cache.get(key);
   // Not past the close of a new entry candle, so a fresh setup is never hidden.
   if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
@@ -1080,6 +1083,34 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       : undefined;
     const fromHedge = hit ? hedgePlan(plan, hit, live) : null;
     plan = fromHedge ?? { ...plan, verdict: "wait", waitReason: "No hedge setup showing" };
+  } else if (reversalAsk) {
+    // A reversal on either side (high-frequency mode): the surest of the
+    // reversal setups showing now (HEDGE_SETUPS: sweep & reclaim, wick
+    // rejection, exhaustion), built like a hedge (market entry, one 1R
+    // target, break-even at 0.5R) but its own trade, not a hedge.
+    const { findSetups, hedgePlan, HEDGE_SETUPS, SETUP_NAMES } = await import("./trade-setups");
+    const { chartTrend } = await import("./signal-frame-setups.server");
+    const closed = entryCandles.filter((c) => c.t + FRAME_MS[entryIv] <= Date.now());
+    const trend = entryIv === "5m" ? hi.bias : chartTrend(closed);
+    const open =
+      SETUP_FRAMES.includes(entryIv) &&
+      !spotUnconfirmed &&
+      !sitOut &&
+      !/\bclosed\b/i.test(plan.waitReason ?? "");
+    const hit = open
+      ? findSetups(closed, trend)
+          .filter((h) => HEDGE_SETUPS.includes(h.id))
+          .sort((x, y) => y.confidencePct - x.confidencePct)[0]
+      : undefined;
+    const built = hit ? hedgePlan(plan, hit, live) : null;
+    plan = built
+      ? {
+          ...built,
+          hedge: false,
+          reversal: true,
+          entryNote: `Reversal (${SETUP_NAMES[hit!.id]})`,
+        }
+      : { ...plan, verdict: "wait", waitReason: "No reversal showing" };
   } else if (forced) {
     // Only the one setup asked for, if it's showing on this chart right now.
     const { findSetups, setupPlan, SETUP_NAMES } = await import("./trade-setups");
@@ -1415,6 +1446,8 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       // A counter-trend hedge: the tracker's break-even at 0.5R (lockOf) and
       // the copier's own-ticket handling read this.
       ...(plan.hedge ? { hedge: true } : {}),
+      // A quick reversal (high-frequency mode): break-even at 0.5R like a hedge.
+      ...(plan.reversal ? { reversal: true } : {}),
       ...(plan.rangeHedge ? { rangeHedge: true } : {}),
       // Posted beside the engine's own trade (patterns alongside).
       ...(plan.alongside ? { alongside: true } : {}),
