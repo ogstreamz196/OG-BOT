@@ -90,7 +90,13 @@ describe("typed commands still work", () => {
       bossKeyboard("⚡ Generate BTC Signal Now")
         .keyboard.flat()
         .map((b) => b.text),
-    ).toEqual([OPEN_BUTTON, "✋ Manual trade", "👥 Copier users", "⚡ Generate BTC Signal Now"]);
+    ).toEqual([
+      OPEN_BUTTON,
+      "✋ Manual trade",
+      "👥 Copier users",
+      "🧹 Purge & reset",
+      "⚡ Generate BTC Signal Now",
+    ]);
   });
 });
 
