@@ -76,8 +76,9 @@ add to it before merging. See `CLAUDE.md` for the routine.
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
 - **Boss's Claude (2026-11-16, HFT extras):** the Boss asked for four
-  high-frequency-only additions, one merge each: reversals (#309), long
-  holds (#310) and more hedging (#311) done; next a higher HFT rate.
+  high-frequency-only additions, one merge each: all four done: reversals (#309),
+  long holds (#310), more hedging (#311), higher rate (#312). Watch the
+  results in the HFT lab and the record before pushing further.
 
 - **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
   #296 (scrap list) #297 (Money in four tabs), #298 (OG B0T folded into System), #299 (Every switch), #300 (Trading switches on the web) and #301 (Settings regrouped) merged. Next, one area per merge: the five-area layout
@@ -302,6 +303,11 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-16 · #312** · HFT rate up (item 4 of 4): chart
+  steps every 10 s (passes at 10/20/30/40 s), 15 s same-side gap, 30 s after
+  a stop, random signals every 1–3 min in HFT. Gate and floors unchanged.
+  No migrations.
 
 - **Boss's Claude · 2026-11-16 · #311** · HFT more hedging (item 3 of 4):
   with HFT on, hedges and range hedges run without their own switches

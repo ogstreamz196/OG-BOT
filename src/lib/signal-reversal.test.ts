@@ -143,16 +143,16 @@ describe("reversals in high-frequency mode", () => {
     expect(d.sent).toEqual([]);
   });
 
-  test("checks each market at most every 20 seconds", async () => {
+  test("checks each market at most every 10 seconds", async () => {
     hft = true;
     const { db } = fakeDb();
     await maybeReversalSignal(
       db,
       deps(() => ({ reply: "wait" })),
     );
-    const soon = deps(() => ({ reply: "wait" }), T0 + 10_000);
+    const soon = deps(() => ({ reply: "wait" }), T0 + 5_000);
     expect(await maybeReversalSignal(db, soon)).toBe("not due");
-    const later = deps(() => ({ reply: "wait" }), T0 + 21_000);
+    const later = deps(() => ({ reply: "wait" }), T0 + 11_000);
     await maybeReversalSignal(db, later);
     expect(later.asks).toHaveLength(2);
     expect(tagReversal("card")).toMatch(/a reversal/);

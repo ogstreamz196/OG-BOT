@@ -27,6 +27,8 @@ export const STRATEGY_NAMES: Record<Strategy, string> = {
 
 /** How often a random signal is due: somewhere between these (minutes). Free: no AI unless the desk is picked. */
 export const RANDOM_EVERY_MIN = [2, 6] as const;
+/** The same in high-frequency mode (the Boss, 2026-11-16: "increase the HFT rate"). */
+export const RANDOM_EVERY_MIN_HFT = [1, 3] as const;
 /** The charts a random signal can be read on; the picker leans towards the ones winning. */
 export const RANDOM_FRAMES = ["1m", "5m", "15m", "1h"] as const;
 export type RandomFrame = (typeof RANDOM_FRAMES)[number];
