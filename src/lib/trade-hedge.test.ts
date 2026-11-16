@@ -85,3 +85,16 @@ describe("lockOf for a hedge: break-even at 0.5R", () => {
     expect(lock).not.toEqual({ trigger: 105, stop: 100 });
   });
 });
+
+describe("lockOf for a quick reversal: break-even at 0.5R like a hedge", () => {
+  it("moves the stop to the entry halfway to the 1R target", () => {
+    expect(lockOf({ direction: "BUY", entry: 100, tp1: 110, feeds: { reversal: true } })).toEqual({
+      trigger: 105,
+      stop: 100,
+    });
+    expect(lockOf({ direction: "SELL", entry: 100, tp1: 90, feeds: { reversal: true } })).toEqual({
+      trigger: 95,
+      stop: 100,
+    });
+  });
+});

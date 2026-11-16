@@ -24,6 +24,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           maybeHedgeSignal,
           maybeRangeHedge,
           maybeAlongside,
+          maybeReversalSignal,
           postToSignalsChannel,
           signalsChannelReady,
         } = await import("@/lib/signal-broadcast.server");
@@ -108,78 +109,41 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           // soon as it appears rather than at the next minute. Alongside it,
           // every 10 minutes, the AI desk scouts both markets (posts only when
           // every AI agrees), and a random strategy fires every 10–25 minutes.
-          const [passes, desk, random, hedges, rangeHedges, alongside] = await Promise.all([
-            repeatWithin(
-              () =>
-                scanAndBroadcast(supabaseAdmin, {
-                  ...deps,
-                  // Bitcoin and gold on the 1-minute, 5-minute, 15-minute and hourly charts.
-                  frames: ["1m", "5m", "15m", "1h"],
-                }),
-              { everyMs: 10_000, lastStartMs: 40_000 },
-            ),
-            maybeDeskScout(supabaseAdmin, {
-              read: deps.read,
-              news: deps.news,
-              paper: deps.paper,
-              gate: deps.gate,
-              shadow: deps.shadow,
-              post: deps.post,
-              follow: deps.follow,
-              now: deps.now,
-              note,
-            }),
-            maybeRandomSignal(supabaseAdmin, {
-              build: deps.build,
-              read: deps.read,
-              paper: deps.paper,
-              gate: deps.gate,
-              shadow: deps.shadow,
-              post: deps.post,
-              follow: deps.follow,
-              now: deps.now,
-              note,
-            }),
-            // Counter-trend hedges against running trades (Boss switch "hedges", off by default).
-            maybeHedgeSignal(supabaseAdmin, {
-              build: deps.build,
-              paper: deps.paper,
-              gate: deps.gate,
-              shadow: deps.shadow,
-              post: deps.post,
-              follow: deps.follow,
-              now: deps.now,
-              note,
-            }),
-            // Range hedges at both edges of a ranging market (Boss switch "rangeHedge", off by default).
-            maybeRangeHedge(supabaseAdmin, {
-              build: deps.build,
-              paper: deps.paper,
-              gate: deps.gate,
-              shadow: deps.shadow,
-              post: deps.post,
-              follow: deps.follow,
-              now: deps.now,
-              note,
-            }),
-            // Proven patterns beside the engine's own trades (Boss switch "patternsAlongside", off by default).
-            maybeAlongside(supabaseAdmin, {
-              build: deps.build,
-              paper: deps.paper,
-              gate: deps.gate,
-              shadow: deps.shadow,
-              post: deps.post,
-              follow: deps.follow,
-              now: deps.now,
-              note,
-            }),
-            // High-frequency mode (the copier card's switch): the hedge, range
-            // and alongside steps look again 20 and 40 seconds in, each still
-            // behind its own switch.
-            (async () => {
-              const { hftOn } = await import("@/lib/copy-mirror.server");
-              if (!(await hftOn())) return;
-              const stepDeps = {
+          const [passes, desk, random, hedges, rangeHedges, alongside, reversals] =
+            await Promise.all([
+              repeatWithin(
+                () =>
+                  scanAndBroadcast(supabaseAdmin, {
+                    ...deps,
+                    // Bitcoin and gold on the 1-minute, 5-minute, 15-minute and hourly charts.
+                    frames: ["1m", "5m", "15m", "1h"],
+                  }),
+                { everyMs: 10_000, lastStartMs: 40_000 },
+              ),
+              maybeDeskScout(supabaseAdmin, {
+                read: deps.read,
+                news: deps.news,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+                note,
+              }),
+              maybeRandomSignal(supabaseAdmin, {
+                build: deps.build,
+                read: deps.read,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+                note,
+              }),
+              // Counter-trend hedges against running trades (Boss switch "hedges", off by default).
+              maybeHedgeSignal(supabaseAdmin, {
                 build: deps.build,
                 paper: deps.paper,
                 gate: deps.gate,
@@ -188,17 +152,67 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                 follow: deps.follow,
                 now: deps.now,
                 note,
-              };
-              for (let i = 0; i < 2; i++) {
-                await new Promise((r) => setTimeout(r, 20_000));
-                await Promise.all([
-                  maybeHedgeSignal(supabaseAdmin, stepDeps),
-                  maybeRangeHedge(supabaseAdmin, stepDeps),
-                  maybeAlongside(supabaseAdmin, stepDeps),
-                ]);
-              }
-            })().catch(() => undefined),
-          ]);
+              }),
+              // Range hedges at both edges of a ranging market (Boss switch "rangeHedge", off by default).
+              maybeRangeHedge(supabaseAdmin, {
+                build: deps.build,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+                note,
+              }),
+              // Proven patterns beside the engine's own trades (Boss switch "patternsAlongside", off by default).
+              maybeAlongside(supabaseAdmin, {
+                build: deps.build,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+                note,
+              }),
+              // Quick reversal trades on either side (high-frequency mode only).
+              maybeReversalSignal(supabaseAdmin, {
+                build: deps.build,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+                note,
+              }),
+              // High-frequency mode (the copier card's switch): the hedge, range,
+              // alongside and reversal steps look again 20 and 40 seconds in,
+              // each still behind its own switch.
+              (async () => {
+                const { hftOn } = await import("@/lib/copy-mirror.server");
+                if (!(await hftOn())) return;
+                const stepDeps = {
+                  build: deps.build,
+                  paper: deps.paper,
+                  gate: deps.gate,
+                  shadow: deps.shadow,
+                  post: deps.post,
+                  follow: deps.follow,
+                  now: deps.now,
+                  note,
+                };
+                for (let i = 0; i < 2; i++) {
+                  await new Promise((r) => setTimeout(r, 20_000));
+                  await Promise.all([
+                    maybeHedgeSignal(supabaseAdmin, stepDeps),
+                    maybeRangeHedge(supabaseAdmin, stepDeps),
+                    maybeAlongside(supabaseAdmin, stepDeps),
+                    maybeReversalSignal(supabaseAdmin, stepDeps),
+                  ]);
+                }
+              })().catch(() => undefined),
+            ]);
           await saveScanRun(supabaseAdmin, notes);
           const result = {
             checked: passes.reduce((n, p) => n + p.checked, 0),
@@ -209,6 +223,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             hedges,
             rangeHedges,
             alongside,
+            reversals,
             aiRunsToday: await deskRunsToday(supabaseAdmin),
             alertBars: {
               BTCUSD: await deps.alertBar("BTCUSD"),

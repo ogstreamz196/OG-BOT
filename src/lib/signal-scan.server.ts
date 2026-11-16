@@ -159,7 +159,7 @@ export async function buildScanDeps(
       },
       // A hedge (Boss switch on) has its own floor: counter-trend reversals
       // score lower by design. The losing-record checks still apply.
-      s.plan.feeds?.hedge
+      s.plan.feeds?.hedge || s.plan.feeds?.reversal
         ? {
             ...cfg.gate,
             minConfidence: Math.min(

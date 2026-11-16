@@ -466,6 +466,8 @@ export type TradePlan = {
    * so the copier keeps it as its own ticket and it counts only its own side.
    */
   hedge?: boolean;
+  /** A quick reversal trade of its own (high-frequency mode): one 1R target, break-even at 0.5R. */
+  reversal?: boolean;
   /** A range hedge (rangeHedgePlan): a hedge fading one edge of a ranging market. */
   rangeHedge?: boolean;
   /** A proven setup posted beside the engine's own trade (patterns alongside). */
