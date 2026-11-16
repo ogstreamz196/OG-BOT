@@ -199,11 +199,13 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                 note,
               }),
               // High-frequency mode (the copier card's switch): the hedge, range,
-              // alongside and reversal steps look again 20 and 40 seconds in,
-              // each still behind its own switch.
+              // alongside and reversal steps look again every 10
+              // seconds (10, 20, 30 and 40 seconds in), each still behind its
+              // own checks; a slow pass makes the later ones skip.
               (async () => {
                 const { hftOn } = await import("@/lib/copy-mirror.server");
                 if (!(await hftOn())) return;
+                const { HFT_STEP_MS, HFT_LAST_STEP_MS } = await import("@/lib/engine-config");
                 const stepDeps = {
                   build: deps.build,
                   paper: deps.paper,
@@ -214,15 +216,19 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                   now: deps.now,
                   note,
                 };
-                for (let i = 0; i < 2; i++) {
-                  await new Promise((r) => setTimeout(r, 20_000));
-                  await Promise.all([
-                    maybeHedgeSignal(supabaseAdmin, stepDeps),
-                    maybeRangeHedge(supabaseAdmin, stepDeps),
-                    maybeAlongside(supabaseAdmin, stepDeps),
-                    maybeReversalSignal(supabaseAdmin, stepDeps),
-                  ]);
-                }
+                await repeatWithin(
+                  async (pass) => {
+                    // Pass 0 is the run above.
+                    if (pass === 0) return;
+                    await Promise.all([
+                      maybeHedgeSignal(supabaseAdmin, stepDeps),
+                      maybeRangeHedge(supabaseAdmin, stepDeps),
+                      maybeAlongside(supabaseAdmin, stepDeps),
+                      maybeReversalSignal(supabaseAdmin, stepDeps),
+                    ]);
+                  },
+                  { everyMs: HFT_STEP_MS, lastStartMs: HFT_LAST_STEP_MS },
+                );
               })().catch(() => undefined),
             ]);
           await saveScanRun(supabaseAdmin, notes);

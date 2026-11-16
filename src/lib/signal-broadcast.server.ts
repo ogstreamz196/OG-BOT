@@ -779,8 +779,10 @@ export async function maybeRandomSignal(admin: Admin, deps: RandomDeps): Promise
       rnd.tagStrategy(compactCard(s.reply), strategy),
     );
     if (!posted) return `${strategy} ${pair} ${frame}: not posted`;
-    // Posted: the next one somewhere in RANDOM_EVERY_MIN (10 to 25 minutes).
-    const [lo, hi] = rnd.RANDOM_EVERY_MIN;
+    // Posted: the next one somewhere in RANDOM_EVERY_MIN (2 to 6 minutes; 1
+    // to 3 in high-frequency mode).
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    const [lo, hi] = hft ? rnd.RANDOM_EVERY_MIN_HFT : rnd.RANDOM_EVERY_MIN;
     const next = new Date(now + (lo + rand() * (hi - lo)) * 60_000).toISOString();
     await admin
       .from("site_content")
@@ -1111,7 +1113,7 @@ export function reversalRoom(running: { reversal?: boolean }[]): boolean {
 /**
  * The reversal step (the Boss, 2026-11-16: "include reversals … when the HFT
  * toggle is on"). Only in high-frequency mode. For each market with room for
- * another reversal, at most every stepEveryMs (20s), it asks the 5-minute
+ * another reversal, at most every stepEveryMs (10s), it asks the 5-minute
  * chart for the surest reversal setup showing now on either side
  * (buildTradeSignal "reversal:any": sweep & reclaim, wick rejection, exhaustion,
  * built like a hedge with one 1R target and break-even at 0.5R) and posts it

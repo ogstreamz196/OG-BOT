@@ -156,8 +156,10 @@ export function hftConcurrency(c: ConcurrencyConfig): ConcurrencyConfig {
     ...c,
     free: Number.POSITIVE_INFINITY,
     perMarket: Number.POSITIVE_INFINITY,
-    sameSideGapMins: Math.min(c.sameSideGapMins, 0.5),
-    afterStopMins: Math.min(c.afterStopMins, 1),
+    // The Boss, 2026-11-16 ("increase the HFT rate"): 15 seconds between
+    // same-side entries (was 30) and 30 seconds after a stop (was a minute).
+    sameSideGapMins: Math.min(c.sameSideGapMins, 0.25),
+    afterStopMins: Math.min(c.afterStopMins, 0.5),
   };
 }
 /**
@@ -174,8 +176,15 @@ export const rangeHedgesPerSide = (hft: boolean) => (hft ? 3 : 1);
  */
 export const hedgingOn = (strategySwitch: boolean | undefined, hft: boolean) =>
   !!strategySwitch || hft;
-/** How often the hedge, range and alongside steps may read a market's chart. */
-export const stepEveryMs = (hft: boolean) => (hft ? 20_000 : 60_000);
+/**
+ * How often the hedge, range, alongside and reversal steps may read a
+ * market's chart: every minute, every 10 seconds in high-frequency mode (was
+ * 20; the scan route runs them at 10, 20, 30 and 40 seconds in, HFT_STEP_MS).
+ */
+export const stepEveryMs = (hft: boolean) => (hft ? 10_000 : 60_000);
+/** The scan route's extra HFT passes: every HFT_STEP_MS, the last starting by HFT_LAST_STEP_MS. */
+export const HFT_STEP_MS = 10_000;
+export const HFT_LAST_STEP_MS = 40_000;
 
 type Range = readonly [number, number];
 export const ENGINE_BOUNDS: {

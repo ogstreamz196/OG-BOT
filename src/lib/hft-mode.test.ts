@@ -50,8 +50,8 @@ describe("high-frequency posting limits", () => {
   it("no cap per market and no rising bar, shorter waits, same-setup rule kept", () => {
     expect(c.perMarket).toBe(Infinity);
     expect(concurrencyBar(40, c)).toBe(0);
-    expect(c.sameSideGapMins).toBe(0.5);
-    expect(c.afterStopMins).toBe(1);
+    expect(c.sameSideGapMins).toBe(0.25);
+    expect(c.afterStopMins).toBe(0.5);
     expect(c.sameSetupR).toBe(DEFAULT_ENGINE_CONFIG.concurrency.sameSetupR);
   });
   it("never lengthens a wait the Boss already set shorter", () => {
@@ -62,6 +62,7 @@ describe("high-frequency posting limits", () => {
     expect(hedgesPerMarket(false)).toBe(1);
     expect(rangeHedgesPerSide(false)).toBe(1);
     expect(stepEveryMs(false)).toBe(60_000);
+    expect(stepEveryMs(true)).toBe(10_000);
   });
   it("on: up to five hedges, two per trend trade", () => {
     const buy = { direction: "BUY" as const };
