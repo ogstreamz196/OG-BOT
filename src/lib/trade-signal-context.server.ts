@@ -562,6 +562,10 @@ async function cryptoFlow(inst: Instrument): Promise<CryptoFlow | null> {
  * like a limit, but filled when price breaks through).
  */
 /** A 5-minute scalp's learned time limits, for feeds (none when they're off). */
+/** How long a long hold (high-frequency mode) may run, and how long its entry may wait to fill. */
+export const HOLD_HOURS = 12;
+export const HOLD_FILL_MINUTES = 60;
+
 function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: number }) {
   if (entryLabel !== "5M") return {};
   return {
@@ -830,14 +834,18 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // and only them (a wait when none shows), so the engine's own trade is never
   // posted twice.
   const alongside = /\balongside\b/.test(userText);
-  // "reversal" (the scan's reversal step, high-frequency mode): the surest
+  // "reversal:any" (the scan's reversal step, high-frequency mode): the surest
   // reversal setup showing now, on either side, as its own quick trade.
-  const reversalAsk = /\breversal\b/.test(userText);
+  const reversalAsk = /\breversal:any\b/.test(userText);
+  // "hold:long" (the scan's long-hold step, high-frequency mode): the engine's own
+  // trade, only when it goes with the bigger timeframe's trend, held longer
+  // (open take profit and a trailing stop, up to HOLD_HOURS).
+  const holdAsk = /\bhold:long\b/.test(userText);
   // "manual:<BUY|SELL>:<stop distance>:<target distance>" (the Boss's manual
   // trade from the Copy Trader B0T, manual-trade.server.ts): a market trade
   // at the price now with those distances. Members never send it.
   const manualAsk = /\bmanual:(BUY|SELL):([\d.]+):([\d.]+)\b/.exec(userText);
-  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}${alongside ? ":alongside" : ""}${reversalAsk ? ":reversal" : ""}${manualAsk ? `:${manualAsk[0]}` : ""}`;
+  const key = `${inst.code}:${style}:${entryIv}${forced ? `:${forced}` : ""}${hedgeSide ? `:hedge-${hedgeSide}` : ""}${rangeSide ? `:range-${rangeSide}` : ""}${alongside ? ":alongside" : ""}${reversalAsk ? ":reversal" : ""}${holdAsk ? ":hold" : ""}${manualAsk ? `:${manualAsk[0]}` : ""}`;
   const hit = cache.get(key);
   // Not past the close of a new entry candle, so a fresh setup is never hidden.
   if (hit && cachedChartFresh({ exp: hit.exp, at: hit.at ?? 0 }, entryIv, Date.now()))
@@ -1111,6 +1119,19 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
           entryNote: `Reversal (${SETUP_NAMES[hit!.id]})`,
         }
       : { ...plan, verdict: "wait", waitReason: "No reversal showing" };
+  } else if (holdAsk) {
+    // A long hold (high-frequency mode): the engine's trade as it is, but only
+    // going with the bigger timeframe's trend; it trails (open take profit)
+    // and runs up to HOLD_HOURS instead of the scalp's hour.
+    const withTrend = hi.bias === (plan.direction === "BUY" ? "bullish" : "bearish");
+    plan =
+      plan.verdict === "trade" && withTrend
+        ? { ...plan, hold: true, entryNote: `${plan.entryNote} · long hold` }
+        : {
+            ...plan,
+            verdict: "wait",
+            waitReason: plan.verdict === "trade" ? "Not with the bigger trend" : plan.waitReason,
+          };
   } else if (forced) {
     // Only the one setup asked for, if it's showing on this chart right now.
     const { findSetups, setupPlan, SETUP_NAMES } = await import("./trade-setups");
@@ -1320,7 +1341,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
   // not the scalp's short validity.
   const expiresAt = plan.manual
     ? new Date(Date.now() + 24 * 3600_000).toISOString()
-    : valid.until.toISOString();
+    : plan.hold
+      ? new Date(Date.now() + HOLD_HOURS * 3600_000).toISOString()
+      : valid.until.toISOString();
   // Telegram gets the engine's actual card, not model-authored levels or a refusal.
   // A brief card: the levels first, one per line, then only what changes
   // the decision (cautions, trend, when to bail).
@@ -1397,7 +1420,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
     !plan.manual &&
     plan.verdict === "trade" &&
     trailRisk > 0 &&
-    trailsThis(plan.confidencePct, plan.direction, hi.bias);
+    (!!plan.hold || trailsThis(plan.confidencePct, plan.direction, hi.bias));
   const trailCap = shown(plan.entry + (plan.direction === "BUY" ? 1 : -1) * trailRisk * TRAIL.CAP);
   const cardFor = (tp: number) =>
     [
@@ -1448,6 +1471,9 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       ...(plan.hedge ? { hedge: true } : {}),
       // A quick reversal (high-frequency mode): break-even at 0.5R like a hedge.
       ...(plan.reversal ? { reversal: true } : {}),
+      // A long hold (high-frequency mode): trails, no learned time stop, and
+      // an unfilled entry is called off after HOLD_FILL_MINUTES.
+      ...(plan.hold ? { hold: true, fillWithin: HOLD_FILL_MINUTES } : {}),
       ...(plan.rangeHedge ? { rangeHedge: true } : {}),
       // Posted beside the engine's own trade (patterns alongside).
       ...(plan.alongside ? { alongside: true } : {}),
@@ -1458,7 +1484,7 @@ export async function buildTradeSignal(userText: string): Promise<TradeSignalRes
       // What the live-trial pair checks said (the Boss's report groups by it).
       ...(Object.keys(checks).length ? { checks } : {}),
       // The learned time limits (5-minute scalps): the tracker applies them.
-      ...(plan.manual ? {} : timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING)),
+      ...(plan.manual || plan.hold ? {} : timeLimitFeeds(entryLabel, tuning ?? DEFAULT_TUNING)),
       // The profit lock (the tracker works out its levels from the entry and TP1).
       // The profit lock, or (trailing trades) the trailing stop.
       ...(trails ? { trail: { risk: trailRisk } } : { lock: true }),

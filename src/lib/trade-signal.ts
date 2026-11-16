@@ -468,6 +468,8 @@ export type TradePlan = {
   hedge?: boolean;
   /** A quick reversal trade of its own (high-frequency mode): one 1R target, break-even at 0.5R. */
   reversal?: boolean;
+  /** A long hold (high-frequency mode): with the bigger trend, trailing, up to 12 hours. */
+  hold?: boolean;
   /** A range hedge (rangeHedgePlan): a hedge fading one edge of a ranging market. */
   rangeHedge?: boolean;
   /** A proven setup posted beside the engine's own trade (patterns alongside). */

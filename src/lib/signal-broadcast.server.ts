@@ -1098,7 +1098,7 @@ export function reversalRoom(running: { reversal?: boolean }[]): boolean {
  * toggle is on"). Only in high-frequency mode. For each market with room for
  * another reversal, at most every stepEveryMs (20s), it asks the 5-minute
  * chart for the surest reversal setup showing now on either side
- * (buildTradeSignal "reversal": sweep & reclaim, wick rejection, exhaustion,
+ * (buildTradeSignal "reversal:any": sweep & reclaim, wick rejection, exhaustion,
  * built like a hedge with one 1R target and break-even at 0.5R) and posts it
  * through postOnce: the same room and repeat checks and the gate, at the
  * hedge floor since reversals score lower by design. Never throws.
@@ -1144,7 +1144,7 @@ export async function maybeReversalSignal(
       await admin
         .from("site_content")
         .upsert({ key: reversalTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
-      const signal = await deps.build(`${signalRequest(pair, "5m")} reversal`);
+      const signal = await deps.build(`${signalRequest(pair, "5m")} reversal:any`);
       const plan = signal.plan;
       if (!plan?.feeds?.reversal) {
         out.push(`${market}: no reversal`);
@@ -1162,6 +1162,87 @@ export async function maybeReversalSignal(
     return out.length ? out.join("; ") : "not due";
   } catch (e) {
     console.warn("[signals] reversal step failed", e instanceof Error ? e.message : "error");
+    return "failed: error";
+  }
+}
+
+/* ── Long holds (high-frequency mode only) ────────────────────────────────── */
+
+const holdTryKey = (market: string) => `signals.hold.lastTry.${market}`;
+/** Long-hold trades a market may run at once in high-frequency mode. */
+export const HOLDS_PER_MARKET = 1;
+/** How often each market's 15-minute chart is asked for a long hold. */
+export const HOLD_EVERY_MS = 5 * 60_000;
+
+/** The long hold's card line. Pure. */
+export function tagHold(card: string): string {
+  return `${card}\n🕰 Long hold: with the bigger trend, open take profit and a trailing stop, up to 12 hours`;
+}
+
+/** Whether a market has room for another long hold. Pure. */
+export function holdRoom(running: { hold?: boolean }[]): boolean {
+  return running.filter((r) => r.hold).length < HOLDS_PER_MARKET;
+}
+
+/**
+ * The long-hold step (the Boss, 2026-11-16: "longer holding trades … when the
+ * HFT toggle is on"). Only in high-frequency mode. For each market with no
+ * long hold running, at most every HOLD_EVERY_MS, it asks the 15-minute chart
+ * for the engine's trade ("hold:long"): only one going with the bigger timeframe's
+ * trend, posted with an open take profit and a trailing stop, running up to
+ * 12 hours (HOLD_HOURS). Through postOnce, so the normal gate and repeat
+ * checks apply. Never throws.
+ */
+export async function maybeHoldSignal(
+  admin: Admin,
+  deps: PostDeps & { build: (ask: string) => Promise<Built> },
+): Promise<string> {
+  try {
+    const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
+    if (!hft) return "off";
+    const now = deps.now();
+    const { chatPurgedAt } = await import("./signal-chat.server");
+    const purgedAt = await chatPurgedAt().catch(() => null);
+    const purgedMs = purgedAt == null ? 0 : new Date(purgedAt).getTime() || 0;
+    const since = Math.max(purgedMs, now - 24 * 3600_000);
+    const { data } = await admin
+      .from("trade_signals")
+      .select("market, feeds")
+      .eq("sender_worker", "trade")
+      .in("status", ["pending", "open", "tp1", "tp2"])
+      .gte("created_at", new Date(since).toISOString())
+      .limit(200);
+    const rows = (data ?? []) as { market: string; feeds: { hold?: boolean } | null }[];
+    const out: string[] = [];
+    for (const pair of BROADCAST_MARKETS) {
+      const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
+      if (
+        !holdRoom(rows.filter((r) => r.market === market).map((r) => ({ hold: !!r.feeds?.hold })))
+      )
+        continue;
+      const { data: last } = await admin
+        .from("site_content")
+        .select("value")
+        .eq("key", holdTryKey(market))
+        .maybeSingle();
+      const lastAt = Date.parse((last as { value?: string } | null)?.value ?? "");
+      if (Number.isFinite(lastAt) && now - lastAt < HOLD_EVERY_MS) continue;
+      const at = new Date(now).toISOString();
+      await admin
+        .from("site_content")
+        .upsert({ key: holdTryKey(market), value: at, updated_at: at }, { onConflict: "key" });
+      const signal = await deps.build(`${signalRequest(pair, "15m")} hold:long`);
+      const plan = signal.plan;
+      if (!plan?.feeds?.hold) {
+        out.push(`${market}: no hold`);
+        continue;
+      }
+      const posted = await postOnce(admin, deps, signal, (s) => tagHold(compactCard(s.reply)));
+      out.push(`${market} ${plan.direction}: ${posted ? "posted" : "not posted"}`);
+    }
+    return out.length ? out.join("; ") : "not due";
+  } catch (e) {
+    console.warn("[signals] hold step failed", e instanceof Error ? e.message : "error");
     return "failed: error";
   }
 }
