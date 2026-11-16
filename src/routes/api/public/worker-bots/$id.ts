@@ -53,13 +53,55 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               press.data?.startsWith("es:") ||
               press.data?.startsWith("eg:") ||
               press.data?.startsWith("mt:") ||
-              press.data?.startsWith("ck:")) &&
+              press.data?.startsWith("ck:") ||
+              press.data?.startsWith("rs:")) &&
             press.message
           ) {
             const { error: dup } = await admin
               .from("telegram_worker_updates")
               .insert({ worker_id: bot.id, update_id: update?.update_id as number });
             if (dup) return Response.json({ ok: true });
+            // "rs:" is the signals group's purge & reset card (Boss only). A
+            // purge takes a while, so the tap is answered first and the card
+            // shows "Purging…" before the work, then the result.
+            if (press.data.startsWith("rs:")) {
+              const msgRef = {
+                chat_id: press.message.chat.id,
+                message_id: press.message.message_id,
+              };
+              const purging = press.data.startsWith("rs:go:");
+              if (purging)
+                await f.fleetApi(
+                  bot.id,
+                  "answerCallbackQuery",
+                  { callback_query_id: press.id, text: "Purging…" },
+                  key,
+                );
+              const { resetTap } = await import("@/lib/purge-bot.server");
+              const out = await resetTap(admin, press.from.id, press.data, async (p) => {
+                await f.fleetApi(
+                  bot.id,
+                  "editMessageText",
+                  { ...msgRef, text: p.text, reply_markup: p.reply_markup },
+                  key,
+                );
+              }).catch(() => ({ toast: "⚠️ Something went wrong. Try again.", panel: null }));
+              if (!purging)
+                await f.fleetApi(
+                  bot.id,
+                  "answerCallbackQuery",
+                  { callback_query_id: press.id, text: out.toast.slice(0, 190) },
+                  key,
+                );
+              if (out.panel)
+                await f.fleetApi(
+                  bot.id,
+                  "editMessageText",
+                  { ...msgRef, text: out.panel.text, reply_markup: out.panel.reply_markup },
+                  key,
+                );
+              return Response.json({ ok: true });
+            }
             const fallback: {
               toast: string;
               panel: { text: string; reply_markup: unknown } | null;
@@ -69,26 +111,18 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             // "cs:"/"es:"/"eg:" the settings card (eg: the signals group switchboard).
             // "ck:me:" is a user's own copier card (anyone with access, not only the Boss).
             const res: typeof fallback = press.data.startsWith("ck:me:")
-              ? await (
-                  await import("@/lib/copier-keys.server")
-                )
+              ? await (await import("@/lib/copier-keys.server"))
                   .myCopierTap(admin, press.from.id, press.data)
                   .catch(() => fallback)
               : press.data.startsWith("ck:")
-                ? await (
-                    await import("@/lib/copier-keys.server")
-                  )
+                ? await (await import("@/lib/copier-keys.server"))
                     .copierKeysTap(admin, press.from.id, press.data)
                     .catch(() => fallback)
                 : press.data.startsWith("mt:")
-                  ? await (
-                      await import("@/lib/manual-trade.server")
-                    )
+                  ? await (await import("@/lib/manual-trade.server"))
                       .manualTradeTap(admin, press.from.id, press.data)
                       .catch(() => fallback)
-                  : await (
-                      await import("@/lib/copy-settings-bot.server")
-                    )
+                  : await (await import("@/lib/copy-settings-bot.server"))
                       .copySettingsTap(admin, press.from.id, press.data)
                       .catch(() => fallback);
             await f.fleetApi(
@@ -249,6 +283,18 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
                   },
                   key,
                 );
+              return Response.json({ ok: true });
+            }
+            // The signals group's purge & reset card (/reset, /purge or 🧹 Purge & reset).
+            const { resetReply } = await import("@/lib/purge-bot.server");
+            const reset = await resetReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (reset) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: reset.text, reply_markup: reset.reply_markup },
+                key,
+              );
               return Response.json({ ok: true });
             }
             // The Boss's manual trade card (/trade or ✋ Manual trade).
