@@ -20,7 +20,8 @@ export const Route = createFileRoute("/_authenticated/admin/bot")({
     typeof s.tab === "string" ? { tab: s.tab } : {},
   beforeLoad: ({ search }) => {
     const m = MOVED[search.tab ?? ""] ?? MOVED.persona;
-    throw redirect({ to: m.to, search: { tab: m.tab } });
+    if (m.to === "/admin/signals") throw redirect({ to: "/admin/signals", search: { tab: m.tab } });
+    throw redirect({ to: "/admin/system", search: { tab: m.tab } });
   },
   component: () => null,
 });
