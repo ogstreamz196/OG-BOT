@@ -104,7 +104,7 @@ describe("reversals in high-frequency mode", () => {
     const out = await maybeReversalSignal(db, d);
     expect(out).toContain("BTCUSD SELL: posted");
     expect(out).toContain("XAUUSD: no reversal");
-    expect(d.asks).toEqual(["XAUUSD signal 5m reversal", "BTCUSD signal 5m reversal"]);
+    expect(d.asks).toEqual(["XAUUSD signal 5m reversal:any", "BTCUSD signal 5m reversal:any"]);
     expect(d.sent[0]).toMatch(/🔄 Reversal: Wick rejection, one 1R target/);
   });
 
@@ -127,7 +127,7 @@ describe("reversals in high-frequency mode", () => {
       });
     const d = deps(() => reversalCard("BUY"));
     await maybeReversalSignal(db, d);
-    expect(d.asks).toEqual(["XAUUSD signal 5m reversal"]);
+    expect(d.asks).toEqual(["XAUUSD signal 5m reversal:any"]);
   });
 
   test("under the hedge floor, or a plan not marked reversal: not posted", async () => {

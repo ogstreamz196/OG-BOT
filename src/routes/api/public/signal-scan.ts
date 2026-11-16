@@ -25,6 +25,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           maybeRangeHedge,
           maybeAlongside,
           maybeReversalSignal,
+          maybeHoldSignal,
           postToSignalsChannel,
           signalsChannelReady,
         } = await import("@/lib/signal-broadcast.server");
@@ -109,7 +110,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
           // soon as it appears rather than at the next minute. Alongside it,
           // every 10 minutes, the AI desk scouts both markets (posts only when
           // every AI agrees), and a random strategy fires every 10–25 minutes.
-          const [passes, desk, random, hedges, rangeHedges, alongside, reversals] =
+          const [passes, desk, random, hedges, rangeHedges, alongside, reversals, holds] =
             await Promise.all([
               repeatWithin(
                 () =>
@@ -186,6 +187,17 @@ export const Route = createFileRoute("/api/public/signal-scan")({
                 now: deps.now,
                 note,
               }),
+              // Long holds with the bigger trend (high-frequency mode only).
+              maybeHoldSignal(supabaseAdmin, {
+                build: deps.build,
+                paper: deps.paper,
+                gate: deps.gate,
+                shadow: deps.shadow,
+                post: deps.post,
+                follow: deps.follow,
+                now: deps.now,
+                note,
+              }),
               // High-frequency mode (the copier card's switch): the hedge, range,
               // alongside and reversal steps look again 20 and 40 seconds in,
               // each still behind its own switch.
@@ -224,6 +236,7 @@ export const Route = createFileRoute("/api/public/signal-scan")({
             rangeHedges,
             alongside,
             reversals,
+            holds,
             aiRunsToday: await deskRunsToday(supabaseAdmin),
             alertBars: {
               BTCUSD: await deps.alertBar("BTCUSD"),

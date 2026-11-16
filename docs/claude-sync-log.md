@@ -75,6 +75,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- Whoever finishes a session updates this so the other Claude can pick up. -->
 
+- **Boss's Claude (2026-11-16, HFT extras):** the Boss asked for four
+  high-frequency-only additions, one merge each: reversals (#309) and long
+  holds (#310) done; next more hedging, then a higher HFT rate.
+
 - **Boss's Claude (2026-11-13, Boss console tidy-up):** #295 (jump row) and
   #296 (scrap list) #297 (Money in four tabs), #298 (OG B0T folded into System), #299 (Every switch), #300 (Trading switches on the web) and #301 (Settings regrouped) merged. Next, one area per merge: the five-area layout
   (Home, Members, Trading, Money & Music, System) by moving panels, never
@@ -298,6 +302,22 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-16 · #310** · HFT long holds (item 2 of 4 the
+  Boss asked for in high-frequency mode): maybeHoldSignal, one 15-minute
+  trade per market going with the bigger trend, trailing, up to 12 hours
+  (feeds.hold). Hidden asks now `reversal:any` / `hold:long`. No migrations.
+
+- **Boss's Claude · 2026-11-16 · #309** · HFT reversals (item 1 of 4):
+  maybeReversalSignal, the surest reversal setup either side every 20 s,
+  two per market, break-even at 0.5R (feeds.reversal). No migrations.
+
+- **Boss's Claude · 2026-11-16 · #308** · Copy Trader B0T: 🧹 Purge & reset
+  card (Boss only, /reset, /purge, `rs:` taps) running the same freshStart
+  as the website. Nothing stored is deleted.
+
+- **Boss's Claude · 2026-11-16 · #307** · Vantage open-account link is now
+  the CREDIT25 invite (invite-promo.server.ts INVITE_LINK).
 
 - **Boss's Claude · 2026-11-15 · #306** · Signals group switchboard on the
   Copy Trader B0T card (and the website): group posting, gold, bitcoin and
