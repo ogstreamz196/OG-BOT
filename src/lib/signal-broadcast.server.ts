@@ -812,13 +812,25 @@ export function hedgeSideFor(
   running: { direction: "BUY" | "SELL"; hedge?: boolean }[],
   /** Hedges allowed at once (more in high-frequency mode), never more than the trend trades. */
   maxHedges = 1,
+  /**
+   * High-frequency mode: up to two hedges per trend trade (still within
+   * maxHedges), and when trades run both ways it hedges the side with more
+   * trades (a tie: none).
+   */
+  hft = false,
 ): "BUY" | "SELL" | null {
   const trend = running.filter((r) => !r.hedge);
   const hedges = running.length - trend.length;
-  if (hedges >= Math.min(maxHedges, Math.max(1, trend.length))) return null;
-  const sides = new Set(trend.map((r) => r.direction));
-  if (sides.size !== 1) return null;
-  return sides.has("BUY") ? "SELL" : "BUY";
+  const perTrade = hft ? 2 : 1;
+  if (hedges >= Math.min(maxHedges, Math.max(1, trend.length * perTrade))) return null;
+  const buys = trend.filter((r) => r.direction === "BUY").length;
+  const sells = trend.length - buys;
+  if (!trend.length) return null;
+  if (buys && sells) {
+    if (!hft || buys === sells) return null;
+    return buys > sells ? "SELL" : "BUY";
+  }
+  return buys ? "SELL" : "BUY";
 }
 
 /** The hedge's line on its card. Pure. */
@@ -842,9 +854,9 @@ export async function maybeHedgeSignal(
   try {
     const { engineConfig } = await import("./engine-config.server");
     const cfg = await engineConfig().catch(() => null);
-    if (!cfg?.strategies?.hedges) return "off";
     const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
-    const { hedgesPerMarket, stepEveryMs } = await import("./engine-config");
+    const { hedgesPerMarket, hedgingOn, stepEveryMs } = await import("./engine-config");
+    if (!hedgingOn(cfg?.strategies?.hedges, hft)) return "off";
     const now = deps.now();
     const { chatPurgedAt } = await import("./signal-chat.server");
     const purgedAt = await chatPurgedAt().catch(() => null);
@@ -861,9 +873,11 @@ export async function maybeHedgeSignal(
       (data ?? []) as {
         market: string;
         direction: "BUY" | "SELL";
-        feeds: { hedge?: boolean; bias?: boolean } | null;
+        feeds: { hedge?: boolean; bias?: boolean; reversal?: boolean } | null;
       }[]
-    ).filter((r) => !r.feeds?.bias);
+    )
+      // Quick reversals aren't hedged (they're short 1R trades already).
+      .filter((r) => !r.feeds?.bias && !r.feeds?.reversal);
     const out: string[] = [];
     for (const pair of BROADCAST_MARKETS) {
       const market = pair === "XAU" ? "XAUUSD" : "BTCUSD";
@@ -872,6 +886,7 @@ export async function maybeHedgeSignal(
           .filter((r) => r.market === market)
           .map((r) => ({ direction: r.direction, hedge: !!r.feeds?.hedge })),
         hedgesPerMarket(hft),
+        hft,
       );
       if (!side) continue;
       // At most one chart read a minute per market.
@@ -951,9 +966,9 @@ export async function maybeRangeHedge(
   try {
     const { engineConfig } = await import("./engine-config.server");
     const cfg = await engineConfig().catch(() => null);
-    if (!cfg?.strategies?.rangeHedge) return "off";
     const hft = await import("./copy-mirror.server").then((m) => m.hftOn()).catch(() => false);
-    const { rangeHedgesPerSide, stepEveryMs } = await import("./engine-config");
+    const { rangeHedgesPerSide, hedgingOn, stepEveryMs } = await import("./engine-config");
+    if (!hedgingOn(cfg?.strategies?.rangeHedge, hft)) return "off";
     const now = deps.now();
     const { chatPurgedAt } = await import("./signal-chat.server");
     const purgedAt = await chatPurgedAt().catch(() => null);
