@@ -14,6 +14,12 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
         const { watchSignals } = await import("@/lib/trade-signal-tracker.server");
         const { repeatWithin } = await import("@/lib/repeat-within");
         try {
+          // A purge & reset the Boss queued from the Copy Trader B0T: it gets
+          // this whole run (clearing the group takes a while), the following
+          // will just carry on watching.
+          const { runQueuedPurge } = await import("@/lib/purge-bot.server");
+          const purge = await runQueuedPurge(supabaseAdmin).catch(() => "failed");
+          if (purge !== "none") return Response.json({ ok: true, purge });
           // Every 12 seconds through the minute, so fills and profit hits go
           // out within seconds of price getting there.
           const passes = await repeatWithin(() => watchSignals(), {

@@ -61,38 +61,25 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               .from("telegram_worker_updates")
               .insert({ worker_id: bot.id, update_id: update?.update_id as number });
             if (dup) return Response.json({ ok: true });
-            // "rs:" is the signals group's purge & reset card (Boss only). A
-            // purge takes a while, so the tap is answered first and the card
-            // shows "Purging…" before the work, then the result.
+            // "rs:" is the signals group's purge & reset card (Boss only). "Yes"
+            // queues the purge; the next watch run does it and edits this card.
             if (press.data.startsWith("rs:")) {
               const msgRef = {
                 chat_id: press.message.chat.id,
                 message_id: press.message.message_id,
               };
-              const purging = press.data.startsWith("rs:go:");
-              if (purging)
-                await f.fleetApi(
-                  bot.id,
-                  "answerCallbackQuery",
-                  { callback_query_id: press.id, text: "Purging…" },
-                  key,
-                );
               const { resetTap } = await import("@/lib/purge-bot.server");
-              const out = await resetTap(admin, press.from.id, press.data, async (p) => {
-                await f.fleetApi(
-                  bot.id,
-                  "editMessageText",
-                  { ...msgRef, text: p.text, reply_markup: p.reply_markup },
-                  key,
-                );
+              const out = await resetTap(admin, press.from.id, press.data, {
+                botId: bot.id,
+                chatId: msgRef.chat_id,
+                messageId: msgRef.message_id,
               }).catch(() => ({ toast: "⚠️ Something went wrong. Try again.", panel: null }));
-              if (!purging)
-                await f.fleetApi(
-                  bot.id,
-                  "answerCallbackQuery",
-                  { callback_query_id: press.id, text: out.toast.slice(0, 190) },
-                  key,
-                );
+              await f.fleetApi(
+                bot.id,
+                "answerCallbackQuery",
+                { callback_query_id: press.id, text: out.toast.slice(0, 190) },
+                key,
+              );
               if (out.panel)
                 await f.fleetApi(
                   bot.id,
