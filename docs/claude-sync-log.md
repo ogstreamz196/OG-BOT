@@ -304,6 +304,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-16 · #313** · Fix: the Copy Trader B0T's purge
+  button didn't reset the group (the purge ran inside the Telegram tap and
+  was cut off before saving). Now queued (signals.purge.job) and run by the
+  next trade-signal-watch, which edits the card with the result. No
+  migrations.
+
 - **Boss's Claude · 2026-11-16 · #312** · HFT rate up (item 4 of 4): chart
   steps every 10 s (passes at 10/20/30/40 s), 15 s same-side gap, 30 s after
   a stop, random signals every 1–3 min in HFT. Gate and floors unchanged.

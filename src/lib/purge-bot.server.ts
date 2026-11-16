@@ -163,15 +163,57 @@ export async function resetReply(
   return resetPanel(ask.balance, current);
 }
 
+/** Where a queued purge reports back: the copy bot and the card it was asked from. */
+export type PurgeCard = { botId: string; chatId: number; messageId: number };
+/** A purge waiting for the next minute's watch run (site_content). */
+export const PURGE_JOB_KEY = "signals.purge.job";
+/** A queued purge older than this is dropped, not run late. */
+export const PURGE_JOB_MAX_AGE_MS = 10 * 60_000;
+type PurgeJob = {
+  balance: number;
+  by?: string;
+  card?: PurgeCard;
+  at: string;
+  state: "queued" | "running" | "done";
+};
+
+/** A stored job, or null when it's missing, finished, stale or broken. Pure. */
+export function dueJob(raw: string | null | undefined, now: number): PurgeJob | null {
+  if (!raw) return null;
+  try {
+    const job = JSON.parse(raw) as PurgeJob;
+    if (job.state !== "queued" || cleanBalance(job.balance) == null) return null;
+    const at = Date.parse(job.at);
+    if (!Number.isFinite(at) || now - at > PURGE_JOB_MAX_AGE_MS) return null;
+    return job;
+  } catch {
+    return null;
+  }
+}
+
+async function saveJob(admin: Admin, job: PurgeJob) {
+  const at = new Date().toISOString();
+  await admin
+    .from("site_content")
+    .upsert(
+      { key: PURGE_JOB_KEY, value: JSON.stringify(job), updated_at: at },
+      { onConflict: "key" },
+    );
+}
+
 /**
- * A tap on the card ("rs:…"), Boss only. A purge answers the tap and shows
- * "Purging…" first (it can take a while), then puts the result on the card.
+ * A tap on the card ("rs:…"), Boss only. "Yes, purge and reset" doesn't run
+ * the purge inside the Telegram tap (the Boss, 2026-11-16: the button didn't
+ * reset the balance: clearing the group takes longer than a tap's request is
+ * allowed to run, so it was cut off before anything was saved). It queues it
+ * (PURGE_JOB_KEY) and the next trade-signal-watch run (within a minute) does
+ * it with runQueuedPurge, then puts the result on this card.
  */
 export async function resetTap(
   admin: Admin,
   fromId: number,
   data: string,
-  progress: (panel: ResetPanel) => Promise<void>,
+  card?: PurgeCard,
 ): Promise<{ toast: string; panel: ResetPanel | null }> {
   const who = await boss(admin, fromId);
   if (!who.ok) return { toast: "Only the Boss can purge the signals group.", panel: null };
@@ -191,31 +233,72 @@ export async function resetTap(
       toast: tap.show === "confirm" ? "Check it, then tap Yes" : "",
       panel: resetPanel(tap.balance, current, { confirming: tap.show === "confirm" }),
     };
-  await progress({
-    text: `🧹 Purging the signals group and resetting the test account to ${money(tap.balance)}…`,
-    reply_markup: { inline_keyboard: [] },
-  }).catch(() => undefined);
+  await saveJob(admin, {
+    balance: tap.balance,
+    by: who.userId,
+    ...(card ? { card } : {}),
+    at: new Date().toISOString(),
+    state: "queued",
+  });
+  return {
+    toast: "🧹 Purge on its way",
+    panel: {
+      text: `🧹 Purging the signals group and resetting the test account to ${money(tap.balance)}. It starts within a minute; this card shows the result when it's done.`,
+      reply_markup: { inline_keyboard: [] },
+    },
+  };
+}
+
+/**
+ * The queued purge, from trade-signal-watch (once a minute): runs freshStart
+ * (the same as the website's Purge button), audit-logs it and puts the result
+ * on the Boss's card. Returns what happened, "none" when nothing's queued.
+ */
+export async function runQueuedPurge(admin: Admin, now = Date.now()): Promise<string> {
+  const { data } = await admin
+    .from("site_content")
+    .select("value")
+    .eq("key", PURGE_JOB_KEY)
+    .maybeSingle();
+  const job = dueJob((data as { value?: string } | null)?.value, now);
+  if (!job) return "none";
+  // Claimed first, so a slow run is never started twice.
+  await saveJob(admin, { ...job, state: "running" });
   const { freshStart } = await import("./signals-fresh-start.server");
-  const out = await freshStart(admin, tap.balance).catch(
+  const out = await freshStart(admin, job.balance).catch(
     (e: unknown) =>
       ({ ok: false, why: e instanceof Error ? e.message : "error" }) as Record<string, unknown>,
   );
+  await saveJob(admin, { ...job, state: "done" });
   await admin
     .from("boss_audit_log")
     .insert({
-      actor_id: who.userId,
+      actor_id: job.by,
       action: "signals_chat_purge",
       category: "signals",
       target_key: "signals.chat.purgedAt",
-      metadata: { balance: tap.balance, ok: out.ok, swept: out.swept ?? 0, from: "copy bot" },
+      metadata: { balance: job.balance, ok: out.ok, swept: out.swept ?? 0, from: "copy bot" },
     })
     .then(
       () => undefined,
       () => undefined,
     );
-  const after = await currentAccount(admin);
-  return {
-    toast: out.ok ? "✅ Purged and reset" : "⚠️ Not done",
-    panel: resetPanel(tap.balance, after, { note: resultNote(out, tap.balance) }),
-  };
+  const key = process.env["TELEGRAM_CREDENTIAL_KEY"];
+  if (job.card && key) {
+    const after = await currentAccount(admin);
+    const panel = resetPanel(job.balance, after, { note: resultNote(out, job.balance) });
+    const { fleetApi } = await import("./telegram-fleet.server");
+    await fleetApi(
+      job.card.botId,
+      "editMessageText",
+      {
+        chat_id: job.card.chatId,
+        message_id: job.card.messageId,
+        text: panel.text,
+        reply_markup: panel.reply_markup,
+      },
+      key,
+    ).catch(() => undefined);
+  }
+  return out.ok ? `purged at ${job.balance}` : `not done: ${String(out.why ?? "error")}`;
 }
