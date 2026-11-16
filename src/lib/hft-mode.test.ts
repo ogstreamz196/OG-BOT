@@ -3,6 +3,7 @@ import { balanceHeader, copierBalance, copierLot, hftLotSpot } from "./copy-feed
 import {
   DEFAULT_ENGINE_CONFIG,
   hedgesPerMarket,
+  hedgingOn,
   hftConcurrency,
   rangeHedgesPerSide,
   stepEveryMs,
@@ -62,21 +63,37 @@ describe("high-frequency posting limits", () => {
     expect(rangeHedgesPerSide(false)).toBe(1);
     expect(stepEveryMs(false)).toBe(60_000);
   });
-  it("on: up to three hedges, never more than the trend trades", () => {
+  it("on: up to five hedges, two per trend trade", () => {
     const buy = { direction: "BUY" as const };
     const hedge = { direction: "SELL" as const, hedge: true };
+    expect(hedgesPerMarket(true)).toBe(5);
+    // Off: one per trend trade.
     expect(hedgeSideFor([buy, hedge])).toBeNull();
-    expect(hedgeSideFor([buy, hedge], hedgesPerMarket(true))).toBeNull();
-    expect(hedgeSideFor([buy, buy, hedge], hedgesPerMarket(true))).toBe("SELL");
-    expect(
-      hedgeSideFor([buy, buy, buy, buy, hedge, hedge, hedge], hedgesPerMarket(true)),
-    ).toBeNull();
+    // On: a second hedge on one trend trade, never a third.
+    expect(hedgeSideFor([buy, hedge], hedgesPerMarket(true), true)).toBe("SELL");
+    expect(hedgeSideFor([buy, hedge, hedge], hedgesPerMarket(true), true)).toBeNull();
+    expect(hedgeSideFor([buy, buy, buy, hedge, hedge, hedge, hedge], 5, true)).toBe("SELL");
+    expect(hedgeSideFor([buy, buy, buy, hedge, hedge, hedge, hedge, hedge], 5, true)).toBeNull();
   });
-  it("on: two range hedges a side", () => {
+  it("on: trades both ways are hedged against the side with more", () => {
+    const buy = { direction: "BUY" as const };
+    const sell = { direction: "SELL" as const };
+    expect(hedgeSideFor([buy, buy, sell])).toBeNull();
+    expect(hedgeSideFor([buy, buy, sell], 5, true)).toBe("SELL");
+    expect(hedgeSideFor([sell, sell, buy], 5, true)).toBe("BUY");
+    expect(hedgeSideFor([buy, sell], 5, true)).toBeNull();
+    expect(hedgeSideFor([], 5, true)).toBeNull();
+  });
+  it("on: hedging and range hedging run without their own switches", () => {
+    expect(hedgingOn(false, false)).toBe(false);
+    expect(hedgingOn(undefined, true)).toBe(true);
+    expect(hedgingOn(true, false)).toBe(true);
+  });
+  it("on: three range hedges a side", () => {
     const r = { direction: "BUY" as const, rangeHedge: true };
     expect(rangeSidesFree([r])).toEqual(["SELL"]);
-    expect(rangeSidesFree([r], rangeHedgesPerSide(true))).toEqual(["BUY", "SELL"]);
-    expect(rangeSidesFree([r, r], rangeHedgesPerSide(true))).toEqual(["SELL"]);
+    expect(rangeSidesFree([r, r], rangeHedgesPerSide(true))).toEqual(["BUY", "SELL"]);
+    expect(rangeSidesFree([r, r, r], rangeHedgesPerSide(true))).toEqual(["SELL"]);
   });
 });
 

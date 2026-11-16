@@ -100,7 +100,7 @@ export const BOSS_SWITCHES: readonly BossSwitch[] = [
   },
   {
     name: "High-frequency (HFT)",
-    on: "No cap on trades at once, shorter waits, alerts don't wait for the AI desk, the strategy steps look three times a minute, lots at the top of your range (gold only above $400). The confidence floor stays.",
+    on: "No cap on trades at once, shorter waits, alerts don't wait for the AI desk, the strategy steps look three times a minute, hedging and range hedging on by themselves (up to five hedges a market, three range hedges a side), quick reversals and long holds with the trend, lots at the top of your range (gold only above $400). The confidence floor stays.",
     off: "Normal pace, up to your trade limit, lot by signal strength.",
     area: "Trading",
     where: "Signals › Controls › Trading switches (also on the Copy Trader B0T card)",

@@ -160,10 +160,20 @@ export function hftConcurrency(c: ConcurrencyConfig): ConcurrencyConfig {
     afterStopMins: Math.min(c.afterStopMins, 1),
   };
 }
-/** Hedges a market may run at once: one normally, up to three in high-frequency mode. */
-export const hedgesPerMarket = (hft: boolean) => (hft ? 3 : 1);
-/** Range hedges per side of a market: one normally, two in high-frequency mode. */
-export const rangeHedgesPerSide = (hft: boolean) => (hft ? 2 : 1);
+/**
+ * Hedges a market may run at once: one normally, up to five in
+ * high-frequency mode (the Boss, 2026-11-16: "more hedging when the HFT
+ * toggle is on"; was three).
+ */
+export const hedgesPerMarket = (hft: boolean) => (hft ? 5 : 1);
+/** Range hedges per side of a market: one normally, three in high-frequency mode (was two). */
+export const rangeHedgesPerSide = (hft: boolean) => (hft ? 3 : 1);
+/**
+ * Whether a hedge step runs: its own strategy switch, or high-frequency mode,
+ * which turns hedging and range hedging on by itself (the Boss, 2026-11-16). Pure.
+ */
+export const hedgingOn = (strategySwitch: boolean | undefined, hft: boolean) =>
+  !!strategySwitch || hft;
 /** How often the hedge, range and alongside steps may read a market's chart. */
 export const stepEveryMs = (hft: boolean) => (hft ? 20_000 : 60_000);
 
