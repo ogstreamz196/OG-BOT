@@ -304,6 +304,11 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-17 · #318** · Copy bot purge runs straight away
+  from the tap again (about 4 s; it waited up to a minute for the watch
+  run). The watch run stays as the backup, and a claim cut off for 2 min is
+  run again. No migrations.
+
 - **Boss's Claude · 2026-11-17 · #317** · HFT lab prices: Binance answers the
   live server 403 (now rested 30 min after a refusal) and OKX 429 (now a
   pause between pages, up to 3 retries, 8 s a market at most); scoring

@@ -87,6 +87,12 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
                   { ...msgRef, text: out.panel.text, reply_markup: out.panel.reply_markup },
                   key,
                 );
+              // "Yes": run the queued purge now (a few seconds); the watch run
+              // is the backup if this request is cut off.
+              if (press.data.startsWith("rs:go:")) {
+                const { runQueuedPurge } = await import("@/lib/purge-bot.server");
+                await runQueuedPurge(admin).catch(() => undefined);
+              }
               return Response.json({ ok: true });
             }
             const fallback: {
