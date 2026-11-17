@@ -17,12 +17,65 @@ export const MICROLAB_KEY = "signals.microlab.v2";
 
 /** Each market's 1-second feed: bitcoin itself, and the gold token the tracker already uses for gold. */
 export const MICRO_FEEDS: Record<string, string> = { BTCUSD: "BTCUSDT", XAUUSD: "PAXGUSDT" };
+/** The same on OKX, used when Binance doesn't answer the live server (it logged "no data" every run, 2026-11-17). */
+export const OKX_FEEDS: Record<string, string> = { BTCUSDT: "BTC-USDT", PAXGUSDT: "PAXG-USDT" };
+/** The rapid-fire scorecard (rapid-scalp.ts), kept apart from the strategies' one. */
+export const RAPIDLAB_KEY = "signals.rapidlab";
 const FALLBACK_COST: Record<string, number> = { XAUUSD: 0.35, BTCUSD: 15 };
 
 const RUN_EVERY_MS = 55_000;
 let lastRun = 0;
 
-async function seconds(symbol: string): Promise<Sec[]> {
+/**
+ * The last 1000 seconds from OKX (300 a page, newest first, paged back with
+ * "after"). OKX has no taker-buy split, so buyers and sellers count as even.
+ */
+async function okxSeconds(symbol: string): Promise<Sec[]> {
+  const inst = OKX_FEEDS[symbol];
+  if (!inst) return [];
+  const rows: string[][] = [];
+  let after = "";
+  for (let page = 0; page < 4 && rows.length < 1000; page++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    try {
+      const res = await fetch(
+        `https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1s&limit=300${after ? `&after=${after}` : ""}`,
+        { signal: ctrl.signal },
+      );
+      if (!res.ok) break;
+      const json = (await res.json()) as { code?: string; data?: string[][] };
+      const data = json.code === "0" && Array.isArray(json.data) ? json.data : [];
+      if (!data.length) break;
+      rows.push(...data);
+      after = data[data.length - 1][0];
+    } catch {
+      break;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  const seen = new Set<number>();
+  return rows
+    .map((r) => ({ t: Number(r[0]), o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5] }))
+    .filter((s) => {
+      if (seen.has(s.t) || ![s.o, s.h, s.l, s.c].every((x) => Number.isFinite(x) && x > 0))
+        return false;
+      seen.add(s.t);
+      return true;
+    })
+    .sort((a, b) => a.t - b.t);
+}
+
+/** Binance first, OKX when Binance gives nothing. Says which one it used. */
+async function secondsFrom(symbol: string): Promise<{ secs: Sec[]; source: string }> {
+  const b = await binanceSeconds(symbol);
+  if (b.length >= 900) return { secs: b, source: "binance" };
+  const o = await okxSeconds(symbol);
+  return { secs: o, source: "okx" };
+}
+
+async function binanceSeconds(symbol: string): Promise<Sec[]> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
@@ -56,6 +109,20 @@ async function goldShut(now: number): Promise<boolean> {
   return !!sessionRead({ asset: "forex", label: "gold", code: "XAUUSD" }, now).closed;
 }
 
+export async function loadRapid(admin: Admin) {
+  const { cleanRapid } = await import("./rapid-scalp");
+  const { data } = await admin
+    .from("site_content")
+    .select("value")
+    .eq("key", RAPIDLAB_KEY)
+    .maybeSingle();
+  try {
+    return cleanRapid(JSON.parse((data as { value?: string } | null)?.value ?? "{}"));
+  } catch {
+    return cleanRapid({});
+  }
+}
+
 export async function loadLab(admin: Admin): Promise<MicroLabState> {
   const { data } = await admin
     .from("site_content")
@@ -78,6 +145,8 @@ export async function maybeRunMicroLab(admin: Admin, now = Date.now()): Promise<
   lastRun = now;
   try {
     const state = await loadLab(admin);
+    const rapid = await loadRapid(admin);
+    const { scoreRapid } = await import("./rapid-scalp");
     const { costPerTrade } = await import("./broker-quotes.server");
     const parts: string[] = [];
     for (const [market, symbol] of Object.entries(MICRO_FEEDS)) {
@@ -85,7 +154,7 @@ export async function maybeRunMicroLab(admin: Admin, now = Date.now()): Promise<
         parts.push(`${market}: closed`);
         continue;
       }
-      const secs = await seconds(symbol);
+      const { secs, source } = await secondsFrom(symbol);
       if (secs.length < 900) {
         parts.push(`${market}: no data`);
         continue;
@@ -94,14 +163,23 @@ export async function maybeRunMicroLab(admin: Admin, now = Date.now()): Promise<
         () => FALLBACK_COST[market],
       );
       const m = (state.markets[market] ??= { done: {}, stats: {} });
-      parts.push(`${market}: ${scoreWindow(m, secs, cost)}`);
+      const rm = (rapid.markets[market] ??= { done: 0, next: 0, stats: {} });
+      const fast = scoreRapid(rm, secs, cost, market);
+      parts.push(`${market}: ${scoreWindow(m, secs, cost)} (+${fast} rapid, ${source})`);
     }
+    rapid.updatedAt = now;
     state.updatedAt = now;
     const at = new Date(now).toISOString();
     await admin
       .from("site_content")
       .upsert(
         { key: MICROLAB_KEY, value: JSON.stringify(state), updated_at: at },
+        { onConflict: "key" },
+      );
+    await admin
+      .from("site_content")
+      .upsert(
+        { key: RAPIDLAB_KEY, value: JSON.stringify(rapid), updated_at: at },
         { onConflict: "key" },
       );
     return parts.join(", ");
