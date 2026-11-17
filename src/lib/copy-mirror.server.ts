@@ -41,6 +41,8 @@ export async function mirrorCopier(
     confidence?: number | null;
     manual?: boolean;
     balance?: number | null;
+    entry?: number | null;
+    stop?: number | null;
   },
 ): Promise<{ lots: number; why?: string }> {
   try {

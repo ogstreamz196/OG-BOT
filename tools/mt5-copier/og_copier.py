@@ -227,7 +227,43 @@ def account_balance():
         return None
 
 
+# The most a copied trade's stop may lose, in % of the balance: 2%, or 1% in
+# high-frequency mode (many trades at once). Same as the server's COPY_RISK_PCT.
+RISK_PCT = 2.0
+RISK_PCT_HFT = 1.0
+UNITS_PER_LOT = {"XAUUSD": 100.0, "BTCUSD": 1.0}
+
+
+def risk_cap(sig):
+    """The biggest lot whose stop loses at most RISK_PCT of the balance, or None
+    when the stop or balance isn't known. Never under 0.01."""
+    units = UNITS_PER_LOT.get(sig.get("market"))
+    try:
+        dist = abs(float(sig["entry"]) - float(sig["stopNow"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    bal = account_balance()
+    if not units or dist <= 0 or not bal or bal <= 0:
+        return None
+    pct = RISK_PCT_HFT if HFT else RISK_PCT
+    return max(0.01, math.floor(bal * pct / 100 / (dist * units) * 100 + 1e-9) / 100)
+
+
 def lot_for(sig):
+    """The lot for this signal (band_lot), capped so its stop loses at most
+    RISK_PCT of the balance (the Boss, 2026-11-17: gold stops at 0.5 lot were
+    wiping the account). The Boss's manual trade is taken exactly as he set it."""
+    lot = band_lot(sig)
+    if sig.get("manual") and sig.get("lots"):
+        return lot
+    cap = risk_cap(sig)
+    if cap is not None and cap < lot:
+        log(f"Lot {lot} capped to {cap} so the stop risks {RISK_PCT_HFT if HFT else RISK_PCT}% at most")
+        return cap
+    return lot
+
+
+def band_lot(sig):
     """The lot for this signal: inside the chosen band (bigger when surer), or
     the bot's own lot, or a fixed lot. A band is the lot on its own, so the old
     risk multiplier only still applies to the bot/fixed modes."""
