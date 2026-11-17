@@ -24,6 +24,17 @@ export const RAPIDLAB_KEY = "signals.rapidlab";
 const FALLBACK_COST: Record<string, number> = { XAUUSD: 0.35, BTCUSD: 15 };
 
 const RUN_EVERY_MS = 55_000;
+/** Fewest seconds worth scoring: rapid fire needs about 340 (its 5-minute hold), the strategies 900. */
+const MIN_SECONDS = 400;
+const OKX_PAGE_GAP_MS = 300;
+const OKX_RETRY_MS = 1000;
+const OKX_RETRIES = 3;
+/** At most this long on OKX per market per run, so the watch run keeps its time. */
+const OKX_BUDGET_MS = 8000;
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Binance refuses the live server (HTTP 403): after a refusal it isn't asked again for this long. */
+const BINANCE_REST_MS = 30 * 60_000;
+let binanceRefusedAt = 0;
 
 /**
  * Why each source last gave nothing (an HTTP status or the error), shown in
@@ -45,14 +56,30 @@ async function okxSeconds(symbol: string): Promise<Sec[]> {
   if (!inst) return [];
   const rows: string[][] = [];
   let after = "";
-  for (let page = 0; page < 4 && rows.length < 1000; page++) {
+  const until = Date.now() + OKX_BUDGET_MS;
+  for (let page = 0; page < 4 && rows.length < 1000 && Date.now() < until; page++) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const timer = setTimeout(() => ctrl.abort(), 12_000);
     try {
-      const res = await fetch(
+      // OKX answers the live server "429 too many requests" now and then (the
+      // host shares its addresses): a short pause between pages, and up to
+      // three tries a page with a longer wait after a 429.
+      if (page) await pause(OKX_PAGE_GAP_MS);
+      let res = await fetch(
         `https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1s&limit=300${after ? `&after=${after}` : ""}`,
         { signal: ctrl.signal },
       );
+      for (
+        let retry = 1;
+        res.status === 429 && retry <= OKX_RETRIES && Date.now() < until;
+        retry++
+      ) {
+        await pause(OKX_RETRY_MS * retry);
+        res = await fetch(
+          `https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1s&limit=300${after ? `&after=${after}` : ""}`,
+          { signal: ctrl.signal },
+        );
+      }
       if (!res.ok) {
         lastWhy.okx = `HTTP ${res.status}`;
         break;
@@ -86,7 +113,7 @@ async function okxSeconds(symbol: string): Promise<Sec[]> {
 
 /** Binance first, OKX when Binance gives nothing. Says which one it used. */
 async function secondsFrom(symbol: string): Promise<{ secs: Sec[]; source: string }> {
-  const b = await binanceSeconds(symbol);
+  const b = Date.now() - binanceRefusedAt < BINANCE_REST_MS ? [] : await binanceSeconds(symbol);
   if (b.length >= 900) return { secs: b, source: "binance" };
   const o = await okxSeconds(symbol);
   return { secs: o, source: "okx" };
@@ -102,6 +129,7 @@ async function binanceSeconds(symbol: string): Promise<Sec[]> {
     );
     if (!res.ok) {
       lastWhy.binance = `HTTP ${res.status}`;
+      if (res.status === 403 || res.status === 451) binanceRefusedAt = Date.now();
       return [];
     }
     const rows = (await res.json()) as unknown[][];
@@ -178,7 +206,7 @@ export async function maybeRunMicroLab(admin: Admin, now = Date.now()): Promise<
         continue;
       }
       const { secs, source } = await secondsFrom(symbol);
-      if (secs.length < 900) {
+      if (secs.length < MIN_SECONDS) {
         parts.push(
           `${market}: no data (binance ${lastWhy.binance ?? "?"}; okx ${lastWhy.okx ?? "?"}; ${secs.length} rows)`,
         );

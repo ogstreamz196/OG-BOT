@@ -304,6 +304,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-17 · #317** · HFT lab prices: Binance answers the
+  live server 403 (now rested 30 min after a refusal) and OKX 429 (now a
+  pause between pages, up to 3 retries, 8 s a market at most); scoring
+  starts from 400 seconds so rapid fire runs on partial pages. No
+  migrations.
+
 - **Boss's Claude · 2026-11-17 · #316** · HFT lab: "no data" now says why
   (each source's HTTP status or error), since both Binance and OKX give the
   live server nothing while working from a Claude sandbox. No migrations.
