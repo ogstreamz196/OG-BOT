@@ -59,6 +59,9 @@ safety stop at the broker in case the PC goes off.
   `0.02`) for a fixed lot; at 0.01 it can't split at TP1. Nothing about
   your account is sent to the bot: anyone with the token just runs the
   copier and copies.
+- Every lot (except the Boss's manual trades) is capped so the trade's stop
+  loses at most 2% of the MT5 balance, 1% in high-frequency mode (many
+  trades run at once). Never under 0.01. The window says when it caps one.
 - `max_late_minutes`: don't jump into a signal that filled longer ago.
 - `max_open`: most copied trades open at once.
 - `markets`: `XAUUSD,BTCUSD`, or just one.

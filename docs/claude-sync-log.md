@@ -304,6 +304,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-17 · #315** · Copied lots capped by risk: a
+  stop may lose at most 2% of the balance (1% in HFT), after the band rule,
+  except manual trades (riskCapLot in copy-feed.ts, risk_cap in
+  og_copier.py). Gold on the large band with HFT goes from 0.5 to 0.01 lot
+  on $1,000. The Boss needs the new og_copier.py. No migrations.
+
 - **Boss's Claude · 2026-11-17 · #314** · HFT lab rapid fire: the Boss's
   "2 trades every 3-5 seconds, no open limit, close on small profits"
   measured live (rapid-scalp.ts, site_content signals.rapidlab), four

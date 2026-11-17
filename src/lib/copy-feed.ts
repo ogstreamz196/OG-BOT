@@ -253,6 +253,37 @@ export function lotForBand(band: LotBand, confidence?: number | null): number {
   return Math.floor((lo + (hi - lo) * t) * 100 + 0.5 + 1e-9) / 100;
 }
 
+/**
+ * The most a copied trade's stop may lose, in % of the balance (the Boss,
+ * 2026-11-17: "fix the lot sizes so gold stops don't wipe the account"; two
+ * gold stops at 0.5 lot had taken about $735 of $1,000). 2% a trade, 1% in
+ * high-frequency mode because many run at once. Mirrored in og_copier.py.
+ */
+export const COPY_RISK_PCT = { normal: 2, hft: 1 } as const;
+/** Units in 1 lot at Vantage: 100 oz of gold, 1 BTC. */
+export const UNITS_PER_LOT: Record<string, number> = { XAUUSD: 100, BTCUSD: 1 };
+
+/**
+ * The biggest lot whose stop loses at most COPY_RISK_PCT of the balance, or
+ * null when the stop or balance isn't known (then no cap). Never under 0.01,
+ * MT5's smallest lot. Pure.
+ */
+export function riskCapLot(o: {
+  hft?: boolean;
+  market?: string;
+  entry?: number | null;
+  stop?: number | null;
+  balance?: number | null;
+}): number | null {
+  const units = UNITS_PER_LOT[o.market ?? ""];
+  const dist = Math.abs(Number(o.entry) - Number(o.stop));
+  const bal = Number(o.balance);
+  if (!units || !(dist > 0) || !(bal > 0)) return null;
+  const pct = o.hft ? COPY_RISK_PCT.hft : COPY_RISK_PCT.normal;
+  const lot = (bal * pct) / 100 / (dist * units);
+  return Math.max(0.01, Math.floor(lot * 100 + 1e-9) / 100);
+}
+
 export type CopySettings = {
   /** No new trades; open ones are still managed and closed. */
   paused?: boolean;
@@ -313,9 +344,30 @@ export function copySettings(value: string | null | undefined): CopySettings {
  * inside the copy trade bot, make it reflect inside the signal group"). A
  * manual trade is its own lot; a band scales with confidence (in HFT the top
  * of the band, or the bottom for gold on a small balance: hftLotSpot); otherwise the bot's lot (or a fixed lot) times the multiplier,
- * 0.25x–4x. Rounded to MT5's 0.01 step, never under 0.01. Pure.
+ * 0.25x–4x. Rounded to MT5's 0.01 step, never under 0.01. Then, except for
+ * a manual trade, capped so the stop loses at most COPY_RISK_PCT of the
+ * balance (riskCapLot). Pure.
  */
 export function copierLot(
+  s: CopySettings,
+  sig: {
+    botLots: number;
+    confidence?: number | null;
+    manual?: boolean;
+    market?: string;
+    balance?: number | null;
+    /** The entry and stop, for the risk cap (riskCapLot). */
+    entry?: number | null;
+    stop?: number | null;
+  },
+): number {
+  const lot = bandOrBotLot(s, sig);
+  if (sig.manual) return lot;
+  const cap = riskCapLot({ ...sig, hft: s.hft });
+  return cap == null ? lot : Math.min(lot, cap);
+}
+
+function bandOrBotLot(
   s: CopySettings,
   sig: {
     botLots: number;
