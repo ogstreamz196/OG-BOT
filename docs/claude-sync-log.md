@@ -304,6 +304,10 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-17 · #316** · HFT lab: "no data" now says why
+  (each source's HTTP status or error), since both Binance and OKX give the
+  live server nothing while working from a Claude sandbox. No migrations.
+
 - **Boss's Claude · 2026-11-17 · #315** · Copied lots capped by risk: a
   stop may lose at most 2% of the balance (1% in HFT), after the band rule,
   except manual trades (riskCapLot in copy-feed.ts, risk_cap in

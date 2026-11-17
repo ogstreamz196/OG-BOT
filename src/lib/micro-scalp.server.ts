@@ -24,6 +24,16 @@ export const RAPIDLAB_KEY = "signals.rapidlab";
 const FALLBACK_COST: Record<string, number> = { XAUUSD: 0.35, BTCUSD: 15 };
 
 const RUN_EVERY_MS = 55_000;
+
+/**
+ * Why each source last gave nothing (an HTTP status or the error), shown in
+ * the lab's status line so a "no data" says what went wrong.
+ */
+const lastWhy: Record<string, string> = {};
+const errText = (e: unknown) =>
+  (e instanceof Error ? `${e.name}: ${e.message}` : String(e))
+    .replace(/https?:\/\/\S+/g, "")
+    .slice(0, 80);
 let lastRun = 0;
 
 /**
@@ -43,13 +53,20 @@ async function okxSeconds(symbol: string): Promise<Sec[]> {
         `https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1s&limit=300${after ? `&after=${after}` : ""}`,
         { signal: ctrl.signal },
       );
-      if (!res.ok) break;
-      const json = (await res.json()) as { code?: string; data?: string[][] };
+      if (!res.ok) {
+        lastWhy.okx = `HTTP ${res.status}`;
+        break;
+      }
+      const json = (await res.json()) as { code?: string; data?: string[][]; msg?: string };
       const data = json.code === "0" && Array.isArray(json.data) ? json.data : [];
-      if (!data.length) break;
+      if (!data.length) {
+        lastWhy.okx = `empty (code ${json.code ?? "?"}${json.msg ? ` ${json.msg}` : ""})`;
+        break;
+      }
       rows.push(...data);
       after = data[data.length - 1][0];
-    } catch {
+    } catch (e) {
+      lastWhy.okx = errText(e);
       break;
     } finally {
       clearTimeout(timer);
@@ -83,8 +100,13 @@ async function binanceSeconds(symbol: string): Promise<Sec[]> {
       `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=1s&limit=1000`,
       { signal: ctrl.signal },
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      lastWhy.binance = `HTTP ${res.status}`;
+      return [];
+    }
     const rows = (await res.json()) as unknown[][];
+    if (!Array.isArray(rows) || rows.length < 900)
+      lastWhy.binance = `only ${Array.isArray(rows) ? rows.length : 0} rows`;
     return rows
       .map((r) => ({
         t: Number(r[0]),
@@ -96,7 +118,8 @@ async function binanceSeconds(symbol: string): Promise<Sec[]> {
         tb: +String(r[9]),
       }))
       .filter((s) => [s.o, s.h, s.l, s.c].every((x) => Number.isFinite(x) && x > 0));
-  } catch {
+  } catch (e) {
+    lastWhy.binance = errText(e);
     return [];
   } finally {
     clearTimeout(timer);
@@ -156,7 +179,9 @@ export async function maybeRunMicroLab(admin: Admin, now = Date.now()): Promise<
       }
       const { secs, source } = await secondsFrom(symbol);
       if (secs.length < 900) {
-        parts.push(`${market}: no data`);
+        parts.push(
+          `${market}: no data (binance ${lastWhy.binance ?? "?"}; okx ${lastWhy.okx ?? "?"}; ${secs.length} rows)`,
+        );
         continue;
       }
       const cost = await costPerTrade(market, FALLBACK_COST[market]).catch(
