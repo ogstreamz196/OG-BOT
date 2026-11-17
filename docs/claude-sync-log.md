@@ -304,6 +304,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-17 · #314** · HFT lab rapid fire: the Boss's
+  "2 trades every 3-5 seconds, no open limit, close on small profits"
+  measured live (rapid-scalp.ts, site_content signals.rapidlab), four
+  versions incl. a coin-flip yardstick, on the HFT lab page. Lab only, never
+  posts or copies. Also fixed the lab's prices: Binance gave the live server
+  nothing, so it now falls back to OKX. No migrations.
+
 - **Boss's Claude · 2026-11-16 · #313** · Fix: the Copy Trader B0T's purge
   button didn't reset the group (the purge ran inside the Telegram tap and
   was cut off before saving). Now queued (signals.purge.job) and run by the
