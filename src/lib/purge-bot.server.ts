@@ -175,14 +175,23 @@ type PurgeJob = {
   card?: PurgeCard;
   at: string;
   state: "queued" | "running" | "done";
+  /** When a run claimed it (a claim this old with no result is run again). */
+  claimedAt?: string;
 };
 
 /** A stored job, or null when it's missing, finished, stale or broken. Pure. */
+/** A claimed purge with no result after this long was cut off: it's run again. */
+export const PURGE_STUCK_MS = 2 * 60_000;
+
 export function dueJob(raw: string | null | undefined, now: number): PurgeJob | null {
   if (!raw) return null;
   try {
     const job = JSON.parse(raw) as PurgeJob;
-    if (job.state !== "queued" || cleanBalance(job.balance) == null) return null;
+    if (cleanBalance(job.balance) == null) return null;
+    const claimed = Date.parse(job.claimedAt ?? "");
+    const stuck =
+      job.state === "running" && (!Number.isFinite(claimed) || now - claimed > PURGE_STUCK_MS);
+    if (job.state !== "queued" && !stuck) return null;
     const at = Date.parse(job.at);
     if (!Number.isFinite(at) || now - at > PURGE_JOB_MAX_AGE_MS) return null;
     return job;
@@ -202,12 +211,13 @@ async function saveJob(admin: Admin, job: PurgeJob) {
 }
 
 /**
- * A tap on the card ("rs:…"), Boss only. "Yes, purge and reset" doesn't run
- * the purge inside the Telegram tap (the Boss, 2026-11-16: the button didn't
- * reset the balance: clearing the group takes longer than a tap's request is
- * allowed to run, so it was cut off before anything was saved). It queues it
- * (PURGE_JOB_KEY) and the next trade-signal-watch run (within a minute) does
- * it with runQueuedPurge, then puts the result on this card.
+ * A tap on the card ("rs:…"), Boss only. "Yes, purge and reset" queues the
+ * purge (PURGE_JOB_KEY); the webhook then runs it at once (runQueuedPurge,
+ * about 4 seconds: the Boss, 2026-11-17, "purge from the bot takes long to
+ * appear" when it waited for the next minute). If the tap's request is cut
+ * off, the next trade-signal-watch run does it instead (a claim with no
+ * result after PURGE_STUCK_MS is run again). Either way the card shows the
+ * result.
  */
 export async function resetTap(
   admin: Admin,
@@ -243,7 +253,7 @@ export async function resetTap(
   return {
     toast: "🧹 Purge on its way",
     panel: {
-      text: `🧹 Purging the signals group and resetting the test account to ${money(tap.balance)}. It starts within a minute; this card shows the result when it's done.`,
+      text: `🧹 Purging the signals group and resetting the test account to ${money(tap.balance)}… this card shows the result in a few seconds.`,
       reply_markup: { inline_keyboard: [] },
     },
   };
@@ -263,7 +273,7 @@ export async function runQueuedPurge(admin: Admin, now = Date.now()): Promise<st
   const job = dueJob((data as { value?: string } | null)?.value, now);
   if (!job) return "none";
   // Claimed first, so a slow run is never started twice.
-  await saveJob(admin, { ...job, state: "running" });
+  await saveJob(admin, { ...job, state: "running", claimedAt: new Date(now).toISOString() });
   const { freshStart } = await import("./signals-fresh-start.server");
   const out = await freshStart(admin, job.balance).catch(
     (e: unknown) =>

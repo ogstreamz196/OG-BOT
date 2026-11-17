@@ -50,7 +50,7 @@ describe("purge & reset is queued, then run by the watch", () => {
     const card = { botId: "b", chatId: 1, messageId: 9 };
     const out = await resetTap(db, 1, "rs:go:500", card);
     expect(fresh).toEqual([]);
-    expect(out.panel?.text).toMatch(/within a minute/);
+    expect(out.panel?.text).toMatch(/in a few seconds/);
     expect(JSON.parse(rows[PURGE_JOB_KEY])).toMatchObject({ balance: 500, state: "queued", card });
     expect(await runQueuedPurge(db)).toBe("purged at 500");
     expect(fresh).toEqual([500]);
@@ -77,5 +77,10 @@ describe("purge & reset is queued, then run by the watch", () => {
     expect(dueJob(job({ balance: 5 }), now)).toBeNull();
     expect(dueJob("{oops", now)).toBeNull();
     expect(dueJob(null, now)).toBeNull();
+    // Claimed but cut off: run again after 2 minutes, not before.
+    const claimed = (mins: number) =>
+      job({ state: "running", claimedAt: new Date(now - mins * 60_000).toISOString() });
+    expect(dueJob(claimed(1), now)).toBeNull();
+    expect(dueJob(claimed(3), now)?.balance).toBe(500);
   });
 });
