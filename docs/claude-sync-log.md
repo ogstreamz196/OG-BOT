@@ -8,13 +8,13 @@ add to it before merging. See `CLAUDE.md` for the routine.
 <!-- One line per open task: who · branch · what · files it touches -->
 
 
-- Partner's Claude · (next branch) · Leaving Lovable, steps 3–5 (plan in
-  `docs/lovable-exit-plan.md`). **The Boss wants the partner's Claude to do
-  the takeover (2026-11-01).** The Boss's list for steps 3–5 and what the
-  booking portal and vault show are in the plan's "For steps 3 to 5" and
-  "What the other projects show". Will touch `vite.config.ts`, a new
-  `wrangler.jsonc`, a deploy workflow, sign-in, `src/routes/lovable/email`,
-  the database client.
+- Boss's Claude · (not started) · Leaving Lovable, steps 3–5 (plan and the
+  2026-11-18 notes in `docs/lovable-exit-plan.md`). **Taken over from the
+  partner's Claude (the Boss, 2026-11-18: "This will be main Claude").**
+  On hold: the Boss and this Claude do it together later; nothing goes on
+  the to-do list until the Boss asks. Partner's Claude: please don't start
+  it. Will touch `vite.config.ts`, a new `wrangler.jsonc`, a deploy
+  workflow, sign-in, `src/routes/lovable/email`, the database client.
 
 ## Planned (not started)
 
@@ -303,6 +303,12 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-18 · #319** · Notes only: the Boss's Claude
+  leads leaving Lovable now (steps 3–5, on hold until the Boss asks). Why:
+  the Lovable credits ran out on 2026-11-17 and the live database stopped.
+  Plan notes added (Supabase Pro not the free hub, step 2 to bring up to
+  date, Workers Paid needed, keep pg_cron). No code changes.
 
 - **Boss's Claude · 2026-11-17 · #318** · Copy bot purge runs straight away
   from the tap again (about 4 s; it waited up to a minute for the watch
