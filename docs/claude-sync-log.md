@@ -325,6 +325,11 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-18 · #321** · Sports Guide group goes quiet:
+  the random banter every 3 hours is off (`SPORTS_BANTER_ON`), and OG B0T
+  only answers questions (`isQuestion`) about games or put to it. Feed
+  mirroring and members' private reminders unchanged. No migrations.
+
 - **Boss's Claude · 2026-11-18 · #320** · "Leave Lovable" added to the
   Boss's to-do list (Planned), with the database decision first in the
   plan's Boss's to-do. Live checked after the credits top-up: signals back
