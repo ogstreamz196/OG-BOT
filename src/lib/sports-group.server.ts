@@ -30,6 +30,20 @@ export function looksLikeListing(text: string): boolean {
 const WHICH_GAME_RE =
   /\b(which|what|any|whats|what's|wheres|where's)\b[^?]*\b(game|match|fixture|fixtures|on|playing|showing|football|footy|kick[\s-]?off)\b|\bgames?\s+(on|tonight|today|this\s+\w+)\b|\bwhat'?s\s+on\b|\bwho'?s\s+playing\b|\bany\s+(games|football|footy|matches)\b|\bfixtures?\b/i;
 
+const QUESTION_START_RE =
+  /^(which|what|whats|what's|when|where|wheres|where's|who|whos|who's|why|how|is|are|any|anyone|can|could|does|do|did|will|would|should|has|have|wat|wot|wen)\b/i;
+
+/**
+ * A question to answer: it ends with "?" or starts like one ("what's on
+ * tonight", "any footy today"). The Boss, 2026-11-18: OG B0T only answers
+ * questions in the Sports Guide group, nothing else. Pure.
+ */
+export function isQuestion(text: string | null | undefined): boolean {
+  const t = (text ?? "").replace(/@\w+/g, "").trim();
+  if (!t) return false;
+  return /\?\s*$/.test(t) || QUESTION_START_RE.test(t);
+}
+
 /** "which game is on", "what's on tonight", "any footy today", "fixtures?" */
 export function isWhichGameAsk(text: string | null | undefined): boolean {
   return !!text && WHICH_GAME_RE.test(text);
@@ -206,6 +220,13 @@ export function daytimeUK(now = Date.now()): boolean {
   return hour >= 9 && hour < 23;
 }
 
+/**
+ * The random banter posts are off (the Boss, 2026-11-18: "it keeps talking
+ * even if there are no messages, make it go quiet and only respond to
+ * questions"). The phrase banks and timing are kept for if he wants them back.
+ */
+export const SPORTS_BANTER_ON = false;
+
 const BANTER_KEY = "sports.group.banterAt";
 /** At least this long between random banter posts. */
 export const BANTER_EVERY_MS = 3 * 3_600_000;
@@ -223,6 +244,7 @@ export function banterDue(lastIso: string | null, now: number): boolean {
  * members-vs-freeloaders nudge. Never throws; returns a short status.
  */
 export async function maybeSportsGroupBanter(admin: Admin, now = Date.now()): Promise<string> {
+  if (!SPORTS_BANTER_ON) return "off";
   try {
     if (!daytimeUK(now)) return "night";
     const { data: row } = await admin.from("site_content").select("value").eq("key", BANTER_KEY).maybeSingle();

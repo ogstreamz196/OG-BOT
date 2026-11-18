@@ -2048,8 +2048,10 @@ const dmButton = async (text: string) => ({
 /**
  * A person chatting in the OG Sports Guide group. Members (unlocked guide or
  * VIP) are treated like royalty and get the fixtures; anyone not signed up gets
- * cheeky banter and a push to join. Only engages on a "which game" question or
- * when OG B0T is spoken to, so it never spams the group. No AI. (the Boss, 2026-11-03)
+ * cheeky banter and a push to join. Only answers questions (the Boss,
+ * 2026-11-18: "make it go quiet and only respond to questions"): a question
+ * about games, or a question put to OG B0T (mentioned or replied to). Anything
+ * that isn't a question gets nothing, mention or not. No AI. (the Boss, 2026-11-03)
  */
 async function handleSportsGroupChat(
   admin: Awaited<ReturnType<typeof loadAdmin>>,
@@ -2065,8 +2067,9 @@ async function handleSportsGroupChat(
     msg.reply_to_message.from.username?.toLowerCase() === me;
   const sg = await import("@/lib/sports-group.server");
   const { detectSportsIntent } = await import("@/lib/sports-guide-context.server");
+  // Only questions get an answer: about games, or put to OG B0T.
+  if (!sg.isQuestion(text)) return Response.json({ ok: true, sports_group: "quiet" });
   const wantsGames = sg.isWhichGameAsk(text) || detectSportsIntent(text);
-  // Stay quiet unless they're asking about games or talking to OG B0T.
   if (!wantsGames && !mentioned && !repliedToMe)
     return Response.json({ ok: true, sports_group: "quiet" });
 
