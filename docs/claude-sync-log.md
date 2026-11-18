@@ -20,6 +20,27 @@ add to it before merging. See `CLAUDE.md` for the routine.
 
 <!-- The Boss's shared to-do list: ideas agreed but not built yet. -->
 
+- **Leave Lovable: own Supabase, Cloudflare and GitHub (the Boss,
+  2026-11-18; added to the list when he asked).** So the site, the bots and
+  the signals never stop again when Lovable credits run out (they did on
+  2026-11-17). The Boss's Claude leads; plan, notes and the Boss's clicks in
+  `docs/lovable-exit-plan.md` ("Boss's to-do" and "For steps 3 to 5").
+  Order:
+  1. **The Boss decides** where the database lives: Supabase Pro for the
+     OGSTREAMZ hub ($25 a month) or OG B0T's own Pro project. Not the free
+     plan.
+  2. **The Boss's clicks** (about 30 minutes, each secret straight into its
+     dashboard, never chat): Cloudflare Workers Paid ($5 a month), ogbot.co.uk
+     on Cloudflare, a Cloudflare API token, two GitHub secrets, the Worker's
+     secrets copied from Lovable, Google sign-in URLs, a free Resend account,
+     Stripe keys, one Google sign-in for Drive.
+  3. **The Claude:** bring the `og_bot` schema up to date (every migration
+     since 2026-11-01), Cloudflare build and deploy workflow, test on
+     beta.ogbot.co.uk, own sign-in and login emails, song files to R2.
+  4. **Switch day** (a quiet half hour): copy the data, point ogbot.co.uk at
+     Cloudflare, re-point the Telegram, Stripe and Suno webhooks. Lovable
+     kept a week as a safety net, then downgraded.
+
 - **One login across OG VAULT and OG BOT (the Boss, 2026-11-08; waiting on
   credits).** A Vault member signs in to ogbot.co.uk with the same username +
   password they use in OG VAULT. OG BOT side (this repo):
@@ -303,6 +324,11 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-18 · #320** · "Leave Lovable" added to the
+  Boss's to-do list (Planned), with the database decision first in the
+  plan's Boss's to-do. Live checked after the credits top-up: signals back
+  from 14:08, every minute job answering since 14:10, bots answering.
 
 - **Boss's Claude · 2026-11-18 · #319** · Notes only: the Boss's Claude
   leads leaving Lovable now (steps 3–5, on hold until the Boss asks). Why:

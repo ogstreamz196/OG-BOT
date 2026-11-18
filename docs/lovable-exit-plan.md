@@ -13,6 +13,11 @@ Lovable secrets form (today) or the Cloudflare and Supabase dashboards
 Things only the Boss can do. Claudes: remind the Boss when work is waiting
 on one of these, and tick it off here once done.
 
+- [ ] **First (2026-11-18): where OG B0T's database lives.** Supabase Pro
+      for the OGSTREAMZ hub ($25 a month), or OG B0T's own Supabase Pro
+      project. Not the free plan (see the 2026-11-18 notes). Then the list
+      under "For steps 3 to 5" below, A to G.
+
 - [x] ~~Add the hub database secret in GitHub~~: no longer needed. The
       structure was applied through the database connection on 2026-10-31. The
       secret only matters for the workflow's `verify` and `rollback`.
