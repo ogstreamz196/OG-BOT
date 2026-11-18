@@ -13,10 +13,12 @@ Lovable secrets form (today) or the Cloudflare and Supabase dashboards
 Things only the Boss can do. Claudes: remind the Boss when work is waiting
 on one of these, and tick it off here once done.
 
-- [ ] **First (2026-11-18): where OG B0T's database lives.** Supabase Pro
-      for the OGSTREAMZ hub ($25 a month), or OG B0T's own Supabase Pro
-      project. Not the free plan (see the 2026-11-18 notes). Then the list
-      under "For steps 3 to 5" below, A to G.
+- [x] ~~Where OG B0T's database lives~~: **decided 2026-11-18: the
+      OGSTREAMZ hub, on the free plan**, beside the vault and the other apps,
+      so they share API keys and secrets ("when the time is right"). Then
+      the list under "For steps 3 to 5" below, A to G.
+- [ ] **Hosting (open, 2026-11-18):** Workers Paid ($5 a month), or a free
+      route (see "Hosting without Workers Paid" in the 2026-11-18 notes).
 
 - [x] ~~Add the hub database secret in GitHub~~: no longer needed. The
       structure was applied through the database connection on 2026-10-31. The
@@ -129,11 +131,25 @@ the Boss topped up. That dependency is what the move removes.
 
 What to change in the plan above when it starts:
 
-- **Not the hub's free plan for OG B0T.** The signal scan, the watcher and
-  high-frequency mode (steps every 10 seconds) hit the database far harder
-  than in 2026-11-01's estimate. Budget Supabase Pro ($25 a month) for the
-  hub, or give OG B0T its own Pro project so it can't slow the other apps.
-  Decide this first, as it changes step 2.
+- **The hub's free plan (the Boss's call, 2026-11-18)**, shared with the
+  vault and the others so API keys are shared. The Claude's note: the
+  signal scan, the watcher and high-frequency mode (steps every 10 seconds)
+  hit the database much harder than 2026-11-01's estimate, and the free
+  plan's small shared machine serves every app. So before the move: cut
+  OG B0T's database calls per minute (fewer HFT reads and writes, the
+  lab's scorecards saved every few minutes, not every minute), keep song
+  files on R2, and watch the hub's usage page the first week. If it
+  struggles, Pro ($25 a month) is one click.
+- **Hosting without Workers Paid (the Boss asked, 2026-11-18).** Workers
+  Free gives 10 ms of CPU and 50 outside calls per request: the site's
+  pages fit, the minute jobs (the scan reads ~40 charts a run) don't. Free
+  routes: (a) the site on Workers Free and the minute jobs and Telegram
+  webhooks as hub Edge Functions (free plan: 500,000 runs a month; the
+  minute jobs use about 260,000), which is the house rule's direction but a
+  big port of the scan, tracker and bots to Deno; or (b) the whole app as
+  a Node server on an always-free cloud machine (e.g. Oracle Cloud's
+  always-free tier), Cloudflare free in front for the domain, no limits
+  but a machine to look after. Workers Paid is the least work.
 - **Step 2 is out of date.** The `og_bot` schema was built from the
   migrations up to 2026-11-01; everything since has to be applied (run
   `supabase/hub/verify_migrations.sql`, then the missing files one at a

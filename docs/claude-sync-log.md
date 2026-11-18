@@ -26,9 +26,10 @@ add to it before merging. See `CLAUDE.md` for the routine.
   2026-11-17). The Boss's Claude leads; plan, notes and the Boss's clicks in
   `docs/lovable-exit-plan.md` ("Boss's to-do" and "For steps 3 to 5").
   Order:
-  1. **The Boss decides** where the database lives: Supabase Pro for the
-     OGSTREAMZ hub ($25 a month) or OG B0T's own Pro project. Not the free
-     plan.
+  1. **Decided (2026-11-18):** the database goes in the OGSTREAMZ hub, on
+     the free plan, beside the vault and the others so API keys are
+     shared. Still open: hosting (Workers Paid, or a free route; see the
+     plan's 2026-11-18 notes).
   2. **The Boss's clicks** (about 30 minutes, each secret straight into its
      dashboard, never chat): Cloudflare Workers Paid ($5 a month), ogbot.co.uk
      on Cloudflare, a Cloudflare API token, two GitHub secrets, the Worker's
@@ -324,6 +325,11 @@ merged work, not open work.
   progress).
 
 ## Log
+
+- **Boss's Claude · 2026-11-18 · #322** · Notes: the Boss chose the
+  OGSTREAMZ hub's free plan for OG B0T's database (shared keys with the
+  vault and others); hosting still open, free routes written up in the
+  plan. Steps 3 and 4 later. No code changes.
 
 - **Boss's Claude · 2026-11-18 · #321** · Sports Guide group goes quiet:
   the random banter every 3 hours is off (`SPORTS_BANTER_ON`), and OG B0T
