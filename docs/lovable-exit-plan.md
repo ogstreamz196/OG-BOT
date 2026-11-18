@@ -109,6 +109,41 @@ unlock-full-song, admin-reprocess)
 **Note on cost:** the hub is on Supabase's free plan. OG B0T's minute jobs
 should fit; if the hub hits its limits, Supabase Pro is $25 a month.
 
+### Notes from 2026-11-18 (the Boss's Claude now leads this)
+
+The Boss, 2026-11-18: "We need to migrate this cloud over to my own
+supabase/cloudflare/git so we don't rely on Lovable … This will be main
+Claude. Let's take the notes and we handle it together later. Add to our
+to-do list when I ask." So the Boss's Claude takes steps 3–5 over from the
+partner's Claude (nothing of theirs had been pushed for it), and nothing is
+started or added to the to-do list until the Boss asks.
+
+Why now: on 2026-11-17 the Lovable credits ran out and the live database
+stopped answering (every bot and the signals went quiet for hours) until
+the Boss topped up. That dependency is what the move removes.
+
+What to change in the plan above when it starts:
+
+- **Not the hub's free plan for OG B0T.** The signal scan, the watcher and
+  high-frequency mode (steps every 10 seconds) hit the database far harder
+  than in 2026-11-01's estimate. Budget Supabase Pro ($25 a month) for the
+  hub, or give OG B0T its own Pro project so it can't slow the other apps.
+  Decide this first, as it changes step 2.
+- **Step 2 is out of date.** The `og_bot` schema was built from the
+  migrations up to 2026-11-01; everything since has to be applied (run
+  `supabase/hub/verify_migrations.sql`, then the missing files one at a
+  time, never `supabase db push`).
+- **Workers Paid ($5 a month) is a must, not a nice-to-have.** The live
+  server is already hitting limits on time and outside calls per request
+  (the purge cut off in the Telegram tap, the HFT lab's price fetches
+  refused or rate-limited), and a bigger allowance is part of the fix.
+- **Keep the minute jobs on pg_cron** in the new database, calling the
+  Worker, as today (not Cloudflare cron triggers): the routes, tokens and
+  timings stay the same.
+- **Song files (about 2 GB) to Cloudflare R2**, as planned.
+- The Boss's part is about 30 minutes of clicks (section A–E above); the
+  Claude does the code, the data, testing on beta and the switch.
+
 ### What the other projects show (checked by the Boss's Claude, 2026-11-01)
 
 - **og-booking-portal** is the model: Cloudflare Pages connected to GitHub
