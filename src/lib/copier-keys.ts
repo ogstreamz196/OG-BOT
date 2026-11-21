@@ -452,3 +452,80 @@ export function parseMyTap(data: string): "pause" | "resume" | "refresh" | null 
   const m = /^ck:me:(pause|resume|refresh)$/.exec(data);
   return m ? (m[1] as "pause" | "resume" | "refresh") : null;
 }
+
+/* ── OG SIGNAL BOT TOKEN (bought in the store) ──────────────────────────── */
+
+/**
+ * The store perk that sells a key (the Boss, 2026-11-21: "pair user accounts
+ * to bot tokens they can buy to connect their scripts to their own devices …
+ * integrate it as OG SIGNAL BOT TOKEN"). A store item with perk_slug
+ * "signal_token" gives TOKEN_DEFAULT_DAYS days; "signal_token:90" gives 90.
+ */
+export const TOKEN_PERK = "signal_token";
+export const TOKEN_DEFAULT_DAYS = 30;
+/** The store item's slug: hidden in the phone apps (copy trading is website-only). */
+export const TOKEN_ITEM_SLUG = "og-signal-bot-token";
+export const TOKEN_PRODUCT_NAME = "OG SIGNAL BOT TOKEN";
+
+/** The days a store perk sells, or null when it isn't the token perk. Pure. */
+export function tokenPerkDays(perk: string | null | undefined): number | null {
+  const m = /^signal_token(?::(\d{1,4}))?$/.exec(String(perk ?? "").trim());
+  if (!m) return null;
+  const days = m[1] ? Number(m[1]) : TOKEN_DEFAULT_DAYS;
+  return days >= 1 && days <= MAX_KEY_DAYS ? days : null;
+}
+
+/** "30 days of OG SIGNAL BOT", for the store card's perk pill. Pure. */
+export function tokenPerkLabel(perk: string | null | undefined): string | null {
+  const days = tokenPerkDays(perk);
+  return days == null ? null : `${days} days of OG SIGNAL BOT`;
+}
+
+/**
+ * The key after a purchase: an existing key gets the days added (on top of
+ * what's left, switched back on if it was off; its machine lock stays), or a
+ * new one starts, tied to the buyer's account. Pure.
+ */
+export function boughtKey(
+  existing: CopierKey | null,
+  fresh: { hash: string; name: string; userId: string },
+  days: number,
+  now: number,
+): CopierKey {
+  if (existing) return extendKey(restoreKey(existing), days, now);
+  return { ...newKey(fresh.hash, fresh.name, days, now), userId: fresh.userId };
+}
+
+/**
+ * config.ini for a member's own copier, with their token filled in (shown on
+ * their /copier page, never stored). The Boss's remote settings (copy.settings)
+ * still win over these, like on every copier. Pure.
+ */
+export function memberConfig(
+  token: string,
+  feedUrl = "https://ogbot.co.uk/api/public/copy-feed",
+): string {
+  return [
+    "; OG SIGNAL BOT: your copier's settings. Keep this file private: the token",
+    "; is your access, and it works on one PC and one MT5 account at a time.",
+    "[copier]",
+    `feed_url = ${feedUrl}`,
+    `token = ${token}`,
+    "; The lot is set for you (the bot's lot, capped so one stop risks 2% of",
+    "; your balance at most, 1% in high-frequency mode).",
+    "lot = bot",
+    "; true: only shows what it would do. Set to false to trade for real.",
+    "dry_run = true",
+    "use_broker_stop = false",
+    "poll_seconds = 3",
+    "max_late_minutes = 10",
+    "max_open = 6",
+    "markets = XAUUSD,BTCUSD",
+    "; Your MT5 Market Watch names (some accounts add a suffix, e.g. XAUUSD+).",
+    "symbol_XAUUSD = XAUUSD",
+    "symbol_BTCUSD = BTCUSD",
+    "mt5_path =",
+    "mt5_portable = false",
+    "",
+  ].join("\n");
+}

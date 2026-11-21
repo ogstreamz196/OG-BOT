@@ -187,7 +187,9 @@ export async function copierLogin(
 /* ── the copy feed ──────────────────────────────────────────────────────── */
 
 export type CopyAccess =
-  { kind: "master" } | { kind: "user"; access: Access; message?: string } | null;
+  | { kind: "master" }
+  | { kind: "user"; access: Access; message?: string }
+  | null;
 
 /**
  * Who a copy-feed request is from: the Boss's own token (as before), a user's
@@ -414,4 +416,82 @@ export async function myCopierTap(
     toast: tap === "pause" ? "⏸ Paused: nothing new opens" : "▶️ New trades are on again",
     panel: myPanel(next, now),
   };
+}
+
+/* ── OG SIGNAL BOT TOKEN: bought in the store ───────────────────────────── */
+
+/**
+ * A paid OG SIGNAL BOT TOKEN (the store webhook, perk "signal_token[:days]"):
+ * adds the days to the buyer's key, or makes them one tied to their account.
+ * The token itself isn't shown here: the member gets it on their /copier
+ * page (issueMyToken) or by signing in on the stick's app. Tells them on
+ * Telegram when their account is linked. Never throws.
+ */
+export async function grantSignalToken(
+  admin: Admin,
+  userId: string,
+  days: number,
+  reference: string,
+): Promise<{ ok: boolean; created: boolean; expiresAt?: string }> {
+  try {
+    const { boughtKey } = await import("./copier-keys");
+    const now = Date.now();
+    const stored = await keyOfUser(admin, userId);
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("display_name, email, telegram_chat_id")
+      .eq("id", userId)
+      .maybeSingle();
+    const p = (profile ?? {}) as {
+      display_name?: string | null;
+      email?: string | null;
+      telegram_chat_id?: number | string | null;
+    };
+    const name = (p.display_name || p.email?.split("@")[0] || "Member").slice(0, 40);
+    let key: CopierKey;
+    let hash: string;
+    if (stored) {
+      key = boughtKey(stored.key, { hash: stored.hash, name, userId }, days, now);
+      hash = stored.hash;
+    } else {
+      const made = await makeToken();
+      hash = made.hash;
+      key = boughtKey(null, { hash, name, userId }, days, now);
+    }
+    if (!(await saveKey(admin, hash, key))) return { ok: false, created: false };
+    await audit(admin, userId, `bought ${days}d ${reference}`, key);
+    const chat = Number(p.telegram_chat_id);
+    if (Number.isFinite(chat) && chat !== 0) {
+      const { sendTelegramText } = await import("./sports-guide.server");
+      await sendTelegramText(
+        chat,
+        [
+          `✅ <b>OG SIGNAL BOT TOKEN</b>: ${days} days added.`,
+          `Your access runs until ${new Date(key.expiresAt).toLocaleDateString("en-GB")}.`,
+          "Get your token and the setup steps at https://ogbot.co.uk/copier",
+        ].join("\n"),
+      ).catch(() => undefined);
+    }
+    return { ok: true, created: !stored, expiresAt: key.expiresAt };
+  } catch (e) {
+    console.warn("[copier-keys] grantSignalToken failed", e instanceof Error ? e.message : e);
+    return { ok: false, created: false };
+  }
+}
+
+/**
+ * The member's token, made fresh and shown once (their /copier page): the
+ * old token stops, the expiry and the machine lock carry over. Null when
+ * they have no key, or it's switched off.
+ */
+export async function issueMyToken(
+  admin: Admin,
+  userId: string,
+): Promise<{ token: string; expiresAt: string } | null> {
+  const stored = await keyOfUser(admin, userId);
+  if (!stored || stored.key.revoked) return null;
+  const made = await rotateToken(admin, stored);
+  if (!made) return null;
+  await audit(admin, userId, "member new token", made.key);
+  return { token: made.token, expiresAt: made.key.expiresAt };
 }

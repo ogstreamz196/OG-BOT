@@ -8,6 +8,6 @@ export const Route = createFileRoute("/_authenticated/copier")({
   beforeLoad: () => {
     if (typeof window !== "undefined" && Capacitor.isNativePlatform()) throw redirect({ to: "/" });
   },
-  head: () => ({ meta: [{ title: "My copier | OG B0T" }] }),
+  head: () => ({ meta: [{ title: "OG SIGNAL BOT | OG B0T" }] }),
   component: MyCopierPage,
 });
