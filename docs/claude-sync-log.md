@@ -326,6 +326,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-21 · #329** · OG SIGNAL BOT: 30-day passes bought
+  on /copier itself (1–12 at once, stacking on the expiry; claim while
+  free), config.ini needs no editing (token in, dry_run false, broker
+  symbol suffixes found by og_copier), and a zip download link the Boss sets
+  in the Control Room (download → OGCopier.exe → sign in → Start). Waiting
+  on the Boss's portable zip on Cloudflare. No migrations.
+
 - **Boss's Claude · 2026-11-21 · #328** · OG SIGNAL BOT TOKEN free for a
   limited time: while its price is 0 the store card says FREE / Claim free
   and the claim goes straight onto the account (one per token, again when

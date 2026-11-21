@@ -65,6 +65,9 @@ safety stop at the broker in case the PC goes off.
 - `max_late_minutes`: don't jump into a signal that filled longer ago.
 - `max_open`: most copied trades open at once.
 - `markets`: `XAUUSD,BTCUSD`, or just one.
+- Symbol names: if your broker adds a suffix (e.g. `XAUUSD+`, `XAUUSD.r`),
+  the copier finds it by itself; `symbol_XAUUSD` / `symbol_BTCUSD` only need
+  setting when there's more than one match.
 
 ## Remote settings
 

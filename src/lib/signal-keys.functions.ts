@@ -24,11 +24,26 @@ async function assertBoss(context: { supabase: unknown; userId: string }) {
 
 export const listSignalKeys = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ rows: BossKeyRow[] }> => {
+  .handler(async ({ context }): Promise<{ rows: BossKeyRow[]; download: string | null }> => {
     await assertBoss(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { bossKeyRows } = await import("./copier-keys.server");
-    return { rows: await bossKeyRows(supabaseAdmin) };
+    const { bossKeyRows, downloadUrl } = await import("./copier-keys.server");
+    const [rows, download] = await Promise.all([
+      bossKeyRows(supabaseAdmin),
+      downloadUrl(supabaseAdmin).catch(() => null),
+    ]);
+    return { rows, download };
+  });
+
+/** The OG SIGNAL BOT zip's download link members see on their page ("" clears it). */
+export const setSignalDownloadUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d: unknown) => z.object({ url: z.string().max(500) }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertBoss(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { setDownloadUrl } = await import("./copier-keys.server");
+    return setDownloadUrl(supabaseAdmin, context.userId, data.url);
   });
 
 export const signalKeyAction = createServerFn({ method: "POST" })

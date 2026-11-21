@@ -514,14 +514,15 @@ export function memberConfig(
     "; The lot is set for you (the bot's lot, capped so one stop risks 2% of",
     "; your balance at most, 1% in high-frequency mode).",
     "lot = bot",
-    "; true: only shows what it would do. Set to false to trade for real.",
-    "dry_run = true",
+    "; Trades for real on the MT5 account that's logged in (log MT5 in to a demo",
+    "; account to try it first). true: only shows what it would do.",
+    "dry_run = false",
     "use_broker_stop = false",
     "poll_seconds = 3",
     "max_late_minutes = 10",
     "max_open = 6",
     "markets = XAUUSD,BTCUSD",
-    "; Your MT5 Market Watch names (some accounts add a suffix, e.g. XAUUSD+).",
+    "; Found by themselves when your broker adds a suffix (e.g. XAUUSD+).",
     "symbol_XAUUSD = XAUUSD",
     "symbol_BTCUSD = BTCUSD",
     "mt5_path =",
@@ -546,4 +547,14 @@ export function freeClaimAllowed(
   if (!k) return { ok: true };
   if (k.revoked) return { ok: false, reason: "off" };
   return daysLeft(k, now) <= FREE_RENEW_DAYS ? { ok: true } : { ok: false, reason: "has_time" };
+}
+
+/** site_content row holding the OG SIGNAL BOT zip's download link (set in the Control Room). */
+export const DOWNLOAD_URL_KEY = "copy.downloadUrl";
+
+/** A download link worth showing (https, sane length), or null. Pure. */
+export function cleanDownloadUrl(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  if (s.length > 500 || !/^https:\/\/[^\s"'<>]+$/i.test(s)) return null;
+  return s;
 }

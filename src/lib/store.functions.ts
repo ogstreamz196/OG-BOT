@@ -463,14 +463,21 @@ type CheckoutResult = { clientSecret: string } | { error: string };
 
 export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: { itemId: string; returnUrl: string; environment: StripeEnv }) => {
-    if (!/^[0-9a-f-]{36}$/i.test(data.itemId)) throw new Error("Invalid itemId");
-    if (data.environment !== "sandbox" && data.environment !== "live") {
-      throw new Error("Invalid environment");
-    }
-    if (!/^https?:\/\//.test(data.returnUrl)) throw new Error("Invalid returnUrl");
-    return data;
-  })
+  .validator(
+    (data: { itemId: string; returnUrl: string; environment: StripeEnv; quantity?: number }) => {
+      if (!/^[0-9a-f-]{36}$/i.test(data.itemId)) throw new Error("Invalid itemId");
+      if (
+        data.quantity !== undefined &&
+        !(Number.isInteger(data.quantity) && data.quantity >= 1 && data.quantity <= 12)
+      )
+        throw new Error("Invalid quantity");
+      if (data.environment !== "sandbox" && data.environment !== "live") {
+        throw new Error("Invalid environment");
+      }
+      if (!/^https?:\/\//.test(data.returnUrl)) throw new Error("Invalid returnUrl");
+      return data;
+    },
+  )
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     const { userId, supabase } = context;
     try {
@@ -536,6 +543,13 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
 
       const isRecurring = !!it.recurring_interval;
       const bundleId = `store:${it.id}`;
+      // OG SIGNAL BOT passes can be bought several at once (each adds its
+      // days on top of the expiry); every other item is one at a time.
+      const { tokenPerkDays } = await import("@/lib/copier-keys");
+      const quantity =
+        !isRecurring && tokenPerkDays(it.perk_slug)
+          ? Math.min(12, Math.max(1, data.quantity ?? 1))
+          : 1;
       const session = await stripe.checkout.sessions.create({
         line_items: [
           {
@@ -550,7 +564,7 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
               },
               ...(isRecurring && { recurring: { interval: it.recurring_interval! } }),
             },
-            quantity: 1,
+            quantity,
           },
         ],
         mode: isRecurring ? "subscription" : "payment",
@@ -563,6 +577,7 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
           storeItemId: it.id,
           coins: String(it.coin_reward ?? 0),
           perkSlug: it.perk_slug ?? "",
+          quantity: String(quantity),
           environment: data.environment,
         },
         ...(!isRecurring && {
@@ -574,6 +589,7 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
               storeItemId: it.id,
               coins: String(it.coin_reward ?? 0),
               perkSlug: it.perk_slug ?? "",
+              quantity: String(quantity),
             },
           },
         }),
