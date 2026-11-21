@@ -8,6 +8,7 @@ import { reconcileCoinSession } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { OgVipIdCard } from "@/components/vip/OgVipIdCard";
 import { clearStoredSelection } from "@/lib/buy-coins-selection";
+import { tokenPerkDays } from "@/lib/copier-keys";
 
 export const Route = createFileRoute("/_authenticated/buy-coins/return")({
   component: BuyCoinsReturn,
@@ -30,7 +31,7 @@ type State =
   | { kind: "loading" }
   | { kind: "done"; coins: number; balance: number }
   | { kind: "vip"; ogVipId: string | null }
-  | { kind: "item" }
+  | { kind: "item"; signalBot?: boolean }
   | { kind: "pending" }
   | { kind: "error"; message: string };
 
@@ -61,7 +62,11 @@ function BuyCoinsReturn() {
           clearStoredSelection();
         }
         if (res.status === "pending") setState({ kind: "pending" });
-        else if (res.status === "store_item") setState({ kind: "item" });
+        else if (res.status === "store_item")
+          setState({
+            kind: "item",
+            signalBot: tokenPerkDays("perk" in res ? String(res.perk ?? "") : null) != null,
+          });
         else if (res.status === "vip_granted")
           setState({ kind: "vip", ogVipId: "ogVipId" in res ? (res.ogVipId ?? null) : null });
         else
@@ -117,16 +122,24 @@ function BuyCoinsReturn() {
               "Your coins land as soon as the bank confirms. Check back in a minute."}
             {state.kind === "vip" && "Your PRO perks are active across the whole hub."}
             {state.kind === "item" &&
-              "Payment received — your item unlocks in a few seconds. Find it on its card in the Store."}
+              (state.signalBot
+                ? "Payment received. Your OG SIGNAL BOT unlocks in a few seconds: get your token and the setup on your OG SIGNAL BOT page."
+                : "Payment received — your item unlocks in a few seconds. Find it on its card in the Store.")}
             {state.kind === "done" &&
               `${state.coins} OG coins added. Your balance is now ${state.balance}.`}
           </p>
           {state.kind === "vip" && state.ogVipId && <OgVipIdCard id={state.ogVipId} />}
 
           <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-center">
-            <Button asChild className="font-black uppercase tracking-[0.1em]">
-              <Link to="/library">Make a track</Link>
-            </Button>
+            {state.kind === "item" && state.signalBot ? (
+              <Button asChild className="font-black uppercase tracking-[0.1em]">
+                <a href="/copier">Set up my OG SIGNAL BOT</a>
+              </Button>
+            ) : (
+              <Button asChild className="font-black uppercase tracking-[0.1em]">
+                <Link to="/library">Make a track</Link>
+              </Button>
+            )}
             <Button asChild variant="outline">
               <Link to="/store">Back to the Store</Link>
             </Button>
