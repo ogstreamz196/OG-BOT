@@ -581,7 +581,9 @@ async function fulfilStoreItemCheckout(session: any, env: StripeEnv) {
   // OG SIGNAL BOT TOKEN ("signal_token" / "signal_token:<days>"): the buyer's
   // copier key gets the days (made and tied to their account on a first buy).
   const { tokenPerkDays } = await import("@/lib/copier-keys");
-  const tokenDays = tokenPerkDays(perk);
+  // Several passes in one checkout (quantity) add their days together.
+  const passes = Math.min(12, Math.max(1, Math.floor(Number(meta.quantity) || 1)));
+  const tokenDays = (tokenPerkDays(perk) ?? 0) * passes;
   if (tokenDays) {
     const { grantSignalToken } = await import("@/lib/copier-keys.server");
     const res = await grantSignalToken(supabase, userId, tokenDays, reference);

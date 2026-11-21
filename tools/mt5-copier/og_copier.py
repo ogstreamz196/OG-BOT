@@ -175,9 +175,30 @@ def connect():
         sys.exit("Turn on Algo Trading in MetaTrader 5 (the button in the toolbar).")
     log(f"Connected to {info.server}, account {info.login}, balance {info.balance} {info.currency}")
     for m in MARKETS:
-        sym = SYMBOLS[m]
-        if not mt5.symbol_select(sym, True):
-            sys.exit(f"Symbol {sym} (for {m}) not found. Set symbol_{m} in config.ini to the name in Market Watch.")
+        if not find_symbol(m):
+            sys.exit(
+                f"Symbol {SYMBOLS.get(m, m)} (for {m}) not found. Set symbol_{m} in config.ini to the name in Market Watch."
+            )
+
+
+def find_symbol(market):
+    """The broker's name for a market, selected in Market Watch: the one in
+    config.ini, else the closest name the broker has for it (e.g. XAUUSD+,
+    XAUUSD.r, XAUUSDm), so nobody has to edit config.ini. None when there's
+    no such symbol."""
+    sym = SYMBOLS.get(market, market)
+    if mt5.symbol_select(sym, True):
+        return sym
+    try:
+        names = [s.name for s in (mt5.symbols_get() or []) if s.name.upper().startswith(market)]
+    except Exception:
+        names = []
+    for name in sorted(names, key=len):
+        if mt5.symbol_select(name, True):
+            SYMBOLS[market] = name
+            log(f"Using {name} for {market}")
+            return name
+    return None
 
 
 def filling(sym):
@@ -396,7 +417,7 @@ def apply_remote(settings):
         for m in wanted:
             if m not in SYMBOLS:
                 SYMBOLS[m] = c.get(f"symbol_{m}", m)
-        MARKETS = [m for m in wanted if mt5.symbol_select(SYMBOLS[m], True) or DRY_RUN]
+        MARKETS = [m for m in wanted if find_symbol(m) or DRY_RUN]
     if isinstance(settings.get("maxOpen"), int):
         BASE_MAX_OPEN = settings["maxOpen"]
     if isinstance(settings.get("maxLateMinutes"), (int, float)):

@@ -725,3 +725,80 @@ export async function claimFreeToken(
     message: `${days} days of OG SIGNAL BOT added. Get your token on the next page.`,
   };
 }
+
+/** The OG SIGNAL BOT zip's download link (Control Room), or null when none is set. */
+export async function downloadUrl(admin: Admin): Promise<string | null> {
+  const { DOWNLOAD_URL_KEY, cleanDownloadUrl } = await import("./copier-keys");
+  const { data } = await admin
+    .from("site_content")
+    .select("value")
+    .eq("key", DOWNLOAD_URL_KEY)
+    .maybeSingle();
+  return cleanDownloadUrl((data as { value?: string } | null)?.value);
+}
+
+/** The Boss sets (or clears, with "") the zip's download link. */
+export async function setDownloadUrl(
+  admin: Admin,
+  actorId: string,
+  url: string,
+): Promise<{ ok: boolean; message: string }> {
+  const { DOWNLOAD_URL_KEY, cleanDownloadUrl } = await import("./copier-keys");
+  const clean = url.trim() ? cleanDownloadUrl(url) : "";
+  if (clean == null) return { ok: false, message: "Use a full https:// link." };
+  const at = new Date().toISOString();
+  const { error } = await admin
+    .from("site_content")
+    .upsert({ key: DOWNLOAD_URL_KEY, value: clean, updated_at: at }, { onConflict: "key" });
+  if (error) return { ok: false, message: "Couldn't save. Try again." };
+  await admin
+    .from("boss_audit_log")
+    .insert({
+      actor_id: actorId,
+      action: "copier_download_url",
+      category: "signals",
+      target_key: DOWNLOAD_URL_KEY,
+      metadata: { url: clean },
+    })
+    .then(
+      () => undefined,
+      () => undefined,
+    );
+  return { ok: true, message: clean ? "Download link saved" : "Download link cleared" };
+}
+
+export type TokenPass = {
+  itemId: string;
+  priceCents: number;
+  currency: string;
+  days: number;
+  /** Free for a limited time (price 0): claimed, not bought. */
+  free: boolean;
+};
+
+/** The OG SIGNAL BOT pass on sale (the store item), or null when it's not on sale. */
+export async function tokenPass(admin: Admin): Promise<TokenPass | null> {
+  const { TOKEN_ITEM_SLUG, tokenPerkDays } = await import("./copier-keys");
+  const { data } = await admin
+    .from("store_items")
+    .select("id, price_cents, coin_price, currency, perk_slug, active")
+    .eq("slug", TOKEN_ITEM_SLUG)
+    .maybeSingle();
+  const it = data as {
+    id: string;
+    price_cents: number;
+    coin_price: number | null;
+    currency: string;
+    perk_slug: string | null;
+    active: boolean;
+  } | null;
+  const days = tokenPerkDays(it?.perk_slug);
+  if (!it?.active || !days) return null;
+  return {
+    itemId: it.id,
+    priceCents: Number(it.price_cents) || 0,
+    currency: it.currency || "gbp",
+    days,
+    free: !(Number(it.price_cents) > 0) && !(it.coin_price ?? 0),
+  };
+}

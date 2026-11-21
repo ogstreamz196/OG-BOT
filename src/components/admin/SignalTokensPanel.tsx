@@ -5,7 +5,12 @@ import { Bot, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listSignalKeys, pairSignalKey, signalKeyAction } from "@/lib/signal-keys.functions";
+import {
+  listSignalKeys,
+  pairSignalKey,
+  setSignalDownloadUrl,
+  signalKeyAction,
+} from "@/lib/signal-keys.functions";
 import type { BossKeyRow } from "@/lib/copier-keys.server";
 import { AdminSection } from "./AdminSection";
 
@@ -32,6 +37,16 @@ export function SignalTokensPanel() {
   const list = useServerFn(listSignalKeys);
   const act = useServerFn(signalKeyAction);
   const pair = useServerFn(pairSignalKey);
+  const saveLink = useServerFn(setSignalDownloadUrl);
+  const [link, setLink] = useState<string | null>(null);
+  const link$ = useMutation({
+    mutationFn: (url: string) => saveLink({ data: { url } }),
+    onSuccess: (r) => {
+      done(r);
+      if (r.ok) setLink(null);
+    },
+    onError: () => toast.error("Couldn't save that. Try again."),
+  });
   const q = useQuery({ queryKey: KEY, queryFn: () => list(), refetchInterval: 30_000 });
   const done = (r: { ok: boolean; message: string }) => {
     if (r.ok) toast.success(r.message);
@@ -120,6 +135,31 @@ export function SignalTokensPanel() {
                 Cancel
               </Button>
             )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card/60 p-3">
+          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Download link (the OG SIGNAL BOT zip)
+          </p>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Members get a Download button on their OG SIGNAL BOT page: unzip, open OGCopier.exe,
+            sign in with their ogbot.co.uk login, Start. Leave it empty to show the Python setup
+            instead.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              value={link ?? q.data?.download ?? ""}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="https://… (the zip on Cloudflare)"
+              aria-label="Download link for the OG SIGNAL BOT zip"
+            />
+            <Button
+              disabled={link$.isPending || link == null}
+              onClick={() => link != null && link$.mutate(link)}
+            >
+              Save link
+            </Button>
           </div>
         </div>
 

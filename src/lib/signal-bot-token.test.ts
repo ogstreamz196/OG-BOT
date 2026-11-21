@@ -116,7 +116,7 @@ describe("OG SIGNAL BOT TOKEN", () => {
     expect(rows.size).toBe(1);
     expect([...rows.keys()][0]).not.toBe(before);
     expect(memberConfig(t!.token)).toContain(`token = ${t!.token}`);
-    expect(memberConfig("x")).toContain("dry_run = true");
+    expect(memberConfig("x")).toContain("dry_run = false");
   });
 
   it("is never sold in the phone apps", () => {
