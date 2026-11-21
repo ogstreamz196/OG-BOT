@@ -485,6 +485,8 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
       if (it.stock !== null && it.stock_sold >= it.stock) {
         return { error: "Sold out" };
       }
+      // A free item (price 0) can't go through a card checkout.
+      if (!(it.price_cents > 0)) return { error: "This one's free: tap Claim on its card." };
 
       const stripe = createStripeClient(data.environment);
 

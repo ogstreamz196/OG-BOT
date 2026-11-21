@@ -326,6 +326,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-21 · #328** · OG SIGNAL BOT TOKEN free for a
+  limited time: while its price is 0 the store card says FREE / Claim free
+  and the claim goes straight onto the account (one per token, again when
+  3 days or fewer are left). The price was set to 0 in the database after
+  this went live; a price put back ends it. No migrations.
+
 - **Boss's Claude · 2026-11-21 · #327** · A fully refunded OG SIGNAL BOT
   TOKEN switches the buyer's token off (webhook charge.refunded →
   refundSignalToken). No migrations.

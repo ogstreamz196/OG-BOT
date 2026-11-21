@@ -95,6 +95,8 @@ export function StoreItemCard({
   const isVipPass = item.slug === "og-vip-pass";
   // OG SIGNAL BOT TOKEN: after buying, the member sets it up on /copier.
   const isSignalToken = item.slug === TOKEN_ITEM_SLUG;
+  // Free for a limited time (price 0): claimed, not bought.
+  const freeToken = isSignalToken && item.price_cents === 0 && !item.coin_price;
   // Our own badges for the two branded items; everything else uses its store image.
   const brandArt = isSportsGuide
     ? sportsGuideArt
@@ -193,7 +195,14 @@ export function StoreItemCard({
       {/* footer */}
       <div className="mt-auto flex flex-col gap-3 pt-4 min-[400px]:grid min-[400px]:grid-cols-[minmax(0,1fr)_auto] min-[400px]:items-end">
         <div className="min-w-0 font-mono text-lg font-bold leading-tight text-foreground sm:text-xl">
-          {isVipPass && vipPass?.trial ? (
+          {freeToken ? (
+            <>
+              <span className="block text-emerald-400">FREE</span>
+              <span className="block text-xs font-semibold text-muted-foreground">
+                for a limited time
+              </span>
+            </>
+          ) : isVipPass && vipPass?.trial ? (
             <>
               <span className="og-st-gold block">FREE trial</span>
               <span className="block text-xs font-semibold text-muted-foreground">
@@ -249,7 +258,9 @@ export function StoreItemCard({
                     ? `${item.coin_price ?? 50} coins`
                     : isSportsGuide
                       ? "Unlock access"
-                      : "Buy"}
+                      : freeToken
+                        ? "Claim free"
+                        : "Buy"}
         </button>
         {onBuyCash && !vaultKept && !soldOut && (
           <button
@@ -267,7 +278,7 @@ export function StoreItemCard({
           href="/copier"
           className="mt-3 block text-center text-xs font-semibold text-emerald-400 hover:underline"
         >
-          Already bought? Get your token and set up your bot →
+          {freeToken ? "Already claimed?" : "Already bought?"} Get your token and set up your bot →
         </a>
       )}
       {ownsVipPass && vipPass?.username ? (

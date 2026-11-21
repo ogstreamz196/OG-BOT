@@ -63,7 +63,7 @@ export function MyCopierPage() {
         ) : !c ? (
           <div className="space-y-3 rounded-xl border border-border bg-card p-5">
             <p className="text-sm text-foreground">
-              You don&apos;t have an {TOKEN_PRODUCT_NAME} yet. Buy one in the store: it&apos;s tied
+              You don&apos;t have an {TOKEN_PRODUCT_NAME} yet. Get it in the store: it&apos;s tied
               to this account, and this page gives you your token and the setup.
             </p>
             <Button asChild className="w-full">
