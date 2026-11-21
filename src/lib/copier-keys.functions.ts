@@ -30,6 +30,18 @@ export const getMyCopierToken = createServerFn({ method: "POST" })
     return { ok: true as const, token: made.token, config: memberConfig(made.token) };
   });
 
+/** The OG SIGNAL BOT TOKEN while it's free: claimed straight onto the account (no card). */
+export const claimFreeSignalToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { claimFreeToken } = await import("./copier-keys.server");
+    return claimFreeToken(supabaseAdmin, context.userId).catch(() => ({
+      ok: false,
+      message: "Couldn't set it up. Try again in a minute.",
+    }));
+  });
+
 export const setMyCopierPause = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ paused: z.boolean() }).parse(d))

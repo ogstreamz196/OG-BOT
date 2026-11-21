@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { claimFreeSignalToken } from "@/lib/copier-keys.functions";
+import { TOKEN_ITEM_SLUG } from "@/lib/copier-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
@@ -113,8 +115,28 @@ export function StoreItemsSection() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  // The OG SIGNAL BOT TOKEN while it's free (price 0): claimed straight onto
+  // the account, then on to its page for the token and the setup.
+  const claimToken = useServerFn(claimFreeSignalToken);
+  const freeToken = useMutation({
+    mutationFn: () => claimToken(),
+    onSuccess: (r) => {
+      if (!r.ok) {
+        toast(r.message);
+        return;
+      }
+      toast.success(r.message);
+      window.location.assign("/copier");
+    },
+    onError: () => toast.error("Couldn't set it up. Try again in a minute."),
+  });
+
   const buy = (itemId: string) => {
     const item = allItems.find((candidate) => candidate.id === itemId);
+    if (item?.slug === TOKEN_ITEM_SLUG && item.price_cents === 0 && !item.coin_price) {
+      freeToken.mutate();
+      return;
+    }
     if (item?.slug === "og-sports-guide-access") {
       setConfirming({ kind: "sports", name: item.name, price: item.coin_price ?? 0 });
       return;

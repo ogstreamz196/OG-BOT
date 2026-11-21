@@ -682,3 +682,46 @@ export async function refundSignalToken(
   await audit(admin, userId, `refund off ${reference}`, next);
   return true;
 }
+
+/**
+ * Claiming the OG SIGNAL BOT TOKEN while the store item is free (price 0):
+ * checks the item really is free and active, and the account may claim
+ * (freeClaimAllowed), then grants its days like a purchase.
+ */
+export async function claimFreeToken(
+  admin: Admin,
+  userId: string,
+): Promise<{ ok: boolean; message: string }> {
+  const { FREE_RENEW_DAYS, TOKEN_ITEM_SLUG, freeClaimAllowed, tokenPerkDays } =
+    await import("./copier-keys");
+  const { data: item } = await admin
+    .from("store_items")
+    .select("price_cents, coin_price, perk_slug, active")
+    .eq("slug", TOKEN_ITEM_SLUG)
+    .maybeSingle();
+  const it = item as {
+    price_cents?: number;
+    coin_price?: number | null;
+    perk_slug?: string | null;
+    active?: boolean;
+  } | null;
+  const days = tokenPerkDays(it?.perk_slug);
+  if (!it?.active || !days || Number(it.price_cents) !== 0 || (it.coin_price ?? 0) > 0)
+    return { ok: false, message: "The OG SIGNAL BOT TOKEN isn't free right now." };
+  const stored = await keyOfUser(admin, userId);
+  const allowed = freeClaimAllowed(stored?.key ?? null, Date.now());
+  if (!allowed.ok)
+    return {
+      ok: false,
+      message:
+        allowed.reason === "off"
+          ? "Your token is switched off. Message the Boss to get it back on."
+          : `You already have your token. Claim again when ${FREE_RENEW_DAYS} days or fewer are left.`,
+    };
+  const res = await grantSignalToken(admin, userId, days, "free claim");
+  if (!res.ok) return { ok: false, message: "Couldn't set it up. Try again in a minute." };
+  return {
+    ok: true,
+    message: `${days} days of OG SIGNAL BOT added. Get your token on the next page.`,
+  };
+}

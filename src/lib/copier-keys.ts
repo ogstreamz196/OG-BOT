@@ -529,3 +529,21 @@ export function memberConfig(
     "",
   ].join("\n");
 }
+
+/** Days left at or under which a free claim tops a token up again. */
+export const FREE_RENEW_DAYS = 3;
+
+/**
+ * Whether an account may claim the OG SIGNAL BOT TOKEN while it's free (the
+ * Boss, 2026-11-21: "set price to free for limited time"): no token yet, or
+ * one about to run out (FREE_RENEW_DAYS or fewer left). Never one the Boss
+ * switched off (or that was refunded). Pure.
+ */
+export function freeClaimAllowed(
+  k: CopierKey | null,
+  now: number,
+): { ok: true } | { ok: false; reason: "off" | "has_time" } {
+  if (!k) return { ok: true };
+  if (k.revoked) return { ok: false, reason: "off" };
+  return daysLeft(k, now) <= FREE_RENEW_DAYS ? { ok: true } : { ok: false, reason: "has_time" };
+}
