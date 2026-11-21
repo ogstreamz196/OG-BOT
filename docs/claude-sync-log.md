@@ -326,6 +326,11 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-21 · #325** · OG SIGNAL BOT TOKEN store card uses
+  the OG Signals art. The store item itself (category "OG SIGNAL BOT",
+  slug og-signal-bot-token, perk signal_token, £29.99 for 30 days, card
+  only) was added to the database after this went live. No migrations.
+
 - **Boss's Claude · 2026-11-21 · #324** · Signals Control Room: /admin/signals
   is one page (switchboard + scan status, purge & reset, OG SIGNAL BOT
   tokens with pairing, record, bot links, web page switch) with the deep

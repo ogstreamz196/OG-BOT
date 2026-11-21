@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { TOKEN_ITEM_SLUG, tokenPerkLabel } from "@/lib/copier-keys";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import vaultArt from "@/assets/og-bot-vault.webp";
+import signalsArt from "@/assets/og-signals-480.webp";
 import { copyText } from "@/lib/copy-text";
 
 const RARITY: Record<StoreItem["rarity"], { label: string; icon: ReactNode }> = {
@@ -95,7 +96,13 @@ export function StoreItemCard({
   // OG SIGNAL BOT TOKEN: after buying, the member sets it up on /copier.
   const isSignalToken = item.slug === TOKEN_ITEM_SLUG;
   // Our own badges for the two branded items; everything else uses its store image.
-  const brandArt = isSportsGuide ? sportsGuideArt : isVipPass ? vaultArt : null;
+  const brandArt = isSportsGuide
+    ? sportsGuideArt
+    : isVipPass
+      ? vaultArt
+      : isSignalToken
+        ? signalsArt
+        : null;
   const imageUrl = brandArt ?? item.image_url?.replace(/^http:\/\//i, "https://");
   const ownsVipPass = isVipPass && !!vipPass?.owned;
   const vaultKept = ownsVipPass && !vipPass?.trial;
