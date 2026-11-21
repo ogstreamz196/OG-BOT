@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("./sports-guide.server", () => ({ sendTelegramText: async () => true }));
 
 import { keyRow, newKey, parseKey } from "./copier-keys";
-import { bossKeyAction, bossKeyRows, bossPairAccount } from "./copier-keys.server";
+import {
+  bossKeyAction,
+  bossKeyRows,
+  bossPairAccount,
+  refundSignalToken,
+} from "./copier-keys.server";
 
 const DAY = 86_400_000;
 const FRED = "11111111-1111-1111-1111-111111111111";
@@ -132,5 +137,17 @@ describe("the Control Room's OG SIGNAL BOT tokens", () => {
     const no = await bossPairAccount(db, FRED, "anna", { keyId: loose2.id });
     expect(no.ok).toBe(false);
     expect(no.message).toMatch(/already has a token/);
+  });
+  it("a refunded token is switched off, not deleted", async () => {
+    const { db, rows, audit } = fakeDb();
+    expect(await refundSignalToken(db, FRED, "stripe:live:ch_1")).toBe(false);
+    await bossPairAccount(db, FRED, "fred", { days: 30 });
+    expect(await refundSignalToken(db, FRED, "stripe:live:ch_1")).toBe(true);
+    const k = parseKey([...rows.values()][0]);
+    expect(k?.revoked).toBe(true);
+    expect(rows.size).toBe(1);
+    expect(audit.at(-1)?.target_key).toMatch(/refund off/);
+    // Already off: nothing more to do.
+    expect(await refundSignalToken(db, FRED, "stripe:live:ch_1")).toBe(false);
   });
 });

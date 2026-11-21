@@ -326,6 +326,10 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-21 · #327** · A fully refunded OG SIGNAL BOT
+  TOKEN switches the buyer's token off (webhook charge.refunded →
+  refundSignalToken). No migrations.
+
 - **Boss's Claude · 2026-11-21 · #326** · After paying for the OG SIGNAL BOT
   TOKEN the return page says so and links to /copier (the store item's perk
   comes back from reconcileCoinSession). No migrations.
