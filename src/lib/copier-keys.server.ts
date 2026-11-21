@@ -664,3 +664,21 @@ export async function bossPairAccount(
   };
 }
 const MAX_KEY_DAYS_SERVER = 3650;
+
+/**
+ * A refunded OG SIGNAL BOT TOKEN (the payments webhook, full refund): the
+ * buyer's key is switched off (not deleted), so the copier closes what's open
+ * and opens nothing new. The Boss can switch it back on in the Control Room.
+ */
+export async function refundSignalToken(
+  admin: Admin,
+  userId: string,
+  reference: string,
+): Promise<boolean> {
+  const stored = await keyOfUser(admin, userId).catch(() => null);
+  if (!stored || stored.key.revoked) return false;
+  const next = revokeKey(stored.key);
+  if (!(await saveKey(admin, stored.hash, next))) return false;
+  await audit(admin, userId, `refund off ${reference}`, next);
+  return true;
+}

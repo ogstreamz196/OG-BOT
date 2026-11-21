@@ -469,6 +469,30 @@ async function handleChargeRefunded(charge: any, env: StripeEnv) {
       env,
     });
   }
+  // A fully refunded OG SIGNAL BOT TOKEN switches the buyer's token off.
+  if (charge?.refunded === true) await switchOffRefundedToken(charge, env);
+}
+
+/** A full refund of an OG SIGNAL BOT TOKEN purchase: the buyer's key goes off. Never throws. */
+async function switchOffRefundedToken(charge: any, env: StripeEnv) {
+  try {
+    const piId =
+      typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+    let meta = (charge.metadata ?? {}) as Record<string, string | undefined>;
+    if (!meta.perkSlug && piId) {
+      const { createStripeClient } = await import("@/lib/stripe.server");
+      const pi = await createStripeClient(env).paymentIntents.retrieve(piId);
+      meta = (pi?.metadata ?? {}) as Record<string, string | undefined>;
+    }
+    const { tokenPerkDays } = await import("@/lib/copier-keys");
+    if (!meta.userId || !tokenPerkDays(meta.perkSlug)) return;
+    const supabase = await getAdminClient();
+    const { refundSignalToken } = await import("@/lib/copier-keys.server");
+    const off = await refundSignalToken(supabase, meta.userId, `stripe:${env}:${charge.id}`);
+    log("info", "refunded signal bot token", { userId: meta.userId, switchedOff: off });
+  } catch (e) {
+    log("warn", "refunded token check failed", { chargeId: charge?.id, err: String(e) });
+  }
 }
 
 // ─── store items (CMS-created products) ────────────────────────────────────
