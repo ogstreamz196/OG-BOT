@@ -324,7 +324,7 @@ type ReconcileResult =
   | { status: "already_credited"; coins: number; balance: number }
   | { status: "vip_granted"; ogVipId?: string | null }
   | { status: "pending"; reason: string }
-  | { status: "store_item" }
+  | { status: "store_item"; perk?: string }
   | { error: string };
 
 export const reconcileCoinSession = createServerFn({ method: "POST" })
@@ -383,7 +383,10 @@ export const reconcileCoinSession = createServerFn({ method: "POST" })
       // Store items (Vault pass, perks, coin-reward items) are fulfilled once by
       // the webhook under its own reference; crediting here as well would pay
       // twice, and items without coins would wrongly report an error.
-      if (bundleId?.startsWith("store:")) return { status: "store_item" };
+      // The perk tells the return page where to send them (the OG SIGNAL BOT
+      // TOKEN goes to /copier for the token and the setup).
+      if (bundleId?.startsWith("store:"))
+        return { status: "store_item", perk: String(meta.perkSlug ?? "") };
 
       const metaCoins = meta.coins ? Number(meta.coins) : 0;
       const pack = bundleId ? findCoinPackByBundleId(bundleId) : null;
