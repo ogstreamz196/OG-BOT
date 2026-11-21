@@ -146,7 +146,7 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Signals demo account & start fresh",
-    where: area("Signals", "Controls"),
+    where: area("Signals", "Control room"),
     to: "/admin/signals",
     tab: "controls",
     keywords: "1000 demo test account balance purge signals chat vantage reset fresh start",
@@ -167,16 +167,16 @@ export const BOSS_SETTINGS: readonly BossSetting[] = [
   },
   {
     title: "Signals portal on/off",
-    where: area("Signals", "Controls"),
+    where: area("Signals", "Control room"),
     to: "/admin/signals",
     tab: "controls",
     keywords: "trade signals switch btc gold xau",
   },
   {
     title: "MT5 auto-trade",
-    where: area("Signals", "Controls"),
+    where: area("Signals", "MT5 auto-trading"),
     to: "/admin/signals",
-    tab: "controls",
+    tab: "mt5",
     keywords: "metatrader mt5 auto trade switch",
   },
   {
