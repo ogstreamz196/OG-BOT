@@ -326,6 +326,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-21 · #324** · Signals Control Room: /admin/signals
+  is one page (switchboard + scan status, purge & reset, OG SIGNAL BOT
+  tokens with pairing, record, bot links, web page switch) with the deep
+  tools as hidden tabs behind a "More tools" row (old links still land).
+  MT5 auto-trading moved to its own hidden tab. No migrations.
+
 - **Boss's Claude · 2026-11-21 · #323** · OG SIGNAL BOT TOKEN, the sales
   side: store perk `signal_token[:days]` makes or extends the buyer's copier
   key tied to their account (webhook → grantSignalToken), the member's

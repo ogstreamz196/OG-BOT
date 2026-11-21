@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
-import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
-import { Bot, FlaskConical, SlidersHorizontal, Trophy, Wrench } from "lucide-react";
+import { createFileRoute, Link, Navigate, redirect } from "@tanstack/react-router";
+import { Bot, Cpu, FlaskConical, Radio, Trophy, Wrench } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -21,6 +21,7 @@ import { TelegramWebhookStatus } from "@/components/admin/TelegramWebhookStatus"
 import { TelegramFleetPanel } from "@/components/admin/TelegramFleetPanel";
 import { WebhookKeeperPanel } from "@/components/admin/WebhookKeeperPanel";
 import { TelegramGroupsPanel } from "@/components/admin/TelegramGroupsPanel";
+import { SignalTokensPanel } from "@/components/admin/SignalTokensPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/signals")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } =>
@@ -32,12 +33,13 @@ export const Route = createFileRoute("/_authenticated/admin/signals")({
   },
   head: () => ({
     meta: [
-      { title: "Signals | OG B0T Boss" },
+      { title: "Signals Control Room | OG B0T Boss" },
       {
         name: "description",
-        content: "Signals controls, results, reports, backtests and the bots that post them.",
+        content:
+          "One page to run the signals group: the switchboard, purge & reset, OG SIGNAL BOT tokens, the record and the bots.",
       },
-      { property: "og:title", content: "Signals | OG B0T Boss" },
+      { property: "og:title", content: "Signals Control Room | OG B0T Boss" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -52,30 +54,54 @@ const SignalsBacktestPanel = lazy(() =>
   })),
 );
 
+/** The deep tools, one tap from the Control Room (hidden tabs, so old links still work). */
+const MORE_TOOLS: { tab: string; label: string }[] = [
+  { tab: "results", label: "Full results & HFT lab" },
+  { tab: "tweaker", label: "Tuning" },
+  { tab: "backtest", label: "Backtest" },
+  { tab: "bots", label: "Bot fleet & groups" },
+  { tab: "mt5", label: "MT5 auto-trading" },
+];
+
 /**
- * The switches: trading (the copier and strategies, same as Telegram), the web
- * portal, the demo account and MT5 auto-trading.
+ * The Signals Control Room (the Boss, 2026-11-21: "reconstruct the section for
+ * all signal controls into a one page control room, remove the clutter … my
+ * Boss controls for the signal Telegram group"). In order: the switchboard
+ * with the live scan status (the same switches as the Copy Trader B0T's
+ * card), purge & reset, the OG SIGNAL BOT tokens, the record, whether every
+ * bot's Telegram link is up, and the members' web page switch. The deep tools
+ * are a row of links at the bottom.
  */
-function Controls() {
+function ControlRoom() {
   return (
     <>
       <TradingSwitchesPanel />
-      <SignalsPortalPanel />
       <SignalsChatResetPanel />
-      <Mt5Panel />
+      <SignalTokensPanel />
+      <SignalRecordPanel />
+      <WebhookKeeperPanel />
+      <SignalsPortalPanel />
+      <nav aria-label="More signal tools" className="mt-6 flex flex-wrap gap-2">
+        {MORE_TOOLS.map((t) => (
+          <Link
+            key={t.tab}
+            to="/admin/signals"
+            search={{ tab: t.tab }}
+            className="rounded-lg border border-border bg-card/60 px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+          >
+            {t.label} →
+          </Link>
+        ))}
+      </nav>
     </>
   );
 }
 
-/** The record and how each strategy is doing, then the full breakdown (was Report). */
+/** How each strategy is doing, then the full breakdown (was Report). The record is on the Control Room. */
 function Results() {
   return (
     <div className="space-y-8">
-      <ToolSection
-        title="Record"
-        desc="Streak, win rate, the latest results and each strategy's scoreboard."
-      >
-        <SignalRecordPanel />
+      <ToolSection title="Strategies" desc="Each strategy's scoreboard, best first.">
         <StrategyBoardPanel />
       </ToolSection>
       <ToolSection
@@ -113,11 +139,10 @@ function Backtest() {
   );
 }
 
-/** The Telegram side: whether messages arrive, the worker fleet and the groups. */
+/** The Telegram side: the main webhook, the worker fleet and the groups (bot links are on the Control Room). */
 function Bots() {
   return (
     <>
-      <WebhookKeeperPanel />
       <TelegramWebhookStatus />
       <TelegramFleetPanel />
       <TelegramGroupsPanel />
@@ -125,27 +150,31 @@ function Bots() {
   );
 }
 
+// One page (the Control Room) in the bar; the deep tools are hidden tabs it
+// links to, so every old ?tab= link and the Boss search still land.
 const SIGNALS_TABS: readonly BossTab[] = [
   {
     value: "controls",
-    label: "Controls",
-    Icon: SlidersHorizontal,
-    hint: "Trading switches (copier, lot range, strategies, HFT), the web signals portal, the demo account (start fresh) and MT5 auto-trading.",
-    Panel: Controls,
+    label: "Control room",
+    Icon: Radio,
+    hint: "Everything that runs the signals group on one page: the switchboard, purge & reset, OG SIGNAL BOT tokens, the record and the bots.",
+    Panel: ControlRoom,
   },
   {
     value: "tweaker",
     label: "Tuning",
     Icon: Wrench,
-    hint: "Every signal knob, strategy and the learning data in one place. Edit a market's settings; the tuner can still move them.",
+    hint: "Every signal knob, strategy and the learning data in one place.",
     Panel: TradeTweakerPanel,
+    hidden: true,
   },
   {
     value: "results",
     label: "Results",
     Icon: Trophy,
-    hint: "The record, each strategy's scoreboard, and the deep report by chart, session and timing.",
+    hint: "Each strategy's scoreboard, why trades lost, the HFT lab and the deep report.",
     Panel: Results,
+    hidden: true,
   },
   {
     value: "backtest",
@@ -153,13 +182,23 @@ const SIGNALS_TABS: readonly BossTab[] = [
     Icon: FlaskConical,
     hint: "The take profit size compared on stored setups, and how signals would have done on past prices.",
     Panel: Backtest,
+    hidden: true,
   },
   {
     value: "bots",
     label: "Bots",
     Icon: Bot,
-    hint: "Whether Telegram messages reach OG B0T, the worker bots and the groups they post in.",
+    hint: "The main Telegram webhook, the worker bots and the groups they post in.",
     Panel: Bots,
+    hidden: true,
+  },
+  {
+    value: "mt5",
+    label: "MT5 auto-trading",
+    Icon: Cpu,
+    hint: "The MetaApi auto-trading on the Boss's MT5 account (the copier on a PC or VPS is the main way now).",
+    Panel: Mt5Panel,
+    hidden: true,
   },
 ];
 
@@ -176,7 +215,7 @@ function AdminSignalsPage() {
   }
   if (!isAdmin) return <Navigate to="/" />;
   return (
-    <DashboardShell title="Signals">
+    <DashboardShell title="Signals Control Room">
       <div className="boss-ui mx-auto w-full min-w-0 max-w-5xl">
         <BossNav />
         <BossTabs tabs={SIGNALS_TABS} />

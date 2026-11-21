@@ -485,7 +485,7 @@ export async function copierState(
 }
 
 /**
- * A switch flipped on the website (Signals › Controls): exactly the same
+ * A switch flipped on the website (Signals › Control room): exactly the same
  * actions as the copier card's buttons ("cs:…" copier settings, "es:…"
  * strategies), through the same pure functions, so the two never disagree.
  * The caller checks the Boss. Returns the toast and the state now.

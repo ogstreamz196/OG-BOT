@@ -495,3 +495,172 @@ export async function issueMyToken(
   await audit(admin, userId, "member new token", made.key);
   return { token: made.token, expiresAt: made.key.expiresAt };
 }
+
+/* ── the Boss's tokens panel (Signals Control Room) ─────────────────────── */
+
+export type BossKeyRow = {
+  id: string;
+  name: string;
+  /** The ogbot account it's paired with: display name, else email. */
+  account: { userId: string; label: string } | null;
+  state: "active" | "expired" | "off";
+  daysLeft: number;
+  expiresAt: string;
+  running: boolean;
+  lastSeen: string | null;
+  mt5: string | null;
+  balance: number | null;
+  /** Locked to a machine already (cleared with "reset"). */
+  locked: boolean;
+  paused: boolean;
+};
+
+/** Every key, soonest to run out first, with the paired account's name. */
+export async function bossKeyRows(admin: Admin): Promise<BossKeyRow[]> {
+  const { daysLeft, isExpired, isRunning } = await import("./copier-keys");
+  const now = Date.now();
+  const all = await listKeys(admin);
+  const ids = [...new Set(all.map((s) => s.key.userId).filter((x): x is string => !!x))];
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data } = await admin.from("profiles").select("id, display_name, email").in("id", ids);
+    for (const p of (data ?? []) as {
+      id: string;
+      display_name?: string | null;
+      email?: string | null;
+    }[])
+      names.set(p.id, p.display_name || p.email || "Member");
+  }
+  return all
+    .map(({ key: k }) => ({
+      id: k.id,
+      name: k.name,
+      account: k.userId ? { userId: k.userId, label: names.get(k.userId) ?? "Member" } : null,
+      state: (k.revoked ? "off" : isExpired(k, now) ? "expired" : "active") as BossKeyRow["state"],
+      daysLeft: daysLeft(k, now),
+      expiresAt: k.expiresAt,
+      running: isRunning(k, now),
+      lastSeen: k.lastSeen ?? null,
+      mt5: k.account ?? null,
+      balance: k.balance ?? null,
+      locked: !!(k.stick || k.account),
+      paused: !!k.paused,
+    }))
+    .sort((a, b) => Date.parse(a.expiresAt) - Date.parse(b.expiresAt));
+}
+
+export type BossKeyAction = "extend" | "off" | "on" | "reset" | "remove";
+
+/** One action on a key from the Control Room, audit-logged. */
+export async function bossKeyAction(
+  admin: Admin,
+  actorId: string,
+  id: string,
+  action: BossKeyAction,
+  days = 30,
+): Promise<{ ok: boolean; message: string }> {
+  const found = (await listKeys(admin)).find((s) => s.key.id === id);
+  if (!found) return { ok: false, message: "That token's gone." };
+  const now = Date.now();
+  if (action === "remove") {
+    const { error } = await admin.from("site_content").delete().eq("key", keyRow(found.hash));
+    if (error) return { ok: false, message: "Couldn't remove it. Try again." };
+    await audit(admin, actorId, "remove (web)", found.key);
+    return { ok: true, message: "Removed" };
+  }
+  const next =
+    action === "extend"
+      ? extendKey(restoreKey(found.key), days, now)
+      : action === "off"
+        ? revokeKey(found.key)
+        : action === "on"
+          ? restoreKey(found.key)
+          : resetLock(found.key);
+  if (!(await saveKey(admin, found.hash, next)))
+    return { ok: false, message: "Couldn't save. Try again." };
+  await audit(
+    admin,
+    actorId,
+    action === "extend" ? `extend ${days} (web)` : `${action} (web)`,
+    next,
+  );
+  const message =
+    action === "extend"
+      ? `${days} days added`
+      : action === "off"
+        ? "Switched off"
+        : action === "on"
+          ? "Switched back on"
+          : "Machine lock cleared: it binds again on next use";
+  return { ok: true, message };
+}
+
+/** An ogbot account by email or display name (exactly one), or why not. */
+async function findAccount(
+  admin: Admin,
+  who: string,
+): Promise<{ userId: string; label: string } | { error: string }> {
+  const w = who.trim();
+  if (w.length < 3) return { error: "Type their email or username." };
+  const esc = w.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const col = w.includes("@") ? "email" : "display_name";
+  const { data } = await admin
+    .from("profiles")
+    .select("id, display_name, email")
+    .ilike(col, esc)
+    .limit(2);
+  const rows = (data ?? []) as {
+    id: string;
+    display_name?: string | null;
+    email?: string | null;
+  }[];
+  if (!rows.length)
+    return { error: `No account with that ${col === "email" ? "email" : "username"}.` };
+  if (rows.length > 1) return { error: "More than one account matches. Use their email." };
+  return { userId: rows[0].id, label: rows[0].display_name || rows[0].email || "Member" };
+}
+
+/**
+ * Pairing from the Control Room: an unpaired key (made in Telegram with
+ * /adduser) tied to an account, or, with no key given, days for that account
+ * (a new key tied to it, or added to the one it has). The member then gets
+ * their token on /copier.
+ */
+export async function bossPairAccount(
+  admin: Admin,
+  actorId: string,
+  who: string,
+  opts: { keyId?: string; days?: number },
+): Promise<{ ok: boolean; message: string }> {
+  const acct = await findAccount(admin, who);
+  if ("error" in acct) return { ok: false, message: acct.error };
+  const all = await listKeys(admin);
+  const theirs = all.find((s) => s.key.userId === acct.userId);
+  if (opts.keyId) {
+    const found = all.find((s) => s.key.id === opts.keyId);
+    if (!found) return { ok: false, message: "That token's gone." };
+    if (found.key.userId && found.key.userId !== acct.userId)
+      return { ok: false, message: "That token is already paired with another account." };
+    if (theirs && theirs.hash !== found.hash)
+      return {
+        ok: false,
+        message: `${acct.label} already has a token. Add days to that one instead.`,
+      };
+    const next = { ...found.key, userId: acct.userId };
+    if (!(await saveKey(admin, found.hash, next)))
+      return { ok: false, message: "Couldn't save. Try again." };
+    await audit(admin, actorId, "pair (web)", next);
+    return {
+      ok: true,
+      message: `Paired with ${acct.label}. They get the token on their OG SIGNAL BOT page.`,
+    };
+  }
+  const days = Math.min(MAX_KEY_DAYS_SERVER, Math.max(1, Math.round(opts.days ?? 30)));
+  const res = await grantSignalToken(admin, acct.userId, days, `boss ${actorId.slice(0, 8)}`);
+  if (!res.ok) return { ok: false, message: "Couldn't save. Try again." };
+  return {
+    ok: true,
+    message: `${days} days ${res.created ? "on a new token for" : "added for"} ${acct.label}. They get the token on their OG SIGNAL BOT page.`,
+  };
+}
+const MAX_KEY_DAYS_SERVER = 3650;
