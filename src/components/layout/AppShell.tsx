@@ -70,6 +70,7 @@ const routeTitles: Record<string, string> = {
   "/buy-coins": "Buy Coins",
   "/store": "OG Store",
   "/signals": "OG Signals",
+  "/copier": "OG SIGNAL BOT",
   "/sports": "Sports Guide",
   "/referrals": "Earnings",
   "/purchase-history": "Purchase History",

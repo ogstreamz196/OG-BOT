@@ -14,6 +14,22 @@ export const getMyCopier = createServerFn({ method: "GET" })
     return { copier: await myCopierFor(supabaseAdmin, context.userId).catch(() => null) };
   });
 
+/**
+ * The member's OG SIGNAL BOT token, made fresh and shown once, with their
+ * config.ini filled in. The old token stops working (the expiry and the
+ * machine lock carry over).
+ */
+export const getMyCopierToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { issueMyToken } = await import("./copier-keys.server");
+    const { memberConfig } = await import("./copier-keys");
+    const made = await issueMyToken(supabaseAdmin, context.userId).catch(() => null);
+    if (!made) return { ok: false as const };
+    return { ok: true as const, token: made.token, config: memberConfig(made.token) };
+  });
+
 export const setMyCopierPause = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: unknown) => z.object({ paused: z.boolean() }).parse(d))

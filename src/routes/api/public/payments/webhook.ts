@@ -114,8 +114,7 @@ async function creditCoinsForSession(session: any, env: StripeEnv) {
     } catch (e) {
       log("warn", "telegram coin confirmation failed", { userId, err: String(e) });
     }
-  }
-  else log("info", "coins already credited", { userId, coins, reference, newBalance });
+  } else log("info", "coins already credited", { userId, coins, reference, newBalance });
 }
 
 // ─── VIP role + subscription mirror ────────────────────────────────────────
@@ -555,6 +554,17 @@ async function fulfilStoreItemCheckout(session: any, env: StripeEnv) {
     if (error) log("error", "vault pass grant failed", { err: error.message });
   }
 
+  // OG SIGNAL BOT TOKEN ("signal_token" / "signal_token:<days>"): the buyer's
+  // copier key gets the days (made and tied to their account on a first buy).
+  const { tokenPerkDays } = await import("@/lib/copier-keys");
+  const tokenDays = tokenPerkDays(perk);
+  if (tokenDays) {
+    const { grantSignalToken } = await import("@/lib/copier-keys.server");
+    const res = await grantSignalToken(supabase, userId, tokenDays, reference);
+    if (!res.ok) log("error", "signal bot token grant failed", { reference, userId });
+    else log("info", "signal bot token granted", { userId, days: tokenDays, created: res.created });
+  }
+
   log("info", "store item fulfilled", { itemId, userId, coinReward, perk });
 }
 
@@ -578,10 +588,16 @@ export async function handleEvent(
         const amount = Number(session?.amount_total ?? 0) / 100;
         if (amount > 0) {
           const item =
-            kind === "track_unlock" ? "Track unlock"
-            : bundleId?.startsWith("store:") ? `Store item ${bundleId.slice(6)}`
-            : isVipBundle(bundleId) ? "PRO subscription"
-            : (findCoinPackByBundleId(bundleId ?? "") as { label?: string } | undefined)?.label ?? bundleId ?? "Digital Purchase";
+            kind === "track_unlock"
+              ? "Track unlock"
+              : bundleId?.startsWith("store:")
+                ? `Store item ${bundleId.slice(6)}`
+                : isVipBundle(bundleId)
+                  ? "PRO subscription"
+                  : ((findCoinPackByBundleId(bundleId ?? "") as { label?: string } | undefined)
+                      ?.label ??
+                    bundleId ??
+                    "Digital Purchase");
           const { syncSaleToLedgerly } = await import("@/lib/ledgerly.server");
           await syncSaleToLedgerly({
             amount,
@@ -596,7 +612,11 @@ export async function handleEvent(
     case "invoice.paid": {
       // VIP renewals (first invoice is already covered by checkout.session.completed)
       const inv = event.data.object;
-      if (env === "live" && inv?.billing_reason === "subscription_cycle" && Number(inv?.amount_paid) > 0) {
+      if (
+        env === "live" &&
+        inv?.billing_reason === "subscription_cycle" &&
+        Number(inv?.amount_paid) > 0
+      ) {
         const { syncSaleToLedgerly } = await import("@/lib/ledgerly.server");
         await syncSaleToLedgerly({
           amount: Number(inv.amount_paid) / 100,

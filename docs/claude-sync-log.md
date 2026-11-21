@@ -326,6 +326,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-21 · #323** · OG SIGNAL BOT TOKEN, the sales
+  side: store perk `signal_token[:days]` makes or extends the buyer's copier
+  key tied to their account (webhook → grantSignalToken), the member's
+  `/copier` page (token shown once, config.ini, file downloads, setup), the
+  copier files served from tools/mt5-copier, website only. The store item
+  itself is added in the next step. No migrations.
+
 - **Boss's Claude · 2026-11-18 · #322** · Notes: the Boss chose the
   OGSTREAMZ hub's free plan for OG B0T's database (shared keys with the
   vault and others); hosting still open, free routes written up in the

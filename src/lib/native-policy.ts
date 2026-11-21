@@ -13,7 +13,7 @@
 //   in the apps every purchase goes through RevenueCat (Google Play Billing).
 
 /** Store items that are never sold in the phone apps (by slug). */
-export const NATIVE_HIDDEN_STORE_ITEMS = ["og-vip-pass"] as const;
+export const NATIVE_HIDDEN_STORE_ITEMS = ["og-vip-pass", "og-signal-bot-token"] as const;
 
 /** Whether a store item is shown here (the website shows everything). Pure. */
 export function storeItemAllowed(slug: string | null | undefined, native: boolean): boolean {

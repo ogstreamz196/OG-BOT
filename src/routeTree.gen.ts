@@ -93,6 +93,7 @@ import { Route as ApiPublicVaultSigninRouteImport } from './routes/api/public/va
 import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
 import { Route as ApiPublicCarromRegisterGuestRouteImport } from './routes/api/public/carrom/register-guest'
 import { Route as ApiPublicCarromVerifyRouteImport } from './routes/api/public/carrom/verify'
+import { Route as ApiPublicCopierFilesNameRouteImport } from './routes/api/public/copier-files.$name'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicTradeBotWebhookRouteImport } from './routes/api/public/trade-bot/webhook'
@@ -549,6 +550,12 @@ const ApiPublicCarromVerifyRoute = ApiPublicCarromVerifyRouteImport.update({
   path: '/api/public/carrom/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCopierFilesNameRoute =
+  ApiPublicCopierFilesNameRouteImport.update({
+    id: '/api/public/copier-files/$name',
+    path: '/api/public/copier-files/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -682,6 +689,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
   '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
+  '/api/public/copier-files/$name': typeof ApiPublicCopierFilesNameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
@@ -775,6 +783,7 @@ export interface FileRoutesByTo {
   '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
   '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
+  '/api/public/copier-files/$name': typeof ApiPublicCopierFilesNameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
@@ -870,6 +879,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
   '/api/public/carrom/register-guest': typeof ApiPublicCarromRegisterGuestRoute
   '/api/public/carrom/verify': typeof ApiPublicCarromVerifyRoute
+  '/api/public/copier-files/$name': typeof ApiPublicCopierFilesNameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/trade-bot/webhook': typeof ApiPublicTradeBotWebhookRoute
@@ -965,6 +975,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/api/public/carrom/register-guest'
     | '/api/public/carrom/verify'
+    | '/api/public/copier-files/$name'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
     | '/api/public/trade-bot/webhook'
@@ -1058,6 +1069,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/api/public/carrom/register-guest'
     | '/api/public/carrom/verify'
+    | '/api/public/copier-files/$name'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
     | '/api/public/trade-bot/webhook'
@@ -1152,6 +1164,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/users/$userId'
     | '/api/public/carrom/register-guest'
     | '/api/public/carrom/verify'
+    | '/api/public/copier-files/$name'
     | '/api/public/payments/webhook'
     | '/api/public/telegram/webhook'
     | '/api/public/trade-bot/webhook'
@@ -1208,6 +1221,7 @@ export interface RootRouteChildren {
   ApiPublicVaultSigninRoute: typeof ApiPublicVaultSigninRoute
   ApiPublicCarromRegisterGuestRoute: typeof ApiPublicCarromRegisterGuestRoute
   ApiPublicCarromVerifyRoute: typeof ApiPublicCarromVerifyRoute
+  ApiPublicCopierFilesNameRoute: typeof ApiPublicCopierFilesNameRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicTradeBotWebhookRoute: typeof ApiPublicTradeBotWebhookRoute
@@ -1802,6 +1816,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCarromVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/copier-files/$name': {
+      id: '/api/public/copier-files/$name'
+      path: '/api/public/copier-files/$name'
+      fullPath: '/api/public/copier-files/$name'
+      preLoaderRoute: typeof ApiPublicCopierFilesNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -2013,6 +2034,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicVaultSigninRoute: ApiPublicVaultSigninRoute,
   ApiPublicCarromRegisterGuestRoute: ApiPublicCarromRegisterGuestRoute,
   ApiPublicCarromVerifyRoute: ApiPublicCarromVerifyRoute,
+  ApiPublicCopierFilesNameRoute: ApiPublicCopierFilesNameRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicTradeBotWebhookRoute: ApiPublicTradeBotWebhookRoute,

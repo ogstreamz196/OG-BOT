@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { CoinPill } from "@/components/ui/coin-pill";
 import type { StoreItem } from "@/lib/store.functions";
 import { cn } from "@/lib/utils";
+import { TOKEN_ITEM_SLUG, tokenPerkLabel } from "@/lib/copier-keys";
 import sportsGuideArt from "@/assets/og-bot-sports-guide-badge.webp";
 import vaultArt from "@/assets/og-bot-vault.webp";
 import { copyText } from "@/lib/copy-text";
@@ -91,6 +92,8 @@ export function StoreItemCard({
     isSportsGuide && sportsGuideState && !["unowned", "revoked"].includes(sportsGuideState);
   // Phone apps block insecure (http) images, so always load them over https.
   const isVipPass = item.slug === "og-vip-pass";
+  // OG SIGNAL BOT TOKEN: after buying, the member sets it up on /copier.
+  const isSignalToken = item.slug === TOKEN_ITEM_SLUG;
   // Our own badges for the two branded items; everything else uses its store image.
   const brandArt = isSportsGuide ? sportsGuideArt : isVipPass ? vaultArt : null;
   const imageUrl = brandArt ?? item.image_url?.replace(/^http:\/\//i, "https://");
@@ -160,7 +163,8 @@ export function StoreItemCard({
         {item.coin_reward ? <CoinPill size="sm">+{item.coin_reward} coins</CoinPill> : null}
         {item.perk_slug && !isSportsGuide && (
           <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[0.7rem] font-bold uppercase text-primary">
-            <Sparkles className="h-3 w-3" /> {item.perk_slug.replace("role:", "")}
+            <Sparkles className="h-3 w-3" />{" "}
+            {tokenPerkLabel(item.perk_slug) ?? item.perk_slug.replace("role:", "")}
           </span>
         )}
         {stockRemaining !== null && (
@@ -251,6 +255,14 @@ export function StoreItemCard({
           </button>
         )}
       </div>
+      {isSignalToken && (
+        <a
+          href="/copier"
+          className="mt-3 block text-center text-xs font-semibold text-emerald-400 hover:underline"
+        >
+          Already bought? Get your token and set up your bot →
+        </a>
+      )}
       {ownsVipPass && vipPass?.username ? (
         <div className="mt-3 space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-3">
           <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-primary">

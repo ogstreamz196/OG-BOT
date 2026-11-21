@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, Pause, Send, Trophy } from "lucide-react";
+import { Bot, Lock, Pause, Send, Trophy } from "lucide-react";
 import signalsIcon from "@/assets/og-signals-480.webp";
 import { cn } from "@/lib/utils";
 import { useIsNativeApp } from "@/hooks/use-signals-portal";
@@ -171,7 +171,14 @@ export function SignalsBoard() {
         every tracked signal's real result; a card's confidence is how strongly the indicators
         agree, not a win rate. Trading is risky: risk 1–2% per trade. Not financial advice.
       </p>
-      <div className="mt-3 flex justify-center">
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {/* OG SIGNAL BOT TOKEN: these signals copied into the member's own MT5. */}
+        <a
+          href="/copier"
+          className="inline-flex items-center gap-2 rounded-full border border-emerald-500 bg-emerald-500/15 px-4 py-2 text-sm font-bold text-foreground hover:bg-emerald-500/25"
+        >
+          <Bot className="h-4 w-4" /> Copy these into your MT5: OG SIGNAL BOT
+        </a>
         <Link
           to="/settings"
           className="inline-flex items-center gap-2 rounded-full border border-emerald-500/50 px-4 py-2 text-sm font-bold text-foreground hover:bg-emerald-500/10"
