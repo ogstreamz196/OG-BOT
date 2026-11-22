@@ -2,7 +2,7 @@
 // (as many as they like, each on top of their expiry; claimed free while the
 // pass is free), see whether their copier is running and pause new trades,
 // download the app (the zip the Boss links in the Control Room: unzip, open
-// OGCopier.exe, sign in, Start), or set the Python copier up with their token
+// OGSignalBot.exe, its wizard does the rest), or set the Python copier up with their token
 // and a ready config.ini.
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -364,11 +364,9 @@ export function MyCopierPage() {
                         and unzip it (right-click → Extract All).
                       </li>
                       <li>
-                        Open <b>OGCopier.exe</b> and sign in with your ogbot.co.uk username and
-                        password.
-                      </li>
-                      <li>
-                        Press <b>Start</b>. The first time, it asks for your MT5 login (a{" "}
+                        Open <b>OGSignalBot.exe</b>. Its wizard signs you in with your ogbot.co.uk
+                        username and password, finds MetaTrader 5 (or helps you install it and open
+                        a{" "}
                         <a
                           href={INVITE_LINK}
                           target="_blank"
@@ -377,7 +375,10 @@ export function MyCopierPage() {
                         >
                           Vantage
                         </a>{" "}
-                        account; a demo first). That&apos;s it.
+                        account) and asks for your MT5 login once.
+                      </li>
+                      <li>
+                        Press <b>Start</b>. It shows your days left, and you renew here.
                       </li>
                     </ol>
                     <details className="rounded-lg border border-border p-3">

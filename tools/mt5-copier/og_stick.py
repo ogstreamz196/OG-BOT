@@ -1,10 +1,14 @@
 """
-OG Copier: the app on the stick.
+OG SIGNAL BOT: the app (OGSignalBot.exe).
 
-A small window for the copier (og_copier.py): sign in with your ogbot.co.uk
-username and password, see your access and your MT5 account, and press Start.
-Everything it keeps (the settings, the trade memory) sits in the same folder
-as this app, so the whole thing lives on a USB stick.
+One file, nothing to install or edit. A first-run wizard walks the member
+through it: sign in with their ogbot.co.uk username and password (that
+fetches their token and checks their days left), get or renew the OG SIGNAL
+BOT on the website if they have none, find MetaTrader 5 (or download it),
+give MT5 their account once, then press Start. The dashboard keeps showing
+the days left (checked with ogbot.co.uk every 10 minutes) with a Renew
+button. Everything it keeps (the settings, the trade memory) sits in the
+same folder as the app, so it also runs from a USB stick.
 
 Run from source:   python og_stick.py
 As one file:       build_stick.bat makes OGCopier.exe (see STICK.md)
@@ -19,6 +23,7 @@ import queue
 import subprocess
 import sys
 import threading
+import webbrowser
 
 FROZEN = getattr(sys, "frozen", False)
 HOME = os.path.dirname(sys.executable if FROZEN else os.path.abspath(__file__))
@@ -48,7 +53,12 @@ MUTED = "#9ca3af"
 GOOD = "#34d399"
 WARN = "#fbbf24"
 BAD = "#fb7185"
+CARD_BUTTON = "#1f2937"
 FONT = ("Segoe UI", 11)
+# How often the dashboard asks ogbot.co.uk for the days left.
+ACCESS_EVERY_MS = 10 * 60 * 1000
+# The Boss's Vantage open-account link.
+VANTAGE_URL = "https://vigco.co/la-com-inv/CREDIT25"
 BIG = ("Segoe UI", 16, "bold")
 
 
@@ -61,17 +71,115 @@ class App:
         # MT5 details typed this session: used for one start, never saved.
         self.mt5_once = None
         self.config = core.load_config(HOME)
-        root.title("OG Copier")
+        # What ogbot.co.uk last said about the token (None: not asked yet, or offline).
+        self.access_info = None
+        self.mt5_path, self.mt5_portable = core.find_mt5(HOME)
+        root.title(core.APP_NAME)
         root.configure(bg=BG)
         root.geometry("460x640")
         root.minsize(420, 560)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.frame = None
         if len(self.config.get("token", "")) >= 24:
-            self.show_dashboard()
+            self.check_and_route()
         else:
             self.show_login()
         self.tick()
+        self.root.after(ACCESS_EVERY_MS, self.recheck)
+
+    # ── the wizard ────────────────────────────────────────────────────────
+    def check_and_route(self, then=None):
+        """Asks ogbot.co.uk about the token, then shows the wizard's next step."""
+        f = self.clear()
+        self.label(f, core.APP_NAME, GOOD, BIG, pady=(8, 2))
+        self.label(f, "Checking your access with ogbot.co.uk...", MUTED)
+
+        def work():
+            kind, info = core.check_access(self.config.get("feed_url"), self.config.get("token", ""))
+            self.root.after(0, lambda: self.routed(kind, info))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def routed(self, kind, info):
+        if kind == "signin":
+            self.config = core.save_config(HOME, {"token": ""})
+            self.show_login("Please sign in again.")
+            return
+        # Offline: carry on with what's saved; the copier checks again when it starts.
+        self.access_info = info if kind == "ok" else None
+        if info and info.get("expiresAt"):
+            self.config = core.save_config(HOME, {"expires_at": info["expiresAt"]})
+        self.next_step()
+
+    def next_step(self):
+        self.mt5_path, self.mt5_portable = core.find_mt5(HOME)
+        step = core.wizard_step(self.config, self.access_info, self.mt5_path)
+        if step == "signin":
+            self.show_login()
+        elif step == "access":
+            self.show_access()
+        elif step == "mt5":
+            self.show_mt5_install()
+        elif step == "mt5_login":
+            self.show_dashboard()
+            self.mt5_dialog()
+        else:
+            self.show_dashboard()
+
+    def show_access(self):
+        info = self.access_info or {}
+        f = self.clear()
+        self.label(f, core.APP_NAME, GOOD, BIG, pady=(8, 2))
+        off = info.get("state") == "off"
+        self.label(
+            f,
+            "Your OG SIGNAL BOT is switched off." if off else "Your OG SIGNAL BOT access has run out.",
+            BAD,
+            ("Segoe UI", 12, "bold"),
+            pady=(6, 4),
+        )
+        self.label(
+            f,
+            "Message the Boss to get it back on."
+            if off
+            else "Renew it on ogbot.co.uk (each 30-day pass adds on top), then press Check again.",
+            MUTED,
+            pady=(0, 14),
+        )
+        if not off:
+            self.button(f, "Renew on ogbot.co.uk", lambda: webbrowser.open(core.GET_URL), pady=(0, 8))
+        self.button(f, "Check again", self.check_and_route, colour=CARD_BUTTON, pady=(0, 8))
+        self.button(f, "Sign out", self.sign_out, colour=CARD_BUTTON)
+
+    def show_mt5_install(self):
+        f = self.clear()
+        self.label(f, core.APP_NAME, GOOD, BIG, pady=(8, 2))
+        self.label(f, "MetaTrader 5 isn't on this PC yet.", FG, ("Segoe UI", 12, "bold"), pady=(6, 4))
+        self.label(
+            f,
+            "1. Download and install MetaTrader 5.\n"
+            "2. No trading account yet? Open one with Vantage (a demo is fine to start).\n"
+            "3. Come back here and press I've installed it.",
+            MUTED,
+            pady=(0, 14),
+        )
+        self.button(f, "Download MetaTrader 5", lambda: webbrowser.open(core.MT5_DOWNLOAD_URL), pady=(0, 8))
+        self.button(f, "Open a Vantage account", lambda: webbrowser.open(VANTAGE_URL), colour=CARD_BUTTON, pady=(0, 8))
+        self.button(f, "I've installed it", self.next_step, colour=CARD_BUTTON)
+
+    def recheck(self):
+        """Every 10 minutes: the days left from ogbot.co.uk, for the dashboard."""
+
+        def work():
+            kind, info = core.check_access(self.config.get("feed_url"), self.config.get("token", ""))
+            if kind == "ok":
+                self.access_info = info
+                if info.get("expiresAt"):
+                    self.config = core.save_config(HOME, {"expires_at": info["expiresAt"]})
+
+        if self.config.get("token"):
+            threading.Thread(target=work, daemon=True).start()
+        self.root.after(ACCESS_EVERY_MS, self.recheck)
 
     # ── small helpers ─────────────────────────────────────────────────────
     def clear(self):
@@ -83,7 +191,14 @@ class App:
 
     def label(self, parent, text="", colour=FG, font=FONT, **pack):
         widget = tk.Label(
-            parent, text=text, fg=colour, bg=parent["bg"], font=font, anchor="w", justify="left"
+            parent,
+            text=text,
+            fg=colour,
+            bg=parent["bg"],
+            font=font,
+            anchor="w",
+            justify="left",
+            wraplength=410,
         )
         widget.pack(fill="x", **pack)
         return widget
@@ -94,7 +209,7 @@ class App:
             text=text,
             command=command,
             bg=colour,
-            fg="#04110b",
+            fg=FG if colour == CARD_BUTTON else "#04110b",
             activebackground=colour,
             relief="flat",
             font=("Segoe UI", 12, "bold"),
@@ -121,7 +236,7 @@ class App:
     # ── sign in ───────────────────────────────────────────────────────────
     def show_login(self, message=""):
         f = self.clear()
-        self.label(f, "OG Copier", GOOD, BIG, pady=(8, 2))
+        self.label(f, core.APP_NAME, GOOD, BIG, pady=(8, 2))
         self.label(f, "Sign in with your ogbot.co.uk username and password.", MUTED, pady=(0, 16))
         self.label(f, "Username", MUTED)
         self.username = self.entry(f)
@@ -129,6 +244,20 @@ class App:
         self.password = self.entry(f, show="*")
         self.login_note = self.label(f, message, BAD if message else MUTED, pady=(0, 8))
         self.login_button = self.button(f, "Sign in", self.sign_in)
+        tk.Button(
+            f,
+            text="No OG SIGNAL BOT yet? Get it on ogbot.co.uk",
+            command=lambda: webbrowser.open(core.GET_URL),
+            bg=BG,
+            fg=GOOD,
+            relief="flat",
+            bd=0,
+            highlightthickness=0,
+            activebackground=BG,
+            activeforeground=FG,
+            font=("Segoe UI", 10, "underline"),
+            cursor="hand2",
+        ).pack(pady=(10, 0))
         self.username.focus_set()
         self.root.bind("<Return>", lambda _e: self.sign_in())
 
@@ -158,14 +287,29 @@ class App:
             {"token": result["token"], "name": result["name"], "expires_at": result["expiresAt"]},
         )
         self.root.unbind("<Return>")
-        self.show_dashboard()
+        self.check_and_route()
 
     # ── dashboard ─────────────────────────────────────────────────────────
     def show_dashboard(self):
         f = self.clear()
-        self.label(f, "OG Copier", GOOD, BIG, pady=(4, 0))
+        self.label(f, core.APP_NAME, GOOD, BIG, pady=(4, 0))
         self.who = self.label(f, f"Signed in as {self.config.get('name') or 'you'}", MUTED)
         self.access = self.label(f, "", FG, pady=(10, 0))
+        tk.Button(
+            f,
+            text="Renew / add days on ogbot.co.uk",
+            command=lambda: webbrowser.open(core.GET_URL),
+            bg=BG,
+            fg=GOOD,
+            relief="flat",
+            bd=0,
+            highlightthickness=0,
+            activebackground=BG,
+            activeforeground=FG,
+            font=("Segoe UI", 10, "underline"),
+            cursor="hand2",
+            anchor="w",
+        ).pack(fill="x")
 
         card = tk.Frame(f, bg=CARD, padx=14, pady=12)
         card.pack(fill="x", pady=12)
@@ -240,9 +384,17 @@ class App:
             self.start()
 
     def start(self):
-        on_stick = bool(self.config.get("mt5_path"))
-        if on_stick and not self.config.get("mt5_login") and self.mt5_once is None:
-            # A fresh stick: MT5 on it has never been logged in.
+        # Where MetaTrader 5 is (the app's own folder, else the PC's install).
+        self.mt5_path, self.mt5_portable = core.find_mt5(HOME)
+        if not self.mt5_path:
+            self.show_mt5_install()
+            return
+        self.config = core.save_config(
+            HOME,
+            {"mt5_path": self.mt5_path, "mt5_portable": "true" if self.mt5_portable else "false"},
+        )
+        if not self.config.get("mt5_login") and self.mt5_once is None:
+            # MT5 has never been given an account by this app.
             self.mt5_dialog(then_start=True)
             return
         env = os.environ.copy()
@@ -290,6 +442,12 @@ class App:
         if core.token_refused(self.recent):
             self.config = core.save_config(HOME, {"token": ""})
             self.show_login("Please sign in again.")
+        elif core.algo_trading_off(self.recent):
+            messagebox.showinfo(
+                core.APP_NAME,
+                "One more step in MetaTrader 5: press the Algo Trading button in its toolbar "
+                "(it turns green), then press Start here again.",
+            )
 
     # ── MT5 account ───────────────────────────────────────────────────────
     def mt5_dialog(self, then_start=False):
@@ -370,7 +528,11 @@ class App:
             activebackground=BAD if running else GOOD,
         )
         access = (status or {}).get("access") or {}
-        expires = access.get("expiresAt") or self.config.get("expires_at", "")
+        expires = (
+            access.get("expiresAt")
+            or (self.access_info or {}).get("expiresAt")
+            or self.config.get("expires_at", "")
+        )
         note = (status or {}).get("note")
         left = core.days_left(expires)
         self.access.config(

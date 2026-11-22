@@ -1,7 +1,8 @@
 """
-The parts of the stick app (og_stick.py) that don't need a window or MT5, so
-they can be tested on their own: the settings file, signing in, and reading
-the copier's status file.
+The parts of the OG SIGNAL BOT app (og_stick.py) that don't need a window or
+MT5, so they can be tested on their own: the settings file, signing in, the
+access check on ogbot.co.uk, finding MetaTrader 5, the setup wizard's next
+step, and reading the copier's status file.
 """
 
 import configparser
@@ -9,7 +10,11 @@ import json
 import os
 from datetime import datetime, timezone
 
+APP_NAME = "OG SIGNAL BOT"
 FEED_URL = "https://ogbot.co.uk/api/public/copy-feed"
+# Where members get or renew the OG SIGNAL BOT, and where MetaTrader 5 comes from.
+GET_URL = "https://ogbot.co.uk/copier"
+MT5_DOWNLOAD_URL = "https://www.metatrader5.com/en/download"
 MT5_ON_STICK = os.path.join("MT5", "terminal64.exe")
 # A status file older than this means the copier isn't running any more.
 STATUS_FRESH_SECONDS = 20
@@ -17,7 +22,7 @@ STATUS_FRESH_SECONDS = 20
 LOGIN_ERRORS = {
     "bad_login": "That username or password isn't right.",
     "too_many": "Too many tries. Wait 15 minutes and try again.",
-    "no_access": "This account has no copier access yet. Ask for it to be switched on.",
+    "no_access": "This account doesn't have the OG SIGNAL BOT yet. Get it on ogbot.co.uk, then sign in again.",
     "bad_request": "Type your username and password (the password is at least 6 characters).",
 }
 
@@ -61,7 +66,7 @@ def save_config(home, changes):
     cfg["copier"] = {k: str(v) for k, v in values.items()}
     tmp = config_path(home) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        f.write("; Written by the OG Copier app. Keep this file private.\n")
+        f.write("; Written by the OG SIGNAL BOT app. Keep this file private.\n")
         cfg.write(f)
     os.replace(tmp, config_path(home))
     return values
@@ -99,6 +104,97 @@ def sign_in(feed_url, username, password, post=None):
             "expiresAt": body.get("expiresAt") or "",
         }
     return False, LOGIN_ERRORS.get(body.get("reason"), "Couldn't sign in. Try again.")
+
+
+def site_url(feed_url, path):
+    """An address on the same site as the feed."""
+    base = (feed_url or FEED_URL).split("/api/")[0].rstrip("/")
+    return f"{base}{path}"
+
+
+def check_access(feed_url, token, get=None):
+    """Asks ogbot.co.uk about the token (read only: it never locks it to this
+    PC). Returns ("ok", {state, daysLeft, expiresAt, name, paused}),
+    ("signin", None) when the token isn't valid any more, or ("offline", None)
+    when the site can't be reached."""
+    if not token:
+        return "signin", None
+    if get is None:
+        import requests
+
+        get = requests.get
+    try:
+        r = get(
+            site_url(feed_url, "/api/public/copier-status"),
+            headers={"x-copy-token": token},
+            timeout=15,
+        )
+    except Exception:
+        return "offline", None
+    if getattr(r, "status_code", 200) == 401:
+        return "signin", None
+    try:
+        body = r.json()
+    except Exception:
+        return "offline", None
+    if not body.get("ok"):
+        return "signin", None
+    return "ok", {
+        "state": body.get("state") or "active",
+        "daysLeft": body.get("daysLeft"),
+        "expiresAt": body.get("expiresAt") or "",
+        "name": body.get("name") or "",
+        "paused": bool(body.get("paused")),
+    }
+
+
+# Where MetaTrader 5 usually installs (any broker's build), checked in order.
+MT5_PLACES = (
+    r"C:\Program Files",
+    r"C:\Program Files (x86)",
+)
+
+
+def find_mt5(home, places=MT5_PLACES, listdir=os.listdir, exists=os.path.exists):
+    """terminal64.exe for the copier: the app's own MT5 folder first (portable),
+    else an installed MetaTrader 5 (a Vantage build first). Returns (path,
+    portable) or ("", False) when there isn't one."""
+    own = os.path.join(home, MT5_ON_STICK)
+    if exists(own):
+        return own, True
+    found = []
+    for place in places:
+        try:
+            names = listdir(place)
+        except Exception:
+            continue
+        for name in names:
+            exe = os.path.join(place, name, "terminal64.exe")
+            if exists(exe):
+                found.append((0 if "vantage" in name.lower() else 1, exe))
+    if not found:
+        return "", False
+    return sorted(found)[0][1], False
+
+
+def wizard_step(config, access, mt5_path):
+    """The setup wizard's next screen: "signin" (no token), "access" (none or
+    run out: get or renew it), "mt5" (MetaTrader 5 isn't installed),
+    "mt5_login" (MT5 has never been given an account), or "ready"."""
+    if not config.get("token"):
+        return "signin"
+    if access is not None and access.get("state") != "active":
+        return "access"
+    if not mt5_path:
+        return "mt5"
+    if not config.get("mt5_login"):
+        return "mt5_login"
+    return "ready"
+
+
+def algo_trading_off(last_lines):
+    """Whether the copier stopped because Algo Trading is off in MT5."""
+    return "algo trading" in " ".join(last_lines[-5:]).lower()
 
 
 def parse_time(iso):

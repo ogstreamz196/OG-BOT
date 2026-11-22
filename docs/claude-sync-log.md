@@ -326,6 +326,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-22 · #330** · OG SIGNAL BOT app: one exe
+  (OGSignalBot.exe from build_stick.bat) with a first-run wizard: sign in →
+  access and expiry checked with ogbot.co.uk (new read-only
+  /api/public/copier-status) → renew if needed → find or install MT5 → MT5
+  login once → Start, days left re-checked every 10 minutes. Screens checked
+  in a virtual display. The Boss builds the exe on Windows, zips it, uploads
+  it and pastes the link in the Control Room. No migrations.
+
 - **Boss's Claude · 2026-11-21 · #329** · OG SIGNAL BOT: 30-day passes bought
   on /copier itself (1–12 at once, stacking on the expiry; claim while
   free), config.ini needs no editing (token in, dry_run false, broker

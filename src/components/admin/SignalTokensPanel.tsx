@@ -143,7 +143,7 @@ export function SignalTokensPanel() {
             Download link (the OG SIGNAL BOT zip)
           </p>
           <p className="mb-2 text-xs text-muted-foreground">
-            Members get a Download button on their OG SIGNAL BOT page: unzip, open OGCopier.exe,
+            Members get a Download button on their OG SIGNAL BOT page: unzip, open OGSignalBot.exe,
             sign in with their ogbot.co.uk login, Start. Leave it empty to show the Python setup
             instead.
           </p>
