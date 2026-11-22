@@ -12,6 +12,21 @@
 // - Paying for digital goods outside the store's own billing (Stripe):
 //   in the apps every purchase goes through RevenueCat (Google Play Billing).
 
+/**
+ * Pages that are website-only (the Boss, 2026-11-22: "make sure the Android
+ * and iOS side don't contain anything which could breach compliance rules"):
+ * trading signals, the OG SIGNAL BOT (copier) and the Boss's Signals Control
+ * Room (trading switches, copier tokens, MT5). Each redirects in the apps and
+ * links to it are left out there.
+ */
+export const NATIVE_HIDDEN_PATHS = ["/signals", "/copier", "/admin/signals"] as const;
+
+/** Whether a link to this page is shown here (the website shows everything). Pure. */
+export function pathAllowed(to: string | null | undefined, native: boolean): boolean {
+  if (!native || !to) return true;
+  return !(NATIVE_HIDDEN_PATHS as readonly string[]).includes(to);
+}
+
 /** Store items that are never sold in the phone apps (by slug). */
 export const NATIVE_HIDDEN_STORE_ITEMS = ["og-vip-pass", "og-signal-bot-token"] as const;
 

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { pathAllowed } from "@/lib/native-policy";
+import { useIsNativeApp } from "@/hooks/use-signals-portal";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronRight, Loader2, Search, SlidersHorizontal, User, X } from "lucide-react";
 import { useBossMembers } from "@/hooks/use-boss-members";
@@ -27,15 +29,19 @@ export function BossSearch({ className }: { className?: string }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const membersQ = useBossMembers(used);
+  // Trading results are website-only (native-policy.ts).
+  const native = useIsNativeApp();
 
   const query = q.trim();
   const hits = useMemo<Hit[]>(() => {
     if (!query) return [];
-    const settings: Hit[] = searchSettings(query).map((s) => ({
-      kind: "setting",
-      key: `s:${s.where}:${s.title}`,
-      setting: s,
-    }));
+    const settings: Hit[] = searchSettings(query)
+      .filter((s) => pathAllowed(s.to, native === true))
+      .map((s) => ({
+        kind: "setting",
+        key: `s:${s.where}:${s.title}`,
+        setting: s,
+      }));
     const matched = (membersQ.data ?? []).filter((m) => memberMatches(m, query));
     const members: Hit[] = matched
       .slice(0, MEMBER_LIMIT)
@@ -44,7 +50,7 @@ export function BossSearch({ className }: { className?: string }) {
       members.push({ kind: "all-members", key: "m:all", count: matched.length });
     }
     return [...settings, ...members];
-  }, [query, membersQ.data]);
+  }, [query, membersQ.data, native]);
 
   useEffect(() => setActive(0), [query]);
 

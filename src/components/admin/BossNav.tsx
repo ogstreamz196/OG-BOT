@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { pathAllowed } from "@/lib/native-policy";
+import { useIsNativeApp } from "@/hooks/use-signals-portal";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bot,
@@ -87,6 +89,8 @@ function isActive(pathname: string, to: string) {
  * (run the app · OG Bot · system) with a divider between groups.
  */
 export function BossNav() {
+  // The Signals area is website-only (native-policy.ts).
+  const native = useIsNativeApp();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const current = BOSS_AREAS.find((a) => isActive(pathname, a.to));
   const stripRef = useRef<HTMLDivElement>(null);
@@ -124,28 +128,30 @@ export function BossNav() {
           ref={stripRef}
           className="relative flex items-stretch overflow-x-auto whitespace-nowrap px-1 text-sm [scrollbar-width:none]"
         >
-          {BOSS_AREAS.map(({ to, label, icon: Icon, group }, i) => {
-            const active = isActive(pathname, to);
-            const newGroup = i > 0 && BOSS_AREAS[i - 1].group !== group;
-            return (
-              <span key={to} className="flex items-stretch">
-                {newGroup && <span aria-hidden className="my-2.5 w-px shrink-0 bg-border" />}
-                <Link
-                  to={to}
-                  aria-current={active ? "page" : undefined}
-                  data-boss-active={active ? "" : undefined}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 border-b-2 px-3 py-3 transition",
-                    active
-                      ? "border-primary font-semibold text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" /> {label}
-                </Link>
-              </span>
-            );
-          })}
+          {BOSS_AREAS.filter((a) => pathAllowed(a.to, native === true)).map(
+            ({ to, label, icon: Icon, group }, i) => {
+              const active = isActive(pathname, to);
+              const newGroup = i > 0 && BOSS_AREAS[i - 1].group !== group;
+              return (
+                <span key={to} className="flex items-stretch">
+                  {newGroup && <span aria-hidden className="my-2.5 w-px shrink-0 bg-border" />}
+                  <Link
+                    to={to}
+                    aria-current={active ? "page" : undefined}
+                    data-boss-active={active ? "" : undefined}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 border-b-2 px-3 py-3 transition",
+                      active
+                        ? "border-primary font-semibold text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {label}
+                  </Link>
+                </span>
+              );
+            },
+          )}
         </div>
       </nav>
     </div>

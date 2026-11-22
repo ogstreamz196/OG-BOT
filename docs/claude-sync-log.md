@@ -326,6 +326,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-22 · #333** · Phone apps store-safe check: the
+  Signals Control Room now redirects in the apps, and every link to the
+  website-only trading pages (nav, dashboard pills, search, Every switch,
+  Settings switchboard) is hidden there (native-policy pathAllowed). Website
+  unchanged. No migrations.
+
 - **Boss's Claude · 2026-11-22 · #332** · Manual trades for everyone: one
   card for the Boss and members, with a hidden trailing stop (server-side,
   never on the order book; og_copier never sends the stop to the broker).
