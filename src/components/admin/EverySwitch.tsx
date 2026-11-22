@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Send } from "lucide-react";
 import { BOSS_SWITCHES, SWITCH_AREAS, type SwitchArea } from "@/lib/boss-switches";
+import { pathAllowed } from "@/lib/native-policy";
+import { useIsNativeApp } from "@/hooks/use-signals-portal";
 
 /**
  * "Every switch": one list of every on/off switch the Boss has, what each does
@@ -10,13 +12,18 @@ import { BOSS_SWITCHES, SWITCH_AREAS, type SwitchArea } from "@/lib/boss-switche
  */
 export function EverySwitch() {
   const [area, setArea] = useState<SwitchArea>("Everyone");
-  const rows = BOSS_SWITCHES.filter((s) => s.area === area);
+  // Trading switches (Signals Control Room, Telegram trading) are website-only.
+  const native = useIsNativeApp() === true;
+  const shown = BOSS_SWITCHES.filter(
+    (s) => pathAllowed(s.to, native) && !(native && s.area === "Trading"),
+  );
+  const rows = shown.filter((s) => s.area === area);
 
   return (
     <div className="space-y-3">
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist">
-        {SWITCH_AREAS.map((a) => {
-          const n = BOSS_SWITCHES.filter((s) => s.area === a).length;
+        {SWITCH_AREAS.filter((a) => shown.some((s) => s.area === a)).map((a) => {
+          const n = shown.filter((s) => s.area === a).length;
           const on = a === area;
           return (
             <button

@@ -7,6 +7,7 @@ import { useSetFreeAccess } from "@/hooks/use-free-access";
 import { useSetSignalsPortal } from "@/hooks/use-signals-portal";
 import { expiresIn, useBossSwitches } from "@/hooks/use-boss-switches";
 import { cn } from "@/lib/utils";
+import { useIsNativeApp } from "@/hooks/use-signals-portal";
 
 const usd = (n: number) =>
   `$${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -25,6 +26,8 @@ const PRESETS = [
  */
 export function BossCommandBar() {
   const { free, portal, fleet, fleetLoading, demo, demoLoading } = useBossSwitches();
+  // Trading pills are website-only (native-policy.ts).
+  const native = useIsNativeApp() === true;
   const setFree = useSetFreeAccess();
   const setPortal = useSetSignalsPortal();
   const until = expiresIn(free.expiresAt);
@@ -87,47 +90,52 @@ export function BossCommandBar() {
         </PopoverContent>
       </Popover>
 
-      {/* Signals portal: a switch right on the pill. */}
-      <div className={pill(portal.enabled ? "emerald" : "muted")}>
-        <LineChart className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">
-          Web Signals: {portal.isLoading ? "…" : portal.enabled ? "LIVE (/signals)" : "HIDDEN"}
-        </span>
-        <Switch
-          checked={portal.enabled}
-          disabled={portal.isLoading || setPortal.isPending}
-          onCheckedChange={(on) => setPortal.mutate(on)}
-          aria-label="Web signals portal"
-        />
-      </div>
+      {/* Trading (signals portal, fleet, demo) is website-only (native-policy.ts). */}
+      {!native && (
+        <>
+          {/* Signals portal: a switch right on the pill. */}
+          <div className={pill(portal.enabled ? "emerald" : "muted")}>
+            <LineChart className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              Web Signals: {portal.isLoading ? "…" : portal.enabled ? "LIVE (/signals)" : "HIDDEN"}
+            </span>
+            <Switch
+              checked={portal.enabled}
+              disabled={portal.isLoading || setPortal.isPending}
+              onCheckedChange={(on) => setPortal.mutate(on)}
+              aria-label="Web signals portal"
+            />
+          </div>
 
-      {/* Telegram worker fleet. */}
-      <Link to="/admin/signals" search={{ tab: "bots" }} className={pill(fleetTone(fleet))}>
-        <Bot className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">
-          {fleetLoading
-            ? "Fleet: …"
-            : fleet
-              ? `Fleet: ${fleet.active} bot${fleet.active === 1 ? "" : "s"} active · Webhook ${fleet.webhookOk ? "OK" : "check"}`
-              : "Fleet: unavailable"}
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
-      </Link>
+          {/* Telegram worker fleet. */}
+          <Link to="/admin/signals" search={{ tab: "bots" }} className={pill(fleetTone(fleet))}>
+            <Bot className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              {fleetLoading
+                ? "Fleet: …"
+                : fleet
+                  ? `Fleet: ${fleet.active} bot${fleet.active === 1 ? "" : "s"} active · Webhook ${fleet.webhookOk ? "OK" : "check"}`
+                  : "Fleet: unavailable"}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
+          </Link>
 
-      {/* Signals demo account. */}
-      <Link to="/admin/signals" search={{ tab: "controls" }} className={pill("muted")}>
-        <Wallet className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">
-          {demoLoading ? (
-            <Loader2 className="inline h-3 w-3 animate-spin" />
-          ) : demo?.balance != null ? (
-            `Demo balance: ${usd(demo.balance)}${fleet?.copyBot ? ` · Copy bot: ${fleet.copyBot}` : ""}`
-          ) : (
-            "Demo: not running"
-          )}
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
-      </Link>
+          {/* Signals demo account. */}
+          <Link to="/admin/signals" search={{ tab: "controls" }} className={pill("muted")}>
+            <Wallet className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              {demoLoading ? (
+                <Loader2 className="inline h-3 w-3 animate-spin" />
+              ) : demo?.balance != null ? (
+                `Demo balance: ${usd(demo.balance)}${fleet?.copyBot ? ` · Copy bot: ${fleet.copyBot}` : ""}`
+              ) : (
+                "Demo: not running"
+              )}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
+          </Link>
+        </>
+      )}
     </div>
   );
 }

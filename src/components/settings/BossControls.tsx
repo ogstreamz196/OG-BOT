@@ -3,6 +3,8 @@ import { ShieldCheck } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { useBossSwitches } from "@/hooks/use-boss-switches";
 import { cn } from "@/lib/utils";
+import { pathAllowed } from "@/lib/native-policy";
+import { useIsNativeApp } from "@/hooks/use-signals-portal";
 import { SettingsCard } from "./SettingsCard";
 
 /** The five Boss tasks done most, one tap each. */
@@ -23,6 +25,8 @@ const JUMPS = [
 export function BossControls() {
   const { roles } = useRole();
   const { free, portal, fleet, fleetLoading } = useBossSwitches();
+  // Trading (signals portal, fleet, trading switches) is website-only (native-policy.ts).
+  const native = useIsNativeApp() === true;
   const isDev = (roles as string[] | undefined)?.includes("dev") ?? false;
 
   return (
@@ -42,35 +46,39 @@ export function BossControls() {
           <Tag tone={free.enabled ? "amber" : "muted"}>
             Free access: {free.isLoading ? "…" : free.enabled ? "ON" : "OFF"}
           </Tag>
-          <Tag tone={portal.enabled ? "emerald" : "muted"}>
-            Signals portal: {portal.isLoading ? "…" : portal.enabled ? "ON" : "OFF"}
-          </Tag>
-          <Tag
-            tone={
-              fleetLoading || !fleet
-                ? "muted"
-                : fleet.active && fleet.webhookOk
-                  ? "emerald"
-                  : fleet.active
-                    ? "amber"
-                    : "rose"
-            }
-          >
-            Fleet:{" "}
-            {fleetLoading
-              ? "…"
-              : !fleet
-                ? "unavailable"
-                : fleet.active && fleet.webhookOk
-                  ? "Connected"
-                  : fleet.active
-                    ? "Webhook check"
-                    : "Off"}
-          </Tag>
+          {!native && (
+            <>
+              <Tag tone={portal.enabled ? "emerald" : "muted"}>
+                Signals portal: {portal.isLoading ? "…" : portal.enabled ? "ON" : "OFF"}
+              </Tag>
+              <Tag
+                tone={
+                  fleetLoading || !fleet
+                    ? "muted"
+                    : fleet.active && fleet.webhookOk
+                      ? "emerald"
+                      : fleet.active
+                        ? "amber"
+                        : "rose"
+                }
+              >
+                Fleet:{" "}
+                {fleetLoading
+                  ? "…"
+                  : !fleet
+                    ? "unavailable"
+                    : fleet.active && fleet.webhookOk
+                      ? "Connected"
+                      : fleet.active
+                        ? "Webhook check"
+                        : "Off"}
+              </Tag>
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
-          {JUMPS.map((j) => (
+          {JUMPS.filter((j) => pathAllowed(j.to, native)).map((j) => (
             <Link
               key={j.label}
               to={j.to}

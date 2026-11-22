@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createFileRoute, Link, Navigate, redirect } from "@tanstack/react-router";
+import { Capacitor } from "@capacitor/core";
 import { Bot, Cpu, FlaskConical, Radio, Trophy, Wrench } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -28,6 +29,10 @@ export const Route = createFileRoute("/_authenticated/admin/signals")({
     typeof s.tab === "string" ? { tab: s.tab } : {},
   // Report joined Results (the Boss, 2026-11-13): old links follow.
   beforeLoad: ({ search }) => {
+    // Website only: trading switches, copier tokens and MT5 stay out of the
+    // phone apps (store rules; native-policy.ts).
+    if (typeof window !== "undefined" && Capacitor.isNativePlatform())
+      throw redirect({ to: "/admin" });
     if (search.tab === "report")
       throw redirect({ to: "/admin/signals", search: { tab: "results" } });
   },
