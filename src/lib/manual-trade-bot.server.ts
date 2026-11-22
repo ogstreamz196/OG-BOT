@@ -1,7 +1,12 @@
-// The Boss's manual trade card in the Copy Trader B0T (the partner's to-do #4,
-// 2026-11-12): pick the market and side, a fixed lot or an account-risk %, and
-// the stop and target distances with tap buttons, then Place → "Yes, place
-// it" (two taps, so one slip can't open a trade). The draft is kept in
+// The manual trade card in the Copy Trader B0T (the partner's to-do #4,
+// 2026-11-12; for every member since 2026-11-22, the Boss: "give them full
+// ability of manual trades with an invisible trailing stop … keep the manual
+// trade section identical for all users including me"): pick the market and
+// side, a fixed lot or an account-risk %, the stop and target distances, and
+// the hidden trailing stop, then Place → "Yes, place it" (two taps, so one
+// slip can't open a trade). The card is the same for everyone; only where the
+// trade goes differs (the Boss's: the signals chat, so every copier takes it;
+// a member's: their own copier only). The draft is kept in
 // site_content "copy.manualDraft"; placing it is manual-trade.server.ts. The
 // card text, buttons and tap handling here are pure so they can be tested.
 import {
@@ -26,9 +31,17 @@ export type Draft = {
   riskPct: number | null;
   sl: number;
   tp: number;
+  /**
+   * The hidden trailing stop (on by default): kept by the server, never on
+   * the broker's order book; the copier closes at market when it's hit.
+   */
+  trail: boolean;
   /** Waiting for "Yes, place it". */
   confirming?: boolean;
 };
+
+/** Where a placed trade goes: the signals chat (the Boss) or the member's own copier. */
+export type TradeScope = "group" | "own";
 
 export const DEFAULT_DRAFT: Draft = {
   market: "XAUUSD",
@@ -37,6 +50,7 @@ export const DEFAULT_DRAFT: Draft = {
   riskPct: null,
   sl: MANUAL_DEFAULTS.XAUUSD.sl,
   tp: MANUAL_DEFAULTS.XAUUSD.tp,
+  trail: true,
 };
 
 /** A stored draft, cleaned (anything broken falls back to the default). Pure. */
@@ -53,6 +67,7 @@ export function parseDraft(value: string | null | undefined): Draft {
       riskPct: lot ? null : riskPct,
       sl: clampSl(market, Number(d.sl) || MANUAL_DEFAULTS[market].sl),
       tp: clampTp(market, Number(d.tp) || MANUAL_DEFAULTS[market].tp),
+      trail: d.trail !== false,
       confirming: d.confirming === true,
     };
   } catch {
@@ -64,10 +79,11 @@ const money = (n: number) =>
   `$${n.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 /** The size line: the fixed lot, or the risk % with the lot it works out to now. Pure. */
-export function sizeLine(d: Draft, balance: number | null): string {
+export function sizeLine(d: Draft, balance: number | null, account = "the test account"): string {
   if (d.lot) return `📏 Size: ${d.lot} lot`;
   const pct = d.riskPct ?? 1;
-  if (!(balance && balance > 0)) return `📏 Size: risk ${pct}% of the test account`;
+  if (!(balance && balance > 0))
+    return `📏 Size: risk ${pct}% of ${account}${account === "the test account" ? "" : " (needs your copier's balance: start it once, or pick a lot)"}`;
   // The lot doesn't depend on the price, only on the stop distance.
   const t = buildManualTrade({
     market: d.market,
@@ -78,13 +94,29 @@ export function sizeLine(d: Draft, balance: number | null): string {
     riskPct: pct,
     balance,
   });
+  const of =
+    account === "the test account"
+      ? `the ${money(balance)} test account`
+      : `your ${money(balance)} balance`;
   return t
-    ? `📏 Size: risk ${pct}% of the ${money(balance)} test account → ${t.lot} lot (${money(t.riskAmount ?? 0)} if stopped)`
+    ? `📏 Size: risk ${pct}% of ${of} → ${t.lot} lot (${money(t.riskAmount ?? 0)} if stopped)`
     : `📏 Size: risk ${pct}% of ${money(balance)} is too small for 0.01 lot at this stop`;
 }
 
+/** The hidden trailing stop's line. Pure. */
+export function trailLine(d: Draft): string {
+  return d.trail
+    ? `🫥 Hidden trailing stop: ON. A stop's distance in profit, the stop moves to your entry, then follows the price a stop's distance behind. It's kept on our server, never on the broker's order book.`
+    : `🫥 Hidden trailing stop: OFF. The stop stays where it is (still hidden from the order book).`;
+}
+
 /** The card's text. Pure. */
-export function manualText(d: Draft, balance: number | null, note?: string): string {
+export function manualText(
+  d: Draft,
+  balance: number | null,
+  note?: string,
+  scope: TradeScope = "group",
+): string {
   const name = MARKET_LABEL[d.market];
   const rr = (d.tp / d.sl).toFixed(1).replace(/\.0$/, "");
   return [
@@ -92,11 +124,14 @@ export function manualText(d: Draft, balance: number | null, note?: string): str
     d.confirming ? "✋ MANUAL TRADE: PLACE IT?" : "✋ MANUAL TRADE",
     "",
     `${d.direction === "BUY" ? "🟢 BUY" : "🔴 SELL"} ${name} at the price when you place it`,
-    sizeLine(d, balance),
+    sizeLine(d, balance, scope === "own" ? "your balance" : "the test account"),
     `🛑 Stop: ${money(d.sl)} away · 🎯 Target: ${money(d.tp)} away (1:${rr})`,
+    trailLine(d),
     "",
     d.confirming
-      ? "It goes in the signals chat, the bot follows it, and every copier copies it at this size."
+      ? scope === "own"
+        ? "Your copier opens it at market. The bot follows it and closes it at market when the stop, the trailing stop or the target is hit, and tells you here."
+        : "It goes in the signals chat, the bot follows it, and every copier copies it at this size."
       : "Set it up, then tap ✅ Place trade.",
   ].join("\n");
 }
@@ -143,6 +178,12 @@ export function manualKeyboard(d: Draft): { inline_keyboard: Button[][] } {
         { text: "➕", callback_data: `mt:tp:${step}` },
       ],
       [
+        {
+          text: d.trail ? "✅ 🫥 Hidden trailing stop: ON" : "🫥 Hidden trailing stop: OFF",
+          callback_data: "mt:trail",
+        },
+      ],
+      [
         { text: "✅ Place trade", callback_data: "mt:place" },
         { text: "✖️ Cancel", callback_data: "mt:cancel" },
       ],
@@ -187,6 +228,11 @@ export function applyManualTap(
       return keep({ ...d, sl: clampSl(d.market, d.sl + Number(val)) });
     case "tp":
       return keep({ ...d, tp: clampTp(d.market, d.tp + Number(val)) });
+    case "trail":
+      return keep(
+        { ...d, trail: !d.trail },
+        d.trail ? "Trailing stop off" : "Hidden trailing stop on",
+      );
     case "place":
       return keep({ ...d, confirming: true }, "Check it, then tap Yes");
     case "back":

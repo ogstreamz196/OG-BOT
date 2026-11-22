@@ -32,6 +32,8 @@ export type CopyFeedRow = {
     hedge?: boolean;
     /** The Boss's manual trade: copied at its own lot. */
     manual?: boolean;
+    /** The stop is never put on the broker (a manual trade's hidden stop). */
+    hiddenStop?: boolean;
     /** "stop" for a break entry; limit/market are told apart by the status. */
     entry?: unknown;
   } | null;
@@ -60,6 +62,11 @@ export type CopySignal = {
   hedge: boolean;
   /** The Boss's manual trade: every copier takes exactly its lot (no band or multiplier). */
   manual: boolean;
+  /**
+   * The stop stays off the broker's order book even with the safety stop on
+   * (manual trades' hidden stop): the copier closes at market when it's hit.
+   */
+  hiddenStop: boolean;
   /** How the bot entered: "stop" (break), "limit" (pullback/sniper) or "market". */
   entryType: "market" | "limit" | "stop";
   confidence: number | null;
@@ -104,6 +111,7 @@ export function copySignal(row: CopyFeedRow): CopySignal {
         : null,
     hedge: !!row.feeds?.hedge,
     manual: !!row.feeds?.manual,
+    hiddenStop: !!(row.feeds?.hiddenStop || row.feeds?.manual),
     entryType: row.feeds?.entry === "stop" ? "stop" : row.status === "pending" ? "limit" : "market",
     confidence: row.confidence_pct,
     createdAt: row.created_at,
@@ -155,6 +163,7 @@ export function testSignal(value: string | null | undefined, now: number): CopyS
     lots: Number(t.lots) > 0 ? Number(t.lots) : null,
     hedge: !!t.hedge,
     manual: false,
+    hiddenStop: false,
     entryType: "market",
     confidence: null,
     createdAt,

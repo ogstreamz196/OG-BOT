@@ -411,6 +411,8 @@ export async function signalReport(admin: Admin, days: number, now = Date.now())
       )
       // Retired markets (gold) stay stored but leave the report.
       .not("market", "in", RETIRED_IN)
+      // Members' own manual trades (feeds.owner) aren't the bot's signals.
+      .is("feeds->>owner", null)
       .gte("created_at", since)
       .order("created_at", { ascending: true })
       .range(a, b),

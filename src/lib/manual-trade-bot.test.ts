@@ -94,7 +94,7 @@ describe("the Boss's manual trade card", () => {
       [
         "🔴 XAUUSD SELL NOW (Gold)",
         "🎯 Entry: 3980.50 (market)",
-        "🛑 Stop: 3983.50",
+        "🛑 Stop: 3983.50 (hidden: never on the order book)",
         "💰 Take profit: 3974.50",
         "✋ Manual trade by the Boss · 0.1 lot",
       ].join("\n"),

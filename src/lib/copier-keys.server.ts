@@ -881,3 +881,14 @@ export async function copyBotLink(admin: Admin): Promise<string | null> {
   );
   return /^[A-Za-z0-9_]{5,64}$/.test(name) ? `https://t.me/${name}?start=copier` : null;
 }
+
+/** A member's token from their Telegram chat (for their manual trades), or null. */
+export async function memberKeyForChat(
+  admin: Admin,
+  chatId: number,
+): Promise<{ userId: string; key: CopierKey } | null> {
+  const userId = await accountOfChat(admin, chatId).catch(() => null);
+  if (!userId) return null;
+  const stored = await keyOfUser(admin, userId);
+  return stored ? { userId, key: stored.key } : null;
+}

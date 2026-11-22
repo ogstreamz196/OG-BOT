@@ -836,6 +836,8 @@ async function liveResults(admin: Admin, market: string, now: number): Promise<L
       .from("trade_signals")
       .select("confidence_pct, status, best_target, feeds")
       .eq("market", market)
+      // Members' own manual trades (feeds.owner) never teach the bot.
+      .is("feeds->>owner", null)
       .gte("created_at", new Date(now - 30 * 86_400_000).toISOString())
       .limit(2000);
     if (error) return [];

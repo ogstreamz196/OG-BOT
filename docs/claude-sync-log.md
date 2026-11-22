@@ -326,6 +326,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-22 · #332** · Manual trades for everyone: one
+  card for the Boss and members, with a hidden trailing stop (server-side,
+  never on the order book; og_copier never sends the stop to the broker).
+  The Boss's still go to the signals chat; a member's go only to their own
+  copier, tracked with updates in their private chat, and never count in
+  the record or learning. No migrations.
+
 - **Boss's Claude · 2026-11-22 · #331** · Members get the Copy Trader B0T:
   OG B0T /signalbot and the purchase message give the link; members' /start
   shows their keyboard and card, where they set their own lot range and

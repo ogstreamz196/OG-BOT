@@ -112,8 +112,23 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
                     .copierKeysTap(admin, press.from.id, press.data)
                     .catch(() => fallback)
                 : press.data.startsWith("mt:")
-                  ? await (await import("@/lib/manual-trade.server"))
-                      .manualTradeTap(admin, press.from.id, press.data)
+                  ? await (
+                      await import("@/lib/manual-trade.server")
+                    )
+                      .manualTradeTap(admin, press.from.id, press.data, {
+                        botId: bot.id,
+                        chatId: press.message.chat.id,
+                        // A member's trade card goes in their own chat.
+                        post: async (text: string) => {
+                          const sent = await f.fleetApi<{ message_id: number }>(
+                            bot.id,
+                            "sendMessage",
+                            { chat_id: press.message!.chat.id, text },
+                            key,
+                          );
+                          return sent.ok && sent.result ? sent.result.message_id : null;
+                        },
+                      })
                       .catch(() => fallback)
                   : await (await import("@/lib/copy-settings-bot.server"))
                       .copySettingsTap(admin, press.from.id, press.data)

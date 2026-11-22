@@ -211,6 +211,8 @@ export async function signalRecord(admin: Admin): Promise<SignalRecord | null> {
           "market, label, direction, entry, stop, tp1, tp2, tp3, pip, decimals, status, best_target, entered_at, created_at, closed_at, feeds",
         )
         .gte("confidence_pct", RECORD_MIN_CONFIDENCE)
+        // Members' own manual trades (feeds.owner) never count here.
+        .is("feeds->>owner", null)
         // Retired markets (gold) stay stored but stop counting.
         .not("market", "in", RETIRED_IN)
         .gte("created_at", from)
