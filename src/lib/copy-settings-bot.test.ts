@@ -95,6 +95,7 @@ describe("typed commands still work", () => {
       "✋ Manual trade",
       "👥 Copier users",
       "🧹 Purge & reset",
+      "💰 Close trades",
       "⚡ Generate BTC Signal Now",
     ]);
   });
