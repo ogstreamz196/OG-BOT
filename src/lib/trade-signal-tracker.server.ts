@@ -657,6 +657,10 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
   for (const r of rows) byMarket.set(r.market, [...(byMarket.get(r.market) ?? []), r]);
   const sc0 = await import("./signal-chat.server");
   const purgedAt = await sc0.chatPurgedAt();
+  // The Boss's "close all in profit" (close-trades.server.ts), acted on this pass.
+  const closeIds = await import("./close-trades.server")
+    .then((m) => m.closeAskIds(admin, now))
+    .catch(() => new Set<string>());
 
   let eventCount = 0;
   for (const group of byMarket.values()) {
@@ -850,6 +854,34 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
         // Before TP1, a flip in the higher-timeframe trend calls the setup off.
         // Not for a market-bias call: it can lean against that trend on purpose.
         const update: Record<string, unknown> = { last_checked_at: new Date(now).toISOString() };
+        // The Boss's "close all in profit": still in profit at the live price,
+        // it closes there as a locked-in exit (status breakeven with the trail
+        // stop at the exit), so it counts as a win, the test account books it
+        // on the spread, and every copier closes because it's no longer active.
+        let bossClosed = false;
+        if (
+          closeIds.has(row.id) &&
+          (status === "open" || status === "tp1" || status === "tp2") &&
+          Number.isFinite(lastPrice) &&
+          (lastPrice - Number(row.entry)) * (row.direction === "BUY" ? 1 : -1) > 0
+        ) {
+          const dp = Math.max(0, Math.min(8, Number(row.decimals) || 2));
+          const exit = Number(lastPrice.toFixed(dp));
+          row.feeds = {
+            ...row.feeds,
+            trail: {
+              ...(row.feeds?.trail ?? { risk: Math.abs(Number(row.entry) - Number(row.stop)) }),
+              stop: exit,
+            },
+            closedBy: "boss",
+          };
+          update.feeds = { ...row.feeds };
+          status = "breakeven";
+          bossClosed = true;
+          lines.push(
+            `🔒 Closed in profit by the Boss at ${exit.toLocaleString("en-GB", { minimumFractionDigits: dp, maximumFractionDigits: dp })}`,
+          );
+        }
         // A trailing stop that moved is saved even when nothing's announced.
         if (trailedTo != null) update.feeds = { ...row.feeds };
         const trendDue =
@@ -1043,6 +1075,13 @@ export async function watchSignals(now = Date.now()): Promise<{ active: number; 
               `$${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             lines.push(`💰 ${pnl >= 0 ? "+" : "−"}${money(pnl)} on this one`);
           } else update.feeds = { ...row.feeds };
+          // The Boss's close: its result on the test account, on the card.
+          if (bossClosed && entered && row.feeds?.paper?.pnl != null) {
+            const p = Number(row.feeds.paper.pnl);
+            lines.push(
+              `💰 ${p >= 0 ? "+" : "−"}$${Math.abs(p).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} on this one`,
+            );
+          }
         }
 
         // One message per trade: each update goes into the card's journal,

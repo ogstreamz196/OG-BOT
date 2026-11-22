@@ -575,6 +575,8 @@ function timeLimitFeeds(entryLabel: string, t: { holdFor: number; fillWithin: nu
 }
 
 export type SignalFeeds = {
+  /** Who closed it by hand: "boss" for the Copy Trader B0T's "close all in profit". */
+  closedBy?: string;
   /** The test account's lot on this alert, and once it's over what it made (paper-account.server.ts). */
   paper?: { lots: number; pnl?: number; balance?: number; why?: string };
   /** Older signals: the learned breakeven, stop to entry once this many risks in profit. */

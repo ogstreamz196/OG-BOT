@@ -302,6 +302,7 @@ export function bossKeyboard(generateText: string) {
     keyboard: [
       [{ text: OPEN_BUTTON }, { text: "✋ Manual trade" }],
       [{ text: "👥 Copier users" }, { text: "🧹 Purge & reset" }],
+      [{ text: "💰 Close trades" }],
       [{ text: generateText }],
     ],
     is_persistent: true,

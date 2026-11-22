@@ -117,7 +117,12 @@ export const Route = createFileRoute("/api/public/copy-feed")({
             .limit(50);
           ownTrades = mine ?? [];
         }
-        const signals = copyFeed([...ownTrades, ...(data ?? [])] as never);
+        // The Boss's "close half": copiers bank half of those trades.
+        const { halfClosedIds } = await import("@/lib/close-trades.server");
+        const halves = await halfClosedIds(supabaseAdmin).catch(() => new Set<string>());
+        const signals = copyFeed([...ownTrades, ...(data ?? [])] as never).map((s) =>
+          halves.has(s.id) ? { ...s, halfClosed: true } : s,
+        );
         return Response.json(
           {
             ok: true,

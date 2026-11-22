@@ -54,6 +54,7 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               press.data?.startsWith("eg:") ||
               press.data?.startsWith("mt:") ||
               press.data?.startsWith("ck:") ||
+              press.data?.startsWith("ct:") ||
               press.data?.startsWith("rs:")) &&
             press.message
           ) {
@@ -111,28 +112,32 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
                 ? await (await import("@/lib/copier-keys.server"))
                     .copierKeysTap(admin, press.from.id, press.data)
                     .catch(() => fallback)
-                : press.data.startsWith("mt:")
-                  ? await (
-                      await import("@/lib/manual-trade.server")
-                    )
-                      .manualTradeTap(admin, press.from.id, press.data, {
-                        botId: bot.id,
-                        chatId: press.message.chat.id,
-                        // A member's trade card goes in their own chat.
-                        post: async (text: string) => {
-                          const sent = await f.fleetApi<{ message_id: number }>(
-                            bot.id,
-                            "sendMessage",
-                            { chat_id: press.message!.chat.id, text },
-                            key,
-                          );
-                          return sent.ok && sent.result ? sent.result.message_id : null;
-                        },
-                      })
+                : press.data.startsWith("ct:")
+                  ? await (await import("@/lib/close-trades.server"))
+                      .closeTradesTap(admin, press.from.id, press.data)
                       .catch(() => fallback)
-                  : await (await import("@/lib/copy-settings-bot.server"))
-                      .copySettingsTap(admin, press.from.id, press.data)
-                      .catch(() => fallback);
+                  : press.data.startsWith("mt:")
+                    ? await (
+                        await import("@/lib/manual-trade.server")
+                      )
+                        .manualTradeTap(admin, press.from.id, press.data, {
+                          botId: bot.id,
+                          chatId: press.message.chat.id,
+                          // A member's trade card goes in their own chat.
+                          post: async (text: string) => {
+                            const sent = await f.fleetApi<{ message_id: number }>(
+                              bot.id,
+                              "sendMessage",
+                              { chat_id: press.message!.chat.id, text },
+                              key,
+                            );
+                            return sent.ok && sent.result ? sent.result.message_id : null;
+                          },
+                        })
+                        .catch(() => fallback)
+                    : await (await import("@/lib/copy-settings-bot.server"))
+                        .copySettingsTap(admin, press.from.id, press.data)
+                        .catch(() => fallback);
             await f.fleetApi(
               bot.id,
               "answerCallbackQuery",
@@ -303,6 +308,18 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
                   },
                   key,
                 );
+              return Response.json({ ok: true });
+            }
+            // The Boss's close card (💰 Close trades or /close).
+            const { closeTradesReply } = await import("@/lib/close-trades.server");
+            const closing = await closeTradesReply(admin, msg.chat.id, msg.text).catch(() => null);
+            if (closing) {
+              await f.fleetApi(
+                bot.id,
+                "sendMessage",
+                { chat_id: msg.chat.id, text: closing.text, reply_markup: closing.reply_markup },
+                key,
+              );
               return Response.json({ ok: true });
             }
             // The signals group's purge & reset card (/reset, /purge or 🧹 Purge & reset).

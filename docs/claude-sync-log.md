@@ -326,6 +326,11 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-22 · #334** · Copy Trader B0T "💰 Close trades"
+  (Boss): close all trades in profit (the tracker closes them at the live
+  price as wins, test account and copiers follow) or close half of each on
+  the copiers. No migrations.
+
 - **Boss's Claude · 2026-11-22 · #333** · Phone apps store-safe check: the
   Signals Control Room now redirects in the apps, and every link to the
   website-only trading pages (nav, dashboard pills, search, Every switch,
