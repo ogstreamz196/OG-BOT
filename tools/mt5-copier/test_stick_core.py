@@ -107,5 +107,64 @@ class StickCore(unittest.TestCase):
         self.assertFalse(core.token_refused(["This key is locked to a different USB stick."]))
 
 
+
+class Wizard(unittest.TestCase):
+    def test_access_check_reads_the_site(self):
+        class R:
+            def __init__(self, code, body):
+                self.status_code, self.body = code, body
+
+            def json(self):
+                return self.body
+
+        good = R(200, {"ok": True, "state": "active", "daysLeft": 12, "expiresAt": "2026-12-01T00:00:00Z", "name": "Sam"})
+        seen = {}
+
+        def get(url, headers, timeout):
+            seen["url"], seen["token"] = url, headers["x-copy-token"]
+            return good
+
+        kind, info = core.check_access(core.FEED_URL, "ogk_" + "a" * 32, get=get)
+        self.assertEqual(kind, "ok")
+        self.assertEqual(info["daysLeft"], 12)
+        self.assertEqual(seen["url"], "https://ogbot.co.uk/api/public/copier-status")
+        self.assertEqual(core.check_access(core.FEED_URL, "ogk_x", get=lambda *a, **k: R(401, {}))[0], "signin")
+        self.assertEqual(core.check_access(core.FEED_URL, "", get=get)[0], "signin")
+
+        def down(*a, **k):
+            raise OSError("no internet")
+
+        self.assertEqual(core.check_access(core.FEED_URL, "ogk_x", get=down)[0], "offline")
+
+    def test_finds_mt5_its_own_folder_first_then_vantage(self):
+        pf = r"C:\Program Files"
+        files = {
+            os.path.join(pf, "MetaTrader 5", "terminal64.exe"),
+            os.path.join(pf, "Vantage International MT5 Terminal", "terminal64.exe"),
+        }
+        dirs = {r"C:\Program Files": ["MetaTrader 5", "Vantage International MT5 Terminal", "Other"]}
+        listdir = lambda p: dirs[p] if p in dirs else (_ for _ in ()).throw(OSError())
+        exists = lambda p: p in files
+        path, portable = core.find_mt5(r"D:\app", listdir=listdir, exists=exists)
+        self.assertIn("Vantage", path)
+        self.assertFalse(portable)
+        files.add(os.path.join(r"D:\app", core.MT5_ON_STICK))
+        self.assertTrue(core.find_mt5(r"D:\app", listdir=listdir, exists=exists)[1])
+        self.assertEqual(core.find_mt5(r"D:\app", listdir=lambda p: [], exists=lambda p: False), ("", False))
+
+    def test_wizard_goes_step_by_step(self):
+        active = {"state": "active"}
+        self.assertEqual(core.wizard_step({}, None, ""), "signin")
+        self.assertEqual(core.wizard_step({"token": "t"}, {"state": "expired"}, "x"), "access")
+        self.assertEqual(core.wizard_step({"token": "t"}, active, ""), "mt5")
+        self.assertEqual(core.wizard_step({"token": "t"}, active, "x"), "mt5_login")
+        self.assertEqual(core.wizard_step({"token": "t", "mt5_login": "123"}, active, "x"), "ready")
+        # Offline (access unknown): carry on with what it knows.
+        self.assertEqual(core.wizard_step({"token": "t", "mt5_login": "1"}, None, "x"), "ready")
+
+    def test_spots_algo_trading_off(self):
+        self.assertTrue(core.algo_trading_off(["Turn on Algo Trading in MetaTrader 5 (the button in the toolbar)."]))
+        self.assertFalse(core.algo_trading_off(["Connected to Vantage"]))
+
 if __name__ == "__main__":
     unittest.main()

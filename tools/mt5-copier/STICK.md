@@ -1,4 +1,34 @@
-# OG Copier on a USB stick
+# OG SIGNAL BOT app (OGSignalBot.exe)
+
+**The simple way (2026-11-22):** members download one zip with
+`OGSignalBot.exe` in it, open it, and its wizard does the rest:
+
+1. **Sign in** with their ogbot.co.uk username and password. That fetches
+   their token and checks their days left with ogbot.co.uk
+   (`/api/public/copier-status`, read only). No OG SIGNAL BOT yet, or it ran
+   out? A button opens ogbot.co.uk/copier to claim or buy 30-day passes, then
+   "Check again".
+2. **MetaTrader 5:** the app looks for MT5 next to itself (`MT5\terminal64.exe`)
+   and then in Program Files (a Vantage build first). Not there? Buttons to
+   download MT5 and open a Vantage account, then "I've installed it".
+3. **MT5 login:** account number, password and server, once. The password logs
+   MT5 in for that start and isn't saved.
+4. **Start.** The dashboard shows the days left (checked with ogbot.co.uk every
+   10 minutes) with a Renew link, the MT5 account, balance, open trades and a
+   log. If MT5's Algo Trading button is off, it says so.
+
+**Making the zip (the Boss, once per new version):** on a Windows PC with
+Python 3.12, double-click `build_stick.bat`, zip `dist\OGSignalBot.exe`,
+upload the zip to Cloudflare with public access, and paste its link in the
+Signals Control Room (OG SIGNAL BOT tokens → Download link). Members then
+see "Download OG SIGNAL BOT for Windows" on ogbot.co.uk/copier. Don't put a
+logged-in MT5 in the zip: its folder holds that account's login.
+
+The rest of this page is the older USB-stick way, which still works.
+
+---
+
+## OG Copier on a USB stick
 
 The stick app (`og_stick.py`, built into `OGCopier.exe`) is a small window for
 the copier: the user signs in with their ogbot.co.uk username and password,

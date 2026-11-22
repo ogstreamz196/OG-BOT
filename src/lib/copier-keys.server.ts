@@ -802,3 +802,37 @@ export async function tokenPass(admin: Admin): Promise<TokenPass | null> {
     free: !(Number(it.price_cents) > 0) && !(it.coin_price ?? 0),
   };
 }
+
+export type TokenStatus = {
+  name: string;
+  state: "active" | "expired" | "off";
+  daysLeft: number;
+  expiresAt: string;
+  paused: boolean;
+};
+
+/**
+ * What the OG SIGNAL BOT app shows before (and while) it trades: the token's
+ * days left and state, read only. Unlike the copy feed it never locks the
+ * token to a machine or account, so the app can check it at any time. Null
+ * for a token that isn't (or is no longer) valid.
+ */
+export async function tokenStatus(admin: Admin, token: string): Promise<TokenStatus | null> {
+  if (!token.startsWith(USER_TOKEN_PREFIX) || token.length < 30 || token.length > 80) return null;
+  const { daysLeft, isExpired } = await import("./copier-keys");
+  const { data } = await admin
+    .from("site_content")
+    .select("value")
+    .eq("key", keyRow(await sha256(token)))
+    .maybeSingle();
+  const k = parseKey((data as { value?: string } | null)?.value);
+  if (!k) return null;
+  const now = Date.now();
+  return {
+    name: k.name,
+    state: k.revoked ? "off" : isExpired(k, now) ? "expired" : "active",
+    daysLeft: daysLeft(k, now),
+    expiresAt: k.expiresAt,
+    paused: !!k.paused,
+  };
+}

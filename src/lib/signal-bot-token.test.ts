@@ -15,7 +15,7 @@ import {
   tokenPerkDays,
   tokenPerkLabel,
 } from "./copier-keys";
-import { grantSignalToken, issueMyToken } from "./copier-keys.server";
+import { grantSignalToken, issueMyToken, tokenStatus } from "./copier-keys.server";
 import { storeItemAllowed } from "./native-policy";
 
 const NOW = Date.parse("2026-11-21T12:00:00Z");
@@ -122,5 +122,19 @@ describe("OG SIGNAL BOT TOKEN", () => {
   it("is never sold in the phone apps", () => {
     expect(storeItemAllowed(TOKEN_ITEM_SLUG, true)).toBe(false);
     expect(storeItemAllowed(TOKEN_ITEM_SLUG, false)).toBe(true);
+  });
+  it("the app's access check: days left for a real token, nothing for a bad one, and no lock", async () => {
+    const { db, rows } = fakeDb({ display_name: "fred" });
+    await grantSignalToken(db, USER, 30, "r");
+    const t = await issueMyToken(db, USER);
+    const status = await tokenStatus(db, t!.token);
+    expect(status).toMatchObject({ name: "fred", state: "active", paused: false });
+    expect(status!.daysLeft).toBeGreaterThanOrEqual(29);
+    // Read only: no machine or account lock written.
+    const key = parseKey([...rows.values()][0]);
+    expect(key?.stick).toBeUndefined();
+    expect(key?.account).toBeUndefined();
+    expect(await tokenStatus(db, "ogk_" + "x".repeat(40))).toBeNull();
+    expect(await tokenStatus(db, "not-a-token")).toBeNull();
   });
 });
