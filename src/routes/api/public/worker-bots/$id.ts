@@ -253,6 +253,18 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
             const { myCopierReply } = await import("@/lib/copier-keys.server");
             const mine = await myCopierReply(admin, msg.chat.id, msg.text).catch(() => null);
             if (mine) {
+              // /start: the members' keyboard first (📟 My copier, ✋ Manual trade).
+              if (mine.keyboard)
+                await f.fleetApi(
+                  bot.id,
+                  "sendMessage",
+                  {
+                    chat_id: msg.chat.id,
+                    text: "👋 Your OG SIGNAL BOT controls are ready.",
+                    reply_markup: mine.keyboard,
+                  },
+                  key,
+                );
               await f.fleetApi(
                 bot.id,
                 "sendMessage",

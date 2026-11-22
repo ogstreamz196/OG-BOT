@@ -235,8 +235,16 @@ describe("the user's own view", () => {
       myPanel(k, at)
         .reply_markup.inline_keyboard.flat()
         .map((b) => b.callback_data);
-    expect(taps(bound)).toEqual(["ck:me:pause", "ck:me:refresh"]);
-    expect(taps(setPaused(bound, true))).toEqual(["ck:me:resume", "ck:me:refresh"]);
+    // While active: pause or resume, the lot range and pairs, refresh.
+    const settings = [
+      "ck:me:band:small",
+      "ck:me:band:medium",
+      "ck:me:band:large",
+      "ck:me:mk:XAUUSD",
+      "ck:me:mk:BTCUSD",
+    ];
+    expect(taps(bound)).toEqual(["ck:me:pause", ...settings, "ck:me:refresh"]);
+    expect(taps(setPaused(bound, true))).toEqual(["ck:me:resume", ...settings, "ck:me:refresh"]);
     expect(taps(revokeKey(bound))).toEqual(["ck:me:refresh"]);
     expect(taps(null)).toEqual([]);
     expect(myPanel(null, now).text).toContain("no copier access");

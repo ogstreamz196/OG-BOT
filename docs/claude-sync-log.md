@@ -326,6 +326,11 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-22 · #331** · Members get the Copy Trader B0T:
+  OG B0T /signalbot and the purchase message give the link; members' /start
+  shows their keyboard and card, where they set their own lot range and
+  pairs (on their key, merged into only their feed). No migrations.
+
 - **Boss's Claude · 2026-11-22 · #330** · OG SIGNAL BOT app: one exe
   (OGSignalBot.exe from build_stick.bat) with a first-run wizard: sign in →
   access and expiry checked with ogbot.co.uk (new read-only

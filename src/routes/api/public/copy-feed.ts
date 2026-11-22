@@ -80,7 +80,12 @@ export const Route = createFileRoute("/api/public/copy-feed")({
           who.kind === "user" &&
           (who.access.status === "limited" ||
             (who.access.status === "ok" && !!who.access.key.paused));
-        const settings = limited ? { ...shared, paused: true } : shared;
+        // A member's own lot range and pairs (set in the Copy Trader B0T) on
+        // top of the Boss's settings; only their copier follows them.
+        const { memberSettings } = await import("@/lib/copier-keys");
+        const own = who.kind === "user" && who.access.status !== "refused" ? who.access.key : null;
+        const mine = memberSettings(shared, own);
+        const settings = limited ? { ...mine, paused: true } : mine;
         const access =
           who.kind === "user" && who.access.status !== "refused"
             ? {
