@@ -165,6 +165,8 @@ export async function maybeStudyFilters(admin: Admin, now = Date.now()): Promise
         .from("trade_signals")
         .select("market, status, best_target, entry, stop, tp1, pip, direction, feeds")
         .gte("created_at", since)
+        // Members' own manual trades (feeds.owner) never teach the filters.
+        .is("feeds->>owner", null)
         .limit(20_000),
     ]);
     if (shadows.error) return "skipped: no shadow table";

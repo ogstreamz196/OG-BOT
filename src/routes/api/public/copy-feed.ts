@@ -102,7 +102,22 @@ export const Route = createFileRoute("/api/public/copy-feed")({
           .eq("key", "copy.testSignal")
           .maybeSingle();
         const extra = testSignal(test?.value, Date.now());
-        const signals = copyFeed((data ?? []) as never);
+        // A member's own manual trades (placed in the Copy Trader B0T): only
+        // their copier gets them.
+        let ownTrades: unknown[] = [];
+        if (who.kind === "user" && who.access.status !== "refused") {
+          const { data: mine } = await supabaseAdmin
+            .from("trade_signals")
+            .select(
+              "id, market, direction, entry, stop, tp1, tp3, status, best_target, entered_at, closed_at, created_at, confidence_pct, feeds",
+            )
+            .eq("feeds->>owner", who.access.key.id)
+            .gte("created_at", since)
+            .order("created_at", { ascending: false })
+            .limit(50);
+          ownTrades = mine ?? [];
+        }
+        const signals = copyFeed([...ownTrades, ...(data ?? [])] as never);
         return Response.json(
           {
             ok: true,

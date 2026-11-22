@@ -342,7 +342,8 @@ def open_trade(sig, sym):
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": filling(sym),
     }
-    if USE_BROKER_STOP:
+    # A manual trade's hidden stop never goes on the broker's order book.
+    if USE_BROKER_STOP and not sig.get("hiddenStop"):
         req["sl"] = float(sig["stopNow"])
     ok, res = send(req, f"open {sig['direction']} {req['volume']} {sym} at {price}")
     if not ok:
@@ -554,7 +555,7 @@ def step(state):
                 mine["volume"] = round(vol - half, 8)
             else:
                 mine["half"] = True  # too small to split: the whole lot rides the trail
-        if USE_BROKER_STOP and ticket > 0:
+        if USE_BROKER_STOP and ticket > 0 and not sig.get("hiddenStop"):
             move_stop(ticket, sym, sig["stopNow"])
     # Signals that dropped out of the feed (over a day old): close what's left,
     # then forget them.

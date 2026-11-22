@@ -52,6 +52,12 @@ function fakeAdmin() {
         eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
         in: (c: string, v: unknown[]) => (filters.push((r) => v.includes(r[c])), q),
         gte: (c: string, v: string) => (filters.push((r) => r[c] >= v), q),
+        // `.is("feeds->>owner", null)`: rows without that JSON field.
+        is: (c: string, _v: null) => {
+          const [col, field] = c.split("->>");
+          filters.push((r) => (field ? (r[col] as Row | null)?.[field] == null : r[c] == null));
+          return q;
+        },
         // Only `.not(col, "in", "(a,b)")` is used.
         not: (c: string, _op: string, list: string) => {
           const vals = list.replace(/[()]/g, "").split(",");
