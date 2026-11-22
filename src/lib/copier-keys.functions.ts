@@ -10,13 +10,15 @@ export const getMyCopier = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { myCopierFor, downloadUrl, tokenPass } = await import("./copier-keys.server");
-    const [copier, download, pass] = await Promise.all([
+    const { myCopierFor, downloadUrl, tokenPass, copyBotLink } =
+      await import("./copier-keys.server");
+    const [copier, download, pass, telegram] = await Promise.all([
       myCopierFor(supabaseAdmin, context.userId).catch(() => null),
       downloadUrl(supabaseAdmin).catch(() => null),
       tokenPass(supabaseAdmin).catch(() => null),
+      copyBotLink(supabaseAdmin).catch(() => null),
     ]);
-    return { copier, download, pass };
+    return { copier, download, pass, telegram };
   });
 
 /**

@@ -17,6 +17,7 @@ import {
   Pause,
   Play,
   Plus,
+  Send,
   ShoppingBag,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -324,6 +325,14 @@ export function MyCopierPage() {
                       <Pause className="mr-2 h-4 w-4" />
                     )}
                     {c.paused ? "Resume new trades" : "Pause new trades"}
+                  </Button>
+                )}
+                {q.data?.telegram && (
+                  <Button asChild variant="secondary" className="w-full">
+                    <a href={q.data.telegram} target="_blank" rel="noreferrer">
+                      <Send className="mr-2 h-4 w-4" /> Lot size, pairs and manual trades on
+                      Telegram
+                    </a>
                   </Button>
                 )}
                 {toggle.data && !toggle.data.ok && (

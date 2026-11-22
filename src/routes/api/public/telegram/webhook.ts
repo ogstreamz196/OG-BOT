@@ -820,6 +820,9 @@ Just type to chat with me, same brain as the in-app messenger. Or use the button
 /balance  your OG coin balance
 /buy  top up OG coins
 
+🤖 <b>OG SIGNAL BOT</b>
+/signalbot  your copier controls (lot size, pairs, manual trades)
+
 🎧 <b>Music, PRO & Vault</b>
 /tracks  your latest tracks to download and share
 /vip  your PRO status and expiry date
@@ -2675,6 +2678,22 @@ async function handleTelegramUpdate(
     if (/^\/help\b/i.test(trimmed)) {
       await show(isBoss ? HELP_ADMIN : HELP_USER);
       return Response.json({ ok: true, help: true });
+    }
+    // OG SIGNAL BOT: the Copy Trader B0T's link, where members set their lot
+    // size and pairs and place manual trades (the Boss, 2026-11-22).
+    if (/^\/(signalbot|copier)\b/i.test(trimmed)) {
+      const { copyBotLink } = await import("@/lib/copier-keys.server");
+      const link = await copyBotLink(admin).catch(() => null);
+      await screen(
+        chat_id,
+        link
+          ? "🤖 <b>OG SIGNAL BOT</b>\nYour copier controls are in the Copy Trader B0T: lot size, which pairs, pause, and manual trades with a hidden trailing stop.\nGet the app and your days at ogbot.co.uk/copier."
+          : "🤖 <b>OG SIGNAL BOT</b>\nGet the app and your days at ogbot.co.uk/copier.",
+        link
+          ? { reply_markup: { inline_keyboard: [[{ text: "📟 Open the Copy Trader B0T", url: link }]] } }
+          : {},
+      );
+      return Response.json({ ok: true, signalbot: true });
     }
     if (isBoss && (/^\/strategies\b/i.test(trimmed) || trimmed === "🎛 Strategies")) {
       const { engineConfig } = await import("@/lib/engine-config.server");

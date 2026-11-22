@@ -387,12 +387,24 @@ export async function myCopierReply(
   admin: Admin,
   chatId: number,
   sent: string,
-): Promise<KeysPanel | null> {
-  if (!isMyCommand(sent)) return null;
+): Promise<(KeysPanel & { keyboard?: unknown }) | null> {
+  // /start from a member (not the Boss, who gets his own controls): their
+  // card, with the members' keyboard (📟 My copier, ✋ Manual trade).
+  const start = /^\/start(?:@\w+)?(?:\s|$)/i.test(sent.trim());
+  if (!start && !isMyCommand(sent)) return null;
+  if (start) {
+    const { isBossChat } = await import("./copy-settings-bot.server");
+    if ((await isBossChat(admin, chatId).catch(() => ({ ok: false }))).ok) return null;
+  }
   const userId = await accountOfChat(admin, chatId).catch(() => null);
-  if (!userId) return { text: NOT_LINKED, reply_markup: { inline_keyboard: [] } };
+  if (!userId) return start ? null : { text: NOT_LINKED, reply_markup: { inline_keyboard: [] } };
   const stored = await keyOfUser(admin, userId);
-  return myPanel(stored?.key ?? null, Date.now());
+  if (start && !stored) return null;
+  const { MEMBER_KEYBOARD } = await import("./copier-keys");
+  return {
+    ...myPanel(stored?.key ?? null, Date.now()),
+    ...(start ? { keyboard: MEMBER_KEYBOARD } : {}),
+  };
 }
 
 /** A tap on the user's own card ("ck:me:…"). */
@@ -409,6 +421,14 @@ export async function myCopierTap(
   const now = Date.now();
   if (!stored) return { toast: "No copier access yet.", panel: myPanel(null, now) };
   if (tap === "refresh") return { toast: "Up to date", panel: myPanel(stored.key, now) };
+  // Their own lot range or pairs (only their copier follows these).
+  if (typeof tap === "object") {
+    const { applySettingTap } = await import("./copier-keys");
+    const changed = applySettingTap(stored.key, tap);
+    if (!(await saveKey(admin, stored.hash, changed.key)))
+      return { toast: "⚠️ Couldn't save that. Try again.", panel: null };
+    return { toast: changed.toast, panel: myPanel(changed.key, now) };
+  }
   const next = setPaused(stored.key, tap === "pause");
   if (!(await saveKey(admin, stored.hash, next)))
     return { toast: "⚠️ Couldn't save that. Try again.", panel: null };
@@ -468,7 +488,12 @@ export async function grantSignalToken(
         [
           `✅ <b>OG SIGNAL BOT TOKEN</b>: ${days} days added.`,
           `Your access runs until ${new Date(key.expiresAt).toLocaleDateString("en-GB")}.`,
-          "Get your token and the setup steps at https://ogbot.co.uk/copier",
+          "Get the app and the setup at https://ogbot.co.uk/copier",
+          ...(await copyBotLink(admin).then(
+            (link) =>
+              link ? [`Your copier controls (lot size, pairs, manual trades) are in ${link}`] : [],
+            () => [],
+          )),
         ].join("\n"),
       ).catch(() => undefined);
     }
@@ -835,4 +860,24 @@ export async function tokenStatus(admin: Admin, token: string): Promise<TokenSta
     expiresAt: k.expiresAt,
     paused: !!k.paused,
   };
+}
+
+/**
+ * The Copy Trader B0T's link (t.me/<username>?start=copier), for OG B0T to
+ * hand members: their copier controls and manual trades live there. Null when
+ * the copy bot isn't set up.
+ */
+export async function copyBotLink(admin: Admin): Promise<string | null> {
+  const { data } = await admin
+    .from("telegram_worker_bots")
+    .select("username")
+    .eq("role", "copy")
+    .eq("enabled", true)
+    .limit(1)
+    .maybeSingle();
+  const name = String((data as { username?: string | null } | null)?.username ?? "").replace(
+    /^@/,
+    "",
+  );
+  return /^[A-Za-z0-9_]{5,64}$/.test(name) ? `https://t.me/${name}?start=copier` : null;
 }

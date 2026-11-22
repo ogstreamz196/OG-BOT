@@ -41,7 +41,18 @@ export type CopierKey = {
   userId?: string;
   /** Paused by the user themselves (website or Telegram): no new trades until they resume. */
   paused?: boolean;
+  /**
+   * The member's own copier settings (the Boss, 2026-11-22: members get the
+   * Copy Trader B0T's controls, limited to the lot size and which pairs).
+   * Unset: they follow the Boss's settings.
+   */
+  lotBand?: MemberBand;
+  markets?: string[];
 };
+
+export const MEMBER_BANDS = ["small", "medium", "large"] as const;
+export type MemberBand = (typeof MEMBER_BANDS)[number];
+export const MEMBER_MARKETS = ["XAUUSD", "BTCUSD"] as const;
 
 /** The ogbot username a name stands for, or "" when it isn't shaped like one. Pure. */
 export function userHandle(name: string): string {
@@ -103,6 +114,16 @@ export function parseKey(value: string | null | undefined): CopierKey | null {
       ...(userHandle(String(t.user ?? "")) ? { user: userHandle(String(t.user)) } : {}),
       ...(/^[0-9a-f-]{36}$/i.test(String(t.userId ?? "")) ? { userId: String(t.userId) } : {}),
       ...(t.paused === true ? { paused: true } : {}),
+      ...((MEMBER_BANDS as readonly string[]).includes(String(t.lotBand))
+        ? { lotBand: t.lotBand as MemberBand }
+        : {}),
+      ...(Array.isArray(t.markets)
+        ? {
+            markets: (MEMBER_MARKETS as readonly string[]).filter((m) =>
+              (t.markets as unknown[]).includes(m),
+            ),
+          }
+        : {}),
     };
   } catch {
     return null;
@@ -398,8 +419,47 @@ export function setPaused(k: CopierKey, paused: boolean): CopierKey {
   return paused ? { ...rest, paused: true } : rest;
 }
 
-/** "/mycopier" (or "/copier") in the Copy Trader B0T. Pure. */
-export const isMyCommand = (text: string) => /^\/(?:my)?copier(?:@\w+)?$/i.test(text.trim());
+/** The members' reply keyboard in the Copy Trader B0T. */
+export const MY_BUTTON = "📟 My copier";
+export const MEMBER_KEYBOARD = {
+  keyboard: [[{ text: MY_BUTTON }, { text: "✋ Manual trade" }]],
+  is_persistent: true,
+  resize_keyboard: true,
+  input_field_placeholder: "Tap 📟 for your copier",
+};
+
+/** "/mycopier", "/copier" or the 📟 button in the Copy Trader B0T. Pure. */
+export const isMyCommand = (text: string) =>
+  text.trim() === MY_BUTTON || /^\/(?:my)?copier(?:@\w+)?$/i.test(text.trim());
+
+const BAND_LABEL: Record<MemberBand, string> = {
+  small: "Small 0.01–0.05",
+  medium: "Medium 0.02–0.1",
+  large: "Large 0.1–0.5",
+};
+const MARKET_NAME: Record<string, string> = { XAUUSD: "Gold", BTCUSD: "Bitcoin" };
+
+/**
+ * The copy settings a member's copier gets: the Boss's settings with the
+ * member's own lot range and pairs on top (a pair the Boss has switched off
+ * stays off). Pure.
+ */
+export function memberSettings<S extends { lotBand?: string; lot?: unknown; markets?: string[] }>(
+  shared: S,
+  k: Pick<CopierKey, "lotBand" | "markets"> | null,
+): S {
+  if (!k) return shared;
+  const out: S = { ...shared };
+  if (k.lotBand) {
+    out.lotBand = k.lotBand;
+    delete out.lot;
+  }
+  if (k.markets) {
+    const boss = shared.markets ?? [...MEMBER_MARKETS];
+    out.markets = k.markets.filter((m) => boss.includes(m));
+  }
+  return out;
+}
 
 /** The user's own card in Telegram. Pure. */
 export function myPanel(k: CopierKey | null, now: number, note?: string): KeysPanel {
@@ -428,8 +488,10 @@ export function myPanel(k: CopierKey | null, now: number, note?: string): KeysPa
       ...(v.paused ? ["⏸ Paused by you: nothing new opens until you resume."] : []),
       ...(v.account ? [`🏦 MT5 account ${v.account}`] : []),
       ...(v.balance != null ? [`💰 Balance last seen: ${v.balance.toFixed(2)}`] : []),
+      `📏 Lot size: ${k.lotBand ? BAND_LABEL[k.lotBand] : "the Boss's setting"} (capped so a stop risks 2% at most)`,
+      `📊 Pairs: ${k.markets ? (k.markets.length ? k.markets.map((m) => MARKET_NAME[m]).join(", ") : "none") : "Gold, Bitcoin"}`,
       "",
-      "Start and stop it from the app on your stick. Pausing here stops new trades; open ones are still managed while the app runs.",
+      "Start and stop it from the OG SIGNAL BOT app. Pausing here stops new trades; open ones are still managed while the app runs.",
     ].join("\n"),
     reply_markup: {
       inline_keyboard: [
@@ -442,15 +504,58 @@ export function myPanel(k: CopierKey | null, now: number, note?: string): KeysPa
               ],
             ]
           : []),
+        ...(v.state === "active"
+          ? [
+              MEMBER_BANDS.map((b) => ({
+                text: `${k.lotBand === b ? "✅ " : ""}${b[0].toUpperCase()}${b.slice(1)}`,
+                callback_data: `ck:me:band:${b}`,
+              })),
+              MEMBER_MARKETS.map((m) => {
+                const on = (k.markets ?? MEMBER_MARKETS).includes(m);
+                return {
+                  text: `${on ? "✅" : "❌"} ${MARKET_NAME[m]}`,
+                  callback_data: `ck:me:mk:${m}`,
+                };
+              }),
+            ]
+          : []),
         [{ text: "🔄 Refresh", callback_data: "ck:me:refresh" }],
       ],
     },
   };
 }
 
-export function parseMyTap(data: string): "pause" | "resume" | "refresh" | null {
+export type MyTap =
+  | "pause"
+  | "resume"
+  | "refresh"
+  | { band: MemberBand }
+  | { market: (typeof MEMBER_MARKETS)[number] };
+
+export function parseMyTap(data: string): MyTap | null {
   const m = /^ck:me:(pause|resume|refresh)$/.exec(data);
-  return m ? (m[1] as "pause" | "resume" | "refresh") : null;
+  if (m) return m[1] as "pause" | "resume" | "refresh";
+  const b = /^ck:me:band:(small|medium|large)$/.exec(data);
+  if (b) return { band: b[1] as MemberBand };
+  const k = /^ck:me:mk:(XAUUSD|BTCUSD)$/.exec(data);
+  if (k) return { market: k[1] as "XAUUSD" | "BTCUSD" };
+  return null;
+}
+
+/** A member's settings tap applied to their key. Pure. */
+export function applySettingTap(
+  k: CopierKey,
+  tap: { band: MemberBand } | { market: "XAUUSD" | "BTCUSD" },
+): { key: CopierKey; toast: string } {
+  if ("band" in tap)
+    return { key: { ...k, lotBand: tap.band }, toast: `📏 ${BAND_LABEL[tap.band]}` };
+  const now = k.markets ?? [...MEMBER_MARKETS];
+  const on = now.includes(tap.market);
+  const markets = on ? now.filter((m) => m !== tap.market) : [...now, tap.market];
+  return {
+    key: { ...k, markets: MEMBER_MARKETS.filter((m) => markets.includes(m)) },
+    toast: `${MARKET_NAME[tap.market]}: ${on ? "off" : "on"}`,
+  };
 }
 
 /* ── OG SIGNAL BOT TOKEN (bought in the store) ──────────────────────────── */
