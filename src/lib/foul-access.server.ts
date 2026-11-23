@@ -15,6 +15,24 @@ export function freeAccessOn(rows: Row[], now = Date.now()): boolean {
   return (raw === true || raw === "true") && !expired;
 }
 
+/** Roles that always get the foul mouth: PRO ("vip" in code), the Boss and the developers. */
+export const FOUL_ROLES = ["vip", "admin", "boss", "dev"] as const;
+
+/**
+ * Who may use OG B0T's foul mouth: PRO members, the Boss and developers,
+ * anyone on the free trial, and everyone while free access is on. The one
+ * rule for the website chat and Telegram. Pure.
+ */
+export function foulAllowed(
+  roles: readonly string[],
+  trialEndsAt: string | null | undefined,
+  freeAccess: boolean,
+  now = Date.now(),
+): boolean {
+  const onTrial = !!trialEndsAt && new Date(trialEndsAt).getTime() > now;
+  return FOUL_ROLES.some((r) => roles.includes(r)) || onTrial || freeAccess;
+}
+
 export type FoulAccess = {
   /** May use the foul mouth at all. */
   allowed: boolean;
@@ -36,11 +54,7 @@ export async function foulAccess(admin: any, userId: string, roles: string[]): P
   ]);
   const trialEnds = (profile.data as { vip_trial_ends_at?: string | null } | null)
     ?.vip_trial_ends_at;
-  const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
-  const allowed =
-    ["vip", "admin", "boss", "dev"].some((r) => roles.includes(r)) ||
-    onTrial ||
-    freeAccessOn(settings);
+  const allowed = foulAllowed(roles, trialEnds, freeAccessOn(settings));
   const choice = (pref.data as { foul_mouth?: boolean } | null)?.foul_mouth;
   return { allowed, on: allowed && (choice ?? true) };
 }

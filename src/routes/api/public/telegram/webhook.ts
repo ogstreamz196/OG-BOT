@@ -1402,7 +1402,7 @@ async function runChatAI(
   // The full account dossier is heavy — only load it when they ask about their account.
   const wantsAccount =
     !group &&
-    /\b(coin|coins|balance|vip|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
+    /\b(coin|coins|balance|vip|pro|vault|song|songs|track|tracks|account|subscription|plan|bought|purchase|refund|paid|pay|wallet|referr|cashback|expire|status|my id|username)\b/i.test(
       userText,
     );
   const { foulAccess } = await import("@/lib/foul-access.server");
@@ -1637,6 +1637,8 @@ async function runChatAI(
       replyText = flavourForLevel(replyText, level, Math.random, isFriend(bond.score));
     }
     if (promo) replyText = vp.ensureCodeInReply(replyText, promo).replace(/\*\*/g, "");
+    // Foul mouth off (or not allowed): mask any strong word an AI let slip.
+    if (!foulMouth) replyText = (await import("@/lib/og-clean")).maskSwears(replyText);
 
     // Save the reply while it goes out, rather than before.
     const saved = group

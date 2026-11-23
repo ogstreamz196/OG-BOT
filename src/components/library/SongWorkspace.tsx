@@ -35,12 +35,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { useSettings } from "@/hooks/use-settings";
-import {
-  useFoulIntensity,
-  useFoulMouth,
-  useSetFoulIntensity,
-  useSetFoulMouth,
-} from "@/hooks/use-foul-mouth";
+import { useFoulIntensity, useSetFoulIntensity } from "@/hooks/use-foul-mouth";
 
 import { useProfile } from "@/hooks/use-profile";
 import { useVariations } from "@/hooks/use-variations";
@@ -216,12 +211,13 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
   const refreshCoinBalance = () => {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
   };
-  const { foulMouth } = useFoulMouth();
   const { intensity: foulIntensity } = useFoulIntensity();
-  const setFoulMouth = useSetFoulMouth();
   const setFoulIntensity = useSetFoulIntensity();
   const [foulIntensityLocal, setFoulIntensityLocal] = useState<number | null>(null);
   const displayedFoulIntensity = foulIntensityLocal ?? foulIntensity;
+  // A song's swearing is its own language setting, never OG B0T's chat
+  // foul mouth (the PRO switch in Settings).
+  const foulMouth = displayedFoulIntensity > 0;
 
   const lyricsCost = settings?.coins_per_lyrics_generation ?? 0;
   const previewCost = settings?.coins_per_generation ?? 0;
@@ -854,7 +850,6 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                                 if (!on) {
                                   setFoulIntensityLocal(0);
                                   setFoulIntensity.mutate(0);
-                                  if (foulMouth) setFoulMouth.mutate(false);
                                 }
                                 return;
                               }
@@ -1061,9 +1056,8 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                           const value = explicit ? 3 : 0;
                           setFoulIntensityLocal(value);
                           setFoulIntensity.mutate(value);
-                          setFoulMouth.mutate(explicit);
                         }}
-                        disabled={setFoulMouth.isPending || setFoulIntensity.isPending || isNasheed}
+                        disabled={setFoulIntensity.isPending || isNasheed}
                       />
                     </label>
                     {!isNasheed && (
@@ -1086,7 +1080,6 @@ export function SongWorkspace({ song, onSaved, onRefresh }: Props) {
                             const value = Math.max(0, Math.min(3, Math.round(values[0] ?? 3)));
                             setFoulIntensityLocal(value);
                             setFoulIntensity.mutate(value);
-                            if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
                           }}
                         />
                         <span className="text-[0.7rem] font-semibold text-destructive">Savage</span>

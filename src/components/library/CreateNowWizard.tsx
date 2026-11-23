@@ -45,12 +45,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  useFoulMouth,
-  useSetFoulMouth,
-  useFoulIntensity,
-  useSetFoulIntensity,
-} from "@/hooks/use-foul-mouth";
+import { useFoulIntensity, useSetFoulIntensity } from "@/hooks/use-foul-mouth";
 import { Slider } from "@/components/ui/slider";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -181,16 +176,15 @@ export function CreateNowWizard({
   const [vocalsOnly, setVocalsOnly] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(3);
   const [isPublic, setIsPublic] = useState(true);
-  const { foulMouth: savedFoulMouth } = useFoulMouth();
-  const setFoulMouth = useSetFoulMouth();
-  const ratingSaving = !guestMode && setFoulMouth.isPending;
   const { intensity: savedIntensity } = useFoulIntensity();
   const setFoulIntensity = useSetFoulIntensity();
+  // The song's language is its own setting (foul_intensity); it never flips
+  // OG B0T's chat foul mouth (the PRO switch in Settings).
+  const ratingSaving = !guestMode && setFoulIntensity.isPending;
   const [intensityLocal, setIntensityLocal] = useState<number | null>(null);
   const intensity = intensityLocal ?? (guestMode ? 0 : savedIntensity);
   // The 18+ button always mirrors the slider so they can never disagree.
   const foulMouth = intensity > 0;
-  void savedFoulMouth;
   const isNasheed = styles.includes("Nasheed");
   const [beatPath, setBeatPath] = useState("");
   const [beatName, setBeatName] = useState("");
@@ -212,14 +206,12 @@ export function CreateNowWizard({
     setIntensityLocal(nextIntensity);
     if (guestMode) return;
     setFoulIntensity.mutate(nextIntensity);
-    setFoulMouth.mutate(explicit);
   };
 
   const changeIntensity = (next: number) => {
     const value = Math.max(0, Math.min(3, Math.round(next)));
     setIntensityLocal(value);
     if (guestMode) return;
-    if (value > 0 !== foulMouth) setFoulMouth.mutate(value > 0);
   };
 
   const saveIntensity = (next: number) => {
