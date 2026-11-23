@@ -326,6 +326,15 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-23 · #PRNUM** · Foul mouth checked end to end
+  (the Boss asked). Fixed: one shared rule `foulAllowed` (the website chat
+  missed the `boss`/`dev` roles); the trade hold line re-checks access
+  instead of trusting the page; the chat page no longer shows foul mode to
+  members who aren't allowed it; a clean-mode safety net masks strong words
+  (`maskSwears`, og-clean.ts) when foul mouth is off; song screens no longer
+  flip OG B0T's chat switch and songs follow only their own language setting.
+  "pro" added to the Telegram account-question trigger. No migrations.
+
 - **Boss's Claude · 2026-11-22 · #334** · Copy Trader B0T "💰 Close trades"
   (Boss): close all trades in profit (the tracker closes them at the live
   price as wins, test account and copiers follow) or close half of each on

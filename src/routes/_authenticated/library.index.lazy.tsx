@@ -106,7 +106,7 @@ import { MiniPlayer } from "@/components/library/MiniPlayer";
 import { LibraryFilters, type LibraryFilterMode } from "@/components/library/LibraryFilters";
 import { PlaylistProvider, PlaylistOrder, usePlaylist } from "@/hooks/use-playlist";
 import { peekFullTrackPlay, clearFullTrackPlay } from "@/lib/full-track-autoplay";
-import { useFoulIntensity, useFoulMouth, useSetFoulMouth } from "@/hooks/use-foul-mouth";
+import { useFoulIntensity } from "@/hooks/use-foul-mouth";
 
 import { FreshTrackCard } from "@/components/library/FreshTrackCard";
 import { MasterpieceDialog } from "@/components/library/MasterpieceDialog";
@@ -302,14 +302,10 @@ function LibraryPage() {
   const [styleText, setStyleText] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [genLyrics, setGenLyrics] = useState(false);
-  const { foulMouth } = useFoulMouth();
   const { intensity: foulIntensity } = useFoulIntensity();
-  const setFoulMouthMutation = useSetFoulMouth();
-  const setFoulMouth = (updater: boolean | ((v: boolean) => boolean)) => {
-    const next = typeof updater === "function" ? updater(foulMouth) : updater;
-    setFoulMouthMutation.mutate(next);
-  };
-  const foulMouthSaving = setFoulMouthMutation.isPending;
+  // A song's swearing follows its own language setting (foul_intensity),
+  // never OG B0T's chat foul mouth (the PRO switch in Settings).
+  const foulMouth = foulIntensity > 0;
 
   const [personalDetails, setPersonalDetails] = useState("");
   const [improving, setImproving] = useState(false);

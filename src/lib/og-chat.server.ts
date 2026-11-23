@@ -143,11 +143,12 @@ export async function runOgChat(
   // Foul-mouth is normally VIP-only. While the dev-controlled
   // free_access_all flag is ON (and not past its optional expiry), every
   // signed-in user gets it too (same rule as Telegram, see foul-access.server).
-  const { freeAccessOn } = await import("@/lib/foul-access.server");
+  const { freeAccessOn, foulAllowed } = await import("@/lib/foul-access.server");
   const freeAccess = freeAccessOn((freeRes.data ?? []) as { key: string; value: unknown }[]);
   const trialEnds = (rawProfile as { vip_trial_ends_at?: string | null }).vip_trial_ends_at;
-  const onTrial = !!trialEnds && new Date(trialEnds).getTime() > Date.now();
-  const isVip = roles.includes("vip") || roles.includes("admin") || freeAccess || onTrial;
+  // The same rule as Telegram (foulAllowed): PRO, the Boss and developers,
+  // the free trial, or free access.
+  const isVip = foulAllowed(roles, trialEnds, freeAccess);
 
   // TV and app help is always answered clean (tv-help.ts), foul mouth or not.
   const { isTvHelpChat } = await import("@/lib/tv-help");
@@ -413,6 +414,8 @@ export async function runOgChat(
       const { ensureCodeInReply } = await import("@/lib/vip-promo.server");
       reply = ensureCodeInReply(reply, promo);
     }
+    // Foul mouth off (or not allowed): mask any strong word an AI let slip.
+    if (!foulMouth) reply = (await import("@/lib/og-clean")).maskSwears(reply);
 
     return {
       reply,

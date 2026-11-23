@@ -35,7 +35,9 @@ export function PreferencesPanel() {
   const setFoulMouth = useSetFoulMouth();
   const { intensity } = useFoulIntensity();
   const setIntensity = useSetFoulIntensity();
-  const { isVip } = useRole();
+  const { isVip: proOrTrial, isDev } = useRole();
+  // Same as the server's foulAllowed: PRO, trial, free access, the Boss and developers.
+  const isVip = proOrTrial || isDev;
   const display = useDisplayPrefs();
   const setDisplay = useSetDisplayPrefs();
   const aura = useAura();

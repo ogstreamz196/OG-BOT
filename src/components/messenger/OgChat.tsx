@@ -177,7 +177,10 @@ export function OgChat({
   const { foulMouth } = useFoulMouth();
   const setFoulMouth = useSetFoulMouth();
 
-  const { isVip } = useRole();
+  const { isVip, isDev } = useRole();
+  // Foul mouth only counts for members allowed it (PRO, trial, free access,
+  // the Boss and developers: the server's foulAllowed rule) with it switched on.
+  const canFoul = isVip || isDev;
   const badge = useMemberBadge();
   // shareLive removed: Loner Mode is enforced by the page mounting OgChat.
   const postCommunity = useServerFn(postCommunityMessage);
@@ -469,7 +472,7 @@ export function OgChat({
     if (market) {
       // A line from the shared bank this member hasn't seen before; slotted in
       // straight after their message even if the analysis lands first.
-      const tone = foulMouth ? "foul" : "safe";
+      const tone = canFoul && foulMouth ? "foul" : "safe";
       const at = next.length;
       void holdLine({ data: { text: t, tone } })
         .then((r) => r.line)
@@ -514,7 +517,7 @@ export function OgChat({
   }
 
   async function toggleFoul() {
-    if (!isVip) {
+    if (!canFoul) {
       setVipPromoOpen(true);
       return;
     }
@@ -605,8 +608,8 @@ export function OgChat({
 
   const balance = profile?.coin_balance ?? 0;
   const isOut = false;
-  const foulActive = foulMouth;
-  const mode = foulMouth ? "og" : "safe";
+  const foulActive = canFoul && foulMouth;
+  const mode = foulActive ? "og" : "safe";
 
   return (
     <div

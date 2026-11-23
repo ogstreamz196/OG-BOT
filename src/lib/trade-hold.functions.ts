@@ -18,6 +18,17 @@ export const getTradeHoldLine = createServerFn({ method: "POST" })
     if (!market) return { line: null };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { pickTradeHold } = await import("@/lib/trade-hold.server");
-    const line = await pickTradeHold(supabaseAdmin as never, context.userId, market, data.tone);
+    // The page asks for a tone, but a foul line is only for members allowed
+    // the foul mouth with it switched on (the same rule as the chat).
+    let tone = data.tone;
+    if (tone === "foul") {
+      const [{ foulAccess }, { data: roleRows }] = await Promise.all([
+        import("@/lib/foul-access.server"),
+        supabaseAdmin.from("user_roles").select("role").eq("user_id", context.userId),
+      ]);
+      const roles = ((roleRows ?? []) as { role: string }[]).map((r) => r.role);
+      if (!(await foulAccess(supabaseAdmin, context.userId, roles)).on) tone = "cheeky";
+    }
+    const line = await pickTradeHold(supabaseAdmin as never, context.userId, market, tone);
     return { line };
   });

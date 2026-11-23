@@ -32,6 +32,7 @@ import {
 } from "@/components/messenger/MessengerWelcomeDialog";
 
 import { ogBotLogo } from "@/assets/ogbot-logo";
+import { useRole } from "@/hooks/use-role";
 
 export const Route = createFileRoute("/_authenticated/messenger")({
   component: MessengerPage,
@@ -67,7 +68,10 @@ function MessengerPage() {
   const { live: initialLive } = Route.useSearch();
   const { mode, isReady } = useMessengerMode();
   const setMode = useSetMessengerMode();
-  const { foulMouth } = useFoulMouth();
+  const { foulMouth: foulChoice } = useFoulMouth();
+  const { isVip, isDev } = useRole();
+  // The red foul-mouth look only when the member really has it (the server's rule).
+  const foulMouth = (isVip || isDev) && foulChoice;
   const { user } = useAuth();
   const uid = user?.id ?? null;
   const [greetOpen, setGreetOpen] = useState(false);
