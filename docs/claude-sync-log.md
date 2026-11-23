@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-23 · #PRNUM** · Foul mouth checked end to end
+- **Boss's Claude · 2026-11-23 · #335** · Foul mouth checked end to end
   (the Boss asked). Fixed: one shared rule `foulAllowed` (the website chat
   missed the `boss`/`dev` roles); the trade hold line re-checks access
   instead of trusting the page; the chat page no longer shows foul mode to
