@@ -326,6 +326,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-24 · #PRNUM** · Battle Zone insults again: its
+  clapbacks (members and guests) are free-AI only like the group battles
+  (house rule; paid Gemini used to win the 5-second race and reply
+  politely), and a soft free reply gets the swearing top-up
+  (`ensureFoulFlavour`, never at a friend).
+
 - **Boss's Claude · 2026-11-24 · #336** · AI keys: hub (Supabase) first,
   Lovable keys as backup; Pollinations (credit-billed) moved behind Groq and
   the hub's free Gemini; the signals AI desk off keyed Pollinations (it was
