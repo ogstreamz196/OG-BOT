@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-24 · #PRNUM** · Calm sign-in: members land
+- **Boss's Claude · 2026-11-24 · #340** · Calm sign-in: members land
   on the Music hub (/library) after signing in; the setup checklist pop-up
   is replaced by one slim header reminder (`SetupReminderBar`: Telegram,
   then recovery email, each until done); the PRO trial pop-up, the PRO ID
