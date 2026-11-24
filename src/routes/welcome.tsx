@@ -84,28 +84,28 @@ export const Route = createFileRoute("/welcome")({
   component: WelcomePage,
   head: () => ({
     meta: [
-      { title: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
+      { title: "0G B0T | AI Diss Track Maker & Battle Zone" },
       {
         name: "description",
         content:
-          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
+          "Create a personalised AI diss track or song with 0G B0T, then step into Battle Zone for savage cuss battles. Make music, trade disses and earn OG Coins.",
       },
-      { property: "og:title", content: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
+      { property: "og:title", content: "0G B0T | AI Diss Track Maker & Battle Zone" },
       {
         property: "og:description",
         content:
-          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
+          "Create a personalised AI diss track or song with 0G B0T, then step into Battle Zone for savage cuss battles. Make music, trade disses and earn OG Coins.",
       },
       { property: "og:image", content: SHARE_IMAGE },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:image:alt", content: "OG B0T Battle Zone badge" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "OG B0T | AI Music Creation, Rap Battles & Entertainment" },
+      { name: "twitter:title", content: "0G B0T | AI Diss Track Maker & Battle Zone" },
       {
         name: "twitter:description",
         content:
-          "Enter OG B0T for AI-powered music creation, rap battles and entertainment. Create tracks, challenge the bot and explore your next creative idea.",
+          "Create a personalised AI diss track or song with 0G B0T, then step into Battle Zone for savage cuss battles. Make music, trade disses and earn OG Coins.",
       },
       { name: "twitter:image", content: SHARE_IMAGE },
     ],
