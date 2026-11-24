@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-24 · #PRNUM** · Battle Zone insults again: its
+- **Boss's Claude · 2026-11-24 · #337** · Battle Zone insults again: its
   clapbacks (members and guests) are free-AI only like the group battles
   (house rule; paid Gemini used to win the 5-second race and reply
   politely), and a soft free reply gets the swearing top-up
