@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { guestBattleName } from "@/lib/guest-names";
-import { BATTLE_EXTRA, FOUL_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/battle-prompts";
+import {
+  BATTLE_EXTRA,
+  FOUL_SYSTEM_PROMPT,
+  groupRoomNote,
+  SYSTEM_PROMPT,
+} from "@/lib/battle-prompts";
 
 type AdminClient = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
@@ -402,6 +407,13 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
       } catch (e) {
         console.warn("battle memory failed", (e as Error).message);
       }
+      // A group room, not a private chat: who else is in the ring.
+      const room = groupRoomNote(
+        displayName,
+        history
+          .filter((m) => m.role === "user" && m.display_name)
+          .map((m) => m.display_name as string),
+      );
       try {
         const { response: res } = await fetchAiChat(
           {
@@ -410,8 +422,8 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
               {
                 role: "system",
                 content: useFoul
-                  ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA + slang
-                  : SYSTEM_PROMPT + (await bondPromise),
+                  ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA + room + slang
+                  : SYSTEM_PROMPT + room + (await bondPromise),
               },
               ...history.map((m) => ({
                 role: m.role === "bot" ? ("assistant" as const) : ("user" as const),
@@ -1022,7 +1034,16 @@ async function replyAsBot(
         messages: [
           {
             role: "system",
-            content: (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) + extra,
+            content:
+              (opts.useFoul ? FOUL_SYSTEM_PROMPT + BATTLE_EXTRA : SYSTEM_PROMPT) +
+              // A group room, not a private chat (groupRoomNote).
+              groupRoomNote(
+                opts.displayName,
+                history
+                  .filter((m) => m.role === "user" && m.display_name)
+                  .map((m) => m.display_name as string),
+              ) +
+              extra,
           },
           ...history.map((m) => ({
             role: m.role === "bot" ? ("assistant" as const) : ("user" as const),

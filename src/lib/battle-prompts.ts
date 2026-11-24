@@ -86,3 +86,37 @@ HARD LIMITS — never cross:
   people (family members, public figures named by the user).
 - Nothing sexual about real people. Nothing illegal. No content about minors.
 `.trim();
+
+/**
+ * The Battle Zone is a group room, not a private chat (the Boss, 2026-11-24:
+ * "Battle Zone responds the way private should. The point is to gang up and
+ * savage insults and comebacks"). This tells OG B0T who's in the ring and to
+ * work the whole crowd: pull the others in, back the best line, set people
+ * on each other, and clap back at whoever spoke with their own words. Pure.
+ */
+export function groupRoomNote(speaker: string, others: string[]): string {
+  const crowd = [...new Set(others.filter((n) => n && n !== speaker))].slice(0, 6);
+  const lines = [
+    "",
+    "",
+    "THIS IS A GROUP CUSS BATTLE, NOT A PRIVATE CHAT:",
+    "- Talk like you're on stage in front of the crowd, never one-to-one. No help-desk",
+    '  tone, no "what can I do for you", no explaining yourself, no questions back.',
+    `- ${speaker} just spoke: hit THEIR exact words, flip their line back on them`,
+    "  with a sharper ending. Specific beats generic: no stock similes (no biscuits,",
+    "  bin bags or trash cans), cuss the thing they actually said.",
+  ];
+  if (crowd.length)
+    lines.push(
+      `- Also in the ring right now: ${crowd.join(", ")}. Work the room: drag one of`,
+      "  them in by name, gang up with whoever threw the hardest line, set them on each",
+      "  other, call out the weakest bar in the chat. Cuss everyone, crown nobody.",
+    );
+  else
+    lines.push(
+      "- Nobody else has spoken yet: play to the crowd watching (the room, the",
+      "  lurkers), tell them to get in here and help bury " + speaker + ".",
+    );
+  lines.push("- Short and savage: one or two lines that hit like a punchline. Never a speech.");
+  return lines.join("\n");
+}

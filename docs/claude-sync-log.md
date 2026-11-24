@@ -326,6 +326,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-24 · #PRNUM** · Battle Zone was slow and
+  answered like a private chat. Now it's a group cuss battle
+  (`groupRoomNote` in `battle-prompts.ts`: names the others in the ring,
+  drags them in, gangs up, hits the speaker's exact words, no help-desk
+  tone), for members and guests. Faster: free-only Foul Mouth races the
+  swearing model against the other free models after 3 s
+  (`aiTiming.freeHedgeMs`, `chatPlan` backup) instead of queuing 10 s
+  timeouts; also speeds up Telegram group battles. Still free AIs only.
 - **Boss's Claude · 2026-11-24 · #337** · Battle Zone insults again: its
   clapbacks (members and guests) are free-AI only like the group battles
   (house rule; paid Gemini used to win the 5-second race and reply
