@@ -348,7 +348,7 @@ export const FOUL_FREE_TIMEOUT_MS = 10_000;
  * a backup and whichever lands first is used. The voice is the same prompt
  * either way; this only cuts the long waits.
  */
-export const aiTiming = { foulHedgeMs: 5_000 };
+export const aiTiming = { foulHedgeMs: 5_000, freeHedgeMs: 3_000 };
 
 export type AiChatOpts = {
   foulMouth?: boolean;
@@ -367,7 +367,13 @@ async function chatPlan(
   body: Record<string, unknown>,
   affinity: string,
   opts: AiChatOpts,
-): Promise<{ free: AiChatTarget[]; paid: AiChatTarget[]; pro: boolean }> {
+): Promise<{
+  free: AiChatTarget[];
+  paid: AiChatTarget[];
+  pro: boolean;
+  /** Free only + Foul Mouth: the other free models, raced in after freeHedgeMs. */
+  backup?: AiChatTarget[];
+}> {
   // Free AIs answer ordinary chat; paid Gemini goes first only for media or
   // pro-level questions, and is otherwise the fallback when free tiers fail.
   // Foul Mouth ON only uses free models that passed the live swearing test.
@@ -381,7 +387,13 @@ async function chatPlan(
     const key = (t: AiChatTarget) => `${t.url}|${t.model}|${JSON.stringify(t.headers)}`;
     const seen = new Set(free.map(key));
     const more = freeFallbackTargets(false).filter((t) => !seen.has(key(t)));
-    return { free: [...free, ...more], paid: [], pro: false };
+    // Raced, not queued: the swearing model gets a head start, and if it
+    // hasn't answered by freeHedgeMs the fast free models (Groq first) go
+    // too, so a cuss battle reply never sits behind one slow model after
+    // another (the Boss, 2026-11-24: "it's slow"). A soft answer gets the
+    // swearing top-up from the caller.
+    if (!free.length) return { free: more, paid: [], pro: false };
+    return { free, paid: [], pro: false, backup: more };
   }
   let pro = !opts.cheap && (hasMedia(body) || needsProAnswer(body));
   // Foul Mouth keeps its tested routing (the swearing model first) so OG Bot's
@@ -540,12 +552,18 @@ export async function fetchAiChat(
   // A short label as the affinity ("memory") names the feature when none is given.
   if (!opts.feature && /^[a-z_]{3,24}$/.test(affinity) && affinity !== "default")
     opts = { ...opts, feature: affinity };
-  const { free, paid, pro } = await chatPlan(body, affinity, opts);
+  const { free, paid, pro, backup } = await chatPlan(body, affinity, opts);
   // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
   // tier never leaves the user hanging.
   const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
   let result: Attempt | null;
-  if (opts.foulMouth && !pro && free.length && paid.length && !body.stream) {
+  if (backup?.length && !body.stream) {
+    result = await hedged(
+      (signal) => tryTargets(free, body, freeTimeout, signal, opts.feature),
+      (signal) => tryTargets(backup, body, freeTimeout, signal, opts.feature),
+      aiTiming.freeHedgeMs,
+    );
+  } else if (opts.foulMouth && !pro && free.length && paid.length && !body.stream) {
     result = await hedged(
       (signal) => tryTargets(free, body, freeTimeout, signal, opts.feature),
       (signal) => tryTargets(paid, body, freeTimeout, signal, opts.feature),
@@ -675,7 +693,10 @@ export async function streamAiChat(
   // A short label as the affinity ("memory") names the feature when none is given.
   if (!opts.feature && /^[a-z_]{3,24}$/.test(affinity) && affinity !== "default")
     opts = { ...opts, feature: affinity };
-  const { free, paid, pro } = await chatPlan(body, affinity, opts);
+  const plan = await chatPlan(body, affinity, opts);
+  const { paid, pro } = plan;
+  // Streams don't race: the backup models simply queue after the first ones.
+  const free = [...plan.free, ...(plan.backup ?? [])];
   const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
   const targets = pro ? [...paid, ...free] : [...free, ...paid];
   const waitFor = (t: AiChatTarget) => (t.free ? freeTimeout : 45_000);
