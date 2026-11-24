@@ -120,6 +120,7 @@ export function groupRoomNote(speaker: string, others: string[]): string {
   lines.push("- Short and savage: one or two lines that hit like a punchline. Never a speech.");
   return lines.join("\n");
 }
+<<<<<<< HEAD
 
 const HOUSE_LINES = [
   "{n}, that was so weak even the Wi-Fi dropped out to avoid it, you soft fucking muppet.",
@@ -152,3 +153,5 @@ export function houseClapback(name: string, rand: () => number = Math.random, fr
   const line = set[Math.floor(rand() * set.length) % set.length];
   return line.replaceAll("{n}", (name || "you").trim() || "you");
 }
+=======
+>>>>>>> 4ffa844c3d5b46d87bb5cf6e89564a3f0ca4a74a
