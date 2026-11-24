@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-24 · #PRNUM** · AI keys: hub (Supabase) first,
+- **Boss's Claude · 2026-11-24 · #336** · AI keys: hub (Supabase) first,
   Lovable keys as backup; Pollinations (credit-billed) moved behind Groq and
   the hub's free Gemini; the signals AI desk off keyed Pollinations (it was
   the main drain and logged nothing); every AI call now named by feature in
