@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-24 · #PRNUM** · Battle Zone posted
+- **Boss's Claude · 2026-11-24 · #339** · Battle Zone posted
   Pollinations' "not enough credits" notice as a clapback. Provider notices
   in a 200 now count as failures (`isProviderNotice`, `ai-notice.ts`) and
   the next key is tried; Groq/Gemini 429s only skip that model; a second
