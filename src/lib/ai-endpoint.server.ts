@@ -8,6 +8,8 @@
 
 import { CLEAN_TV_HELP_NOTE, isTvHelpChat } from "./tv-help";
 import { extraKeysNow, hubAiEndpoint, loadExtraKeys } from "./ai-keys.server";
+import { isProviderNotice } from "./ai-notice";
+export { isProviderNotice };
 import {
   loadOpenRouterModels,
   openRouterFreeModels,
@@ -139,6 +141,13 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
   ];
   // The hub's four free Gemini keys (never the paid one): plenty of free room.
   const hubGemini = viaHub("gemini", "gemini", freeGeminiModel);
+  // Free-tier quotas are per model: a second, lighter Gemini model has its
+  // own allowance when the first answers 429 or "overloaded".
+  const hubGeminiLite = viaHub(
+    "gemini",
+    "gemini",
+    process.env.GEMINI_FREE_LITE_MODEL || "gemini-flash-lite-latest",
+  );
   const pollinations = [
     viaHub("pollinations", "pollinations", "openai-fast"),
     keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
@@ -158,6 +167,7 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
         // so a Pollinations key is only used when the free ones can't answer.
         ...groq,
         hubGemini,
+        hubGeminiLite,
         ...extraFirst,
         ...pollinations,
         ...openrouter,
@@ -451,7 +461,11 @@ async function tryTargets(
       try {
         const text = await response.clone().text();
         const j = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
-        if (!(j.choices?.[0]?.message?.content ?? "").trim()) fallThrough = true;
+        const said = (j.choices?.[0]?.message?.content ?? "").trim();
+        // Empty, or the provider's own notice in place of an answer (out of
+        // credits, quota, bad key): the next model gets a go instead of the
+        // member seeing it (the Boss, 2026-11-24).
+        if (!said || isProviderNotice(said)) fallThrough = true;
       } catch {
         fallThrough = true;
       }
@@ -468,8 +482,16 @@ async function tryTargets(
     // Don't hammer the same provider: skip its other models after a 429, and
     // give it a breath. Other failures move on straight away.
     if (response.status === 429) {
+      // Groq and Gemini limit each model separately, so only that model's
+      // other keys are skipped; elsewhere the whole provider is.
+      const perModel = /^(groq|gemini)/.test(target.provider);
       for (let j = index + 1; j < targets.length; j += 1) {
-        if (targets[j].provider === target.provider && targets[j].free) targets.splice(j--, 1);
+        if (
+          targets[j].provider === target.provider &&
+          targets[j].free &&
+          (!perModel || targets[j].model === target.model)
+        )
+          targets.splice(j--, 1);
       }
       await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 200)));
     }
@@ -578,7 +600,10 @@ export async function fetchAiChat(
       opts.feature,
     );
   }
-  if (result) return { response: result.response, provider: result.provider };
+  // A failed attempt that still says 200 (an empty answer or the provider's
+  // own notice) must never reach a member as if it were the reply.
+  if (result && (result.ok || !result.response.ok))
+    return { response: result.response, provider: result.provider };
   throw new Error("All AI providers are busy — try again in a moment.");
 }
 
