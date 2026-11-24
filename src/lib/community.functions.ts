@@ -313,6 +313,8 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
 
     // How OG B0T feels about the poster and the others in the room (og-bond.ts):
     // its friends don't get insulted, and get defended. Saved while the rest loads.
+    // Whether the poster is one of OG B0T's friends (swear, but never at them).
+    let posterIsFriend = false;
     const bondPromise = (async () => {
       const bonds = await import("@/lib/og-bond.server");
       const { goesAfter, isFriend, roomNote, HIT_A_FRIEND } = await import("@/lib/og-bond");
@@ -328,6 +330,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
           name: displayName,
         }),
       ]);
+      posterIsFriend = isFriend(turn.score);
       let note = roomNote(room) + turn.note;
       const hit = goesAfter(
         data.content,
@@ -420,13 +423,27 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             ],
           },
           context.userId,
-          { foulMouth: !!useFoul, feature: "battle_zone" },
+          // Free AIs only, like the Telegram group battles (the house rule:
+          // cuss battles never use paid AI). It also ends the race against
+          // paid Gemini, which answered whenever the swearing model took over
+          // 5 seconds and came back polite (the Boss, 2026-11-24: "the Battle
+          // Zone doesn't insult me like it's meant to").
+          { foulMouth: !!useFoul, freeOnly: true, feature: "battle_zone" },
         );
         if (res.ok) {
           const json = (await res.json().catch(() => ({}))) as {
             choices?: { message?: { content?: string } }[];
           };
-          const reply = (json.choices?.[0]?.message?.content ?? "").trim();
+          let reply = (json.choices?.[0]?.message?.content ?? "").trim();
+          // A free model other than the swearing one can come out soft: keep
+          // it foul (never at a friend, never on TV and app help).
+          if (reply && useFoul) {
+            const { isTvHelp } = await import("@/lib/tv-help");
+            if (!isTvHelp(data.content)) {
+              const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
+              reply = ensureFoulFlavour(reply, Math.random, posterIsFriend);
+            }
+          }
           if (reply) {
             botReply = reply;
             // The member's line always lands in the room before the clapback.
@@ -1015,14 +1032,20 @@ async function replyAsBot(
         ],
       },
       opts.userId ?? "guest",
-      { foulMouth: opts.useFoul, feature: "guest_battle" },
+      // Free AIs only, as for members (cuss battles never use paid AI).
+      { foulMouth: opts.useFoul, freeOnly: true, feature: "guest_battle" },
     );
     if (!res.ok) return null;
     const json = (await res.json().catch(() => ({}))) as {
       choices?: { message?: { content?: string } }[];
     };
-    const reply = (json.choices?.[0]?.message?.content ?? "").trim();
+    let reply = (json.choices?.[0]?.message?.content ?? "").trim();
     if (!reply) return null;
+    // A softer free model's answer still swears.
+    if (opts.useFoul) {
+      const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
+      reply = ensureFoulFlavour(reply);
+    }
     await admin.from("community_messages").insert({
       user_id: null,
       role: "bot",
