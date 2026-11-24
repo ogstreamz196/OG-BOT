@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-24 · #PRNUM** · Battle Zone was slow and
+- **Boss's Claude · 2026-11-24 · #338** · Battle Zone was slow and
   answered like a private chat. Now it's a group cuss battle
   (`groupRoomNote` in `battle-prompts.ts`: names the others in the ring,
   drags them in, gangs up, hits the speaker's exact words, no help-desk
