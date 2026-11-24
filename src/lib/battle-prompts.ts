@@ -120,3 +120,35 @@ export function groupRoomNote(speaker: string, others: string[]): string {
   lines.push("- Short and savage: one or two lines that hit like a punchline. Never a speech.");
   return lines.join("\n");
 }
+
+const HOUSE_LINES = [
+  "{n}, that was so weak even the Wi-Fi dropped out to avoid it, you soft fucking muppet.",
+  "Oi {n}, you type like you're wearing oven gloves. Try again, dickhead.",
+  "{n}, I've had harder hits from a fucking pool noodle. Next.",
+  "That bar had less impact than a wet wipe, {n}. Sit down, you absolute melt.",
+  "{n} really thought that was a shot. Even autocorrect gave up on you, you fucking plonker.",
+  "Mate, {n}, you peaked in Year 7 and it shows. Fucking embarrassing.",
+  "{n}, I'd cuss you properly but your mum already does it better. Bellend.",
+  "Who let {n} in here with that? Somebody fetch this fucking gremlin a dictionary.",
+  "{n}, that line's so dead the crowd's holding a fucking funeral for it.",
+  "Is that it, {n}? My toaster cusses harder than you, you wasteman.",
+  "{n}, you came to a cuss battle armed with a fucking feather. Bless.",
+  "Somebody tell {n} the battle started ten minutes ago. Keep up, dickhead.",
+];
+const HOUSE_FRIEND_LINES = [
+  "{n}, my G, you're the only one in here with bars. The rest of you lot are fucking tragic.",
+  "Leave {n} alone, they're with me. Now which one of you muppets wants it next?",
+  "{n} gets a pass. Everyone else, line up, I'm cussing the whole fucking room.",
+];
+
+/**
+ * A clapback that needs no AI, for when every free model is down or out of
+ * credit (the Boss, 2026-11-24: "always have a fallback"): the Battle Zone
+ * always answers, and never with an error message. Friends get the friendly
+ * set. Pure.
+ */
+export function houseClapback(name: string, rand: () => number = Math.random, friend = false) {
+  const set = friend ? HOUSE_FRIEND_LINES : HOUSE_LINES;
+  const line = set[Math.floor(rand() * set.length) % set.length];
+  return line.replaceAll("{n}", (name || "you").trim() || "you");
+}

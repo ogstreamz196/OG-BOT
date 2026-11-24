@@ -326,6 +326,13 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-24 · #339** · Battle Zone posted
+  Pollinations' "not enough credits" notice as a clapback. Provider notices
+  in a 200 now count as failures (`isProviderNotice`, `ai-notice.ts`) and
+  the next key is tried; Groq/Gemini 429s only skip that model; a second
+  free hub Gemini model; and when every free AI fails the Battle Zone posts
+  a no-AI `houseClapback` instead of an error. Hub logs: Groq 429 on both
+  keys and Gemini 429/503 before Pollinations. Still free AIs only.
 - **Boss's Claude · 2026-11-24 · #338** · Battle Zone was slow and
   answered like a private chat. Now it's a group cuss battle
   (`groupRoomNote` in `battle-prompts.ts`: names the others in the ring,

@@ -5,8 +5,10 @@ import {
   BATTLE_EXTRA,
   FOUL_SYSTEM_PROMPT,
   groupRoomNote,
+  houseClapback,
   SYSTEM_PROMPT,
 } from "@/lib/battle-prompts";
+import { isProviderNotice } from "@/lib/ai-notice";
 
 type AdminClient = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
@@ -447,6 +449,8 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             choices?: { message?: { content?: string } }[];
           };
           let reply = (json.choices?.[0]?.message?.content ?? "").trim();
+          // Never a provider's notice ("out of credits…") as the clapback.
+          if (isProviderNotice(reply)) reply = "";
           // A free model other than the swearing one can come out soft: keep
           // it foul (never at a friend, never on TV and app help).
           if (reply && useFoul) {
@@ -470,6 +474,22 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
         }
       } catch (err) {
         console.warn("community bot reply failed:", (err as Error).message);
+      }
+      // Every free AI down or out of credit: OG B0T still claps back, with a
+      // line that needs no AI (never an error, never on TV and app help).
+      if (!botReply && useFoul) {
+        const { isTvHelp } = await import("@/lib/tv-help");
+        if (!isTvHelp(data.content)) {
+          botReply = houseClapback(displayName, Math.random, posterIsFriend);
+          await insertUser.catch(() => null);
+          await supabaseAdmin
+            .from("community_messages")
+            .insert({ user_id: null, role: "bot", content: botReply, display_name: "OG B0T" })
+            .then(
+              () => undefined,
+              () => undefined,
+            );
+        }
       }
     }
 
@@ -1056,12 +1076,15 @@ async function replyAsBot(
       // Free AIs only, as for members (cuss battles never use paid AI).
       { foulMouth: opts.useFoul, freeOnly: true, feature: "guest_battle" },
     );
-    if (!res.ok) return null;
-    const json = (await res.json().catch(() => ({}))) as {
-      choices?: { message?: { content?: string } }[];
-    };
+    const json = res.ok
+      ? ((await res.json().catch(() => ({}))) as {
+          choices?: { message?: { content?: string } }[];
+        })
+      : {};
     let reply = (json.choices?.[0]?.message?.content ?? "").trim();
-    if (!reply) return null;
+    // Never a provider's notice; with no AI answer at all, a house line.
+    if (isProviderNotice(reply)) reply = "";
+    if (!reply) return opts.useFoul ? houseReply(admin, opts.displayName) : null;
     // A softer free model's answer still swears.
     if (opts.useFoul) {
       const { ensureFoulFlavour } = await import("@/lib/og-persona.server");
@@ -1076,8 +1099,21 @@ async function replyAsBot(
     return reply;
   } catch (e) {
     console.warn("guest bot reply failed:", (e as Error).message);
-    return null;
+    return opts.useFoul ? houseReply(admin, opts.displayName) : null;
   }
+}
+
+/** The no-AI clapback, saved to the room like any other. */
+async function houseReply(admin: any, name: string): Promise<string> {
+  const reply = houseClapback(name);
+  await admin
+    .from("community_messages")
+    .insert({ user_id: null, role: "bot", content: reply, display_name: "OG B0T" })
+    .then(
+      () => undefined,
+      () => undefined,
+    );
+  return reply;
 }
 
 /** Initial fetch of the latest N messages, oldest-first. */
