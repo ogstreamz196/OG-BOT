@@ -127,6 +127,7 @@ export const suggestTrackTitle = createServerFn({ method: "POST" })
           ],
         },
         context.userId,
+        { feature: "track_title" },
       );
       if (!res.ok) return { title: backup };
       const json = (await res.json().catch(() => ({}))) as {

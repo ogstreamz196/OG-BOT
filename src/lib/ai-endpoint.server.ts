@@ -79,7 +79,8 @@ export function foulFreeModels(): string[] {
 }
 
 /**
- * Free tiers — answer ordinary chat first. Keyed tiers are skipped when their
+ * Free tiers — answer ordinary chat first: the hub's shared keys (Supabase),
+ * then this app's own (Lovable secrets). Keyed tiers are skipped when their
  * secret is missing. Gemini (paid) is reserved for pro questions, media, or
  * when every free tier fails.
  *
@@ -87,8 +88,9 @@ export function foulFreeModels(): string[] {
  * the OpenRouter model that actually swears is used, then Gemini.
  */
 export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
-  // The Boss's extra keys (Boss → System → API keys, kept in the hub) go
-  // first; the keys set as secrets are the fallback. Loaded by loadAiKeys().
+  // The Boss's extra keys (Boss → System → API keys, kept in the hub): after
+  // Groq and the free Gemini keys for clean chat, first for Foul Mouth's
+  // OpenRouter. Loaded by loadAiKeys().
   const extra = extraKeysNow();
   const own = (
     key: string,
@@ -117,45 +119,47 @@ export function freeFallbackTargets(foulMouth = false): AiChatTarget[] {
   // The hub's shared free keys stand in for a provider only when this app has
   // no key of its own for it, so nothing changes while the own keys are set.
   const viaHub = (
-    provider: "groq" | "openrouter" | "pollinations",
+    provider: "groq" | "openrouter" | "pollinations" | "gemini",
     label: AiChatTarget["provider"],
     model: string,
   ): AiChatTarget | null => {
     const hub = hubAiEndpoint(provider);
     return hub ? { url: hub.url, headers: hub.headers, model, provider: label, free: true } : null;
   };
-  const ownGroq = !!(readKey("FREE_GROQ_API_KEY") || readKey("FREE_GROQ_API_KEY_2"));
-  const ownOr = !!(readKey("FREE_OPENROUTER_API_KEY") || readKey("FREE_OPENROUTER_API_KEY_2"));
-  const ownPoll = !!(
-    readKey("FREE_POLLINATIONS_API_KEY") || readKey("FREE_POLLINATIONS_API_KEY_2")
-  );
-  const openrouter = ownOr
-    ? ["FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].flatMap((env) =>
-        orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
-      )
-    : orModels.map((m) => viaHub("openrouter", "openrouter", m));
+  // The hub's shared free keys (OGSTREAMZ hub, Supabase) come first for every
+  // provider it serves; this app's own keys (Lovable secrets) are the backup,
+  // so a missing OG_HUB_SERVICE_KEY or a hub outage changes nothing (the Boss,
+  // 2026-11-24: point at Supabase where we can, keep Lovable where we must).
+  const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"];
+  const groq = [
+    ...groqModels.map((m) => viaHub("groq", "groq", m)),
+    ...groqModels.map((m) => keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, m)),
+    // Second Groq account: a separate rate-limit budget.
+    ...groqModels.map((m) => keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, m)),
+  ];
+  // The hub's four free Gemini keys (never the paid one): plenty of free room.
+  const hubGemini = viaHub("gemini", "gemini", freeGeminiModel);
+  const pollinations = [
+    viaHub("pollinations", "pollinations", "openai-fast"),
+    keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
+    keyed("FREE_POLLINATIONS_API_KEY_2", "pollinations", POLL_URL, "openai-fast"),
+  ];
+  const openrouter = [
+    ...orModels.map((m) => viaHub("openrouter", "openrouter", m)),
+    ...["FREE_OPENROUTER_API_KEY", "FREE_OPENROUTER_API_KEY_2"].flatMap((env) =>
+      orModels.map((m) => keyed(env, "openrouter", OR_URL, m, OR_HEADERS)),
+    ),
+  ];
   const list = foulMouth
     ? [...extraOpenrouter, ...openrouter]
     : [
+        // Groq first (fast, free, generous), then the free Gemini keys; the
+        // Boss's extra keys and Pollinations (which bills credits) after them,
+        // so a Pollinations key is only used when the free ones can't answer.
+        ...groq,
+        hubGemini,
         ...extraFirst,
-        ...(ownGroq
-          ? [
-              keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "qwen/qwen3.8-27b"),
-              keyed("FREE_GROQ_API_KEY", "groq", GROQ_URL, "openai/gpt-oss-120b"),
-              // Second Groq account — separate rate-limit budget.
-              keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "qwen/qwen3.8-27b"),
-              keyed("FREE_GROQ_API_KEY_2", "groq-backup", GROQ_URL, "openai/gpt-oss-120b"),
-            ]
-          : [
-              viaHub("groq", "groq", "qwen/qwen3.8-27b"),
-              viaHub("groq", "groq", "openai/gpt-oss-120b"),
-            ]),
-        ...(ownPoll
-          ? [
-              keyed("FREE_POLLINATIONS_API_KEY", "pollinations", POLL_URL, "openai-fast"),
-              keyed("FREE_POLLINATIONS_API_KEY_2", "pollinations", POLL_URL, "openai-fast"),
-            ]
-          : [viaHub("pollinations", "pollinations", "openai-fast")]),
+        ...pollinations,
         ...openrouter,
         // Last resort, free and needs no key at all: Pollinations' open
         // endpoint (rate-limited). Switch off with POLLINATIONS_NO_KEY=off.
@@ -207,12 +211,18 @@ const ROUTER_TIMEOUT_MS = 1_500;
  * Any failure counts as banter, so routing is never worse than before.
  */
 export async function needsThinking(text: string): Promise<boolean> {
+  // The hub's shared Groq keys (Supabase) first, else this app's own.
+  const { hubAiEndpoint } = await import("./ai-keys.server");
+  const hub = hubAiEndpoint("groq");
   const key = readKey("FREE_GROQ_API_KEY") || readKey("FREE_GROQ_API_KEY_2");
-  if (!key) return false;
+  if (!hub && !key) return false;
   try {
-    const res = await fetch(GROQ_URL, {
+    const res = await fetch(hub?.url ?? GROQ_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      headers: hub?.headers ?? {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
       body: JSON.stringify({
         model: process.env.GROQ_ROUTER_MODEL || "llama-3.1-8b-instant",
         temperature: 0,
@@ -234,6 +244,7 @@ Message: """${text.slice(0, 1200)}"""`,
     const j = (await res.json().catch(() => ({}))) as {
       choices?: { message?: { content?: string } }[];
     };
+    logAiUsage({ feature: "router_check", provider: "groq", model: "router" });
     return /THINK/i.test(j.choices?.[0]?.message?.content ?? "");
   } catch {
     return false;
@@ -347,6 +358,8 @@ export type AiChatOpts = {
   cheap?: boolean;
   /** Never the paid tier (Telegram group roasts): free models or nothing. */
   freeOnly?: boolean;
+  /** What asked (memory, group_battle, worker_bot…), for the Boss's AI usage panel. Default "chat". */
+  feature?: string;
 };
 
 /** Which models to try, in order, and whether the paid tier goes first. */
@@ -389,6 +402,7 @@ async function tryTargets(
   body: Record<string, unknown>,
   freeTimeout: number,
   outer?: AbortSignal,
+  feature = "chat",
 ): Promise<Attempt | null> {
   const targets = [...list];
   let last: Attempt | null = null;
@@ -433,7 +447,7 @@ async function tryTargets(
     if (!fallThrough) {
       // Chat responses are streamed back to the caller, so token counts aren't
       // available here — log the call itself (provider + model) instead.
-      logAiUsage({ feature: "chat", provider: target.provider, model: target.model });
+      logAiUsage({ feature, provider: target.provider, model: target.model });
       return { response, provider: target.provider, ok: true };
     }
     last = { response, provider: target.provider, ok: false };
@@ -523,6 +537,9 @@ export async function fetchAiChat(
   opts: AiChatOpts = {},
 ): Promise<{ response: Response; provider: AiChatTarget["provider"] }> {
   ({ body, opts } = cleanForTvHelp(body, opts));
+  // A short label as the affinity ("memory") names the feature when none is given.
+  if (!opts.feature && /^[a-z_]{3,24}$/.test(affinity) && affinity !== "default")
+    opts = { ...opts, feature: affinity };
   const { free, paid, pro } = await chatPlan(body, affinity, opts);
   // The Foul Mouth model gets 10s before Gemini takes over, so a slow free
   // tier never leaves the user hanging.
@@ -530,12 +547,18 @@ export async function fetchAiChat(
   let result: Attempt | null;
   if (opts.foulMouth && !pro && free.length && paid.length && !body.stream) {
     result = await hedged(
-      (signal) => tryTargets(free, body, freeTimeout, signal),
-      (signal) => tryTargets(paid, body, freeTimeout, signal),
+      (signal) => tryTargets(free, body, freeTimeout, signal, opts.feature),
+      (signal) => tryTargets(paid, body, freeTimeout, signal, opts.feature),
       aiTiming.foulHedgeMs,
     );
   } else {
-    result = await tryTargets(pro ? [...paid, ...free] : [...free, ...paid], body, freeTimeout);
+    result = await tryTargets(
+      pro ? [...paid, ...free] : [...free, ...paid],
+      body,
+      freeTimeout,
+      undefined,
+      opts.feature,
+    );
   }
   if (result) return { response: result.response, provider: result.provider };
   throw new Error("All AI providers are busy — try again in a moment.");
@@ -649,6 +672,9 @@ export async function streamAiChat(
   onDelta: (delta: string) => void,
 ): Promise<{ text: string; provider: AiChatTarget["provider"] }> {
   ({ body, opts } = cleanForTvHelp(body, opts));
+  // A short label as the affinity ("memory") names the feature when none is given.
+  if (!opts.feature && /^[a-z_]{3,24}$/.test(affinity) && affinity !== "default")
+    opts = { ...opts, feature: affinity };
   const { free, paid, pro } = await chatPlan(body, affinity, opts);
   const freeTimeout = opts.foulMouth ? FOUL_FREE_TIMEOUT_MS : FREE_TIMEOUT_MS;
   const targets = pro ? [...paid, ...free] : [...free, ...paid];
@@ -658,7 +684,7 @@ export async function streamAiChat(
   const finish = async (run: StreamRun) => {
     run.attach(onDelta);
     const { text } = await run.done;
-    logAiUsage({ feature: "chat", provider: run.provider, model: run.model });
+    logAiUsage({ feature: opts.feature ?? "chat", provider: run.provider, model: run.model });
     return { text, provider: run.provider };
   };
 

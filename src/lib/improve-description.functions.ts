@@ -46,6 +46,7 @@ export const improveLyricDescription = createServerFn({ method: "POST" })
         ],
       },
       context.userId,
+      { feature: "improve_description" },
     );
 
     if (!res.ok) {

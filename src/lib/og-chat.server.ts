@@ -335,7 +335,11 @@ export async function runOgChat(
           }
         : outgoing.at(-1)!,
     ];
-    const aiOpts = { foulMouth: data.mode === "og" && !!foulMouth, smart: true };
+    const aiOpts = {
+      foulMouth: data.mode === "og" && !!foulMouth,
+      smart: true,
+      feature: "website_chat",
+    };
     let reply: string;
     if (onDelta) {
       // Streamed: words go to the member as they're written.

@@ -13,7 +13,19 @@ const MAX_NEW_PER_MESSAGE = 3;
 export function shouldExtract(text: string | null | undefined): boolean {
   if (!text) return false;
   const t = text.trim();
-  if (t.length < 12) return false;
+  if (t.length < 12 || t.startsWith("/")) return false;
+  // Signal and chart requests ("give me a BTC signal") say nothing to keep,
+  // and they're the most common messages: skip them unless they also state
+  // a personal fact. Saves an AI call per signal request (2026-11-24).
+  const factCue =
+    /\b(my name|call me|i'm from|im from|i live|i work|i support|my (?:fav|favourite|favorite|birthday|team|job|kid|son|daughter|wife|husband|girlfriend|boyfriend|dog|cat))\b/i;
+  if (
+    /\b(signal|signals|btc|bitcoin|gold|xau|xauusd|btcusd|chart|scalp|trade|entry|tp|sl)\b/i.test(
+      t,
+    ) &&
+    !factCue.test(t)
+  )
+    return false;
   return /\b(i|i'm|im|i've|ive|i'd|my|me|mine|call me|forget)\b/i.test(t);
 }
 

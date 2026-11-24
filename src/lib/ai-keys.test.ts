@@ -38,7 +38,7 @@ describe("extra AI keys", () => {
     expect(await loadExtraKeys()).toEqual({ pollinations: [], openrouter: [], gemini: [] });
   });
 
-  it("puts the Boss's keys first and keeps the old ones as the fallback", async () => {
+  it("puts the Boss's keys after Groq and free Gemini, and keeps the old ones as the fallback", async () => {
     process.env.OG_HUB_SERVICE_KEY = "hub-secret";
     process.env.POLLINATIONS_API_KEY = "env-poll";
     const rows = [
@@ -54,12 +54,17 @@ describe("extra AI keys", () => {
     await loadExtraKeys();
     // Read from og_bot with the hub key; never sent anywhere else.
     expect(seen[0]["Accept-Profile"]).toBe("og_bot");
-    const auth = freeFallbackTargets().map((t) => t.headers.Authorization);
-    expect(auth.slice(0, 3)).toEqual([
-      "Bearer gem-free-key-123456",
-      "Bearer poll-extra-key-123456",
-      "Bearer or-extra-key-123456",
-    ]);
+    const list = freeFallbackTargets();
+    const auth = list.map((t) => t.headers.Authorization);
+    const at = (a: string) => auth.indexOf(a);
+    // The Boss's keys stay in this order, together…
+    expect(at("Bearer poll-extra-key-123456")).toBe(at("Bearer gem-free-key-123456") + 1);
+    expect(at("Bearer or-extra-key-123456")).toBe(at("Bearer gem-free-key-123456") + 2);
+    // …but after the hub's Groq (2026-11-24: Pollinations bills credits, so it
+    // only answers when the free ones can't).
+    const firstGroq = list.findIndex((t) => t.provider === "groq");
+    expect(firstGroq).toBeGreaterThanOrEqual(0);
+    expect(firstGroq).toBeLessThan(at("Bearer gem-free-key-123456"));
     expect(auth).toContain("Bearer env-poll");
     // Foul mouth: the extra OpenRouter key before the old ones.
     expect(freeFallbackTargets(true)[0].headers.Authorization).toBe("Bearer or-extra-key-123456");
@@ -124,13 +129,16 @@ describe("hub's shared free keys", () => {
     }
   };
 
-  it("stand in only for providers with no key of their own", () => {
+  it("come first for every provider, with the app's own keys as the backup", () => {
     clearOwn();
     process.env.OG_HUB_SERVICE_KEY = "sb_secret_hubkey123456";
     process.env.GROQ_API_KEY = "gsk_own_key_123456";
     const urls = freeFallbackTargets().map((t) => t.url);
-    expect(urls.some((u) => u.startsWith("https://api.groq.com/"))).toBe(true);
-    expect(urls.some((u) => u.includes("ogstreamz-ai?provider=groq"))).toBe(false);
+    const hubGroq = urls.findIndex((u) => u.includes("ogstreamz-ai?provider=groq"));
+    const ownGroq = urls.findIndex((u) => u.startsWith("https://api.groq.com/"));
+    expect(hubGroq).toBe(0);
+    expect(ownGroq).toBeGreaterThan(hubGroq);
+    expect(urls.some((u) => u.includes("ogstreamz-ai?provider=gemini"))).toBe(true);
     expect(urls.some((u) => u.includes("ogstreamz-ai?provider=pollinations"))).toBe(true);
     expect(urls.some((u) => u.includes("ogstreamz-ai?provider=openrouter"))).toBe(true);
     const hub = freeFallbackTargets().find((t) => t.url.includes("ogstreamz-ai"))!;

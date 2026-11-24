@@ -4,7 +4,12 @@
  * background batch of fresh lines is generated and added for everyone.
  * Battle Zone does NOT use this — it stays fresh every message.
  */
-import { freeFallbackTargets, aiChatTargets, loadAiKeys } from "@/lib/ai-endpoint.server";
+import {
+  freeFallbackTargets,
+  aiChatTargets,
+  loadAiKeys,
+  logAiUsage,
+} from "@/lib/ai-endpoint.server";
 
 export type CatchTone = "foul" | "cheeky" | "safe";
 type Admin = {
@@ -56,7 +61,10 @@ async function generateBatch(kind: Kind, tone: CatchTone): Promise<string[]> {
             : l.length >= 3 && l.length <= 120 && !/impatient dickhead/i.test(l),
         )
         .map((l) => (kind === "trade_hold" && !l.startsWith("⏳") ? `⏳ ${l}` : l));
-      if (lines.length) return lines.slice(0, 12);
+      if (lines.length) {
+        logAiUsage({ feature: "catchphrases", provider: t.provider, model: t.model });
+        return lines.slice(0, 12);
+      }
     } catch {
       /* try next provider */
     }

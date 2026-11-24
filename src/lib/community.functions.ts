@@ -112,6 +112,7 @@ async function scoreRoast(
         ],
       },
       content,
+      { feature: "battle_judge" },
     );
     if (!res.ok) return 0;
     const json = (await res.json().catch(() => ({}))) as {
@@ -419,7 +420,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
             ],
           },
           context.userId,
-          { foulMouth: !!useFoul },
+          { foulMouth: !!useFoul, feature: "battle_zone" },
         );
         if (res.ok) {
           const json = (await res.json().catch(() => ({}))) as {
@@ -1014,7 +1015,7 @@ async function replyAsBot(
         ],
       },
       opts.userId ?? "guest",
-      { foulMouth: opts.useFoul },
+      { foulMouth: opts.useFoul, feature: "guest_battle" },
     );
     if (!res.ok) return null;
     const json = (await res.json().catch(() => ({}))) as {

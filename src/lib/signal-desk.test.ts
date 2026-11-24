@@ -2,11 +2,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./ai-endpoint.server", () => ({
   loadAiKeys: async () => undefined,
+  logAiUsage: () => undefined,
+  POLL_NO_KEY_URL: "https://text.pollinations.ai/openai",
   freeFallbackTargets: () => [
     { url: "https://groq/a", headers: {}, model: "openai/gpt-oss-120b", provider: "groq" },
     { url: "https://groq/b", headers: {}, model: "qwen/qwen3.8-27b", provider: "groq" },
+    { url: "https://hub/gemini", headers: {}, model: "gemini-3.8-flash", provider: "gemini" },
     { url: "https://or/c", headers: {}, model: "nvidia/nemotron", provider: "openrouter" },
     { url: "https://poll/d", headers: {}, model: "openai-fast", provider: "pollinations" },
+    {
+      url: "https://text.pollinations.ai/openai",
+      headers: {},
+      model: "openai",
+      provider: "pollinations",
+    },
   ],
 }));
 
@@ -53,7 +62,10 @@ describe("runDesk", () => {
     expect(by("Momentum").model).toBe("openai/gpt-oss-120b");
     // OpenRouter's free model is left for the group roasts.
     expect(seen.some((b) => b.model === "nvidia/nemotron")).toBe(false);
-    expect(by("Risk").model).toBe("openai-fast");
+    // Risk asks the free Gemini keys; the credit-billed Pollinations key is
+    // never used by the desk (2026-11-24), only its free no-key endpoint.
+    expect(by("Risk").model).toBe("gemini-3.8-flash");
+    expect(seen.some((b) => b.model === "openai-fast")).toBe(false);
     // Wave 2 sees wave 1's findings; the chief sees everyone's.
     expect(by("Momentum").messages[1].content).toContain("Trend analyst: SELL");
     expect(by("Trend").messages[1].content).not.toContain("THE DESK SO FAR");
