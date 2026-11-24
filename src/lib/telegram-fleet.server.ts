@@ -125,7 +125,7 @@ export async function assistantReply(bot: FleetBot, text: string) {
       ],
     },
     "default",
-    { foulMouth: true, freeOnly: true },
+    { foulMouth: true, freeOnly: true, feature: "worker_bot" },
   );
   const json = (await response.json()) as { choices?: { message?: { content?: string } }[] };
   return (json.choices?.[0]?.message?.content ?? "Worker is busy, try again in a moment.")

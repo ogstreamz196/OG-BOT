@@ -326,6 +326,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-24 · #PRNUM** · AI keys: hub (Supabase) first,
+  Lovable keys as backup; Pollinations (credit-billed) moved behind Groq and
+  the hub's free Gemini; the signals AI desk off keyed Pollinations (it was
+  the main drain and logged nothing); every AI call now named by feature in
+  `ai_usage_log` and the Boss's usage panel shows every provider; memory
+  notes skip signal requests. Hub logs showed `ogstreamz-ai` unused all week.
+  Needs `OG_HUB_SERVICE_KEY` in Lovable for the hub to be used.
+
 - **Boss's Claude · 2026-11-23 · #335** · Foul mouth checked end to end
   (the Boss asked). Fixed: one shared rule `foulAllowed` (the website chat
   missed the `boss`/`dev` roles); the trade hold line re-checks access

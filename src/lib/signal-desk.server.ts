@@ -12,7 +12,13 @@
 // Only free tiers are used (free Google keys for the chief), never the paid
 // Gemini key nor OpenRouter (kept for the group roasts), and any failure
 // falls back to the engine's own card.
-import { freeFallbackTargets, loadAiKeys, type AiChatTarget } from "./ai-endpoint.server";
+import {
+  freeFallbackTargets,
+  loadAiKeys,
+  logAiUsage,
+  POLL_NO_KEY_URL,
+  type AiChatTarget,
+} from "./ai-endpoint.server";
 import { envKey } from "@/lib/key-names";
 
 export type DeskLean = "BUY" | "SELL" | "WAIT";
@@ -65,7 +71,7 @@ export const DESK_ROLES: DeskRole[] = [
     emoji: "📰",
     focus:
       "what could wreck the trade: high-impact news, the headlines, the trading session, choppy conditions and the cautions in the data",
-    model: /openai-fast/,
+    model: /gemini/,
   },
 ];
 
@@ -151,7 +157,11 @@ async function askAny(
   for (const t of targets) {
     if (outer.aborted) return null;
     const out = await ask(t, system, user, outer).catch(() => null);
-    if (out) return out;
+    if (out) {
+      // Every desk answer shows in the Boss's AI usage panel (it used to be invisible).
+      logAiUsage({ feature: "signal_desk", provider: t.provider, model: t.model });
+      return out;
+    }
   }
   return null;
 }
@@ -209,8 +219,14 @@ export async function runDesk(
 ): Promise<DeskDecision | null> {
   // OpenRouter's free model is what the group roasts swear with, and its
   // daily allowance is small: the desk (now every 10 minutes) leaves it alone.
+  // Keyed Pollinations bills credits and the desk used to drain it (the Boss,
+  // 2026-11-24: "ogbot Pollinations out of credits"), so the desk only gets
+  // Pollinations' free no-key endpoint, as a last resort.
   await loadAiKeys();
-  const free = freeFallbackTargets(false).filter((t) => t.provider !== "openrouter");
+  const free = freeFallbackTargets(false).filter(
+    (t) =>
+      t.provider !== "openrouter" && !(t.provider === "pollinations" && t.url !== POLL_NO_KEY_URL),
+  );
   if (!free.length) return null;
   const outer = AbortSignal.timeout(DESK_BUDGET_MS);
   const roles = rolesWithTargets(free);

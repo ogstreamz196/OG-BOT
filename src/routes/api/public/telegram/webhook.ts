@@ -1562,7 +1562,7 @@ async function runChatAI(
       ...history,
       { role: "user", content: currentUserText },
     ];
-    const aiOpts = { foulMouth, smart: true };
+    const aiOpts = { foulMouth, smart: true, feature: group ? "telegram_group_chat" : "telegram_chat" };
     // The reply streams in: first words go out straight away and the message
     // grows as OG Bot writes; it's set to the final text at the end.
     const { createLiveReply } = await import("@/lib/telegram-live-reply");

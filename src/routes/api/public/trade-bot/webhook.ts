@@ -158,7 +158,7 @@ export const Route = createFileRoute("/api/public/trade-bot/webhook")({
               ],
             },
             "default",
-            { foulMouth: true },
+            { foulMouth: true, feature: "trade_bot" },
           );
           const json = (await response.json().catch(() => null)) as {
             choices?: { message?: { content?: string } }[];

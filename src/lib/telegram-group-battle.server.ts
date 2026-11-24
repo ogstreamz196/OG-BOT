@@ -270,7 +270,7 @@ async function battleAnswer(
       ],
     },
     `telegram-group:${chatId}`,
-    { foulMouth: true, freeOnly: true },
+    { foulMouth: true, freeOnly: true, feature: "group_battle" },
   ).catch(() => null);
   const response = reply?.response;
   if (!response?.ok) return null;
