@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { aiTiming, fetchAiChat } from "./ai-endpoint.server";
-<<<<<<< HEAD
 import { groupRoomNote, houseClapback } from "./battle-prompts";
 import { isProviderNotice } from "./ai-notice";
-=======
-import { groupRoomNote } from "./battle-prompts";
->>>>>>> 4ffa844c3d5b46d87bb5cf6e89564a3f0ca4a74a
 
 const realFetch = globalThis.fetch;
 const ENV = { ...process.env };
@@ -64,7 +60,6 @@ describe("Battle Zone clapbacks", () => {
     expect(n).not.toMatch(/roast/i);
     expect(groupRoomNote("Dee", [])).toMatch(/help bury Dee/);
   });
-<<<<<<< HEAD
 
   it("a provider's out-of-credits notice is never the reply: the next key answers", async () => {
     process.env.FREE_POLLINATIONS_API_KEY = "p1";
@@ -136,6 +131,4 @@ describe("Battle Zone clapbacks", () => {
     expect(line).not.toMatch(/roast/i);
     expect(houseClapback("Dee", () => 0.99, true)).toMatch(/Dee/);
   });
-=======
->>>>>>> 4ffa844c3d5b46d87bb5cf6e89564a3f0ca4a74a
 });
