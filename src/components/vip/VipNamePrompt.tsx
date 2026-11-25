@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useRole } from "@/hooks/use-role";
+import { useVisitNumber } from "@/hooks/use-visit-number";
 import { isValidUsername } from "@/components/auth/UsernamePrompt";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ export function VipNamePrompt() {
   const [choosing, setChoosing] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  // Never on a first visit (no pop-ups as a member arrives).
+  const visit = useVisitNumber(user?.id);
 
   const q = useQuery({
     queryKey: ["vip-name", user?.id],
@@ -39,7 +42,15 @@ export function VipNamePrompt() {
   });
 
   const proposed = q.data?.og_vip_id ?? (q.data?.display_name ? vipIdFor(q.data.display_name) : "");
-  const open = !!user && hasVipRole && !!q.data && !q.data.vip_name_confirmed_at && !!proposed && !dismissed;
+  const open =
+    !!user &&
+    hasVipRole &&
+    visit != null &&
+    visit >= 2 &&
+    !!q.data &&
+    !q.data.vip_name_confirmed_at &&
+    !!proposed &&
+    !dismissed;
 
   const save = async (username: string) => {
     setBusy(true);
@@ -49,7 +60,9 @@ export function VipNamePrompt() {
       .eq("id", user!.id);
     setBusy(false);
     if (error) {
-      toast.error(error.message.includes("duplicate") ? "That one's taken — try another." : error.message);
+      toast.error(
+        error.message.includes("duplicate") ? "That one's taken — try another." : error.message,
+      );
       return;
     }
     toast.success(`Locked in. You're ${username} for as long as you stay PRO.`);
@@ -73,7 +86,9 @@ export function VipNamePrompt() {
           <span className="grid h-14 w-14 place-items-center rounded-full bg-coin/20 text-coin">
             <Crown className="h-7 w-7" />
           </span>
-          <DialogTitle className="mt-3 font-display text-xl uppercase">Welcome to PRO 👑</DialogTitle>
+          <DialogTitle className="mt-3 font-display text-xl uppercase">
+            Welcome to PRO 👑
+          </DialogTitle>
           <DialogDescription className="mt-1 text-sm">
             As a PRO member your username becomes your PRO ID. Once you confirm, it{" "}
             <b>can't be changed for as long as your PRO membership lasts</b>.
@@ -82,7 +97,9 @@ export function VipNamePrompt() {
         {!choosing ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-coin/50 bg-coin/10 p-3 text-center">
-              <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">Proposed PRO ID</div>
+              <div className="text-[0.7rem] font-black uppercase tracking-widest text-coin">
+                Proposed PRO ID
+              </div>
               <div className="font-mono text-2xl font-black tracking-widest">{proposed}</div>
             </div>
             <Button className="h-12 w-full" disabled={busy} onClick={() => void save(proposed)}>
@@ -113,7 +130,12 @@ export function VipNamePrompt() {
             <Button type="submit" className="h-12 w-full" disabled={busy || !isValidUsername(name)}>
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Lock it in"}
             </Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setChoosing(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => setChoosing(false)}
+            >
               Back
             </Button>
           </form>

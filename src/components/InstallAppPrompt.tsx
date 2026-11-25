@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Smartphone } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Button } from "@/components/ui/button";
+import { browserStores, countVisit } from "@/lib/visits";
 import {
   Dialog,
   DialogContent,
@@ -22,16 +23,26 @@ interface BeforeInstallPromptEvent extends Event {
 const INSTALLED_KEY = "og:shortcut-installed";
 
 function isStandalone(): boolean {
-  return window.matchMedia?.("(display-mode: standalone)").matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
 }
 
 function markedInstalled(): boolean {
-  try { return localStorage.getItem(INSTALLED_KEY) === "1"; } catch { return false; }
+  try {
+    return localStorage.getItem(INSTALLED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 function markInstalled() {
-  try { localStorage.setItem(INSTALLED_KEY, "1"); } catch { /* storage unavailable */ }
+  try {
+    localStorage.setItem(INSTALLED_KEY, "1");
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 export function InstallAppPrompt() {
@@ -40,20 +51,37 @@ export function InstallAppPrompt() {
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform() || isStandalone()) { markInstalled(); return; }
+    if (Capacitor.isNativePlatform() || isStandalone()) {
+      markInstalled();
+      return;
+    }
     if (markedInstalled()) return;
+    // Not on a first visit: nothing pops up as someone arrives (the Boss,
+    // 2026-11-24); the install offer starts from their second visit.
+    const { local, session } = browserStores();
+    if (countVisit("device", local, session) < 2) return;
 
     const nav = navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> };
-    nav.getInstalledRelatedApps?.().then((apps) => {
-      if (apps.length > 0) { markInstalled(); setOpen(false); }
-    }).catch(() => {});
+    nav
+      .getInstalledRelatedApps?.()
+      .then((apps) => {
+        if (apps.length > 0) {
+          markInstalled();
+          setOpen(false);
+        }
+      })
+      .catch(() => {});
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
       setOpen(true);
     };
-    const installed = () => { markInstalled(); setDeferred(null); setOpen(false); };
+    const installed = () => {
+      markInstalled();
+      setDeferred(null);
+      setOpen(false);
+    };
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("appinstalled", installed);
     return () => {
@@ -68,10 +96,16 @@ export function InstallAppPrompt() {
     try {
       await deferred.prompt();
       const choice = await deferred.userChoice;
-      if (choice.outcome === "accepted") { markInstalled(); setOpen(false); }
+      if (choice.outcome === "accepted") {
+        markInstalled();
+        setOpen(false);
+      }
       setDeferred(null);
-    } catch { setDeferred(null); }
-    finally { setInstalling(false); }
+    } catch {
+      setDeferred(null);
+    } finally {
+      setInstalling(false);
+    }
   }
 
   if (!deferred) return null;
@@ -84,14 +118,20 @@ export function InstallAppPrompt() {
           </div>
           <DialogTitle className="text-center">Add OG B0T to your home screen</DialogTitle>
           <DialogDescription className="text-center">
-            One tap and OG B0T sits on your home screen like any other app. Nothing to download, no app store, free.
+            One tap and OG B0T sits on your home screen like any other app. Nothing to download, no
+            app store, free.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button onClick={install} disabled={installing} className="w-full font-semibold">
-            <Plus aria-hidden="true" />{installing ? "Adding…" : "Add shortcut"}
+            <Plus aria-hidden="true" />
+            {installing ? "Adding…" : "Add shortcut"}
           </Button>
-          <Button variant="ghost" onClick={() => setOpen(false)} className="w-full text-muted-foreground">
+          <Button
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            className="w-full text-muted-foreground"
+          >
             Not now
           </Button>
         </DialogFooter>

@@ -326,6 +326,12 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-24 · #340** · Calm sign-in: members land
+  on the Music hub (/library) after signing in; the setup checklist pop-up
+  is replaced by one slim header reminder (`SetupReminderBar`: Telegram,
+  then recovery email, each until done); the PRO trial pop-up, the PRO ID
+  prompt and the install prompt wait for the second visit
+  (`src/lib/visits.ts`).
 - **Boss's Claude · 2026-11-24 · #339** · Battle Zone posted
   Pollinations' "not enough credits" notice as a clapback. Provider notices
   in a 200 now count as failures (`isProviderNotice`, `ai-notice.ts`) and

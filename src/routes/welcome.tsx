@@ -168,8 +168,10 @@ function useRedirectIfSignedIn() {
     let cancelled = false;
     // Read ?next= at sign-in time: cards set it after the page has opened.
     const go = () => {
-      const target = safeRelativeNext() ?? "/";
-      if (target === "/") navigate({ to: "/", replace: true });
+      // Signed in: straight to the Music hub with its red Create button (the
+      // Boss, 2026-11-24), unless a page asked for somewhere else.
+      const target = safeRelativeNext() ?? "/library";
+      if (target === "/library") navigate({ to: "/library", replace: true });
       else window.location.replace(target);
     };
     // Guest (anonymous) sessions belong on this page, so they don't redirect.
@@ -216,7 +218,7 @@ function useOAuthSignIn() {
           ? `${window.location.origin}/sign-in-return${next ? `?next=${encodeURIComponent(next)}` : ""}`
           : next
             ? `${window.location.origin}/welcome?next=${encodeURIComponent(next)}`
-            : window.location.origin;
+            : `${window.location.origin}/library`;
         const result = await lovable.auth.signInWithOAuth(provider, {
           redirect_uri: redirectUri,
           extraParams: provider === "google" ? { prompt: "select_account" } : undefined,
@@ -232,7 +234,7 @@ function useOAuthSignIn() {
         }
         if (result.redirected) return;
         if (next) window.location.replace(next);
-        else navigate({ to: "/", replace: true });
+        else navigate({ to: "/library", replace: true });
       } catch (e) {
         const raw = (e instanceof Error ? e.message : "").toLowerCase();
         const transient =

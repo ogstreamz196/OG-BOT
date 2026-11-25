@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useRole } from "@/hooks/use-role";
+import { useVisitNumber } from "@/hooks/use-visit-number";
 
 const PERKS = [
   ["🤬", "Foul Mouth OG B0T", "Unfiltered cussing & UK slang — amp it up to Demon level"],
@@ -33,6 +34,9 @@ export function VipTrialWelcome() {
   const started = useRef(false);
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // Not on the first visit: a new member lands on the Music hub with nothing
+  // in the way, and hears about the trial next time (the Boss, 2026-11-24).
+  const visit = useVisitNumber(user?.id);
 
   useEffect(() => {
     if (!user || started.current) return;
@@ -45,7 +49,7 @@ export function VipTrialWelcome() {
   }, [user, qc]);
 
   useEffect(() => {
-    if (!user || !isTrial || isAdmin || hasVipRole) return;
+    if (!user || !isTrial || isAdmin || hasVipRole || visit == null || visit < 2) return;
     const key = `og_vip_trial_seen_${user.id}`;
     const today = new Date().toISOString().slice(0, 10);
     try {
@@ -55,7 +59,7 @@ export function VipTrialWelcome() {
       /* private mode: show anyway */
     }
     setOpen(true);
-  }, [user, isTrial, isAdmin, hasVipRole]);
+  }, [user, isTrial, isAdmin, hasVipRole, visit]);
 
   useEffect(() => {
     if (!open) return;

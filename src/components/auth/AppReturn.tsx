@@ -33,7 +33,8 @@ export function AppReturn() {
 
   const raw =
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
-  const next = raw?.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  // Signed in: straight to the Music hub (its red Create button), unless a page asked.
+  const next = raw?.startsWith("/") && !raw.startsWith("//") ? raw : "/library";
 
   useEffect(() => {
     if (native && session) window.location.replace(next);
