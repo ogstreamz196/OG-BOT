@@ -326,6 +326,11 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-25 · #341** · Apple sign-in: #340 changed
+  the Google/Apple return address to `ogbot.co.uk/library`; no Google or
+  Apple sign-in has been recorded since (last Apple 2026-11-23). Back to
+  the plain address that worked; the home page forwards to the Music hub
+  once (`src/lib/after-sign-in.ts`).
 - **Boss's Claude · 2026-11-24 · #340** · Calm sign-in: members land
   on the Music hub (/library) after signing in; the setup checklist pop-up
   is replaced by one slim header reminder (`SetupReminderBar`: Telegram,
