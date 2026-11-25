@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { takeSignInLanding } from "@/lib/after-sign-in";
 import {
   Music2,
   MessageSquareMore,
@@ -65,6 +66,10 @@ import { DailyDrop } from "@/components/dashboard/DailyDrop";
 import { useMemberBadge } from "@/hooks/use-member-badge";
 
 export const Route = createFileRoute("/_authenticated/")({
+  // Back from Google/Apple sign-in: on to the Music hub, once.
+  beforeLoad: () => {
+    if (takeSignInLanding()) throw redirect({ to: "/library", replace: true });
+  },
   component: DashboardHome,
   head: () => ({
     meta: [

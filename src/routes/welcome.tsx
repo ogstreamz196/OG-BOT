@@ -1,4 +1,5 @@
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
+import { markSignInLanding } from "@/lib/after-sign-in";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 // 160px WebP of the OG-STREAMZ PRESENTZ logo (11KB), shown at 24-56px.
 import ogStreamzLogo from "@/assets/og-streamz-presentz-160.webp";
@@ -218,7 +219,10 @@ function useOAuthSignIn() {
           ? `${window.location.origin}/sign-in-return${next ? `?next=${encodeURIComponent(next)}` : ""}`
           : next
             ? `${window.location.origin}/welcome?next=${encodeURIComponent(next)}`
-            : `${window.location.origin}/library`;
+            : // The sign-in broker only returns to the plain address; the home
+              // page then sends them on to the Music hub (after-sign-in.ts).
+              window.location.origin;
+        if (!next && !isNativeApp) markSignInLanding();
         const result = await lovable.auth.signInWithOAuth(provider, {
           redirect_uri: redirectUri,
           extraParams: provider === "google" ? { prompt: "select_account" } : undefined,
