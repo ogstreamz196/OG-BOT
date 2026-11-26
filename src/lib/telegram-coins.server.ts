@@ -97,9 +97,10 @@ export async function createTelegramCoinCheckout(
       customer,
       payment_intent_data: {
         description: `${pack.label} · ${pack.coins} OG Coins`,
-        metadata: meta,
+        metadata: { ...meta, app: "og_bot" },
       },
       metadata: {
+        app: "og_bot",
         ...meta,
         environment: env,
         source: "telegram",

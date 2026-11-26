@@ -120,7 +120,7 @@ export async function openKey(sealed: string, secret: string): Promise<string | 
   }
 }
 
-async function hub(path: string, init: RequestInit = {}): Promise<Response> {
+export async function hub(path: string, init: RequestInit = {}): Promise<Response> {
   const cfg = hubConfig();
   if (!cfg) throw new Error("hub key not set");
   const headers: Record<string, string> = {
