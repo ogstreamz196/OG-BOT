@@ -572,6 +572,7 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
         return_url: data.returnUrl,
         ...(customerId && { customer: customerId }),
         metadata: {
+          app: "og_bot",
           userId,
           bundleId,
           storeItemId: it.id,
@@ -584,6 +585,7 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
           payment_intent_data: {
             description: it.name,
             metadata: {
+              app: "og_bot",
               userId,
               bundleId,
               storeItemId: it.id,
@@ -596,6 +598,7 @@ export const createStoreItemCheckoutSession = createServerFn({ method: "POST" })
         ...(isRecurring && {
           subscription_data: {
             metadata: {
+              app: "og_bot",
               userId,
               bundleId,
               storeItemId: it.id,

@@ -70,9 +70,9 @@ export const createGuestTrackCheckout = createServerFn({ method: "POST" })
         return_url: data.returnUrl,
         payment_intent_data: {
           description: `Full track — ${song.title || "OG B0T track"}`,
-          metadata: meta,
+          metadata: { ...meta, app: "og_bot" },
         },
-        metadata: meta,
+        metadata: { ...meta, app: "og_bot" },
       });
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {

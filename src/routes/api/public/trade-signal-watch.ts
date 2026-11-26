@@ -48,6 +48,10 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
           // The setups that weren't sent, followed silently for the Boss's report.
           const { followShadows } = await import("@/lib/signal-shadows.server");
           const shadows = await followShadows(supabaseAdmin);
+          // Stripe events from the OGSTREAMZ hub's shared webhook (coins, PRO,
+          // store, refunds), the same handling as the direct webhook.
+          const { drainHubStripeEvents } = await import("@/lib/stripe-hub-events.server");
+          const stripeHub = await drainHubStripeEvents();
           // The HFT lab: every strategy and hold time scored on 1-second prices
           // at Vantage's cost. Measures only, never posts.
           const { maybeRunMicroLab } = await import("@/lib/micro-scalp.server");
@@ -86,6 +90,7 @@ export const Route = createFileRoute("/api/public/trade-signal-watch")({
             spreads,
             shadows,
             microlab,
+            stripeHub,
             autopsy,
           });
         } catch (e) {

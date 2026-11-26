@@ -326,6 +326,14 @@ merged work, not open work.
 
 ## Log
 
+- **Boss's Claude · 2026-11-26 · #342** · Stripe: OG B0T's own webhook
+  had refused live events since 22 Nov (a £50 PRO Yearly purchase); it now
+  tries every saved signing secret. Event handling moved to
+  `stripe-events.server.ts`; checkouts carry `metadata.app = "og_bot"`;
+  a minute collector takes OG B0T's events from the hub's shared webhook
+  (`og_bot.stripe_events_pending`), so payments no longer depend on the
+  direct webhook. The 22 Nov events were relabelled og_bot on the hub.
+
 - **Boss's Claude · 2026-11-25 · #341** · Apple sign-in: #340 changed
   the Google/Apple return address to `ogbot.co.uk/library`; no Google or
   Apple sign-in has been recorded since (last Apple 2026-11-23). Back to

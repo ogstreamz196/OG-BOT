@@ -139,12 +139,14 @@ export const createCoinCheckoutSession = createServerFn({ method: "POST" })
         payment_intent_data: {
           description: productDescription,
           metadata: {
+            app: "og_bot",
             userId,
             bundleId: pack.bundleId,
             coins: String(pack.coins),
           },
         },
         metadata: {
+          app: "og_bot",
           userId,
           bundleId: pack.bundleId,
           coins: String(pack.coins),
@@ -210,6 +212,7 @@ export const createVipCheckoutSession = createServerFn({ method: "POST" })
         customer: customerId,
         allow_promotion_codes: true,
         metadata: {
+          app: "og_bot",
           userId,
           bundleId: plan.bundleId,
           environment: data.environment,
@@ -217,6 +220,7 @@ export const createVipCheckoutSession = createServerFn({ method: "POST" })
         },
         subscription_data: {
           metadata: {
+            app: "og_bot",
             userId,
             bundleId: plan.bundleId,
             ...(data.noAutoRenew && data.plan === "yearly" ? { noAutoRenew: "1" } : {}),
@@ -292,12 +296,14 @@ export const createCustomCoinCheckoutSession = createServerFn({ method: "POST" }
         payment_intent_data: {
           description,
           metadata: {
+            app: "og_bot",
             userId,
             bundleId: "coins_custom",
             coins: String(coins),
           },
         },
         metadata: {
+          app: "og_bot",
           userId,
           bundleId: "coins_custom",
           coins: String(coins),
@@ -484,9 +490,10 @@ export const createTrackUnlockCheckoutSession = createServerFn({ method: "POST" 
         customer: customerId,
         payment_intent_data: {
           description,
-          metadata: { userId, kind: "track_unlock", songId: data.songId },
+          metadata: { app: "og_bot", userId, kind: "track_unlock", songId: data.songId },
         },
         metadata: {
+          app: "og_bot",
           userId,
           kind: "track_unlock",
           songId: data.songId,

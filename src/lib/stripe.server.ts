@@ -84,19 +84,33 @@ export function getStripeErrorMessage(error: unknown): string {
   return "Stripe request failed";
 }
 
+/**
+ * The webhook signing secrets this app has for an environment, without
+ * repeats: the managed one for that environment first, then
+ * STRIPE_WEBHOOK_SECRET. Never throws; empty when none is set.
+ */
+export function webhookSecrets(env: StripeEnv, e: Record<string, string | undefined> = process.env): string[] {
+  const names =
+    env === "sandbox"
+      ? ["PAYMENTS_SANDBOX_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_TEST", "STRIPE_WEBHOOK_SECRET"]
+      : ["PAYMENTS_LIVE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET"];
+  return [...new Set(names.map((n) => e[n]?.trim() ?? "").filter(Boolean))];
+}
+
 export async function verifyWebhook(
   req: Request,
   env: StripeEnv,
 ): Promise<{ type: string; data: { object: any } }> {
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
-  // BYOK uses a single project webhook signing secret; managed mode uses the
-  // per-environment secrets provisioned by the Lovable payments integration.
-  const secret = isByok()
-    ? getEnv("STRIPE_WEBHOOK_SECRET")
-    : env === "sandbox"
-      ? getEnv("PAYMENTS_SANDBOX_WEBHOOK_SECRET")
-      : getEnv("PAYMENTS_LIVE_WEBHOOK_SECRET");
+  // Every signing secret this app holds is tried: the managed per-environment
+  // one from Lovable's payments integration and a manually saved
+  // STRIPE_WEBHOOK_SECRET. Picking just one by whether STRIPE_SECRET_KEY was
+  // set meant a key added later (or a missing webhook secret) made every live
+  // event fail its check (the Boss, 2026-11-26: Stripe's "webhook failing"
+  // email, failures since 22 November). A match on any of ours is genuine.
+  const secrets = webhookSecrets(env);
+  if (!secrets.length) throw new Error("No webhook signing secret configured");
 
   if (!signature || !body) throw new Error("Missing signature or body");
 
@@ -112,20 +126,27 @@ export async function verifyWebhook(
   const age = Math.abs(Date.now() / 1000 - Number(timestamp));
   if (age > 300) throw new Error("Webhook timestamp too old");
 
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signed = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(`${timestamp}.${body}`),
-  );
-  const expected = Buffer.from(new Uint8Array(signed)).toString("hex");
-  if (!v1Signatures.includes(expected)) throw new Error("Invalid webhook signature");
+  let matched = false;
+  for (const secret of secrets) {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const signed = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(`${timestamp}.${body}`),
+    );
+    const expected = Buffer.from(new Uint8Array(signed)).toString("hex");
+    if (v1Signatures.includes(expected)) {
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) throw new Error("Invalid webhook signature");
 
   return JSON.parse(body);
 }
