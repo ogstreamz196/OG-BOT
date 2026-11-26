@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-- **Boss's Claude · 2026-11-26 · #PRNUM** · Stripe: OG B0T's own webhook
+- **Boss's Claude · 2026-11-26 · #342** · Stripe: OG B0T's own webhook
   had refused live events since 22 Nov (a £50 PRO Yearly purchase); it now
   tries every saved signing secret. Event handling moved to
   `stripe-events.server.ts`; checkouts carry `metadata.app = "og_bot"`;
