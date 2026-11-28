@@ -326,6 +326,9 @@ merged work, not open work.
 
 ## Log
 
+### 2026-11-28: MetaApi through the OGSTREAMZ hub (#351)
+The MetaApi token now lives only in the hub: the `ogstreamz-metaapi` Edge Function (supabase/hub/functions/ogstreamz-metaapi, deployed with JWT checks off, callers checked as hub servers) forwards a fixed list of account calls for the one account in its own secrets. OG B0T no longer needs a MetaApi token of its own: `metaApi()` in mt5-autotrade.server.ts calls the hub through `hubFunction()` (ai-keys.server.ts) whenever METAAPI_TOKEN is not set here, so MT5 no longer depends on Lovable secrets. A local token still works as before. Checked: the hub returns 401 to unauthenticated calls. Not yet tested on the authorised path against the live account.
+
 ### 2026-11-28: Connect the MT5 account online (#346)
 The Boss asked for the bot to connect to a demo or live MT5 account online, from the Copy Trader B0T's Telegram chat and from the Signals settings. New `mt5-link.server.ts` creates the MetaApi cloud account from a form (password never stored), makes it the bot's account and shows the status. The Boss's chat on the copy bot gets the status and a Connect button to the secure form; others see the same reply as before. Demo first; live only after typing LIVE. Note: `mt5-account.server.ts` is the copier's token check, unchanged. Not yet verified against MetaApi's live provisioning API.
 

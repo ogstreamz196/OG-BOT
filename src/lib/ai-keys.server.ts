@@ -120,6 +120,34 @@ export async function openKey(sealed: string, secret: string): Promise<string | 
   }
 }
 
+/** Calls one of the hub's Edge Functions with the hub key (never exposed). Null without the key or on failure. */
+export async function hubFunction<T = unknown>(
+  name: string,
+  body: unknown,
+  timeoutMs = 20_000,
+): Promise<{ status: number; data: T | null } | null> {
+  const cfg = hubConfig();
+  if (!cfg) return null;
+  try {
+    const headers: Record<string, string> = { apikey: cfg.key, "Content-Type": "application/json" };
+    if (cfg.key.startsWith("eyJ")) headers.Authorization = `Bearer ${cfg.key}`;
+    const res = await fetch(`${cfg.url}/functions/v1/${name}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const j = (await res.json().catch(() => null)) as { status?: number; data?: T } | null;
+    return { status: j?.status ?? res.status, data: (j?.data as T) ?? null };
+  } catch {
+    return null;
+  }
+}
+
+export function hubMetaApiSet(): boolean {
+  return !!hubConfig();
+}
+
 export async function hub(path: string, init: RequestInit = {}): Promise<Response> {
   const cfg = hubConfig();
   if (!cfg) throw new Error("hub key not set");

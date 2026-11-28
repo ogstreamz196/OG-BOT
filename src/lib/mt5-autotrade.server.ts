@@ -15,6 +15,7 @@
 import type { SignalPlan } from "./trade-signal-context.server";
 import { SIGNAL_MARKETS } from "./signal-markets";
 import { linkedAccountId, loadLinkedAccount } from "./mt5-link.server";
+import { hubFunction, hubMetaApiSet } from "./ai-keys.server";
 
 type Admin = any;
 
@@ -50,8 +51,12 @@ export type Mt5Trade = {
 
 /* ── MetaApi ──────────────────────────────────────────────────────────── */
 
+/**
+ * Whether MetaApi can be reached: directly (a token and account here), or through the OGSTREAMZ hub's
+ * ogstreamz-metaapi function, which keeps the token in the hub (independent of Lovable).
+ */
 export function metaApiConfigured(): boolean {
-  return !!process.env["METAAPI_TOKEN"] && !!linkedAccountId();
+  return (!!process.env["METAAPI_TOKEN"] && !!linkedAccountId()) || hubMetaApiSet();
 }
 
 function base(): string {
@@ -66,7 +71,17 @@ export async function metaApi<T = unknown>(
   init: { method?: "GET" | "POST"; body?: unknown; timeoutMs?: number } = {},
 ): Promise<{ ok: boolean; status: number; data: T | null }> {
   const token = process.env["METAAPI_TOKEN"];
-  if (!token || !linkedAccountId()) return { ok: false, status: 0, data: null };
+  if (!token || !linkedAccountId()) {
+    // No token here: the call goes through the hub, which holds it (only the calls it allows).
+    if (!hubMetaApiSet()) return { ok: false, status: 0, data: null };
+    const r = await hubFunction<T>(
+      "ogstreamz-metaapi",
+      { method: init.method ?? "GET", path, body: init.body },
+      init.timeoutMs ?? 15_000,
+    );
+    if (!r) return { ok: false, status: 0, data: null };
+    return { ok: r.status >= 200 && r.status < 300, status: r.status, data: r.data };
+  }
   try {
     const res = await fetch(`${base()}${path}`, {
       method: init.method ?? "GET",
