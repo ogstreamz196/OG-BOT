@@ -1,7 +1,7 @@
-import { lazy, Suspense } from "react";
-import { createFileRoute, Link, Navigate, redirect } from "@tanstack/react-router";
+import React, { lazy, Suspense, useState } from "react";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { Capacitor } from "@capacitor/core";
-import { Bot, Cpu, FlaskConical, Radio, Trophy, Wrench } from "lucide-react";
+import { Radio } from "lucide-react";
 import { useRole } from "@/hooks/use-role";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { BossNav } from "@/components/admin/BossNav";
@@ -59,46 +59,80 @@ const SignalsBacktestPanel = lazy(() =>
   })),
 );
 
-/** The deep tools, one tap from the Control Room (hidden tabs, so old links still work). */
-const MORE_TOOLS: { tab: string; label: string }[] = [
-  { tab: "results", label: "Full results & HFT lab" },
-  { tab: "tweaker", label: "Tuning" },
-  { tab: "backtest", label: "Backtest" },
-  { tab: "bots", label: "Bot fleet & groups" },
-  { tab: "mt5", label: "MT5 auto-trading" },
-];
+type SectionKey =
+  | "switches"
+  | "reset"
+  | "mt5"
+  | "bots"
+  | "tokens"
+  | "record"
+  | "members"
+  | "results"
+  | "tuning"
+  | "backtest";
 
 /**
- * The Signals Control Room (the Boss, 2026-11-21: "reconstruct the section for
- * all signal controls into a one page control room, remove the clutter … my
- * Boss controls for the signal Telegram group"). In order: the switchboard
- * with the live scan status (the same switches as the Copy Trader B0T's
- * card), purge & reset, the OG SIGNAL BOT tokens, the record, whether every
- * bot's Telegram link is up, and the members' web page switch. The deep tools
- * are a row of links at the bottom.
+ * Everything that runs the signals group, on one page (the Boss, 2026-11-28: "merge all signal stuff
+ * under 1 tab"). Each area is a collapsible section; one opens at a time, and a section loads its
+ * panels only when it's opened. Old tab links still work: they open their section here.
  */
-function ControlRoom() {
+const SECTIONS: { key: SectionKey; title: string; hint: string; body: () => React.ReactNode }[] = [
+  { key: "switches", title: "Switchboard & live scan", hint: "Turn signals, copying, HFT and the members' switches on and off.", body: () => <TradingSwitchesPanel /> },
+  { key: "reset", title: "Purge & reset", hint: "Clear the signals group and restart the counter, from your real balance.", body: () => <SignalsChatResetPanel /> },
+  { key: "mt5", title: "MT5 account & auto-trading", hint: "Connect demo or live MetaApi, and turn auto-trading on or off.", body: () => <Mt5Panel /> },
+  {
+    key: "bots",
+    title: "Copy trader & Telegram bots",
+    hint: "The copy trade bot, the worker bots and the groups they post in.",
+    body: () => (
+      <>
+        <WebhookKeeperPanel />
+        <TelegramWebhookStatus />
+        <TelegramFleetPanel />
+        <TelegramGroupsPanel />
+      </>
+    ),
+  },
+  { key: "tokens", title: "OG SIGNAL BOT tokens", hint: "Tokens sold to members to connect their own devices.", body: () => <SignalTokensPanel /> },
+  { key: "record", title: "Record", hint: "The win and loss record every signal counts toward.", body: () => <SignalRecordPanel /> },
+  { key: "members", title: "Members' web page", hint: "Whether members can open the signals board on the website.", body: () => <SignalsPortalPanel /> },
+  { key: "results", title: "Results & HFT lab", hint: "Each strategy's scoreboard, why trades lost, the HFT lab and the deep report.", body: () => <Results /> },
+  { key: "tuning", title: "Tuning", hint: "Every signal knob, strategy and the learning data in one place.", body: () => <TradeTweakerPanel /> },
+  { key: "backtest", title: "Backtest", hint: "Take profit sizes on stored setups, and how signals would have done on past prices.", body: () => <Backtest /> },
+];
+
+/** One collapsible page for everything that runs the signals group. `open` opens one section first. */
+function ControlRoom({ open }: { open?: SectionKey }) {
+  const [current, setCurrent] = useState<SectionKey | null>(open ?? "switches");
   return (
-    <>
-      <TradingSwitchesPanel />
-      <SignalsChatResetPanel />
-      <SignalTokensPanel />
-      <SignalRecordPanel />
-      <WebhookKeeperPanel />
-      <SignalsPortalPanel />
-      <nav aria-label="More signal tools" className="mt-6 flex flex-wrap gap-2">
-        {MORE_TOOLS.map((t) => (
-          <Link
-            key={t.tab}
-            to="/admin/signals"
-            search={{ tab: t.tab }}
-            className="rounded-lg border border-border bg-card/60 px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-          >
-            {t.label} →
-          </Link>
-        ))}
-      </nav>
-    </>
+    <div className="space-y-2" aria-label="Signals control room">
+      {SECTIONS.map((sec) => {
+        const isOpen = current === sec.key;
+        return (
+          <section key={sec.key} className={`overflow-hidden rounded-2xl border bg-card/60 ${isOpen ? "border-primary/50" : "border-border"}`}>
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 p-4 text-left"
+              aria-expanded={isOpen}
+              onClick={() => setCurrent(isOpen ? null : sec.key)}
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="font-bold text-foreground">{sec.title}</span>
+                <span className="text-sm text-muted-foreground">{sec.hint}</span>
+              </span>
+              <span aria-hidden="true" className={`text-xl text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span>
+            </button>
+            {isOpen ? (
+              <div className="space-y-4 border-t border-border p-4">
+                <Suspense fallback={<div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>}>
+                  {sec.body()}
+                </Suspense>
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -160,51 +194,16 @@ function Bots() {
 const SIGNALS_TABS: readonly BossTab[] = [
   {
     value: "controls",
-    label: "Control room",
+    label: "Signals",
     Icon: Radio,
-    hint: "Everything that runs the signals group on one page: the switchboard, purge & reset, OG SIGNAL BOT tokens, the record and the bots.",
-    Panel: ControlRoom,
+    hint: "Everything that runs the signals group, on one page.",
+    Panel: () => <ControlRoom />,
   },
-  {
-    value: "tweaker",
-    label: "Tuning",
-    Icon: Wrench,
-    hint: "Every signal knob, strategy and the learning data in one place.",
-    Panel: TradeTweakerPanel,
-    hidden: true,
-  },
-  {
-    value: "results",
-    label: "Results",
-    Icon: Trophy,
-    hint: "Each strategy's scoreboard, why trades lost, the HFT lab and the deep report.",
-    Panel: Results,
-    hidden: true,
-  },
-  {
-    value: "backtest",
-    label: "Backtest",
-    Icon: FlaskConical,
-    hint: "The take profit size compared on stored setups, and how signals would have done on past prices.",
-    Panel: Backtest,
-    hidden: true,
-  },
-  {
-    value: "bots",
-    label: "Bots",
-    Icon: Bot,
-    hint: "The main Telegram webhook, the worker bots and the groups they post in.",
-    Panel: Bots,
-    hidden: true,
-  },
-  {
-    value: "mt5",
-    label: "MT5 auto-trading",
-    Icon: Cpu,
-    hint: "The MetaApi auto-trading on the Boss's MT5 account (the copier on a PC or VPS is the main way now).",
-    Panel: Mt5Panel,
-    hidden: true,
-  },
+  { value: "tweaker", label: "tweaker", Icon: Radio, hint: "Now part of Signals.", Panel: () => <ControlRoom open="tuning" />, hidden: true },
+  { value: "results", label: "results", Icon: Radio, hint: "Now part of Signals.", Panel: () => <ControlRoom open="results" />, hidden: true },
+  { value: "backtest", label: "backtest", Icon: Radio, hint: "Now part of Signals.", Panel: () => <ControlRoom open="backtest" />, hidden: true },
+  { value: "bots", label: "bots", Icon: Radio, hint: "Now part of Signals.", Panel: () => <ControlRoom open="bots" />, hidden: true },
+  { value: "mt5", label: "mt5", Icon: Radio, hint: "Now part of Signals.", Panel: () => <ControlRoom open="mt5" />, hidden: true },
 ];
 
 function AdminSignalsPage() {
