@@ -326,6 +326,9 @@ merged work, not open work.
 
 ## Log
 
+### 2026-11-28: Apple sign-in removed (#343)
+The Boss asked to remove Apple sign-in. The welcome page now offers only "Continue with Google" (full width) plus username/email; the Apple button and icon are gone, and the privacy, trust and change-password wording says Google only. 26 accounts were Apple-only (last Apple sign-in 17 Oct); the Boss chose complete removal knowing they can no longer sign in. Code that recognises existing Apple identities (username prompt, setup reminder) stays, harmless. The Apple provider is still switched on in the hub's Supabase Auth settings; turning it off there is a dashboard step.
+
 - **Boss's Claude · 2026-11-26 · #342** · Stripe: OG B0T's own webhook
   had refused live events since 22 Nov (a £50 PRO Yearly purchase); it now
   tries every saved signing secret. Event handling moved to

@@ -141,7 +141,7 @@ function ChangePasswordPage() {
         ) : !hasPasswordIdentity ? (
           <div className="space-y-3 text-center">
             <p className="text-sm text-muted-foreground">
-              This account signs in with Google or Apple, so there's no password to change. Manage
+              This account signs in with Google, so there's no password to change. Manage
               it with your provider instead.
             </p>
             <Button asChild variant="secondary" className="w-full">
