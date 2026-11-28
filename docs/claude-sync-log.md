@@ -326,6 +326,9 @@ merged work, not open work.
 
 ## Log
 
+### 2026-11-28: MT5 status reads the hub (#PR)
+With no local MetaApi token, the MT5 status no longer shows "no token" or "not linked" just because the bot has no saved link. `linkState()` reads the hub's account-information and shows the account it trades on (login, server and mode from MetaApi, `linkFromHubInfo`), so the status and balance follow the hub account. The connect form says that new accounts can't be added from the site yet, instead of asking for a token the site doesn't have. Checked: typecheck, vitest, build. Not checked against the live account, which is still Disconnected in MetaApi (broker login, not wiring).
+
 ### 2026-11-28: MetaApi through the OGSTREAMZ hub (#351)
 The MetaApi token now lives only in the hub: the `ogstreamz-metaapi` Edge Function (supabase/hub/functions/ogstreamz-metaapi, deployed with JWT checks off, callers checked as hub servers) forwards a fixed list of account calls for the one account in its own secrets. OG B0T no longer needs a MetaApi token of its own: `metaApi()` in mt5-autotrade.server.ts calls the hub through `hubFunction()` (ai-keys.server.ts) whenever METAAPI_TOKEN is not set here, so MT5 no longer depends on Lovable secrets. A local token still works as before. Checked: the hub returns 401 to unauthenticated calls. Not yet tested on the authorised path against the live account.
 
