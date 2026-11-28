@@ -143,7 +143,7 @@ function PolicyPage() {
             </p>
             <ul className="ml-5 list-disc space-y-1">
               <li>
-                <strong className="text-foreground">Google &amp; Apple</strong> — sign-in (OAuth)
+                <strong className="text-foreground">Google</strong> — sign-in (OAuth)
                 and account identity.
               </li>
               <li>

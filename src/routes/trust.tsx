@@ -67,7 +67,7 @@ function TrustPage() {
         <div className="landing-grid">
           <Section icon={UserCheck} title="Accounts &amp; authentication">
             <p>
-              You sign in with Google or Apple via secure OAuth — OG Studio never sees or stores
+              You sign in with Google via secure OAuth — OG Studio never sees or stores
               your provider password. Your session is held in your browser and can be ended at any
               time by signing out.
             </p>

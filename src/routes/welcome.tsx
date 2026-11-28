@@ -113,7 +113,8 @@ export const Route = createFileRoute("/welcome")({
   }),
 });
 
-type OAuthProvider = "google" | "apple";
+// Apple sign-in was removed on the owner's say-so (2026-11-28); Google is the only social sign-in.
+type OAuthProvider = "google";
 
 function useIsNativeApp() {
   const [native, setNative] = useState(() => Capacitor.isNativePlatform());
@@ -279,14 +280,6 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-function AppleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden fill="currentColor">
-      <path d="M16.4 12.7c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.6-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.1 2.5-1.8 3.1-.5 7.6 1.2 10.1.9 1.2 1.9 2.6 3.2 2.5 1.3-.1 1.8-.8 3.4-.8s2 .8 3.4.8c1.4 0 2.3-1.2 3.2-2.5.7-1 1.2-2.1 1.5-3.3-2.5-.9-3.2-2.7-3.2-3.5zM13.8 5.2c.7-.9 1.2-2 1.1-3.2-1 0-2.3.7-3 1.6-.6.8-1.2 2-1 3.1 1.1.1 2.2-.6 2.9-1.5z" />
-    </svg>
-  );
-}
-
 type Device = {
   key: string;
   label: string;
@@ -297,13 +290,6 @@ type Device = {
 
 const PRIMARY_DEVICES: Device[] = [
   { key: "google", label: "Continue with Google", provider: "google", Icon: GoogleIcon },
-  {
-    key: "apple",
-    label: "Continue with Apple ID",
-    provider: "apple",
-    Icon: AppleIcon,
-    iconClass: "text-black",
-  },
 ];
 
 function AuthButtons({ initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab }) {
@@ -328,7 +314,7 @@ function AuthButtons({ initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab 
 
       {!native && (
         <>
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <div className="mt-2.5 grid grid-cols-1 gap-2">
             {PRIMARY_DEVICES.map((d) => (
               <Button
                 key={d.key}
@@ -341,12 +327,10 @@ function AuthButtons({ initialTab }: { size?: "lg" | "xl"; initialTab?: AuthTab 
               >
                 {pending === d.provider ? (
                   <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                ) : d.provider === "google" ? (
-                  <GoogleIcon className="h-5 w-5 shrink-0" />
                 ) : (
-                  <AppleIcon className="h-5 w-5 shrink-0 text-foreground" />
+                  <GoogleIcon className="h-5 w-5 shrink-0" />
                 )}
-                <span className="truncate">{d.provider === "google" ? "Google" : "Apple"}</span>
+                <span className="truncate">Continue with Google</span>
               </Button>
             ))}
           </div>
@@ -431,7 +415,7 @@ function EmailAuthPanel({
     const isEmail = handle.includes("@");
     const usernameOff = native
       ? "Username sign-in is unavailable right now. Please try again shortly."
-      : "Username sign-in is switched off right now — use Google or Apple, or try again shortly.";
+      : "Username sign-in is switched off right now — use Google, or try again shortly.";
 
     if (tab === "signin") {
       if (!handle) {
@@ -759,7 +743,7 @@ function GuestWizard() {
     } catch {
       /* storage blocked */
     }
-    // Send them to the studio after sign-in (survives Google/Apple round-trip).
+    // Send them to the studio after sign-in (survives the Google round-trip).
     const url = new URL(window.location.href);
     url.searchParams.set("next", "/library");
     window.history.replaceState(null, "", url.toString());
