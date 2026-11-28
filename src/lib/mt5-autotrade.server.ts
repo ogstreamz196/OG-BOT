@@ -104,7 +104,8 @@ export function realBalanceLine(balance: number): string {
 export async function realAccountLine(admin: Admin): Promise<string | null> {
   try {
     await loadLinkedAccount(admin);
-    if (!metaApiConfigured() || !(await autotradeOn(admin))) return null;
+    // Connecting the account is what counts (the Boss, 2026-11-28): no need to switch auto-trading on.
+    if (!metaApiConfigured()) return null;
     const r = await metaApi<AccountInfo>("/account-information", { timeoutMs: 8_000 });
     const b = r.ok ? r.data?.balance : undefined;
     return typeof b === "number" && Number.isFinite(b) ? realBalanceLine(b) : null;
