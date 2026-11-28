@@ -22,7 +22,8 @@ export function isValidUsername(v: string) {
 
 /**
  * Asks Google/Apple accounts to choose a username (their profile name).
- * Closable, but reopens on every new sign-in (per browser session) until done.
+ * Required (the Boss, 2026-11-28: every account needs a username): it opens after sign-in and
+ * can't be closed until a username is saved.
  */
 export function UsernamePrompt() {
   const { user } = useAuth();
@@ -45,15 +46,15 @@ export function UsernamePrompt() {
 
   useEffect(() => {
     if (!needsName || !key) return;
-    if (sessionStorage.getItem(key)) return;
-    const t = setTimeout(() => setOpen(true), 1500);
+    const t = setTimeout(() => setOpen(true), 800);
     return () => clearTimeout(t);
   }, [needsName, key]);
 
+  // Can't be dismissed: only saving a username closes it.
   const close = (v: boolean) => {
-    setOpen(v);
-    if (!v && key) sessionStorage.setItem(key, "1");
+    if (v) setOpen(true);
   };
+  const done = () => setOpen(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -74,7 +75,7 @@ export function UsernamePrompt() {
     }
     toast.success(`You're ${value} now.`);
     await qc.invalidateQueries({ queryKey: ["profile"] });
-    close(false);
+    done();
   };
 
   if (!needsName) return null;
@@ -103,9 +104,6 @@ export function UsernamePrompt() {
           />
           <Button type="submit" disabled={busy || !isValidUsername(name)} className="h-12 w-full">
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Save username"}
-          </Button>
-          <Button type="button" variant="ghost" className="w-full" onClick={() => close(false)}>
-            Remind me next time
           </Button>
         </form>
       </DialogContent>

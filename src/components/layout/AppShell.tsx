@@ -29,6 +29,8 @@ import { AppSidebar } from "./AppSidebar";
 import { VipTrialWelcome } from "./VipTrialWelcome";
 import { VipNamePrompt } from "@/components/vip/VipNamePrompt";
 import { SetupReminderBar } from "@/components/auth/SetupReminderBar";
+import { UsernamePrompt } from "@/components/auth/UsernamePrompt";
+import { RecoveryEmailPrompt } from "@/components/auth/RecoveryEmailPrompt";
 import { HighContrastToggle } from "./HighContrastToggle";
 import { WelcomeBackdrop } from "./WelcomeBackdrop";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -273,6 +275,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </header>
             {/* The one setup reminder (Telegram, then email): no pop-up. */}
             <SetupReminderBar />
+            <UsernamePrompt />
+            <RecoveryEmailPrompt />
 
             {!roleLoading && isAdmin && !pathname.startsWith("/messenger") && (
               <div className="flex items-center justify-center gap-1.5 border-b border-primary/30 bg-primary/10 px-4 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider text-primary md:hidden">
