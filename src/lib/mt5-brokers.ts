@@ -13,7 +13,13 @@ export const BROKERS: Broker[] = [
   {
     id: "vantage",
     name: "Vantage Markets Pty",
-    servers: ["Vantage-Demo", "Vantage-Live", "Vantage International-Live", "Vantage International-Demo"],
+    servers: [
+      "VantageMarkets-Live 4",
+      "Vantage-Demo",
+      "Vantage-Live",
+      "Vantage International-Live",
+      "Vantage International-Demo",
+    ],
   },
   { id: "other", name: "Other broker (type the server)", servers: [] },
 ];
