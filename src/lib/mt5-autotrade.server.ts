@@ -89,6 +89,28 @@ export type AccountInfo = {
   login?: number;
 };
 
+/** The real account's balance as the signals chat shows it. Pure. */
+export function realBalanceLine(balance: number): string {
+  const text = balance.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `💰 Real account: $${text.replace(/\.00$/, "")}`;
+}
+
+/**
+ * The results post's line for the real MT5 account (the Boss's choice, 2026-11-28: the group shows
+ * the real account instead of the demo once it's trading). Null when MetaApi isn't linked or
+ * auto-trading is off, so the demo line stays. Never throws.
+ */
+export async function realAccountLine(admin: Admin): Promise<string | null> {
+  try {
+    if (!metaApiConfigured() || !(await autotradeOn(admin))) return null;
+    const r = await metaApi<AccountInfo>("/account-information", { timeoutMs: 8_000 });
+    const b = r.ok ? r.data?.balance : undefined;
+    return typeof b === "number" && Number.isFinite(b) ? realBalanceLine(b) : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ── Settings ─────────────────────────────────────────────────────────── */
 
 async function setting(admin: Admin, key: string): Promise<string | null> {

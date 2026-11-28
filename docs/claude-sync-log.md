@@ -326,6 +326,9 @@ merged work, not open work.
 
 ## Log
 
+### 2026-11-28: Real MT5 account on the signals results post (#345)
+The Boss asked for the real MT5 account to be linked online (MetaApi, no PC) and for the signals group's results post to show the real account instead of the demo once it's trading. `realAccountLine` reads MetaApi's balance while auto-trading is on, and `refreshScore` shows it in place of the demo line; the demo stays when MetaApi is unlinked or auto-trading is off. Tests: src/lib/real-account-line.test.ts. Not yet verified against a live MetaApi account (no token in this session): check the results post after the next real trade.
+
 ### 2026-11-28: Username and email required at sign-up (#344)
 The Boss: sign up with Google, email or username; Google needs no email; everyone needs a username; username accounts need an email; existing username accounts stay and are asked for an email when they sign in. Create account now asks for a username and an email (confirmation link sent straight after); Google accounts must pick a username (prompt can't be closed); older username-only accounts get "Add your email" on each sign-in (postponable). Details in AGENTS.md. Correction to #343's note: the "26 Apple-only accounts" count came from the OGSTREAMZ hub, not OG B0T's own auth project (Lovable Cloud, not reachable from Claude), so OG B0T's real Apple-only count is unknown.
 

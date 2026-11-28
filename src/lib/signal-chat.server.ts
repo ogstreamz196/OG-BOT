@@ -166,6 +166,10 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     const pa = await import("./paper-account.server");
     const state = await pa.paperState(admin).catch(() => null);
     const tally = state ? await pa.demoResults(admin, state).catch(() => null) : null;
+    // Once the Boss's real MT5 account is linked and trading, its balance replaces the demo's
+    // (the Boss, 2026-11-28); the demo's per-market lines are then left out.
+    const { realAccountLine } = await import("./mt5-autotrade.server");
+    const real = await realAccountLine(admin).catch(() => null);
     // The Copy Trader B0T keeps the tally when it's set up (the Boss's split):
     // it posts the post, with the trades it's copying right now on top.
     const copier = await copyBot(admin, chatId);
@@ -177,14 +181,16 @@ export async function refreshScore(admin: Admin, chatId: number): Promise<string
     const message = {
       chat_id: chatId,
       reply_markup: GENERATE_SIGNAL_KEYBOARD,
-      text: tally
-        ? resultsAnnouncement(
-            record,
-            pa.demoLine(state!.start, tally.balance),
-            tally.byMarket,
-            copier ? { copying } : null,
-          )
-        : resultsAnnouncement(record, null, null, copier ? { copying } : null),
+      text: real
+        ? resultsAnnouncement(record, real, null, copier ? { copying } : null)
+        : tally
+          ? resultsAnnouncement(
+              record,
+              pa.demoLine(state!.start, tally.balance),
+              tally.byMarket,
+              copier ? { copying } : null,
+            )
+          : resultsAnnouncement(record, null, null, copier ? { copying } : null),
       disable_notification: true,
       disable_web_page_preview: true,
     };
