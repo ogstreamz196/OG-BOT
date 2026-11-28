@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-### 2026-11-28: Real MT5 account on the signals results post (#PRNUM)
+### 2026-11-28: Real MT5 account on the signals results post (#345)
 The Boss asked for the real MT5 account to be linked online (MetaApi, no PC) and for the signals group's results post to show the real account instead of the demo once it's trading. `realAccountLine` reads MetaApi's balance while auto-trading is on, and `refreshScore` shows it in place of the demo line; the demo stays when MetaApi is unlinked or auto-trading is off. Tests: src/lib/real-account-line.test.ts. Not yet verified against a live MetaApi account (no token in this session): check the results post after the next real trade.
 
 ### 2026-11-28: Username and email required at sign-up (#344)
