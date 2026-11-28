@@ -182,10 +182,12 @@ export async function linkState(
     const r = await hubFunction<HubAccountInfo>("ogstreamz-metaapi", { method: "GET", path: "/account-information" }, 10_000);
     const info = r && r.status >= 200 && r.status < 300 && r.data ? r.data : null;
     if (!info) return account ? { account, state: "unknown", connection: "unknown" } : null;
+    // MetaApi answers from its last known data even when the broker link is down, so an answer is
+    // not proof of a connection. Only MetaApi's own page shows that, so the site doesn't claim it.
     return {
       account: account ?? linkFromHubInfo(info),
-      state: "DEPLOYED",
-      connection: "CONNECTED",
+      state: "answering",
+      connection: "not confirmed (check MetaApi)",
     };
   }
   if (!account) return null;
