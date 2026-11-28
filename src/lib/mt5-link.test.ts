@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkConnectInput, parseLink } from "./mt5-link.server";
+import { checkConnectInput, linkFromHubInfo, parseLink } from "./mt5-link.server";
 
 const base = { mode: "demo" as const, login: "12345678", server: "Vantage-Demo", password: "secret" };
 
@@ -37,5 +37,16 @@ describe("parseLink", () => {
   });
   it("defaults an unknown mode to demo", () => {
     expect(parseLink(JSON.stringify({ id: "a", mode: "weird" }))?.mode).toBe("demo");
+  });
+});
+
+describe("linkFromHubInfo", () => {
+  it("reads the login and server MetaApi reports for the hub account", () => {
+    const acc = linkFromHubInfo({ login: "36199162", server: "VantageMarkets-Live 4", type: "ACCOUNT_TRADE_MODE_REAL" });
+    expect(acc).toMatchObject({ id: "hub", login: "36199162", server: "VantageMarkets-Live 4", mode: "live" });
+  });
+  it("treats a DEMO trade mode as demo and anything unknown as live", () => {
+    expect(linkFromHubInfo({ type: "ACCOUNT_TRADE_MODE_DEMO" }).mode).toBe("demo");
+    expect(linkFromHubInfo({}).mode).toBe("live");
   });
 });

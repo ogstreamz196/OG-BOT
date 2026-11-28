@@ -4,6 +4,8 @@
 // never stored, logged or sent anywhere else. The site keeps only the MetaApi account id and the
 // login, server and mode, in site_content "mt5.account". Server only. Never throws to the caller.
 
+import { hubFunction, hubMetaApiSet } from "./ai-keys.server";
+
 type Admin = any;
 
 export const LINK_KEY = "mt5.account";
@@ -93,6 +95,12 @@ export async function connectAccount(
   const problem = checkConnectInput(input);
   if (problem) return { ok: false, error: problem };
   const token = process.env["METAAPI_TOKEN"];
+  if (!token && hubMetaApiSet()) {
+    return {
+      ok: false,
+      error: "New accounts can't be added from this page yet. The bot's MetaApi account is already set up in the hub.",
+    };
+  }
   if (!token) return { ok: false, error: "MetaApi isn't set up yet (the MetaApi token is missing)." };
   const login = input.login.trim();
   const server = input.server.trim();
@@ -148,13 +156,39 @@ export async function connectAccount(
   }
 }
 
+/** The fields MetaApi's account-information returns that the link needs. */
+export type HubAccountInfo = { login?: unknown; server?: unknown; type?: unknown };
+
+/**
+ * The account the hub holds, described the way the site stores a link. MetaApi reports a demo
+ * account with a DEMO trade mode, so anything else counts as live. Pure.
+ */
+export function linkFromHubInfo(info: HubAccountInfo, linkedAt = ""): LinkedAccount {
+  const login = String(info.login ?? "");
+  const server = String(info.server ?? "");
+  const mode: "demo" | "live" = /DEMO/i.test(String(info.type ?? "")) ? "demo" : "live";
+  return { id: "hub", mode, login, server, name: "OG B0T (hub)", linkedAt };
+}
+
 /** The connected account's state on MetaApi (deploying, connected…). Never throws. */
 export async function linkState(
   admin: Admin,
 ): Promise<{ account: LinkedAccount; state: string; connection: string } | null> {
   const account = await loadLinkedAccount(admin);
   const token = process.env["METAAPI_TOKEN"];
-  if (!account || !token) return account ? { account, state: "no token", connection: "unknown" } : null;
+  if (!token) {
+    // No token here: MetaApi is reached through the hub, which holds the one account the bot uses.
+    if (!hubMetaApiSet()) return account ? { account, state: "no token", connection: "unknown" } : null;
+    const r = await hubFunction<HubAccountInfo>("ogstreamz-metaapi", { method: "GET", path: "/account-information" }, 10_000);
+    const info = r && r.status >= 200 && r.status < 300 && r.data ? r.data : null;
+    if (!info) return account ? { account, state: "unknown", connection: "unknown" } : null;
+    return {
+      account: account ?? linkFromHubInfo(info),
+      state: "DEPLOYED",
+      connection: "CONNECTED",
+    };
+  }
+  if (!account) return null;
   try {
     const res = await fetch(`${PROVISIONING}/users/current/accounts/${encodeURIComponent(account.id)}`, {
       headers: { "auth-token": token },
