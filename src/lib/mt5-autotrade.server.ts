@@ -102,13 +102,22 @@ export function realBalanceLine(balance: number): string {
  * auto-trading is off, so the demo line stays. Never throws.
  */
 export async function realAccountLine(admin: Admin): Promise<string | null> {
+  const b = await realBalance(admin);
+  return b == null ? null : realBalanceLine(b);
+}
+
+/**
+ * The connected real account's balance in dollars, or null when no account is connected or MetaApi
+ * can't say. Connecting the account is what counts (the Boss, 2026-11-28): auto-trading needn't be on.
+ * Never throws.
+ */
+export async function realBalance(admin: Admin): Promise<number | null> {
   try {
     await loadLinkedAccount(admin);
-    // Connecting the account is what counts (the Boss, 2026-11-28): no need to switch auto-trading on.
     if (!metaApiConfigured()) return null;
     const r = await metaApi<AccountInfo>("/account-information", { timeoutMs: 8_000 });
     const b = r.ok ? r.data?.balance : undefined;
-    return typeof b === "number" && Number.isFinite(b) ? realBalanceLine(b) : null;
+    return typeof b === "number" && Number.isFinite(b) ? b : null;
   } catch {
     return null;
   }

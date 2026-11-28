@@ -46,7 +46,9 @@ function ConnectAccount() {
       if (r.ok) {
         setPassword("");
         setConfirm("");
-        toast.success(`${mode === "live" ? "Live" : "Demo"} account connected. It's starting up.`);
+        toast.success(`${mode === "live" ? "Live" : "Demo"} account connected. The signals group now shows it.`, {
+          description: "It can take a minute for MetaApi to start the account. The status above turns to connected when it's ready.",
+        });
         await qc.invalidateQueries({ queryKey: ["mt5-link"] });
         await qc.invalidateQueries({ queryKey: KEY });
       } else {
@@ -119,7 +121,7 @@ function ConnectAccount() {
             ))}
           </select>
         </label>
-        <Input placeholder="Account number (login)" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} />
+        <Input placeholder="Account number (login)" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value.replace(/\D/g, ""))} />
         <label className="space-y-1 text-sm">
           <span className="text-muted-foreground">Server (from your MT5 login screen)</span>
           <Input list="mt5-servers" placeholder="e.g. Vantage-Demo" value={server} onChange={(e) => setServer(e.target.value)} />
