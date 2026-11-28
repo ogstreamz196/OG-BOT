@@ -6,11 +6,117 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { getMt5Status, saveMt5Settings } from "@/lib/mt5.functions";
+import {
+  connectMt5Account,
+  disconnectMt5Account,
+  getMt5Link,
+  getMt5Status,
+  saveMt5Settings,
+} from "@/lib/mt5.functions";
 import { AdminSection } from "./AdminSection";
 import { SIGNAL_MARKETS } from "@/lib/signal-markets";
 
 const KEY = ["mt5-status"];
+
+/**
+ * Connects the Boss's MT5 account online (no PC): demo first, live only after typing LIVE. The password
+ * goes straight to MetaApi once and is never kept.
+ */
+function ConnectAccount() {
+  const qc = useQueryClient();
+  const readLink = useServerFn(getMt5Link);
+  const connect = useServerFn(connectMt5Account);
+  const disconnect = useServerFn(disconnectMt5Account);
+  const { data, isLoading } = useQuery({ queryKey: ["mt5-link"], queryFn: () => readLink() });
+  const [mode, setMode] = useState<"demo" | "live">("demo");
+  const [login, setLogin] = useState("");
+  const [server, setServer] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onConnect() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await connect({ data: { mode, login, server, password, confirm } });
+      if (r.ok) {
+        setPassword("");
+        setConfirm("");
+        toast.success(`${mode === "live" ? "Live" : "Demo"} account connected. It's starting up.`);
+        await qc.invalidateQueries({ queryKey: ["mt5-link"] });
+        await qc.invalidateQueries({ queryKey: KEY });
+      } else {
+        setError(r.error);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't connect");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDisconnect() {
+    if (!window.confirm("Unlink this account from the bot? Trades stop until you connect one again.")) return;
+    setBusy(true);
+    try {
+      await disconnect();
+      await qc.invalidateQueries({ queryKey: ["mt5-link"] });
+      toast.success("Account unlinked");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (isLoading || !data) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border p-3">
+      <p className="font-semibold">Connect your MT5 account</p>
+      {data.linked ? (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
+          <p className="font-bold text-emerald-300">
+            {data.mode === "live" ? "Live" : "Demo"} account linked · {data.server} · {data.login}
+          </p>
+          <p className="text-muted-foreground">
+            MetaApi status: {data.state}
+            {data.connection && data.connection !== "unknown" ? ` · connection ${data.connection}` : ""}
+          </p>
+          <Button className="mt-2" size="sm" variant="outline" disabled={busy} onClick={onDisconnect}>
+            Unlink account
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No account linked. Connect a demo account first and check it trades, then connect the live one.
+        </p>
+      )}
+      <div className="flex gap-2">
+        {(["demo", "live"] as const).map((m) => (
+          <Button key={m} size="sm" variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>
+            {m === "demo" ? "Demo account" : "Live account"}
+          </Button>
+        ))}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input placeholder="Account number (login)" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} />
+        <Input placeholder="Server, e.g. Vantage-Demo" value={server} onChange={(e) => setServer(e.target.value)} />
+        <Input type="password" autoComplete="off" placeholder="Account password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {mode === "live" ? (
+          <Input placeholder="Type LIVE to confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        The password is sent once to MetaApi to create the cloud account. The site doesn't keep it.
+      </p>
+      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      <Button disabled={busy || !login || !server || !password} onClick={onConnect}>
+        {busy ? "Connecting…" : `Connect ${mode === "live" ? "live" : "demo"} account`}
+      </Button>
+    </div>
+  );
+}
 
 /** Boss: auto-trading the Boss's own MT5 account, and the copy-trade link. */
 export function Mt5Panel() {
@@ -51,6 +157,7 @@ export function Mt5Panel() {
       title="MT5 auto-trading"
       subtitle="Your own Vantage MT5 account takes every 70%+ bitcoin alert at 0.01 lot, with the bot's stop loss and Quick Scalp as take profit. The copy bot announces each trade in the signals chat."
     >
+      <ConnectAccount />
       {isLoading || !data ? (
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       ) : (

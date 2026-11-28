@@ -378,7 +378,10 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
           }
           // The copy-trade bot: how to copy the Boss's trades, with the link.
           const { copyBotReply } = await import("@/lib/mt5-autotrade.server");
-          const copy = await copyBotReply(admin);
+          // The Boss's chat gets the MT5 connection status and button (the Boss's Telegram account only).
+          const { isBossChat } = await import("@/lib/copy-settings-bot.server");
+          const boss = await isBossChat(admin, msg.chat.id).catch(() => ({ ok: false }));
+          const copy = await copyBotReply(admin, { boss: boss.ok });
           await f.fleetApi(
             bot.id,
             "sendMessage",
@@ -387,8 +390,8 @@ export const Route = createFileRoute("/api/public/worker-bots/$id")({
               text: copy.text,
               // The copy link's button when there is one (a message has one
               // set of buttons); else the always-on signal button.
-              reply_markup: copy.link
-                ? { inline_keyboard: [[{ text: "📋 Copy my trades", url: copy.link }]] }
+              reply_markup: copy.buttons.length
+                ? { inline_keyboard: [copy.buttons] }
                 : GENERATE_SIGNAL_KEYBOARD,
             },
             key,

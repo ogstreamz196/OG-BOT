@@ -90,6 +90,61 @@ export const getMt5Status = createServerFn({ method: "GET" })
   });
 
 /** Boss: switch auto-trading on or off, and set the copy-trading link. */
+/** The connected MT5 account and its state on MetaApi (no password, ever). Boss only. */
+export const getMt5Link = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertBoss(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const acc = await import("./mt5-link.server");
+    const state = await acc.linkState(supabaseAdmin);
+    return state
+      ? {
+          linked: true as const,
+          mode: state.account.mode,
+          login: state.account.login,
+          server: state.account.server,
+          linkedAt: state.account.linkedAt,
+          state: state.state,
+          connection: state.connection,
+        }
+      : { linked: false as const };
+  });
+
+/**
+ * Connects the Boss's MT5 account (demo or live) through MetaApi. The password is used once to create
+ * the cloud account and is never stored. Boss only.
+ */
+export const connectMt5Account = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) =>
+    z
+      .object({
+        mode: z.enum(["demo", "live"]),
+        login: z.string().trim().max(20),
+        server: z.string().trim().max(120),
+        password: z.string().max(200),
+        confirm: z.string().max(10).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertBoss(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const acc = await import("./mt5-link.server");
+    return acc.connectAccount(supabaseAdmin, data);
+  });
+
+/** Unlinks the MT5 account from the bot (the MetaApi account is kept). Boss only. */
+export const disconnectMt5Account = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertBoss(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const acc = await import("./mt5-link.server");
+    return { ok: await acc.disconnectAccount(supabaseAdmin) };
+  });
+
 export const saveMt5Settings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d) =>
