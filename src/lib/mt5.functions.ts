@@ -109,9 +109,12 @@ export const getMt5Link = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const acc = await import("./mt5-link.server");
     const state = await acc.linkState(supabaseAdmin);
+    const { realBalance } = await import("./mt5-autotrade.server");
+    const balance = state ? await realBalance(supabaseAdmin).catch(() => null) : null;
     return state
       ? {
           linked: true as const,
+          balance,
           mode: state.account.mode,
           login: state.account.login,
           server: state.account.server,

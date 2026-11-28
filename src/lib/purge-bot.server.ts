@@ -43,7 +43,7 @@ export function resetAsk(text: string): { balance: number | null } | undefined {
 export function resetPanel(
   balance: number,
   current: { start: number; balance: number | null; startedAt: string } | null,
-  opts: { confirming?: boolean; note?: string } = {},
+  opts: { confirming?: boolean; note?: string; realBalance?: number | null } = {},
 ): ResetPanel {
   const since = current
     ? new Date(current.startedAt).toLocaleDateString("en-GB", {
@@ -80,10 +80,14 @@ export function resetPanel(
       },
     };
   const tick = (n: number) => `${n === balance ? "✅ " : ""}${money(n)}`;
+  const real = opts.realBalance != null ? Math.floor(opts.realBalance) : null;
   return {
     text,
     reply_markup: {
       inline_keyboard: [
+        ...(real != null && real >= MIN_BALANCE
+          ? [[{ text: `${real === balance ? "✅ " : ""}💰 Real account ${money(real)}`, callback_data: `rs:bal:${real}` }]]
+          : []),
         RESET_BALANCES.slice(0, 2).map((n) => ({ text: tick(n), callback_data: `rs:bal:${n}` })),
         RESET_BALANCES.slice(2).map((n) => ({ text: tick(n), callback_data: `rs:bal:${n}` })),
         [{ text: `🧹 Purge & reset at ${money(balance)}`, callback_data: `rs:ask:${balance}` }],
@@ -156,11 +160,19 @@ export async function resetReply(
   if (!ask) return null;
   if (!(await boss(admin, chatId)).ok) return null;
   const current = await currentAccount(admin);
+  // A connected real account: its balance is the start, unless a balance was typed.
+  const { realBalance } = await import("./mt5-autotrade.server");
+  const real = await realBalance(admin).catch(() => null);
+  const realBal = real != null ? Math.floor(real) : null;
   if (ask.balance == null)
-    return resetPanel(1000, current, {
-      note: `⚠️ Pick a start balance between ${money(MIN_BALANCE)} and ${money(MAX_BALANCE)}, e.g. /reset 2500`,
+    return resetPanel(realBal != null && realBal >= MIN_BALANCE ? realBal : 1000, current, {
+      realBalance: realBal,
+      note:
+        realBal != null
+          ? `💰 Real account connected: its balance starts the new run.`
+          : `⚠️ Pick a start balance between ${money(MIN_BALANCE)} and ${money(MAX_BALANCE)}, e.g. /reset 2500`,
     });
-  return resetPanel(ask.balance, current);
+  return resetPanel(ask.balance, current, { realBalance: realBal });
 }
 
 /** Where a queued purge reports back: the copy bot and the card it was asked from. */

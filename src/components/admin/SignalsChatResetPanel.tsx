@@ -20,6 +20,7 @@ import {
   purgeSignalsChat,
   startSignalsDemo,
 } from "@/lib/signals-chat.functions";
+import { getMt5Link } from "@/lib/mt5.functions";
 import { AdminSection } from "./AdminSection";
 
 const KEY = ["signals-chat-state"];
@@ -51,12 +52,18 @@ export function SignalsChatResetPanel() {
   const demo = useServerFn(startSignalsDemo);
   const { data, isLoading } = useQuery({ queryKey: KEY, queryFn: () => load() });
   const [balance, setBalance] = useState("1000");
+  // A connected real account starts the new run at its real balance (the Boss, 2026-11-28).
+  const link = useQuery({ queryKey: ["mt5-link"], queryFn: () => getMt5Link() });
+  const realBal = link.data?.linked ? (link.data.balance ?? null) : null;
+  useEffect(() => {
+    if (realBal != null) setBalance(String(Math.floor(realBal)));
+  }, [realBal]);
   const [confirm, setConfirm] = useState(false);
   const [confirmDemo, setConfirmDemo] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (data?.start) setBalance(String(data.start));
-  }, [data?.start]);
+    if (data?.start && realBal == null) setBalance(String(data.start));
+  }, [data?.start, realBal]);
 
   const amount = Number(balance);
   const valid = Number.isFinite(amount) && amount >= 10 && amount <= 1_000_000;
@@ -145,6 +152,11 @@ export function SignalsChatResetPanel() {
             <label className="font-bold text-foreground" htmlFor="fresh-balance">
               New starting balance (USD)
             </label>
+            {realBal != null ? (
+              <Button variant="outline" className="w-full" onClick={() => setBalance(String(Math.floor(realBal)))}>
+                💰 Use real account balance (${Math.floor(realBal).toLocaleString("en-GB")})
+              </Button>
+            ) : null}
             <div className="flex gap-2">
               <Input
                 id="fresh-balance"
