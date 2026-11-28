@@ -396,6 +396,8 @@ function EmailAuthPanel({
 }) {
   const native = useIsNativeApp();
   const [email, setEmail] = useState("");
+  // Create account asks for both (the Boss, 2026-11-28): a username to sign in with, and a real email.
+  const [contact, setContact] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -488,9 +490,21 @@ function EmailAuthPanel({
       return;
     }
 
-    // Create account.
-    if (!isEmail && normalizeHandle(handle).length < 3) {
+    // Create account: a username and a real email are both required (the Boss, 2026-11-28:
+    // "both require username, username requires email"). The account signs in with the
+    // username (its hidden placeholder address); the email is confirmed straight after, and
+    // username sign-in keeps working through the server lookup once it is.
+    if (isEmail) {
+      toast.error("Choose a username here. Your email goes in the box below.");
+      return;
+    }
+    if (normalizeHandle(handle).length < 3) {
       toast.error("Pick a username with at least 3 letters or numbers");
+      return;
+    }
+    const contactEmail = contact.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) || contactEmail.toLowerCase().endsWith(`@${USERNAME_DOMAIN}`)) {
+      toast.error("Enter your email address");
       return;
     }
     if (password.length < 6) {
@@ -550,7 +564,19 @@ function EmailAuthPanel({
         taken();
         return;
       }
-      toast.success("Account created — welcome to OG Streamz!");
+      // Attach the real email: Supabase emails a confirmation link to it.
+      const added = signUp.data.session
+        ? await supabase.auth.updateUser({ email: contactEmail }, { emailRedirectTo: `${window.location.origin}/` })
+        : { error: new Error("no session") };
+      if (added.error) {
+        toast.success("Account created — welcome to OG Streamz!", {
+          description: "We couldn't add your email just now. We'll ask for it again next time you sign in.",
+        });
+      } else {
+        toast.success("Account created — welcome to OG Streamz!", {
+          description: `Check ${contactEmail} and tap the link to confirm your email.`,
+        });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -582,6 +608,27 @@ function EmailAuthPanel({
             required
           />
         </div>
+        {tab === "signup" && (
+          <div className="space-y-1">
+            <Label htmlFor="wc-contact" className="block text-left text-sm font-semibold text-foreground">
+              Your email
+            </Label>
+            <Input
+              id="wc-contact"
+              type="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="you@example.com"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              className={AUTH_INPUT}
+              disabled={busy || disabled}
+              required
+            />
+            <p className="text-left text-xs text-muted-foreground">For password resets and important account messages. You sign in with your username.</p>
+          </div>
+        )}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <Label htmlFor="wc-password" className="text-sm font-semibold text-foreground">

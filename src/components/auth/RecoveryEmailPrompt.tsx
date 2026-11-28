@@ -17,8 +17,9 @@ import { Input } from "@/components/ui/input";
 const USERNAME_DOMAIN = "@ogstreamz.app";
 
 /**
- * Asks username-only accounts to add a real email so "Forgot password" works.
- * Closable, but reopens on every new sign-in (per browser session) until done.
+ * Every account needs an email (the Boss, 2026-11-28). Username-only accounts (older ones) are
+ * asked for it each time they sign in; "Not now" postpones it to the next sign-in (per browser
+ * session), so nobody is locked out. Their username keeps working for sign-in.
  */
 export function RecoveryEmailPrompt() {
   const { user } = useAuth();
@@ -31,11 +32,12 @@ export function RecoveryEmailPrompt() {
   const key = user ? `og-recovery-email-dismissed:${user.id}` : "";
 
   useEffect(() => {
-    if (!needsEmail || !key) return;
+    // An email waiting to be confirmed (e.g. just after sign-up): the header reminder covers it.
+    if (!needsEmail || pending || !key) return;
     if (sessionStorage.getItem(key)) return;
     const t = setTimeout(() => setOpen(true), 1200);
     return () => clearTimeout(t);
-  }, [needsEmail, key]);
+  }, [needsEmail, pending, key]);
 
   const close = (v: boolean) => {
     setOpen(v);
@@ -70,11 +72,11 @@ export function RecoveryEmailPrompt() {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MailPlus className="h-5 w-5 text-primary" /> Add a recovery email
+            <MailPlus className="h-5 w-5 text-primary" /> Add your email
           </DialogTitle>
           <DialogDescription>
-            So you can reset your password if you ever forget it. We only use it for account
-            recovery.
+            Every OG B0T account now needs an email, for password resets and important account
+            messages. You'll still sign in with your username.
           </DialogDescription>
         </DialogHeader>
         {pending && (
