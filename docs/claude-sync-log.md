@@ -326,6 +326,9 @@ merged work, not open work.
 
 ## Log
 
+### 2026-11-28: Connect the MT5 account online (#PRNUM)
+The Boss asked for the bot to connect to a demo or live MT5 account online, from the Copy Trader B0T's Telegram chat and from the Signals settings. New `mt5-link.server.ts` creates the MetaApi cloud account from a form (password never stored), makes it the bot's account and shows the status. The Boss's chat on the copy bot gets the status and a Connect button to the secure form; others see the same reply as before. Demo first; live only after typing LIVE. Note: `mt5-account.server.ts` is the copier's token check, unchanged. Not yet verified against MetaApi's live provisioning API.
+
 ### 2026-11-28: Real MT5 account on the signals results post (#345)
 The Boss asked for the real MT5 account to be linked online (MetaApi, no PC) and for the signals group's results post to show the real account instead of the demo once it's trading. `realAccountLine` reads MetaApi's balance while auto-trading is on, and `refreshScore` shows it in place of the demo line; the demo stays when MetaApi is unlinked or auto-trading is off. Tests: src/lib/real-account-line.test.ts. Not yet verified against a live MetaApi account (no token in this session): check the results post after the next real trade.
 

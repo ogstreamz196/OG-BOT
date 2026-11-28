@@ -14,6 +14,7 @@
 // Never throws into the signal flow, and never logs the token.
 import type { SignalPlan } from "./trade-signal-context.server";
 import { SIGNAL_MARKETS } from "./signal-markets";
+import { linkedAccountId, loadLinkedAccount } from "./mt5-link.server";
 
 type Admin = any;
 
@@ -50,12 +51,12 @@ export type Mt5Trade = {
 /* ── MetaApi ──────────────────────────────────────────────────────────── */
 
 export function metaApiConfigured(): boolean {
-  return !!process.env["METAAPI_TOKEN"] && !!process.env["METAAPI_ACCOUNT_ID"];
+  return !!process.env["METAAPI_TOKEN"] && !!linkedAccountId();
 }
 
 function base(): string {
   const region = (process.env["METAAPI_REGION"] || "new-york").replace(/[^a-z0-9-]/gi, "");
-  const account = encodeURIComponent(process.env["METAAPI_ACCOUNT_ID"] ?? "");
+  const account = encodeURIComponent(linkedAccountId() ?? "");
   return `https://mt-client-api-v1.${region}.agiliumtrade.ai/users/current/accounts/${account}`;
 }
 
@@ -65,7 +66,7 @@ export async function metaApi<T = unknown>(
   init: { method?: "GET" | "POST"; body?: unknown; timeoutMs?: number } = {},
 ): Promise<{ ok: boolean; status: number; data: T | null }> {
   const token = process.env["METAAPI_TOKEN"];
-  if (!token || !process.env["METAAPI_ACCOUNT_ID"]) return { ok: false, status: 0, data: null };
+  if (!token || !linkedAccountId()) return { ok: false, status: 0, data: null };
   try {
     const res = await fetch(`${base()}${path}`, {
       method: init.method ?? "GET",
@@ -102,6 +103,7 @@ export function realBalanceLine(balance: number): string {
  */
 export async function realAccountLine(admin: Admin): Promise<string | null> {
   try {
+    await loadLinkedAccount(admin);
     if (!metaApiConfigured() || !(await autotradeOn(admin))) return null;
     const r = await metaApi<AccountInfo>("/account-information", { timeoutMs: 8_000 });
     const b = r.ok ? r.data?.balance : undefined;
@@ -302,6 +304,7 @@ const DONE = new Set(["TRADE_RETCODE_DONE", "TRADE_RETCODE_PLACED", "TRADE_RETCO
  */
 export async function placeAutoTrade(admin: Admin, plan: SignalPlan): Promise<string> {
   try {
+    await loadLinkedAccount(admin);
     if (!metaApiConfigured()) return "skipped: MetaApi not set up";
     if (plan.feeds?.bias) return "skipped: bias call";
     if (!MARKETS.includes(plan.market)) return "skipped: market";
@@ -410,6 +413,7 @@ export function dealResult(deals: Deal[]): number {
  */
 export async function followAutoTrades(admin: Admin, now = Date.now()): Promise<number> {
   try {
+    await loadLinkedAccount(admin);
     if (!metaApiConfigured()) return 0;
     const { data, error } = await admin
       .from(MT5_TABLE)
@@ -557,12 +561,24 @@ async function announce(admin: Admin, t: Mt5Trade, event: "opened" | "closed") {
 }
 
 /** What the copy bot says when someone talks to it. */
-export async function copyBotReply(admin: Admin): Promise<{ text: string; link: string | null }> {
+export async function copyBotReply(
+  admin: Admin,
+  opts: { boss?: boolean } = {},
+): Promise<{ text: string; link: string | null; buttons: { text: string; url: string }[] }> {
   const link = await copyLink(admin);
-  return {
-    text: link
-      ? "🤖 I'm the Boss's copy bot. Every trade the Boss's account takes on the OG B0T signals gets copied to yours automatically. Tap below to set up copy trading on Vantage."
-      : "🤖 I'm the Boss's copy bot. Copy trading opens soon; watch this space.",
-    link,
-  };
+  const buttons: { text: string; url: string }[] = [];
+  if (link) buttons.push({ text: "📋 Copy my trades", url: link });
+  let text = link
+    ? "🤖 I'm the Boss's copy bot. Every trade the Boss's account takes on the OG B0T signals gets copied to yours automatically. Tap below to set up copy trading on Vantage."
+    : "🤖 I'm the Boss's copy bot. Copy trading opens soon; watch this space.";
+  if (opts.boss) {
+    // The Boss only: the connection status, and a button to the secure connect form (no password here).
+    const { loadLinkedAccount } = await import("./mt5-link.server");
+    const acc = await loadLinkedAccount(admin);
+    text += acc
+      ? `\n\n🔌 MT5 connected: ${acc.mode === "live" ? "live" : "demo"} account ${acc.login} (${acc.server}).`
+      : "\n\n🔌 No MT5 account connected yet. Tap Connect MT5 to link one; the password goes in the secure form, never in this chat.";
+    buttons.push({ text: "🔌 Connect MT5", url: "https://ogbot.co.uk/admin/signals" });
+  }
+  return { text, link, buttons };
 }
