@@ -13,6 +13,7 @@ import {
   getMt5Status,
   saveMt5Settings,
 } from "@/lib/mt5.functions";
+import { BROKERS, brokerById } from "@/lib/mt5-brokers";
 import { AdminSection } from "./AdminSection";
 import { SIGNAL_MARKETS } from "@/lib/signal-markets";
 
@@ -30,7 +31,8 @@ function ConnectAccount() {
   const { data, isLoading } = useQuery({ queryKey: ["mt5-link"], queryFn: () => readLink() });
   const [mode, setMode] = useState<"demo" | "live">("demo");
   const [login, setLogin] = useState("");
-  const [server, setServer] = useState("");
+  const [brokerId, setBrokerId] = useState("vantage");
+  const [server, setServer] = useState(BROKERS[0]?.servers[0] ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -100,8 +102,33 @@ function ConnectAccount() {
         ))}
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
+        <label className="space-y-1 text-sm">
+          <span className="text-muted-foreground">Broker</span>
+          <select
+            className="h-10 w-full rounded-md border border-input bg-background px-3"
+            value={brokerId}
+            onChange={(e) => {
+              setBrokerId(e.target.value);
+              setServer(brokerById(e.target.value)?.servers[0] ?? "");
+            }}
+          >
+            {BROKERS.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <Input placeholder="Account number (login)" inputMode="numeric" value={login} onChange={(e) => setLogin(e.target.value)} />
-        <Input placeholder="Server, e.g. Vantage-Demo" value={server} onChange={(e) => setServer(e.target.value)} />
+        <label className="space-y-1 text-sm">
+          <span className="text-muted-foreground">Server (from your MT5 login screen)</span>
+          <Input list="mt5-servers" placeholder="e.g. Vantage-Demo" value={server} onChange={(e) => setServer(e.target.value)} />
+          <datalist id="mt5-servers">
+            {(brokerById(brokerId)?.servers ?? []).map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </label>
         <Input type="password" autoComplete="off" placeholder="Account password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {mode === "live" ? (
           <Input placeholder="Type LIVE to confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} />

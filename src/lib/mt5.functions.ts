@@ -90,6 +90,17 @@ export const getMt5Status = createServerFn({ method: "GET" })
   });
 
 /** Boss: switch auto-trading on or off, and set the copy-trading link. */
+/** Re-posts the signals group's results so they match the connected (or unlinked) account. Never throws. */
+async function refreshSignalsGroup(admin: unknown) {
+  try {
+    const sc = await import("./signal-chat.server");
+    const chatId = await sc.signalsChatId();
+    if (chatId !== null) await sc.refreshScore(admin as never, chatId);
+  } catch {
+    // The group is refreshed on the next signal anyway.
+  }
+}
+
 /** The connected MT5 account and its state on MetaApi (no password, ever). Boss only. */
 export const getMt5Link = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -132,7 +143,10 @@ export const connectMt5Account = createServerFn({ method: "POST" })
     await assertBoss(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const acc = await import("./mt5-link.server");
-    return acc.connectAccount(supabaseAdmin, data);
+    const r = await acc.connectAccount(supabaseAdmin, data);
+    // Match the signals group straight away: its results post now shows the connected account.
+    if (r.ok) await refreshSignalsGroup(supabaseAdmin);
+    return r;
   });
 
 /** Unlinks the MT5 account from the bot (the MetaApi account is kept). Boss only. */
@@ -142,7 +156,9 @@ export const disconnectMt5Account = createServerFn({ method: "POST" })
     await assertBoss(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const acc = await import("./mt5-link.server");
-    return { ok: await acc.disconnectAccount(supabaseAdmin) };
+    const ok = await acc.disconnectAccount(supabaseAdmin);
+    await refreshSignalsGroup(supabaseAdmin);
+    return { ok };
   });
 
 export const saveMt5Settings = createServerFn({ method: "POST" })
