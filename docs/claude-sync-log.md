@@ -326,7 +326,7 @@ merged work, not open work.
 
 ## Log
 
-### 2026-11-28: MT5 link label and hub error logging (#PR)
+### 2026-11-28: MT5 link label and hub error logging (#353)
 The MT5 status no longer says "connected" just because the hub answered: MetaApi answers from its last known data while the broker link is down, so the site says "not confirmed (check MetaApi)". The hub function `ogstreamz-metaapi` (version 5) now logs MetaApi's error replies with the call, the status and the message (cut to 160 characters), never the token. Checked: typecheck, vitest, build. The live account still shows Disconnected in MetaApi (broker login), so the status will stay unconfirmed until it connects.
 
 ### 2026-11-28: MT5 status reads the hub (#352)
