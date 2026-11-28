@@ -76,6 +76,13 @@ Deno.serve(async (req) => {
       signal: AbortSignal.timeout(20_000),
     });
     const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      // Logged for diagnosis: the status, the call and MetaApi's message (cut short). Never the token.
+      const msg = typeof (data as { message?: unknown } | null)?.message === "string"
+        ? String((data as { message: string }).message).slice(0, 160)
+        : "";
+      console.log(`metaapi ${method} ${path} -> ${res.status} ${msg}`);
+    }
     return reply({ ok: res.ok, status: res.status, data }, 200);
   } catch {
     return reply({ ok: false, status: 0, data: null }, 200);
